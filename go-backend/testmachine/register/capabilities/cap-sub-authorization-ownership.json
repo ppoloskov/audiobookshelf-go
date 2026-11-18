@@ -1,0 +1,146 @@
+{
+  "id": "sub-authorization-ownership-w5",
+  "parent": "auth",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "W5 differential subset: ordinary/admin/root user CRUD gates, restricted library and tag visibility, explicit-content access, inactive login/API-key behavior, malformed permission input, and API-key route gate/ownership behavior.",
+  "source": [
+    "server/models/User.js:646-682",
+    "server/controllers/UserController.js",
+    "server/controllers/ApiKeyController.js",
+    "server/auth/LocalAuthStrategy.js",
+    "server/auth/TokenManager.js"
+  ],
+  "implementation": [
+    "go-backend/internal/auth/",
+    "go-backend/internal/user/",
+    "go-backend/internal/list/"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-W5-ACL-ITEM-001",
+      "class": "error",
+      "contract": "Item access combines library access, selected tags (allow and inverted deny mode; an empty selection denies direct access) and explicit-content permission; denial is 403 on the item, 404 for collections of an inaccessible library, hidden in lists, search, personalized shelves, series and author counts, takes effect on live tokens and changes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/models/User.js:646-653",
+        "server/controllers/LibraryItemController.js:1220-1227",
+        "server/controllers/LibraryController.js:188-195",
+        "server/controllers/LibraryController.js:1475-1479",
+        "server/controllers/CollectionController.js:434-445",
+        "server/models/User.js:658-669",
+        "server/controllers/LibraryItemController.js:1225",
+        "server/models/User.js:675-683",
+        "server/routers/ApiRouter.js:75-86",
+        "server/models/User.js:646-683",
+        "server/controllers/UserController.js:254-320"
+      ],
+      "tests": [
+        "go-backend/internal/auth/principal_test.go:139#TestCanAccessItemCombinesLibraryAndContent",
+        "go-backend/internal/contracttest/access_invariant_test.go:14#TestEmptyTagAllowListSeesNothing",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/library-restriction-denies-items",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/tag-allowlist-limits-items",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/empty-tag-allowlist-sees-nothing",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/explicit-content-gate",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/hidden-items-absent-from-search-personalized-series-authors",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/permission-edit-applies-to-live-token",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/denied-item-write-changes-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-W5-ACL-USER-001",
+      "class": "error",
+      "contract": "Admins cannot modify, delete or see the token of root; nobody deletes themselves; invalid user and API key requests are 400/404 and change nothing; malformed permission input is ignored; inactive users are locked out of login, bearer, API key and refresh; API keys for root need root; deleting a user removes its rows and emits user_removed to admins.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/UserController.js:205-214",
+        "server/controllers/UserController.js:363-380",
+        "server/controllers/UserController.js:29-35",
+        "server/controllers/UserController.js:59-110",
+        "server/models/User.js:603-641",
+        "server/controllers/UserController.js:363-372",
+        "server/controllers/UserController.js:116-130",
+        "server/controllers/UserController.js:205-240",
+        "server/controllers/UserController.js:130-203",
+        "server/controllers/UserController.js:197-203",
+        "server/controllers/UserController.js:363-412",
+        "server/auth/LocalAuthStrategy.js:55-62",
+        "server/auth/TokenManager.js:298-303",
+        "server/auth/TokenManager.js:320-326",
+        "server/auth/TokenManager.js:400-406",
+        "server/controllers/ApiKeyController.js:50-75",
+        "server/controllers/ApiKeyController.js:112-177",
+        "server/controllers/ApiKeyController.js:196-212",
+        "server/controllers/ApiKeyController.js:66-110",
+        "server/controllers/ApiKeyController.js:112-160",
+        "server/controllers/ApiKeyController.js:179-190"
+      ],
+      "tests": [
+        "go-backend/internal/user/user_test.go:95#TestStatuses",
+        "go-backend/internal/user/user_test.go:146#TestUserAdministration",
+        "go-backend/internal/user/user_test.go:215#TestAPIKeys",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/admin-cannot-modify-or-delete-root",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/root-protection-holds-on-repeat",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/root-token-hidden-from-admins",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/user-cannot-delete-self",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/invalid-user-requests-rejected-without-changes",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/malformed-permission-input-is-ignored",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/admin-creates-and-deletes-user",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/inactive-user-is-locked-out-everywhere",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/api-key-requests-gate-and-validation",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/api-key-root-ownership-and-lifecycle"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/auth/principal_test.go:139#TestCanAccessItemCombinesLibraryAndContent",
+    "go-backend/internal/contracttest/access_invariant_test.go:14#TestEmptyTagAllowListSeesNothing",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/library-restriction-denies-items",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/tag-allowlist-limits-items",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/empty-tag-allowlist-sees-nothing",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/explicit-content-gate",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/hidden-items-absent-from-search-personalized-series-authors",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/permission-edit-applies-to-live-token",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/denied-item-write-changes-nothing",
+    "go-backend/internal/user/user_test.go:95#TestStatuses",
+    "go-backend/internal/user/user_test.go:146#TestUserAdministration",
+    "go-backend/internal/user/user_test.go:215#TestAPIKeys",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/admin-cannot-modify-or-delete-root",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/root-protection-holds-on-repeat",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/root-token-hidden-from-admins",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/user-cannot-delete-self",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/invalid-user-requests-rejected-without-changes",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/malformed-permission-input-is-ignored",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/admin-creates-and-deletes-user",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/inactive-user-is-locked-out-everywhere",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/api-key-requests-gate-and-validation",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/api-key-root-ownership-and-lifecycle"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/acl-differential-report.json (fresh independent Node/Go fixture run: all 11 registered cases pass, zero divergences; includes successful API-key use and cross-user delete behavior)",
+    "go-backend/internal/catalog/handler_test.go:TestItemDetailEnforcesExplicitAndTagPermissions"
+  ],
+  "exceptions": [
+    "This record covers only the named W5 subset, not every authorization route or ownership combination.",
+    "Previous subrecord cited obsolete catalog/userapi packages and a route-level differential report. Current mapping uses existing auth/user assertions; the report is retained only in archived provenance and is not a current verification claim.",
+    "force is not applicable: this requirement has no force, hard or override mode"
+  ]
+}

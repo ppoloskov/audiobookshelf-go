@@ -14,7 +14,7 @@ import (
 
 // journeyDumps are the journey.json entries that are not HTTP steps: the trial
 // read them from the database and the install's files after the journey, in
-// this order (dumpRows and disposableState in tools/parity/replacement-trial.cjs).
+// this order (dumpRows and disposableState in testmachine/parity/replacement-trial.cjs).
 var journeyDumps = []string{
 	"db.authors", "db.books.titles", "db.books.match", "db.series", "db.bookAuthors",
 	"db.libraryItems.authorNames", "fs.metadata.authors", "fs.cache.images",

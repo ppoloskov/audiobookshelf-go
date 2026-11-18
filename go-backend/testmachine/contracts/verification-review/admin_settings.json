@@ -1,0 +1,834 @@
+{
+  "packet": "admin_settings",
+  "reviewer": "independent review, 2026-11-15, Sonnet 5.5",
+  "scenario_digest": "5980c5e348ad4bebe82f21e6fc9e9e3b5dff8641465529145541ecdc0c56b106",
+  "requirements_digest": "eba4888719a969a8335d435d888517546ad4fda3672d673c042fdb5b5723aaba",
+  "required_tuples": [
+    {
+      "requirement": "route-r214",
+      "invariant": "INV-ROUTE-R214-ROUTE",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "validate-cron-valid-expressions",
+      "sources": [
+        "server/controllers/MiscController.js:616-627"
+      ],
+      "rationale": "POST /api/validate-cron answers 200 for valid cron expressions: the shapes the client's cron builder emits (intervals, daily, weekday lists) and a 6-field form."
+    },
+    {
+      "requirement": "route-r214",
+      "invariant": "INV-ROUTE-R214-ROUTE",
+      "case": "error",
+      "state": "initial",
+      "assertion": "validate-cron-invalid-rejected",
+      "sources": [
+        "server/controllers/MiscController.js:616-627",
+        "server/Auth.js:322"
+      ],
+      "rationale": "POST /api/validate-cron answers 400 for a missing, empty, null or malformed expression and 401 without a token."
+    },
+    {
+      "requirement": "route-r214",
+      "invariant": "INV-ROUTE-R214-REPEAT",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "validate-cron-repeat-same-answer",
+      "sources": [
+        "server/controllers/MiscController.js:616-627"
+      ],
+      "rationale": "The same valid and the same invalid expression get the same answer every time."
+    },
+    {
+      "requirement": "route-r214",
+      "invariant": "INV-ROUTE-R214-REPEAT",
+      "case": "error",
+      "state": "failure",
+      "assertion": "validate-cron-never-persists",
+      "sources": [
+        "server/controllers/MiscController.js:616-627"
+      ],
+      "rationale": "Valid and invalid validation requests leave the settings row unchanged."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-AUTH-001",
+      "case": "error",
+      "state": "initial",
+      "assertion": "settings-patch-admin-only",
+      "sources": [
+        "server/controllers/MiscController.js:139-175"
+      ],
+      "rationale": "PATCH /api/settings answers 401 without a token and 403 for a non-admin and changes nothing."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-VALIDATION-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "settings-patch-invalid-body-rejected",
+      "sources": [
+        "server/controllers/MiscController.js:139-175",
+        "server/Server.js:349-352"
+      ],
+      "rationale": "PATCH /api/settings with a non-object body or non-array allowedOrigins answers 400 and applies none of the keys."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-ROUTE",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "settings-patch-every-client-key",
+      "sources": [
+        "server/controllers/MiscController.js:139-175",
+        "server/objects/settings/ServerSettings.js:8-29",
+        "server/objects/settings/ServerSettings.js:299-308",
+        "server/models/Setting.js:36-41"
+      ],
+      "rationale": "PATCH /api/settings stores every key the settings pages write, returns them in serverSettings with timeZone and no secrets, and leaves other keys alone."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-REPEAT",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "settings-patch-repeat-no-change",
+      "sources": [
+        "server/controllers/MiscController.js:139-175",
+        "server/objects/settings/ServerSettings.js:365-378"
+      ],
+      "rationale": "Repeating the same PATCH /api/settings returns the same serverSettings and leaves the row as it was."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-ROUTE",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "settings-patch-booleans-round-trip",
+      "sources": [
+        "server/controllers/MiscController.js:139-175",
+        "server/objects/settings/ServerSettings.js:8-29"
+      ],
+      "rationale": "Every boolean setting the pages toggle can be switched off and on again: response and row follow each write."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-VALIDATION-001",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "settings-patch-ignores-unpatchable-keys",
+      "sources": [
+        "server/controllers/MiscController.js:139-175",
+        "server/objects/settings/ServerSettings.js:8-29"
+      ],
+      "rationale": "Keys outside the patchable list (tokenSecret, version, rate limits, backupPath, sortingPrefixes, auth settings, unknown keys) are ignored while a patchable key in the same body is applied."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-ROUTE",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "settings-change-visible-to-other-users",
+      "sources": [
+        "server/controllers/MiscController.js:139-175",
+        "server/Auth.js:95-104",
+        "server/Server.js:384-399"
+      ],
+      "rationale": "After PATCH /api/settings, another user's POST /api/authorize and the public GET /status show the new values."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-SIDEEFFECT-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "settings-allowed-origins-drive-cors",
+      "sources": [
+        "server/controllers/MiscController.js:139-175",
+        "server/Server.js:283-294"
+      ],
+      "rationale": "allowedOrigins controls Access-Control-Allow-Origin: a listed origin is echoed with an OPTIONS 200, another origin and an emptied list get no CORS headers."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-SIDEEFFECT-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "settings-allow-iframe-drives-frame-ancestors",
+      "sources": [
+        "server/controllers/MiscController.js:139-175",
+        "server/Server.js:262-266"
+      ],
+      "rationale": "allowIframe false makes every response carry Content-Security-Policy frame-ancestors 'self'; true removes it."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-SIDEEFFECT-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "settings-sorting-ignore-prefix-orders-library",
+      "sources": [
+        "server/controllers/MiscController.js:139-175",
+        "server/utils/queries/libraryItemsBookFilters.js:254-262"
+      ],
+      "rationale": "sortingIgnorePrefix switches the library title sort between title and titleIgnorePrefix."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-SIDEEFFECT-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "settings-backup-schedule-starts-and-stops-backups",
+      "sources": [
+        "server/controllers/MiscController.js:139-175",
+        "server/managers/BackupManager.js:73-95"
+      ],
+      "rationale": "Setting backupSchedule starts the scheduler (backups appear and are recreated after deletion) and setting it to false stops it."
+    },
+    {
+      "requirement": "route-r206",
+      "invariant": "INV-ROUTE-R206-ROUTE",
+      "case": "error",
+      "state": "initial",
+      "assertion": "sorting-prefixes-admin-only",
+      "sources": [
+        "server/controllers/MiscController.js:183-281"
+      ],
+      "rationale": "PATCH /api/sorting-prefixes answers 401 without a token and 403 for a non-admin and changes nothing."
+    },
+    {
+      "requirement": "route-r206",
+      "invariant": "INV-ROUTE-R206-ROUTE",
+      "case": "error",
+      "state": "failure",
+      "assertion": "sorting-prefixes-invalid-bodies-rejected",
+      "sources": [
+        "server/controllers/MiscController.js:183-281"
+      ],
+      "rationale": "A missing, non-array, empty or all-blank sortingPrefixes answers 400 and changes neither the setting nor any title column."
+    },
+    {
+      "requirement": "route-r206",
+      "invariant": "INV-ROUTE-R206-ROUTE",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "sorting-prefixes-recompute-all-title-columns",
+      "sources": [
+        "server/controllers/MiscController.js:183-281",
+        "server/utils/index.js:176-198"
+      ],
+      "rationale": "PATCH /api/sorting-prefixes trims, lowercases and de-duplicates the list, stores it, recomputes titleIgnorePrefix on books, podcasts and series and returns the number of changed rows."
+    },
+    {
+      "requirement": "route-r206",
+      "invariant": "INV-ROUTE-R206-REPEAT",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "sorting-prefixes-repeat-updates-nothing",
+      "sources": [
+        "server/controllers/MiscController.js:183-281"
+      ],
+      "rationale": "Sending the same prefixes again reports rowsUpdated 0 and leaves every title column as it was."
+    },
+    {
+      "requirement": "route-r206",
+      "invariant": "INV-ROUTE-R206-ROUTE",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "sorting-prefixes-order-follows-prefixes",
+      "sources": [
+        "server/controllers/MiscController.js:183-281",
+        "server/utils/queries/libraryItemsBookFilters.js:254-262"
+      ],
+      "rationale": "After the prefixes change, the title sort of the library uses the recomputed titleIgnorePrefix when sortingIgnorePrefix is on."
+    },
+    {
+      "requirement": "route-r206",
+      "invariant": "INV-ROUTE-R206-ROUTE",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "sorting-prefixes-restore-and-drop-non-strings",
+      "sources": [
+        "server/controllers/MiscController.js:183-281"
+      ],
+      "rationale": "Non-string and blank members are dropped, and restoring the original prefixes recomputes the five columns back."
+    },
+    {
+      "requirement": "route-r208",
+      "invariant": "INV-ROUTE-R208-ROUTE",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "tags-list-admin-only",
+      "sources": [
+        "server/controllers/MiscController.js:297-336"
+      ],
+      "rationale": "GET /api/tags answers 401 without a token and 403 for a non-admin user."
+    },
+    {
+      "requirement": "route-r208",
+      "invariant": "INV-ROUTE-R208-ROUTE",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "tags-list-initial",
+      "sources": [
+        "server/controllers/MiscController.js:297-336"
+      ],
+      "rationale": "GET /api/tags returns {tags: [...]} with the values of the fixture books and podcasts."
+    },
+    {
+      "requirement": "route-r211",
+      "invariant": "INV-ROUTE-R211-ROUTE",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "genres-list-admin-only",
+      "sources": [
+        "server/controllers/MiscController.js:436-471"
+      ],
+      "rationale": "GET /api/genres answers 401 without a token and 403 for a non-admin user."
+    },
+    {
+      "requirement": "route-r211",
+      "invariant": "INV-ROUTE-R211-ROUTE",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "genres-list-initial",
+      "sources": [
+        "server/controllers/MiscController.js:436-471"
+      ],
+      "rationale": "GET /api/genres returns {genres: [...]} with the values of the fixture books and podcasts."
+    },
+    {
+      "requirement": "route-r208",
+      "invariant": "INV-ROUTE-R208-ROUTE",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "tags-list-union-unique",
+      "sources": [
+        "server/controllers/MiscController.js:297-336"
+      ],
+      "rationale": "GET /api/tags returns each value once across books and podcasts, sorted case-insensitively."
+    },
+    {
+      "requirement": "route-r209",
+      "invariant": "INV-ROUTE-R209-ROUTE",
+      "case": "error",
+      "state": "initial",
+      "assertion": "tags-rename-admin-only",
+      "sources": [
+        "server/controllers/MiscController.js:341-391"
+      ],
+      "rationale": "POST /api/tags/rename answers 401 without a token and 403 for a non-admin and changes nothing."
+    },
+    {
+      "requirement": "route-r209",
+      "invariant": "INV-ROUTE-R209-ROUTE",
+      "case": "error",
+      "state": "failure",
+      "assertion": "tags-rename-invalid-body-rejected",
+      "sources": [
+        "server/controllers/MiscController.js:341-391"
+      ],
+      "rationale": "POST /api/tags/rename answers 400 when the old or new value is missing or empty and changes nothing."
+    },
+    {
+      "requirement": "route-r209",
+      "invariant": "INV-ROUTE-R209-PERSIST-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "tags-rename-rewrites-rows-and-files",
+      "sources": [
+        "server/controllers/MiscController.js:341-391",
+        "server/models/LibraryItem.js:612-700",
+        "server/utils/queries/libraryItemFilters.js:12-110"
+      ],
+      "rationale": "Renaming a value to a new name rewrites it in every book and podcast row and in each item's metadata.json, and reports tagMerged/genreMerged false with the item count."
+    },
+    {
+      "requirement": "route-r209",
+      "invariant": "INV-ROUTE-R209-EVENT-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "tags-rename-emits-item-updated",
+      "sources": [
+        "server/controllers/MiscController.js:341-391",
+        "server/SocketAuthority.js:104-110"
+      ],
+      "rationale": "A rename emits item_updated with the new values to every user who can access each changed item and to nobody else."
+    },
+    {
+      "requirement": "route-r209",
+      "invariant": "INV-ROUTE-R209-ROUTE",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "tags-rename-merges-into-existing-value",
+      "sources": [
+        "server/controllers/MiscController.js:341-391"
+      ],
+      "rationale": "Renaming onto a value some item already has merges: no duplicate is stored, the response says merged, and the count covers items that had the old value."
+    },
+    {
+      "requirement": "route-r209",
+      "invariant": "INV-ROUTE-R209-REPEAT",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "tags-rename-repeat-changes-nothing",
+      "sources": [
+        "server/controllers/MiscController.js:341-391"
+      ],
+      "rationale": "Repeating a finished rename updates no item and emits no event; the merged flag stays true because items already hold the new value."
+    },
+    {
+      "requirement": "route-r209",
+      "invariant": "INV-ROUTE-R209-ROUTE",
+      "case": "edge",
+      "state": "failure",
+      "assertion": "tags-rename-unknown-or-other-case-changes-nothing",
+      "sources": [
+        "server/controllers/MiscController.js:341-391"
+      ],
+      "rationale": "Renaming a value that no item has (matching is case-sensitive) answers 200 with numItemsUpdated 0 and changes nothing."
+    },
+    {
+      "requirement": "route-r209",
+      "invariant": "INV-ROUTE-R209-ROUTE",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "tags-rename-visible-in-list-and-filterdata",
+      "sources": [
+        "server/controllers/MiscController.js:341-391",
+        "server/Database.js:476-483"
+      ],
+      "rationale": "After renames, GET /api/tags and the library filter data show the new values and no longer the old ones."
+    },
+    {
+      "requirement": "route-r210",
+      "invariant": "INV-ROUTE-R210-ROUTE",
+      "case": "error",
+      "state": "initial",
+      "assertion": "tags-delete-admin-only",
+      "sources": [
+        "server/controllers/MiscController.js:396-428"
+      ],
+      "rationale": "DELETE /api/tags/:value answers 401 without a token and 403 for a non-admin and changes nothing."
+    },
+    {
+      "requirement": "route-r210",
+      "invariant": "INV-ROUTE-R210-PERSIST-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "tags-delete-removes-from-rows-and-files",
+      "sources": [
+        "server/controllers/MiscController.js:396-428",
+        "server/models/LibraryItem.js:612-700"
+      ],
+      "rationale": "Deleting a base64-encoded value removes it from every book and podcast row and rewrites metadata.json under metadata/items when storeMetadataWithItem is off."
+    },
+    {
+      "requirement": "route-r210",
+      "invariant": "INV-ROUTE-R210-EVENT-001",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "tags-delete-encoded-value-emits-item-updated",
+      "sources": [
+        "server/controllers/MiscController.js:396-428",
+        "server/SocketAuthority.js:104-110"
+      ],
+      "rationale": "A value whose base64 contains '+' and '/' is deleted through the client's URL encoding, and item_updated reaches only users who can access the item."
+    },
+    {
+      "requirement": "route-r210",
+      "invariant": "INV-ROUTE-R210-REPEAT",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "tags-delete-repeat-changes-nothing",
+      "sources": [
+        "server/controllers/MiscController.js:396-428"
+      ],
+      "rationale": "Deleting an already deleted value answers 200 with numItemsUpdated 0 and emits no event."
+    },
+    {
+      "requirement": "route-r210",
+      "invariant": "INV-ROUTE-R210-ROUTE",
+      "case": "edge",
+      "state": "failure",
+      "assertion": "tags-delete-other-case-changes-nothing",
+      "sources": [
+        "server/controllers/MiscController.js:396-428"
+      ],
+      "rationale": "Deleting a value that exists only in another letter case matches nothing and changes nothing."
+    },
+    {
+      "requirement": "route-r210",
+      "invariant": "INV-ROUTE-R210-ROUTE",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "tags-delete-visible-in-list-and-filterdata",
+      "sources": [
+        "server/controllers/MiscController.js:396-428",
+        "server/Database.js:485-489"
+      ],
+      "rationale": "After deletes, GET /api/tags and the library filter data no longer contain the deleted value."
+    },
+    {
+      "requirement": "route-r211",
+      "invariant": "INV-ROUTE-R211-ROUTE",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "genres-list-union-unique",
+      "sources": [
+        "server/controllers/MiscController.js:436-471"
+      ],
+      "rationale": "GET /api/genres returns each value once across books and podcasts."
+    },
+    {
+      "requirement": "route-r212",
+      "invariant": "INV-ROUTE-R212-ROUTE",
+      "case": "error",
+      "state": "initial",
+      "assertion": "genres-rename-admin-only",
+      "sources": [
+        "server/controllers/MiscController.js:479-527"
+      ],
+      "rationale": "POST /api/genres/rename answers 401 without a token and 403 for a non-admin and changes nothing."
+    },
+    {
+      "requirement": "route-r212",
+      "invariant": "INV-ROUTE-R212-ROUTE",
+      "case": "error",
+      "state": "failure",
+      "assertion": "genres-rename-invalid-body-rejected",
+      "sources": [
+        "server/controllers/MiscController.js:479-527"
+      ],
+      "rationale": "POST /api/genres/rename answers 400 when the old or new value is missing or empty and changes nothing."
+    },
+    {
+      "requirement": "route-r212",
+      "invariant": "INV-ROUTE-R212-PERSIST-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "genres-rename-rewrites-rows-and-files",
+      "sources": [
+        "server/controllers/MiscController.js:479-527",
+        "server/models/LibraryItem.js:612-700",
+        "server/utils/queries/libraryItemFilters.js:12-110"
+      ],
+      "rationale": "Renaming a value to a new name rewrites it in every book and podcast row and in each item's metadata.json, and reports tagMerged/genreMerged false with the item count."
+    },
+    {
+      "requirement": "route-r212",
+      "invariant": "INV-ROUTE-R212-EVENT-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "genres-rename-emits-item-updated",
+      "sources": [
+        "server/controllers/MiscController.js:479-527",
+        "server/SocketAuthority.js:104-110"
+      ],
+      "rationale": "A rename emits item_updated with the new values to every user who can access each changed item and to nobody else."
+    },
+    {
+      "requirement": "route-r212",
+      "invariant": "INV-ROUTE-R212-ROUTE",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "genres-rename-merges-into-existing-value",
+      "sources": [
+        "server/controllers/MiscController.js:479-527"
+      ],
+      "rationale": "Renaming onto a value some item already has merges: no duplicate is stored, the response says merged, and the count covers items that had the old value."
+    },
+    {
+      "requirement": "route-r212",
+      "invariant": "INV-ROUTE-R212-REPEAT",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "genres-rename-repeat-changes-nothing",
+      "sources": [
+        "server/controllers/MiscController.js:479-527"
+      ],
+      "rationale": "Repeating a finished rename updates no item and emits no event; the merged flag stays true because items already hold the new value."
+    },
+    {
+      "requirement": "route-r212",
+      "invariant": "INV-ROUTE-R212-ROUTE",
+      "case": "edge",
+      "state": "failure",
+      "assertion": "genres-rename-unknown-or-other-case-changes-nothing",
+      "sources": [
+        "server/controllers/MiscController.js:479-527"
+      ],
+      "rationale": "Renaming a value that no item has (matching is case-sensitive) answers 200 with numItemsUpdated 0 and changes nothing."
+    },
+    {
+      "requirement": "route-r212",
+      "invariant": "INV-ROUTE-R212-ROUTE",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "genres-rename-visible-in-list-and-filterdata",
+      "sources": [
+        "server/controllers/MiscController.js:479-527",
+        "server/Database.js:476-483"
+      ],
+      "rationale": "After renames, GET /api/genres and the library filter data show the new values and no longer the old ones."
+    },
+    {
+      "requirement": "route-r213",
+      "invariant": "INV-ROUTE-R213-ROUTE",
+      "case": "error",
+      "state": "initial",
+      "assertion": "genres-delete-admin-only",
+      "sources": [
+        "server/controllers/MiscController.js:534-566"
+      ],
+      "rationale": "DELETE /api/genres/:value answers 401 without a token and 403 for a non-admin and changes nothing."
+    },
+    {
+      "requirement": "route-r213",
+      "invariant": "INV-ROUTE-R213-PERSIST-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "genres-delete-removes-from-rows-and-files",
+      "sources": [
+        "server/controllers/MiscController.js:534-566",
+        "server/models/LibraryItem.js:612-700"
+      ],
+      "rationale": "Deleting a base64-encoded value removes it from every book and podcast row and rewrites metadata.json under metadata/items when storeMetadataWithItem is off."
+    },
+    {
+      "requirement": "route-r213",
+      "invariant": "INV-ROUTE-R213-EVENT-001",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "genres-delete-encoded-value-emits-item-updated",
+      "sources": [
+        "server/controllers/MiscController.js:534-566",
+        "server/SocketAuthority.js:104-110"
+      ],
+      "rationale": "A value whose base64 contains '+' and '/' is deleted through the client's URL encoding, and item_updated reaches only users who can access the item."
+    },
+    {
+      "requirement": "route-r213",
+      "invariant": "INV-ROUTE-R213-REPEAT",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "genres-delete-repeat-changes-nothing",
+      "sources": [
+        "server/controllers/MiscController.js:534-566"
+      ],
+      "rationale": "Deleting an already deleted value answers 200 with numItemsUpdated 0 and emits no event."
+    },
+    {
+      "requirement": "route-r213",
+      "invariant": "INV-ROUTE-R213-ROUTE",
+      "case": "edge",
+      "state": "failure",
+      "assertion": "genres-delete-other-case-changes-nothing",
+      "sources": [
+        "server/controllers/MiscController.js:534-566"
+      ],
+      "rationale": "Deleting a value that exists only in another letter case matches nothing and changes nothing."
+    },
+    {
+      "requirement": "route-r213",
+      "invariant": "INV-ROUTE-R213-ROUTE",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "genres-delete-visible-in-list-and-filterdata",
+      "sources": [
+        "server/controllers/MiscController.js:534-566",
+        "server/Database.js:485-489"
+      ],
+      "rationale": "After deletes, GET /api/genres and the library filter data no longer contain the deleted value."
+    },
+    {
+      "requirement": "route-r215",
+      "invariant": "INV-ROUTE-R215-ROUTE",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "auth-settings-initial-document",
+      "sources": [
+        "server/controllers/MiscController.js:635-640",
+        "server/objects/settings/ServerSettings.js:312-340"
+      ],
+      "rationale": "GET /api/auth-settings returns the authentication settings of the fixture (local only, OpenID defaults, null secrets, sample permissions text) without authOpenIDSubfolderForRedirectURLs."
+    },
+    {
+      "requirement": "route-r215",
+      "invariant": "INV-ROUTE-R215-ROUTE",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "auth-settings-admin-only",
+      "sources": [
+        "server/controllers/MiscController.js:635-640"
+      ],
+      "rationale": "GET /api/auth-settings answers 401 without a token and 403 for a non-admin user."
+    },
+    {
+      "requirement": "route-r216",
+      "invariant": "INV-ROUTE-R216-ROUTE",
+      "case": "error",
+      "state": "initial",
+      "assertion": "auth-patch-admin-only",
+      "sources": [
+        "server/controllers/MiscController.js:650-735"
+      ],
+      "rationale": "PATCH /api/auth-settings answers 401 without a token and 403 for a non-admin user and changes nothing."
+    },
+    {
+      "requirement": "route-r216",
+      "invariant": "INV-ROUTE-R216-VALIDATION-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "auth-patch-invalid-values-ignored",
+      "sources": [
+        "server/controllers/MiscController.js:650-735"
+      ],
+      "rationale": "PATCH /api/auth-settings ignores empty or unknown auth methods, bad redirect URIs and wrong value types with updated:false, rejects malformed JSON with 400, and stores nothing."
+    },
+    {
+      "requirement": "route-r216",
+      "invariant": "INV-ROUTE-R216-ROUTE",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "auth-patch-openid-settings-persist",
+      "sources": [
+        "server/controllers/MiscController.js:650-735",
+        "server/objects/settings/ServerSettings.js:299-308",
+        "client/pages/config/authentication.vue:325-362"
+      ],
+      "rationale": "PATCH /api/auth-settings stores a complete OpenID configuration and answers {updated:true, serverSettings} without the secret fields."
+    },
+    {
+      "requirement": "route-r215",
+      "invariant": "INV-ROUTE-R215-ROUTE",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "auth-settings-get-returns-secrets-to-admin",
+      "sources": [
+        "server/controllers/MiscController.js:635-640"
+      ],
+      "rationale": "GET /api/auth-settings returns the OpenID client id, client secret, mobile redirect URIs and claims verbatim to an admin."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-SECRETS-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "settings-response-never-includes-secrets",
+      "sources": [
+        "server/controllers/MiscController.js:139-175",
+        "server/objects/settings/ServerSettings.js:299-308",
+        "server/Auth.js:95-104"
+      ],
+      "rationale": "Once OpenID secrets and the token secret are stored, no PATCH /api/settings, authorize, login, status or socket init payload contains them."
+    },
+    {
+      "requirement": "route-r216",
+      "invariant": "INV-ROUTE-R216-REPEAT",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "auth-patch-repeat-reports-no-update",
+      "sources": [
+        "server/controllers/MiscController.js:650-735"
+      ],
+      "rationale": "Sending the same authentication settings again answers updated:false and leaves the row unchanged."
+    },
+    {
+      "requirement": "route-r216",
+      "invariant": "INV-ROUTE-R216-ROUTE",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "auth-patch-enable-openid-visible-in-status",
+      "sources": [
+        "server/controllers/MiscController.js:650-735",
+        "server/Server.js:384-399",
+        "server/objects/settings/ServerSettings.js:348-357"
+      ],
+      "rationale": "Enabling openid next to local (unknown methods dropped, list sorted) is stored and GET /status then shows authMethods, the sanitized message and the OpenID button settings."
+    },
+    {
+      "requirement": "route-r216",
+      "invariant": "INV-ROUTE-R216-VALIDATION-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "auth-patch-message-sanitized-and-empty-strings-cleared",
+      "sources": [
+        "server/controllers/MiscController.js:650-735",
+        "server/utils/htmlSanitizer.js:9-25"
+      ],
+      "rationale": "authLoginCustomMessage is HTML-sanitized, an empty string stores null (authOpenIDSubfolderForRedirectURLs keeps the empty string), and null clears a value."
+    },
+    {
+      "requirement": "route-r216",
+      "invariant": "INV-ROUTE-R216-VALIDATION-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "auth-patch-mobile-redirect-uri-rules",
+      "sources": [
+        "server/controllers/MiscController.js:650-735"
+      ],
+      "rationale": "authOpenIDMobileRedirectURIs accepts a lone * and well-formed scheme://host/path URIs and ignores * mixed with others."
+    },
+    {
+      "requirement": "route-r216",
+      "invariant": "INV-ROUTE-R216-SIDEEFFECT-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "auth-patch-disabling-local-stops-password-login",
+      "sources": [
+        "server/controllers/MiscController.js:650-735",
+        "server/Auth.js:169-177"
+      ],
+      "rationale": "Removing local from the active methods makes POST /login fail without a token (existing tokens keep working); restoring local makes it succeed again."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-VALIDATION-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "settings-env-allow-iframe-cannot-be-disabled",
+      "sources": [
+        "server/controllers/MiscController.js:148-151",
+        "server/objects/settings/ServerSettings.js:224-227"
+      ],
+      "rationale": "With ALLOW_IFRAME=1 the server starts with allowIframe true and no frame-ancestors policy, PATCH allowIframe:false answers 400 and changes nothing, and allowIframe:true is accepted."
+    },
+    {
+      "requirement": "route-r205",
+      "invariant": "INV-ROUTE-R205-PERSIST-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "settings-persist-across-restart",
+      "sources": [
+        "server/controllers/MiscController.js:139-175",
+        "server/objects/settings/ServerSettings.js:100-140"
+      ],
+      "rationale": "Settings written with PATCH /api/settings are served unchanged after the server restarts."
+    },
+    {
+      "requirement": "route-r216",
+      "invariant": "INV-ROUTE-R216-PERSIST-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "auth-settings-survive-restart",
+      "sources": [
+        "server/controllers/MiscController.js:650-735",
+        "server/objects/settings/ServerSettings.js:136-153"
+      ],
+      "rationale": "A complete OpenID configuration with openid enabled survives a restart, including the secret fields and the advertised auth methods."
+    },
+    {
+      "requirement": "route-r216",
+      "invariant": "INV-ROUTE-R216-PERSIST-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "auth-incomplete-openid-dropped-at-restart",
+      "sources": [
+        "server/controllers/MiscController.js:650-735",
+        "server/objects/settings/ServerSettings.js:155-168"
+      ],
+      "rationale": "Enabling openid without a complete OpenID configuration is accepted and stored, but the server drops it from the active methods when it loads the settings again."
+    }
+  ],
+  "not_applicable": [],
+  "open_findings": []
+}

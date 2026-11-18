@@ -1,0 +1,77 @@
+{
+  "id": "route-r060",
+  "parent": "http/playback",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/items/:id/play/:episodeId. Start an episode-specific playback session only for an accessible podcast episode; preserve episode identity, resume position, track URLs, play method, device fields and progress destination; nonexistent/forbidden/mismatched episode requests deny without leaking sessions.",
+  "source": [
+    "server/routers/ApiRouter.js:118",
+    "server/controllers/LibraryItemController.js:1220",
+    "server/controllers/LibraryItemController.js:460"
+  ],
+  "implementation": [
+    "go-backend/internal/playback/playback.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/playback/playback_test.go:385#TestEpisodeSessionWritesEpisodeProgress",
+    "go-backend/internal/playback/playback_test.go:276#TestPlayRefusals"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-R060-CONTRACT-001",
+      "class": "state_transition",
+      "contract": "POST /api/items/:id/play/:episodeId. Start an episode-specific playback session only for an accessible podcast episode; preserve episode identity, resume position, track URLs, play method, device fields and progress destination; nonexistent/forbidden/mismatched episode requests deny without leaking sessions.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:118",
+        "server/controllers/LibraryItemController.js:1220",
+        "server/controllers/LibraryItemController.js:460"
+      ],
+      "tests": [
+        "go-backend/internal/playback/playback_test.go:385#TestEpisodeSessionWritesEpisodeProgress",
+        "go-backend/internal/playback/playback_test.go:276#TestPlayRefusals",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-direct-session",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-method-and-start-times",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-sync-moves-episode-progress"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+      ]
+    },
+    {
+      "id": "INV-R060-REFUSAL-001",
+      "class": "error",
+      "contract": "Play with an episode id is refused with 401 unauthenticated, 404 for an unknown item or episode, 400 for a book, and 403 for a forbidden library before the type check, and changes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:118",
+        "server/controllers/LibraryItemController.js:1220-1249"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-refusals-change-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

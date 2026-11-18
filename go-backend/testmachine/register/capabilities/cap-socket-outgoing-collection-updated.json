@@ -1,0 +1,76 @@
+{
+  "id": "socket-outgoing-collection-updated",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing collection_updated: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/controllers/CollectionController.js:201",
+    "server/controllers/CollectionController.js:258",
+    "server/controllers/CollectionController.js:303",
+    "server/controllers/CollectionController.js:365",
+    "server/controllers/CollectionController.js:422"
+  ],
+  "implementation": [
+    "go-backend/internal/list/collection.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/list/list_test.go:339#TestCollectionCreateReorderAndBatch",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-updated-by-patch",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-updated-at-every-call-site",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-updated-not-sent-for-noop-requests",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-updated-not-sent-for-rejected-requests"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-COLLECTION-UPDATED",
+      "class": "repeat_operation",
+      "contract": "collection_updated carries the expanded collection after an accepted PATCH, add book, remove book, batch add or batch remove (only when something changed), to every authenticated socket; no-op and rejected requests emit nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/CollectionController.js:199-203",
+        "server/SocketAuthority.js:57-66",
+        "server/controllers/CollectionController.js:201",
+        "server/controllers/CollectionController.js:258",
+        "server/controllers/CollectionController.js:303",
+        "server/controllers/CollectionController.js:365",
+        "server/controllers/CollectionController.js:422",
+        "server/controllers/CollectionController.js:164",
+        "server/controllers/CollectionController.js:200",
+        "server/controllers/CollectionController.js:286",
+        "server/controllers/CollectionController.js:361",
+        "server/controllers/CollectionController.js:421",
+        "server/controllers/CollectionController.js:238-249",
+        "server/controllers/CollectionController.js:321-336",
+        "server/controllers/CollectionController.js:433-453"
+      ],
+      "tests": [
+        "go-backend/internal/list/list_test.go:339#TestCollectionCreateReorderAndBatch",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-updated-by-patch",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-updated-at-every-call-site",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-updated-not-sent-for-noop-requests",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-updated-not-sent-for-rejected-requests"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

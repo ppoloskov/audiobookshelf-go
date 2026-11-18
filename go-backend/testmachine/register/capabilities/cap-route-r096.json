@@ -1,0 +1,100 @@
+{
+  "id": "route-r096",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/playlists/:id/batch/add. Batch-add accessible book/episode entries to the owned playlist, preserving order, metadata/types, epoch-millisecond timestamps and expanded item views.",
+  "source": [
+    "server/routers/ApiRouter.js:166",
+    "server/controllers/PlaylistController.js:575",
+    "server/controllers/PlaylistController.js:394"
+  ],
+  "implementation": [
+    "go-backend/internal/list/list.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/list/list_ported_test.go:115#TestPortedWritesPersistAndEmit",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/batch-add-appends-in-request-order",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/batch-add-skips-existing-items",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/batch-add-episodes",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/batch-add-rejects-invalid-bodies",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/batch-add-rejects-foreign-unknown-and-anonymous",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/batch-add-foreign-in-inaccessible-library-is-403"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#playlist-batch-add (differential pass)"
+  ],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "invariants": [
+    {
+      "id": "INV-R096-SAMPLED",
+      "class": "shape",
+      "contract": "POST /api/playlists/:id/batch/add appends the listed books or episodes not yet in the playlist in request order (orders n+1..), skips existing ones, and answers the expanded playlist.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PlaylistController.js:394-454",
+        "server/controllers/PlaylistController.js:414-421",
+        "server/controllers/PlaylistController.js:447-453",
+        "server/controllers/PlaylistController.js:417-443"
+      ],
+      "tests": [
+        "go-backend/internal/list/list_ported_test.go:115#TestPortedWritesPersistAndEmit",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/batch-add-appends-in-request-order",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/batch-add-skips-existing-items",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/batch-add-episodes"
+      ],
+      "evidence": [
+        "go-backend/testmachine/contracts/parity/full-suite-report.json#playlist-batch-add"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R096-VALIDATE",
+      "class": "shape",
+      "contract": "POST /api/playlists/:id/batch/add answers 400 for missing, empty or non-array items, entries without a string libraryItemId, a non-string episodeId and unknown library items, and changes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PlaylistController.js:395-405"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/batch-add-rejects-invalid-bodies"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R096-ACCESS",
+      "class": "precedence",
+      "contract": "POST /api/playlists/:id/batch/add answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PlaylistController.js:575-593",
+        "server/routers/ApiRouter.js:166"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/batch-add-rejects-foreign-unknown-and-anonymous",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/batch-add-foreign-in-inaccessible-library-is-403"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

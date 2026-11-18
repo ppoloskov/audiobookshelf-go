@@ -1,0 +1,54 @@
+{
+  "id": "route-r109",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/me/progress/:id/:episodeId?. Read current-user progress by legacy library item identity and optional podcast episode with correct media identity/time fields; return 404 when no caller-owned progress matches and require authentication.",
+  "source": [
+    "server/controllers/MeController.js:239",
+    "server/routers/ApiRouter.js:183"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/progress-of-item-and-episode",
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/progress-of-item-is-per-user",
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/progress-reflects-write",
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/progress-of-item-not-found"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#progress-read (differential pass)"
+  ],
+  "exceptions": [],
+  "invariants": [
+    {
+      "id": "INV-R109-SAMPLED",
+      "class": "shape",
+      "contract": "GET /api/me/progress/:libraryItemId/:episodeId? answers the caller progress of the item (book) or of the episode in the old projection, reflecting writes; 404 when the caller has no matching row (unknown id, other item, episode mismatch); other users rows are never returned; 401 without a valid token.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:183",
+        "server/controllers/MeController.js:239-246",
+        "server/models/User.js:716-722"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/progress-of-item-and-episode",
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/progress-of-item-is-per-user",
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/progress-reflects-write",
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/progress-of-item-not-found"
+      ],
+      "evidence": [
+        "go-backend/testmachine/contracts/parity/full-suite-report.json#progress-read"
+      ],
+      "exceptions": []
+    }
+  ]
+}

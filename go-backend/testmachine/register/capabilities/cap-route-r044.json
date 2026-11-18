@@ -1,0 +1,134 @@
+{
+  "id": "route-r044",
+  "parent": "http/library",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/libraries/:id/download dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:97, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"GET /api/libraries/{id}/download\", inLibrary(h.download)). Current assertion anchor(s): TestJourney. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:97",
+    "go-backend/internal/library/libraries.go",
+    "go-backend/internal/library/libraries.go:77",
+    "server/controllers/LibraryController.js:1475"
+  ],
+  "implementation": [
+    "go-backend/internal/library/libraries.go:77"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/contracttest/journey_test.go:127#TestJourney",
+    "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/download-two-items-as-zip",
+    "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/download-single-file-item-and-podcast-item",
+    "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/download-item-folder-gone-from-disk",
+    "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/download-ignores-unknown-foreign-and-duplicate-ids",
+    "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/download-denied-and-invalid-requests",
+    "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/download-explicit-and-tag-rules-reject-whole-request"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R044-CONTRACT",
+      "class": "shape",
+      "contract": "GET download?ids=a,b answers a zip attachment named LibraryItems-<time>.zip holding every file of both item folders under the folder's name with the bytes on disk, also when the token is passed as a query parameter like the web client does.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:97",
+        "server/controllers/LibraryController.js:1422-1459",
+        "server/utils/zipHelpers.js:55-100"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/download-two-items-as-zip"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R044-FILE-001",
+      "class": "shape",
+      "contract": "An item that is a single file in the library folder is added under its file name, mixed with a folder item, and a podcast item downloads from a podcast library with all its episodes.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:97",
+        "server/controllers/LibraryController.js:1422-1459",
+        "server/utils/zipHelpers.js:55-100"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/download-single-file-item-and-podcast-item"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R044-GONE-001",
+      "class": "shape",
+      "contract": "When an item's folder was removed from disk after the scan, download still answers 200 with a zip attachment that holds no file of it (the other item's files are there).",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:97",
+        "server/controllers/LibraryController.js:1460-1467",
+        "server/utils/zipHelpers.js:55-100"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/download-item-folder-gone-from-disk"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R044-IDS-001",
+      "class": "shape",
+      "contract": "Ids that are unknown, belong to another library or repeat an id are ignored as long as one item of the library remains, which is zipped once; when none remains the answer is 404.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:97",
+        "server/controllers/LibraryController.js:1432-1459"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/download-ignores-unknown-foreign-and-duplicate-ids"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R044-AUTH-001",
+      "class": "error",
+      "contract": "GET download answers 401 without a token, 403 for a user without download permission (before ids are checked) and for one without library access, 404 for an unknown library, 400 for a missing or empty ids and for an invalid limit, and sends no archive.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:97",
+        "server/controllers/LibraryController.js:1422-1459",
+        "server/controllers/LibraryController.js:1475-1497"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/download-denied-and-invalid-requests"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R044-ACCESS-001",
+      "class": "error",
+      "contract": "A user without explicit-content access, a tag user in allow mode and one in deny mode get 403 for the whole request as soon as one requested item is not accessible to them, and the archive when all are accessible.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:97",
+        "server/controllers/LibraryController.js:1439-1444",
+        "server/models/User.js"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/download-explicit-and-tag-rules-reject-whole-request"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

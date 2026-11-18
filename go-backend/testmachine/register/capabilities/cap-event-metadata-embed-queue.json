@@ -1,0 +1,67 @@
+{
+  "id": "cap-event-metadata-embed-queue",
+  "parent": "http/tools",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "metadata_embed_queue_update emits admin-only {libraryItemId,queued:true} only for an admission that must wait behind a running job. A later dequeue emits {libraryItemId,queued:false} to all users; immediately started work does not fabricate a queued transition (AudioMetadataManager.js).",
+  "source": [
+    "server/managers/AudioMetadataManager.js",
+    "server/SocketAuthority.js",
+    "server/managers/TaskManager.js:22-35",
+    "client/layouts/default.vue:263-268",
+    "client/store/tasks.js"
+  ],
+  "implementation": [
+    "go-backend/internal/tools/embed.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/immediate-embed-has-no-queued-transition",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/idle-queue-repeat-keeps-immediate-and-waiting-distinct"
+  ],
+  "evidence": [
+    "go-backend/testmachine/reports/q01-embed-queue-review.md"
+  ],
+  "exceptions": [
+    "The Go unit test is a discovery lead. Earlier inspection found that immediate Go jobs may emit spurious transitions. Assessment against the shared upstream scenarios awaits the full upstream gate.",
+    "The upstream queue tests cover successful immediate, waiting and repeated work. Failure and recovery remain open."
+  ],
+  "invariants": [
+    {
+      "id": "INV-CAP-EVENT-METADATA-EMBED-QUEUE",
+      "class": "shape",
+      "contract": "metadata_embed_queue_update emits admin-only {libraryItemId,queued:true} only for an admission that must wait behind a running job. A later dequeue emits {libraryItemId,queued:false} to all users; immediately started work does not fabricate a queued transition (AudioMetadataManager.js).",
+      "status": "unverified",
+      "source": [
+        "server/managers/AudioMetadataManager.js",
+        "server/SocketAuthority.js",
+        "server/managers/TaskManager.js:22-35",
+        "client/layouts/default.vue:263-268",
+        "client/store/tasks.js"
+      ],
+      "tests": [
+        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/immediate-embed-has-no-queued-transition",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/idle-queue-repeat-keeps-immediate-and-waiting-distinct"
+      ],
+      "evidence": [
+        "go-backend/testmachine/reports/q01-embed-queue-review.md"
+      ],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

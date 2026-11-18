@@ -1,0 +1,79 @@
+{
+  "id": "route-r079",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/users/:id/listening-stats. A user may read their own listening statistics and an admin another user; preserve totals/time units, per-item grouping and recentSessions; forbidden/missing users deny.",
+  "source": [
+    "server/routers/ApiRouter.js:141",
+    "server/controllers/UserController.js:501",
+    "server/controllers/UserController.js:471"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/user/user_test.go:95#TestStatuses",
+    "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-stats-listener",
+    "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-stats-empty-and-new-session",
+    "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-stats-access-rules"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "Mapped tests cover selected denial or lower-level behavior only; successful endpoint payload/state and complete source/client variants need explicit owner-packet assertions."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R079-SAMPLED",
+      "class": "shape",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "GET /api/users/:id/listening-stats returns totalTime, items (per library item time and metadata), days, dayOfWeek, today and the ten most recent sessions summed from the user playback sessions.",
+      "source": [
+        "server/controllers/UserController.js:471-474",
+        "server/routers/ApiRouter.js:535-578"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-stats-listener"
+      ]
+    },
+    {
+      "id": "INV-R079-CHANGED-001",
+      "class": "shape",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "A user without sessions has zero stats and empty objects; after listening five seconds today, the date, weekday, item time and today show five.",
+      "source": [
+        "server/routers/ApiRouter.js:535-578"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-stats-empty-and-new-session"
+      ]
+    },
+    {
+      "id": "INV-R079-AUTH-001",
+      "class": "authorization",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "401 unauthenticated; 404 unknown id for an admin; a non-admin gets 403 for other ids but 200 for its own id.",
+      "source": [
+        "server/controllers/UserController.js:501-516",
+        "server/controllers/UserController.js:471"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-stats-access-rules"
+      ]
+    }
+  ]
+}

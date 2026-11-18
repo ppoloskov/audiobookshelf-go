@@ -1,0 +1,55 @@
+{
+  "id": "route-r054",
+  "parent": "http/item",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.getCover (ApiRouter.js:112, server/controllers/LibraryItemController.js:401) and Go registration mux.Handle(\"GET /api/items/{id}/cover\", httpx.Handler(h.cover)). Current assertion anchor(s): TestCoverRawIsPublicAndCached. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:112",
+    "go-backend/internal/item/handler.go",
+    "go-backend/internal/item/handler.go:108",
+    "server/controllers/LibraryItemController.js:401"
+  ],
+  "implementation": [
+    "go-backend/internal/item/handler.go:108"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/item/files_test.go:136#TestCoverRawIsPublicAndCached"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#cover-raw (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-default (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-jpeg-size (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-png-size (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-webp-size (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-ts-header (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-raw-after-delete (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-after-delete (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-jpeg-after-delete (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-png-after-delete (differential pass)",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R054-SAMPLED",
+      "class": "shape",
+      "contract": "GET /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.getCover (ApiRouter.js:112, server/controllers/LibraryItemController.js:401) and Go registration mux.Handle(\"GET /api/items/{id}/cover\", httpx.Handler(h.cover)). Current assertion anchor(s): TestCoverRawIsPublicAndCached. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:112",
+        "go-backend/internal/item/handler.go",
+        "go-backend/internal/item/handler.go:108",
+        "server/controllers/LibraryItemController.js:401"
+      ],
+      "tests": [
+        "go-backend/internal/item/files_test.go:136#TestCoverRawIsPublicAndCached"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
+        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
+        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+      ]
+    }
+  ]
+}

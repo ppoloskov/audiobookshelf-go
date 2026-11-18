@@ -1,7 +1,7 @@
 // Package contracttest boots the contract-test fixture: an installation that
 // pinned upstream (TS v2.37.2) created and scanned, copied from testdata/install
 // and served in-process. Nothing outside tests imports this package. The fixture
-// is rebuilt by tools/contractfixture/build.cjs.
+// is rebuilt by testmachine/scripts/contractfixture/build.cjs.
 package contracttest
 
 import (

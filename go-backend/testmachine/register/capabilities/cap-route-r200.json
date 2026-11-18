@@ -1,0 +1,59 @@
+{
+  "id": "route-r200",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/api-keys. Admin creates a named API key for an existing user with positive expiry and active setting, returning its key/user projection; missing user/name or zero expiry denies.",
+  "source": [
+    "server/routers/ApiRouter.js:339",
+    "server/controllers/ApiKeyController.js:197",
+    "server/controllers/ApiKeyController.js:50"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/user/user_test.go:215#TestAPIKeys"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#api-key-create (differential pass)"
+  ],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R200-SAMPLED",
+      "class": "shape",
+      "contract": "Sampled POST /api-keys via differential case(s) api-key-create: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: api-keys.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:339"
+      ],
+      "tests": [
+        "go-backend/internal/user/user_test.go:215#TestAPIKeys"
+      ],
+      "evidence": [
+        "go-backend/testmachine/contracts/parity/full-suite-report.json#api-key-create"
+      ],
+      "exceptions": [
+        "Sampled evidence; unsampled request-shape variants are separate behaviors."
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

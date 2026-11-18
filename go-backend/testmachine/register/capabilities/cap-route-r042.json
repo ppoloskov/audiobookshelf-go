@@ -1,0 +1,141 @@
+{
+  "id": "route-r042",
+  "parent": "http/library",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/libraries/:id/remove-metadata dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:95, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"POST /api/libraries/{id}/remove-metadata\", inLibrary(h.removeMetadata)). Current assertion anchor(s): TestJourney. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:95",
+    "go-backend/internal/library/libraries.go",
+    "go-backend/internal/library/libraries.go:69",
+    "server/controllers/LibraryController.js:1475"
+  ],
+  "implementation": [
+    "go-backend/internal/library/libraries.go:69"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/contracttest/journey_test.go:127#TestJourney",
+    "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/remove-metadata-denied-changes-nothing",
+    "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/remove-metadata-json-files-only-in-library",
+    "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/remove-metadata-repeat-counts-gone-files-as-removed",
+    "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/remove-metadata-ext-variants",
+    "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/remove-metadata-without-files-answers-found-zero",
+    "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/remove-metadata-file-written-by-store-with-item-setting"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: this route has no force, hard or override mode."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R042-AUTH-001",
+      "class": "error",
+      "contract": "POST remove-metadata answers 401 without a token, 403 for a non-admin user (also with update and delete permissions) and without library access, 404 for an unknown library and 400 for an invalid limit before the admin check, and removes no file.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:95",
+        "server/controllers/LibraryController.js:1333-1373",
+        "server/controllers/LibraryController.js:1475-1497"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/remove-metadata-denied-changes-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R042-CONTRACT",
+      "class": "shape",
+      "contract": "POST remove-metadata without ext deletes the metadata.json file of every item of the library and answers {found, removed} counting them, keeps metadata.abs files, other items' files, other libraries and the metadata/items tree, and leaves the stored library file lists unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:95",
+        "server/controllers/LibraryController.js:1333-1373",
+        "server/utils/fileUtils.js"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/remove-metadata-json-files-only-in-library"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R042-REPEAT-001",
+      "class": "shape",
+      "contract": "Repeating the removal answers the same {found: 2, removed: 2}: the stored file lists still name the files and deleting a file that is already gone counts as removed; nothing changes.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:95",
+        "server/controllers/LibraryController.js:1357-1372"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/remove-metadata-repeat-counts-gone-files-as-removed"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R042-EXT-001",
+      "class": "shape",
+      "contract": "ext=abs deletes the metadata.abs files and keeps everything else; any other ext value (also ABS and txt) selects metadata.json, whose files are already gone but still listed.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:95",
+        "server/controllers/LibraryController.js:1339-1340"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/remove-metadata-ext-variants"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R042-EMPTY-001",
+      "class": "shape",
+      "contract": "In a library whose items have no metadata file the answer is exactly {found: 0} without a removed field, for book and podcast libraries, with the default and the abs variant.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:95",
+        "server/controllers/LibraryController.js:1352-1356"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/remove-metadata-without-files-answers-found-zero"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R042-STORE-001",
+      "class": "shape",
+      "contract": "With storeMetadataWithItem enabled an item update writes metadata.json into the item folder; after a scan lists it, remove-metadata finds and deletes exactly that file.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:95",
+        "server/controllers/LibraryController.js:1333-1373",
+        "server/models/LibraryItem.js:605-700",
+        "server/controllers/MiscController.js"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/library_data/run_test.go#TestReplacement/remove-metadata-file-written-by-store-with-item-setting"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

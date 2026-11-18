@@ -12,7 +12,7 @@ import (
 // recorded into contracts/shapes/lists.json, the same way as TestJourneyAdmin
 // (journey_admin_test.go). To record it against TS:
 //
-//	node go-backend/tools/contractfixture/serve-upstream.cjs   # prints ROOT and READY
+//	node go-backend/testmachine/scripts/contractfixture/serve-upstream.cjs   # prints ROOT and READY
 //	cd go-backend && go test ./internal/contracttest -run '^TestJourneyLists$' -record \
 //	    -upstream=<READY URL> -upstream-root=<ROOT>
 //
@@ -24,7 +24,7 @@ import (
 // permission, for them. The sessions the journey deletes are its own: each one
 // is a play the journey started (TS remaps a local session's id to a UUID the
 // client never sees, so local sessions are not used here).
-const listsShapesFile = "../../contracts/shapes/lists.json"
+const listsShapesFile = "../../testmachine/contracts/shapes/lists.json"
 
 func TestJourneyLists(t *testing.T) {
 	runJourney(t, listsShapesFile, nil, journeyListsSteps)

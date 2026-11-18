@@ -1,0 +1,62 @@
+{
+  "id": "route-r106",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/me/item/listening-sessions/:libraryItemId/:episodeId?. List current-user listening sessions for the selected book or podcast episode; podcast requests require an episode and cannot disclose another user history.",
+  "source": [
+    "server/controllers/MeController.js:185",
+    "server/routers/ApiRouter.js:180"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-listening-sessions-book-and-episode",
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-listening-sessions-errors",
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-listening-sessions-tag-and-explicit-rules",
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-listening-sessions-paging-and-empty"
+  ],
+  "evidence": [],
+  "exceptions": [],
+  "invariants": [
+    {
+      "id": "INV-R106-CONTRACT-001",
+      "class": "shape",
+      "contract": "GET /api/me/item/listening-sessions/:libraryItemId/:episodeId? answers the paging envelope with the caller sessions of the book (or of the podcast episode) newest first; 404 for an unknown item, a podcast without a valid episode id; 403 without library access; 401 without a valid token.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:180",
+        "server/controllers/MeController.js:185-225"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-listening-sessions-book-and-episode",
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-listening-sessions-errors",
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-listening-sessions-tag-and-explicit-rules"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R106-PAGING-001",
+      "class": "shape",
+      "contract": "GET /api/me/item/listening-sessions/:libraryItemId pages like the full list (itemsPerPage fallback 10) and returns an empty list for items the caller never played or only others played.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:204-218"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-listening-sessions-paging-and-empty"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

@@ -22,7 +22,7 @@ All credit for Audiobookshelf's product, interface, and original functionality b
 
 AI-generated code is not treated as correct merely because it compiles or looks plausible. The project is built around a reference implementation, explicit compatibility contracts, reproducible tests, and rollback checks. These provide evidence, not a guarantee that every bug has been found.
 
-Use `make verify VERIFY_ARGS="-target upstream"` to certify the shared test suite against v2.37.2. The default `make verify` command then gates the Go comparison on independently reviewed coverage of the replacement contract. [Verification procedure](go-backend/VERIFICATION.md)
+Use `make verify VERIFY_ARGS="-target upstream"` to certify the shared test suite against v2.37.2. The default `make verify` command then gates the Go comparison on independently reviewed coverage of the replacement contract. [Verification procedure](go-backend/testmachine/VERIFICATION.md)
 
 ### The upstream server is the oracle
 

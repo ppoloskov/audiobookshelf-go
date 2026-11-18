@@ -25,7 +25,7 @@ import (
 // contracts/shapes/misc.json, the same way as TestJourneyAdmin. To record it
 // against TS:
 //
-//	node go-backend/tools/contractfixture/serve-upstream.cjs   # prints ROOT and READY
+//	node go-backend/testmachine/scripts/contractfixture/serve-upstream.cjs   # prints ROOT and READY
 //	cd go-backend && go test ./internal/contracttest -run '^TestJourneyMisc$' -record \
 //	    -upstream=<READY URL> -upstream-root=<ROOT>
 //
@@ -38,8 +38,8 @@ import (
 // no-network paths (no title, no ASIN, no query) and with the custom metadata
 // provider, which is the local server.
 const (
-	miscShapesFile = "../../contracts/shapes/misc.json"
-	initShapesFile = "../../contracts/shapes/init.json"
+	miscShapesFile = "../../testmachine/contracts/shapes/misc.json"
+	initShapesFile = "../../testmachine/contracts/shapes/init.json"
 
 	miscClientID     = "abs-client"
 	miscClientSecret = "abs-secret"

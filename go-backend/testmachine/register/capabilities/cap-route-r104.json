@@ -1,0 +1,55 @@
+{
+  "id": "route-r104",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/me/bookmarks/:libraryItemId. List current-user bookmarks for the selected library item with retained fractional time/title/createdAt fields and required access/missing-item decisions.",
+  "source": [
+    "server/controllers/MeController.js:134",
+    "server/routers/ApiRouter.js:178"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-bookmarks-listener",
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-bookmarks-empty-and-other-user",
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-bookmarks-errors",
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-bookmarks-tag-and-explicit-rules"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#bookmark-read-after-create (differential pass)",
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#bookmark-read-after-delete (differential pass)"
+  ],
+  "exceptions": [],
+  "invariants": [
+    {
+      "id": "INV-R104-SAMPLED",
+      "class": "shape",
+      "contract": "GET /api/me/bookmarks/:libraryItemId answers {bookmarks} filtered to the item for the caller (empty array when none, other users bookmarks never shown); 404 for an unknown item, 403 when the user cannot access the item library, 401 without a valid token.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:178",
+        "server/controllers/MeController.js:134-150"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-bookmarks-listener",
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-bookmarks-empty-and-other-user",
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-bookmarks-errors",
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/item-bookmarks-tag-and-explicit-rules"
+      ],
+      "evidence": [
+        "go-backend/testmachine/contracts/parity/full-suite-report.json#bookmark-read-after-create",
+        "go-backend/testmachine/contracts/parity/full-suite-report.json#bookmark-read-after-delete"
+      ],
+      "exceptions": []
+    }
+  ]
+}

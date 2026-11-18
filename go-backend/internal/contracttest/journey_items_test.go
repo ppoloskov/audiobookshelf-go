@@ -24,7 +24,7 @@ import (
 
 // itemShapesFile holds the status, media type and shape each step got from TS
 // v2.37.2.
-const itemShapesFile = "../../contracts/shapes/items.json"
+const itemShapesFile = "../../testmachine/contracts/shapes/items.json"
 
 // itemStep is a journeyStep plus hooks that run around its request, in record
 // and check mode alike: before sets up a file the request reads or the scan

@@ -12,7 +12,7 @@ import (
 )
 
 // The journey's Socket.IO events. The replacement trial (connectEventSocket in
-// tools/parity/replacement-trial.cjs) connects one root client after login.root
+// testmachine/parity/replacement-trial.cjs) connects one root client after login.root
 // and records the events below; a step that declares events waits for them and
 // the runner checks their names, recipient and payload shapes.
 

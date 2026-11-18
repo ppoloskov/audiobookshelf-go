@@ -1,0 +1,76 @@
+{
+  "id": "route-r139",
+  "parent": "http/browse",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "PATCH /api/series/:id dispatches to the pinned TS handler SeriesController.middleware (ApiRouter.js:229, server/controllers/SeriesController.js:95) and Go registration mux.Handle(\"PATCH /api/series/{id}\", h.authed(h.seriesPatch)). Current assertion anchor(s): TestSeriesPatch. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:229",
+    "go-backend/internal/browse/browse.go",
+    "go-backend/internal/browse/browse.go:45",
+    "server/controllers/SeriesController.js:95",
+    "server/controllers/SeriesController.js:59-90",
+    "server/models/Series.js",
+    "server/controllers/LibraryController.js:742-766",
+    "server/controllers/SeriesController.js:95-120",
+    "server/Auth.js:322"
+  ],
+  "implementation": [
+    "go-backend/internal/browse/browse.go:45"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/series-patch-updates-and-persists",
+    "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/series-patch-repeat-is-unchanged",
+    "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/series-patch-visible-in-reads",
+    "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/series-patch-rejections",
+    "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/series-patch-unicode-empty-and-extra-keys",
+    "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/series-patch-rejected-changes-nothing",
+    "go-backend/internal/browse/series_test.go:118#TestSeriesPatch"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: the requirement has no force, hard or override mode; every request is a plain request."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R139-CONTRACT",
+      "class": "shape",
+      "contract": "PATCH /api/series/:id sets name and description (strings only), answers the series object, persists both (not nameIgnorePrefix), moves updatedAt only on change, emits series_updated on change; 401/404/403/400 in that check order.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/SeriesController.js:59-90",
+        "server/models/Series.js",
+        "server/controllers/LibraryController.js:742-766",
+        "server/controllers/SeriesController.js:95-120",
+        "server/Auth.js:322"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/series-patch-updates-and-persists",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/series-patch-repeat-is-unchanged",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/series-patch-visible-in-reads",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/series-patch-rejections",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/series-patch-unicode-empty-and-extra-keys",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/series-patch-rejected-changes-nothing",
+        "go-backend/internal/browse/series_test.go:118#TestSeriesPatch"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

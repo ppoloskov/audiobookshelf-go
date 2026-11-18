@@ -1,0 +1,57 @@
+{
+  "id": "socket-outgoing-user-removed",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing user_removed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/controllers/UserController.js:402"
+  ],
+  "implementation": [
+    "go-backend/internal/user/admin.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-removed-event-to-admins",
+    "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-removed-event-for-user-with-data",
+    "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-removed-event-once-per-deletion",
+    "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-removed-event-not-sent-on-rejection"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: the event is a notification without a force or override mode"
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-USER-REMOVED",
+      "class": "repeat_operation",
+      "contract": "DELETE /api/users/:id success emits user_removed with the deleted user browser view (including mediaProgress and bookmarks) to every admin socket once; ordinary and the deleted user sockets and rejected deletes get nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/UserController.js:402"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-removed-event-to-admins",
+        "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-removed-event-for-user-with-data",
+        "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-removed-event-once-per-deletion",
+        "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-removed-event-not-sent-on-rejection"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

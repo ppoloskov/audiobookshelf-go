@@ -1,0 +1,81 @@
+{
+  "id": "route-r206",
+  "parent": "http/admin",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "PATCH /sorting-prefixes at server/routers/ApiRouter.js:349. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "source": [
+    "server/routers/ApiRouter.js:349"
+  ],
+  "implementation": [
+    "go-backend/internal/admin/admin.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/admin/admin_test.go",
+    "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/sorting-prefixes-admin-only",
+    "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/sorting-prefixes-invalid-bodies-rejected",
+    "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/sorting-prefixes-recompute-all-title-columns",
+    "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/sorting-prefixes-order-follows-prefixes",
+    "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/sorting-prefixes-restore-and-drop-non-strings",
+    "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/sorting-prefixes-repeat-updates-nothing"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: the route has no force, hard or override mode"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R206-ROUTE",
+      "class": "shape",
+      "contract": "PATCH /api/sorting-prefixes answers 401 without a token and 403 for a non-admin and changes nothing. A missing, non-array, empty or all-blank sortingPrefixes answers 400 and changes neither the setting nor any title column. PATCH /api/sorting-prefixes trims, lowercases and de-duplicates the list, stores it, recomputes titleIgnorePrefix on books, podcasts and series and returns the number of changed rows. After the prefixes change, the title sort of the library uses the recomputed titleIgnorePrefix when sortingIgnorePrefix is on. Non-string and blank members are dropped, and restoring the original prefixes recomputes the five columns back.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:183-281",
+        "server/utils/index.js:176-198",
+        "server/utils/queries/libraryItemsBookFilters.js:254-262"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/sorting-prefixes-admin-only",
+        "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/sorting-prefixes-invalid-bodies-rejected",
+        "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/sorting-prefixes-recompute-all-title-columns",
+        "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/sorting-prefixes-order-follows-prefixes",
+        "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/sorting-prefixes-restore-and-drop-non-strings"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R206-REPEAT",
+      "class": "repeat_operation",
+      "contract": "Sending the same prefixes again reports rowsUpdated 0 and leaves every title column as it was.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:183-281"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/sorting-prefixes-repeat-updates-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

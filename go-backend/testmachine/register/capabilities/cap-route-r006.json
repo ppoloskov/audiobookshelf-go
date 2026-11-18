@@ -1,0 +1,130 @@
+{
+  "id": "route-r006",
+  "parent": "http/auth",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /logout. Clear refresh/auth-method cookies, revoke the current session or allDevices=1 sessions, and return redirect_url for configured OIDC logout or null; logged-out credentials must no longer refresh.",
+  "source": [
+    "server/Auth.js:486",
+    "server/Auth.js:486-499",
+    "server/auth/TokenManager.js:511-543"
+  ],
+  "implementation": [
+    "go-backend/internal/auth/service.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/auth/service_test.go:234#TestLogoutRevokesTheSession",
+    "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-cookie-revokes-session",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-header-token-revokes-session",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-without-token-succeeds",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-repeat-succeeds",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-with-unknown-token-changes-nothing",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-keeps-other-sessions",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-with-openid-cookies-returns-end-session-url",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/all-devices-logout-revokes-user-sessions",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/all-devices-logout-with-rotated-token",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/all-devices-needs-exactly-1"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-logout",
+    "go-backend/testmachine/contracts/parity/parity-f05-local-session-differential.json#local-session-logout (cookie clearing + session reissue + redirect_url null)",
+    "go-backend/testmachine/contracts/parity/parity-f05-local-session-differential.json#local-session-logout-session-list (access token usability + list after logout)",
+    "go-backend/testmachine/contracts/parity/parity-f01-f07-closure-report.json#differential"
+  ],
+  "exceptions": [
+    "This record covers one successful web OIDC logout state transition; repeat, error and edge variants remain unverified.",
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: this requirement has no force, hard or override mode"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-R006-LOCAL-LOGOUT-001",
+      "class": "shape",
+      "contract": "POST /logout needs no authentication; with the refresh token (cookie or x-refresh-token) it deletes that sessions row, expires the refresh_token and auth_method cookies and answers 200 {redirect_url:null}; without or with an unknown token it answers the same and deletes nothing. Repeating it is harmless and other sessions stay.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:486-523",
+        "server/auth/TokenManager.js:511-543"
+      ],
+      "tests": [
+        "go-backend/internal/auth/service_test.go:234#TestLogoutRevokesTheSession",
+        "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-cookie-revokes-session",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-header-token-revokes-session",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-without-token-succeeds",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-repeat-succeeds",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-with-unknown-token-changes-nothing",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-keeps-other-sessions"
+      ],
+      "evidence": [
+        "go-backend/testmachine/contracts/parity/parity-f05-local-session-differential.json#local-session-login",
+        "go-backend/testmachine/contracts/parity/parity-f05-local-session-differential.json#local-session-logout",
+        "go-backend/testmachine/contracts/parity/parity-f05-local-session-differential.json#local-session-logout-session-list",
+        "go-backend/testmachine/contracts/parity/parity-f05-local-session-differential.json#local-session-logout-refresh-revoked",
+        "go-backend/testmachine/contracts/parity/parity-f05-local-session-differential.json#refresh-concurrent-grace"
+      ],
+      "exceptions": [
+        "Local login/logout connect.sid regeneration is verified by F05 within-side value assertions. OIDC-specific callback/start/logout cookie lifecycle remains unverified because the OIDC differential normalizes connect.sid values.",
+        "Logout with no refresh token presented, allDevices=1, logout errors and mobile logout remain separate unverified variants.",
+        "Historical representation-level observation superseded by fixed client/persisted contract: Local logout without OIDC: clears refresh_token and auth_method cookies with epoch Expires, REGENERATES the session — every logout responds with a fresh signed connect.sid (Path=/, HttpOnly) replacing the previously presented identifier — responds 200 json {'redirect_url':null} with exact Express JSON headers (21-byte body), deletes the session row for the presented current refresh token (a rotated/stale token leaves a live session), and the access token remains usable afterwards."
+      ]
+    },
+    {
+      "id": "INV-LOGOUT-OIDC-SESSION-001",
+      "class": "state_transition",
+      "contract": "With auth_method openid or openid-mobile and an end-session endpoint configured, logout answers that URL with id_token_hint from the openid_id_token cookie and, for openid only, post_logout_redirect_uri of the server login page; it expires auth_method, openid_id_token and refresh_token cookies and deletes the session.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:504-523",
+        "server/auth/OidcAuthStrategy.js:395-423"
+      ],
+      "tests": [
+        "go-backend/internal/auth/service_test.go:234#TestLogoutRevokesTheSession",
+        "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/logout-with-openid-cookies-returns-end-session-url"
+      ],
+      "evidence": [
+        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-logout"
+      ],
+      "exceptions": [
+        "Only a successful web OIDC session with no provider logout endpoint is covered; logout errors, allDevices and mobile logout remain unverified.",
+        "Historical representation-level observation superseded by fixed client/persisted contract: In the selected web OIDC session case, POST /logout matches Express response JSON and ETag, clears the three auth cookies with upstream attributes, and deletes the active refresh session while retaining the user. Passport regenerates connect.sid during logout; the existing OIDC differential normalizes its value, so OIDC-specific replacement remains unverified."
+      ]
+    },
+    {
+      "id": "INV-R006-ALL-DEVICES-001",
+      "class": "repeat_operation",
+      "contract": "POST /logout?allDevices=1 deletes every sessions row of the user that owns the presented current or just-rotated refresh token and no other user's; any other allDevices value deletes only the presented session.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:486-499",
+        "server/auth/TokenManager.js:511-543"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/all-devices-logout-revokes-user-sessions",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/all-devices-logout-with-rotated-token",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/all-devices-needs-exactly-1"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Source-derived obligation and scenario binding only. No live run or independent completeness review was performed in this reconciliation; the full requirement remains open."
+      ]
+    }
+  ]
+}

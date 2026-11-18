@@ -20,7 +20,7 @@ import (
 // TS sends a number. The dumps (db.*, fs.*) are read from that copy's database
 // and files after the steps, by the same code the check run uses.
 var (
-	record       = flag.Bool("record", false, "write contracts/shapes/journey.json from the TS server at -upstream, instead of checking Go against it")
+	record       = flag.Bool("record", false, "write testmachine/contracts/shapes/journey.json from the TS server at -upstream, instead of checking Go against it")
 	upstream     = flag.String("upstream", "", "base URL of the TS server serve-upstream.cjs printed as READY (with -record)")
 	upstreamRoot = flag.String("upstream-root", "", "root directory serve-upstream.cjs printed as ROOT (with -record)")
 )

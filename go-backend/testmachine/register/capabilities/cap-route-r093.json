@@ -1,0 +1,83 @@
+{
+  "id": "route-r093",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "DELETE /api/playlists/:id. Delete an owned playlist and its entries while retaining underlying media; non-owner denies even where collection permissions differ.",
+  "source": [
+    "server/routers/ApiRouter.js:163",
+    "server/controllers/PlaylistController.js:575",
+    "server/controllers/PlaylistController.js:265"
+  ],
+  "implementation": [
+    "go-backend/internal/list/list.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/list/list_test.go:166#TestPlaylistDeleteIsOwnerOnlyAndKeepsItems",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/delete-removes-playlist-and-links",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/delete-twice-second-is-404",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/delete-after-edits-removes-all-links",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/delete-rejects-foreign-unknown-and-anonymous",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/delete-foreign-in-inaccessible-library-is-403"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#playlist-delete (differential pass)"
+  ],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "invariants": [
+    {
+      "id": "INV-R093-SAMPLED",
+      "class": "shape",
+      "contract": "DELETE /api/playlists/:id by the owner answers 200 and removes the playlist and its links (not the library items); a repeated delete answers 404.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PlaylistController.js:265-272",
+        "server/controllers/PlaylistController.js:575-580"
+      ],
+      "tests": [
+        "go-backend/internal/list/list_test.go:166#TestPlaylistDeleteIsOwnerOnlyAndKeepsItems",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/delete-removes-playlist-and-links",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/delete-twice-second-is-404",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/delete-after-edits-removes-all-links"
+      ],
+      "evidence": [
+        "go-backend/testmachine/contracts/parity/full-suite-report.json#playlist-delete"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R093-ACCESS",
+      "class": "precedence",
+      "contract": "DELETE /api/playlists/:id answers 401 without a token, 404 for an unknown playlist or an inaccessible library, 403 for a non-owner including administrators, and deletes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PlaylistController.js:575-593",
+        "server/routers/ApiRouter.js:163"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/delete-rejects-foreign-unknown-and-anonymous",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/delete-foreign-in-inaccessible-library-is-403"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

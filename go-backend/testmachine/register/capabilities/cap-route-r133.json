@@ -1,0 +1,89 @@
+{
+  "id": "route-r133",
+  "parent": "http/author",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "DELETE /api/authors/:id dispatches to the pinned TS handler AuthorController.middleware (ApiRouter.js:219, server/controllers/AuthorController.js:427) and Go registration mux.Handle(\"DELETE /api/authors/{id}\", h.authed(h.delete)). Current assertion anchor(s): TestDeletePurgesCacheAndKeepsImageFile. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:219",
+    "go-backend/internal/author/handler.go",
+    "go-backend/internal/author/handler.go:60",
+    "server/controllers/AuthorController.js:427"
+  ],
+  "implementation": [
+    "go-backend/internal/author/handler.go:60"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/delete-by-delete-only-user",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/delete-denied-changes-nothing",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/delete-author-unlinks-books",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/delete-author-with-image-purges-cache",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/delete-author-twice"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R133-AUTH",
+      "class": "authorization",
+      "contract": "401 without token; 404 before 403; users need the delete permission (update is not enough); rejected requests change nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/AuthorController.js:427-434"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/delete-by-delete-only-user",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/delete-denied-changes-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R133-CONTRACT",
+      "class": "shape",
+      "contract": "DELETE /api/authors/:id answers 200, removes the author and its bookAuthors links, keeps the books, removes the author from their metadata.json and emits author_removed with the full author JSON.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:219",
+        "server/controllers/AuthorController.js:233-258"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/delete-author-unlinks-books"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R133-DELETE",
+      "class": "persistence",
+      "contract": "An author image file stays on disk while the resized cache is purged; a second delete is 404.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/AuthorController.js:236-238",
+        "server/controllers/AuthorController.js:428-429"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/delete-author-with-image-purges-cache",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/delete-author-twice"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

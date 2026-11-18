@@ -78,7 +78,7 @@ Per-area facts of the old code (routes, tables, hazards) are in
 ## Next
 
 - [ ] **Unified verification (foundation accepted; coverage open):** one Go-first/.mjs machine
-  ([VERIFICATION.md](VERIFICATION.md)). Deliver a suite certified against pinned
+  ([VERIFICATION.md](testmachine/VERIFICATION.md)). Deliver a suite certified against pinned
   upstream v2.37.2 and ready for a separate Go comparison. Existing exclusions
   retained. Migrate useful assertions
   into the shared backend-independent suite without dropping older evidence.
@@ -95,11 +95,11 @@ Per-area facts of the old code (routes, tables, hazards) are in
   issue-count setup in `library_data` next. Tagged lint, unbound invariants,
   incomplete owner packets and the whole-contract audit still block certification.
   [Current handover](handover.md)
-  Q01 tools adds upstream scenarios for immediate, waiting and repeated metadata embeds. [Queue review and discovery blockers](docs/verification/q01-embed-queue-review.md).
+  Q01 tools adds upstream scenarios for immediate, waiting and repeated metadata embeds. [Queue review and discovery blockers](testmachine/reports/q01-embed-queue-review.md).
 
-- [x] **Q00 requirement mapping (architect accepted):** [complete register and test mapping](docs/verification/replacement-requirement-map.md),
-  [source reconciliation](docs/verification/replacement-inventory-reconciliation.md),
-  and [ordered gap queue](docs/verification/replacement-gap-queue.md). This is
+- [x] **Q00 requirement mapping (architect accepted):** [complete register and test mapping](testmachine/reports/replacement-requirement-map.md),
+  [source reconciliation](testmachine/reports/replacement-inventory-reconciliation.md),
+  and [ordered gap queue](testmachine/reports/replacement-gap-queue.md). This is
   inventory, not whole-contract verification. Acceptance/review evidence is in
   [the map task](../docs/agent-work/tasks/TASK-20261113-replacement-contract-map.md).
 - [ ] **Q01 tools — source-assertion family, implementation deferred:** audio task progress and
@@ -118,7 +118,7 @@ Per-area facts of the old code (routes, tables, hazards) are in
    runner defects in their own tooling packet. Review how the whole-contract
    receipt depends on the local Node executable, installed dependencies and
    Go application tree when establishing a reproducible handoff.
-3. Close the requirement gaps in `tests/replacement/packets.json`. Reuse working
+3. Close the requirement gaps in `testmachine/scenarios/packets.json`. Reuse working
    fixtures, shared scenarios and reviewed assertions first. Prioritise database
    state, lifecycle, real-client authentication and Socket.IO, scan and playback,
    then fill remaining owner requirements. Each packet must substantiate its

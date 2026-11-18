@@ -1,0 +1,50 @@
+{
+  "id": "route-r099",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/me. Authenticated me returns the current user browser view, bookmarks and progress with consumed null/array fields and no password hashes.",
+  "source": [
+    "server/controllers/MeController.js:27",
+    "server/routers/ApiRouter.js:173"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/me-browser-view-of-listener",
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/me-is-per-caller",
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/me-requires-authentication",
+    "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/me-lists-flags-and-links-filled"
+  ],
+  "evidence": [],
+  "exceptions": [],
+  "invariants": [
+    {
+      "id": "INV-R099-CONTRACT-001",
+      "class": "shape",
+      "contract": "GET /api/me answers the caller browser view: id, username, email, type, stored token, isActive/isLocked, ms createdAt, permissions without the library/tag lists, librariesAccessible/itemTagsSelected/seriesHideFromContinueListening arrays, bookmarks and every media progress of the caller, with no password hash; each caller sees only own data; 401 without a valid token.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:173",
+        "server/controllers/MeController.js:27-29",
+        "server/models/User.js:603-638"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/me-browser-view-of-listener",
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/me-is-per-caller",
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/me-requires-authentication",
+        "go-backend/testmachine/scenarios/user_me/run_test.go#TestReplacement/me-lists-flags-and-links-filled"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

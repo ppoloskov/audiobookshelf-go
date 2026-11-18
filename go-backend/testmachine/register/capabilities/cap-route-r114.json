@@ -1,0 +1,91 @@
+{
+  "id": "route-r114",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "PATCH /api/me/item/:id/bookmark. PATCH the existing current-user bookmark title at its time without changing identity/createdAt; missing bookmark returns 404.",
+  "source": [
+    "server/routers/ApiRouter.js:188",
+    "server/controllers/MeController.js:360"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-update-title",
+    "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-update-access-rules",
+    "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-update-rejections",
+    "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-update-seeded",
+    "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-update-unicode-and-zero"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#bookmark-update (differential pass)"
+  ],
+  "exceptions": [
+    "force is not applicable: this route has no force, hard or override mode"
+  ],
+  "invariants": [
+    {
+      "id": "INV-R114-SAMPLED",
+      "class": "state_transition",
+      "contract": "PATCH /api/me/item/:id/bookmark retitles the caller's bookmark at that item and time, keeps time and createdAt, answers it and emits user_updated to the caller only.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:360-396",
+        "server/models/User.js:841-912"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-update-title",
+        "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-update-seeded",
+        "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-update-unicode-and-zero"
+      ],
+      "evidence": [
+        "go-backend/testmachine/contracts/parity/full-suite-report.json#bookmark-update"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R114-ACCESS-001",
+      "class": "state_transition",
+      "contract": "Library, item tag (allow and deny) and explicit-content rules answer 403 and change nothing.",
+      "source": [
+        "server/controllers/MeController.js:360-373",
+        "server/models/User.js:646-683"
+      ],
+      "status": "unverified",
+      "tests": [
+        "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-update-access-rules"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R114-ERROR-001",
+      "class": "state_transition",
+      "contract": "Unauthenticated 401; unknown item 404 before the body check; invalid time or title 400 before the bookmark lookup; no bookmark at that item and time 404; nothing changes and no event is sent.",
+      "source": [
+        "server/controllers/MeController.js:360-396"
+      ],
+      "status": "unverified",
+      "tests": [
+        "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-update-rejections"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

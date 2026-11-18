@@ -13,7 +13,7 @@
 // punctuation, Cyrillic, Greek) match; characters added to Unicode after the
 // x/text tables were generated compare as unassigned code points.
 // testdata/collation.json is generated from Node by
-// tools/gen-collation-fixture.cjs and checked by TestMatchesNode.
+// testmachine/scripts/gen-collation-fixture.cjs and checked by TestMatchesNode.
 package text
 
 import (

@@ -1,0 +1,155 @@
+{
+  "id": "sub-downloads",
+  "parent": "http/library",
+  "kind": "subsystem",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Item/file downloads enforce library/download permissions and source-defined lookup order, provide usable media or ZIP content/filename/MIME, and return required missing/denied statuses. Encoding, compression and error text are free unless a real client consumes them.",
+  "source": [
+    "server/controllers/LibraryItemController.js:1220-1250",
+    "server/controllers/LibraryItemController.js:163-197",
+    "server/controllers/LibraryItemController.js:163-197,152-160",
+    "server/utils/constants.js",
+    "server/utils/zipHelpers.js",
+    "server/utils/zipHelpers.js:6-55"
+  ],
+  "implementation": [
+    "go-backend/internal/item/files.go",
+    "go-backend/internal/library/download.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-DL-ZIP-001",
+      "class": "shape",
+      "contract": "A directory download is a readable zip with the item folder's relative filenames and unchanged contents, built from the folder at request time, repeatable, and a single-file root item is sent as the plain file.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55"
+      ],
+      "tests": [
+        "go-backend/internal/item/files_test.go:59#TestServeFileHonoursRangeLibraryAndPermissions",
+        "go-backend/internal/item/files_test.go:85#TestDownloadFileNeedsDownloadAfterFindingFile",
+        "go-backend/internal/item/files_test.go:100#TestDownloadItemStreamsAZipOfTheFolder",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-zip-first-download",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-zip-repeat",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-zip-follows-folder-changes",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-single-file-item-is-not-zipped"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage.",
+        "Historical pre-rewrite observation (not a fixed representation requirement): Directory download produces a zip whose entries (name/size/CRC32) match upstream exactly; both zippers use STORE mode so CRC equality proves byte-equal content; response streams chunked without Content-Length."
+      ]
+    },
+    {
+      "id": "INV-DL-GATE-001",
+      "class": "error",
+      "contract": "Item and file downloads need the download permission of the resolved user (API keys resolve to their user), a revoked permission applies to the next request, and a refused request changes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55"
+      ],
+      "tests": [
+        "go-backend/internal/item/files_test.go:59#TestServeFileHonoursRangeLibraryAndPermissions",
+        "go-backend/internal/item/files_test.go:85#TestDownloadFileNeedsDownloadAfterFindingFile",
+        "go-backend/internal/item/files_test.go:100#TestDownloadItemStreamsAZipOfTheFolder",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-gate-refuses-without-permission",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-gate-failure-changes-nothing",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-gate-follows-permission-changes",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-gate-api-key-user"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage.",
+        "Historical pre-rewrite observation (not a fixed representation requirement): canDownload=false → sendStatus(403) with the express 'Forbidden' text body; api keys resolve to their user (TokenManager.js:277-305) and do NOT merge key permissions into the runtime user."
+      ]
+    },
+    {
+      "id": "INV-DL-FILE-ORDER-001",
+      "class": "error",
+      "contract": "For the file download the library file is resolved before the download permission is checked: missing file id 404, real file without permission 403, every time.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55"
+      ],
+      "tests": [
+        "go-backend/internal/item/files_test.go:59#TestServeFileHonoursRangeLibraryAndPermissions",
+        "go-backend/internal/item/files_test.go:85#TestDownloadFileNeedsDownloadAfterFindingFile",
+        "go-backend/internal/item/files_test.go:100#TestDownloadItemStreamsAZipOfTheFolder",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-file-lookup-before-gate",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-file-lookup-repeat"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+      ]
+    },
+    {
+      "id": "INV-DL-FILE-DISK-ERROR-001",
+      "class": "error",
+      "contract": "A recorded library file whose disk file is gone answers 404 on the stream and download routes without path details, and stored rows stay unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55"
+      ],
+      "tests": [
+        "go-backend/internal/item/files_test.go:59#TestServeFileHonoursRangeLibraryAndPermissions",
+        "go-backend/internal/item/files_test.go:85#TestDownloadFileNeedsDownloadAfterFindingFile",
+        "go-backend/internal/item/files_test.go:100#TestDownloadItemStreamsAZipOfTheFolder",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-disk-file-missing"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage.",
+        "Historical pre-rewrite observation (not a fixed representation requirement): If the requested library-file record exists but its disk path is missing with ENOENT, upstream returns 404 'File not found'; a previously selected audio MIME type is preserved with Express string charset, Content-Length, and weak ETag headers."
+      ]
+    }
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/item/files_test.go:59#TestServeFileHonoursRangeLibraryAndPermissions",
+    "go-backend/internal/item/files_test.go:85#TestDownloadFileNeedsDownloadAfterFindingFile",
+    "go-backend/internal/item/files_test.go:100#TestDownloadItemStreamsAZipOfTheFolder",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-zip-first-download",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-zip-repeat",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-zip-follows-folder-changes",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-single-file-item-is-not-zipped",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-gate-refuses-without-permission",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-gate-failure-changes-nothing",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-gate-follows-permission-changes",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-gate-api-key-user",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-file-lookup-before-gate",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-file-lookup-repeat",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/sub-disk-file-missing"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/scanner-flow-report.json (2026-10-30: item-download, api-key-denied-download pass)",
+    "go-backend/testmachine/contracts/parity/full-suite-report.json (2026-10-30: seven item-file-download response/range/permission/disk-error cases pass)"
+  ],
+  "exceptions": [
+    "Single-file item download (isFile=1 items at library root) is implemented per source (mime + res.download semantics) but has no differential case yet.",
+    "Download-after-media-change state variant recorded for the next expansion wave.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+    "force is not applicable: reading and downloading have no force, hard or override mode"
+  ]
+}

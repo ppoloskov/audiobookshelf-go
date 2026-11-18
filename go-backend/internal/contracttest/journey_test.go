@@ -23,10 +23,10 @@ import (
 	"audiobookshelf-compat/internal/contracttest/shape"
 )
 
-// The journey's recorded responses (contracts/shapes/journey.json) come from TS
+// The journey's recorded responses (testmachine/contracts/shapes/journey.json) come from TS
 // v2.37.2 run on a copy of the fixture. To regenerate them:
 //
-//	node go-backend/tools/contractfixture/serve-upstream.cjs   # prints ROOT and READY
+//	node go-backend/testmachine/scripts/contractfixture/serve-upstream.cjs   # prints ROOT and READY
 //	cd go-backend && go test ./internal/contracttest -run TestJourney -record \
 //	    -upstream=<READY URL> -upstream-root=<ROOT>
 //
@@ -35,9 +35,9 @@ import (
 
 // journeyShapesFile holds the status, media type and shape each journey step got
 // from TS v2.37.2 (see the note above).
-const journeyShapesFile = "../../contracts/shapes/journey.json"
+const journeyShapesFile = "../../testmachine/contracts/shapes/journey.json"
 
-// journeyStep mirrors one entry of journeySteps in tools/parity/replacement-trial.cjs.
+// journeyStep mirrors one entry of journeySteps in testmachine/parity/replacement-trial.cjs.
 // A ctx-dependent field is a func of the journeyCtx instead of its plain value.
 type journeyStep struct {
 	id     string

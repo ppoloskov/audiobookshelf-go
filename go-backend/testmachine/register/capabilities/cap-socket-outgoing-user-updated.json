@@ -1,0 +1,74 @@
+{
+  "id": "socket-outgoing-user-updated",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing user_updated: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/controllers/MeController.js:264",
+    "server/controllers/MeController.js:286",
+    "server/controllers/MeController.js:315",
+    "server/controllers/MeController.js:350",
+    "server/controllers/MeController.js:388",
+    "server/controllers/MeController.js:422",
+    "server/controllers/MeController.js:540",
+    "server/controllers/MeController.js:559",
+    "server/controllers/MeController.js:584",
+    "server/controllers/UserController.js:347",
+    "server/controllers/UserController.js:424"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go",
+    "go-backend/internal/user/admin.go",
+    "go-backend/internal/user/progress.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/user/user_test.go:146#TestUserAdministration",
+    "go-backend/internal/user/user_test.go:241#TestProgressAndBookmarkEvents",
+    "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-updated-event-to-acting-admin-only",
+    "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-updated-event-follows-the-acting-admin",
+    "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-updated-event-per-change",
+    "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-updated-event-not-sent-without-change"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: the event is a notification without a force or override mode"
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-USER-UPDATED",
+      "class": "repeat_operation",
+      "contract": "PATCH /api/users/:id that changes something and openid-unlink of a linked user emit user_updated with the user browser view only to the sockets of the acting admin (not the edited user, other admins or ordinary users); unchanged or rejected requests emit nothing. Other call sites (MeController) belong to the user_me packet.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/UserController.js:347",
+        "server/controllers/UserController.js:424"
+      ],
+      "tests": [
+        "go-backend/internal/user/user_test.go:146#TestUserAdministration",
+        "go-backend/internal/user/user_test.go:241#TestProgressAndBookmarkEvents",
+        "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-updated-event-to-acting-admin-only",
+        "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-updated-event-follows-the-acting-admin",
+        "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-updated-event-per-change",
+        "go-backend/testmachine/scenarios/user_admin/run_test.go#TestReplacement/user-updated-event-not-sent-without-change"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

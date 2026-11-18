@@ -1,0 +1,64 @@
+{
+  "id": "socket-outgoing-library-removed",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing library_removed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/controllers/LibraryController.js:588"
+  ],
+  "implementation": [
+    "go-backend/internal/library/remove.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/library/libraries_test.go:145#TestDeleteLibraryIsOneTransactionWithEffectsAfter",
+    "go-backend/testmachine/scenarios/library_manage/run_test.go#TestReplacement/event-removed-to-every-authenticated-socket",
+    "go-backend/testmachine/scenarios/library_manage/run_test.go#TestReplacement/event-removed-carries-latest-document",
+    "go-backend/testmachine/scenarios/library_manage/run_test.go#TestReplacement/event-removed-once-then-not-again",
+    "go-backend/testmachine/scenarios/library_manage/run_test.go#TestReplacement/event-removed-not-sent-for-rejected-delete"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: library_removed has no force or override mode."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-LIBRARY-REMOVED",
+      "class": "repeat_operation",
+      "contract": "A successful delete emits library_removed once with the library document as it was before deletion to every authenticated socket regardless of library access, not to unauthenticated sockets, never twice, and a rejected delete emits nothing.",
+      "status": "unverified",
+      "source": [
+        "server/SocketAuthority.js:57-65",
+        "server/controllers/LibraryController.js:1481-1484",
+        "server/controllers/LibraryController.js:497-505",
+        "server/controllers/LibraryController.js:497-566",
+        "server/controllers/LibraryController.js:543-556",
+        "server/controllers/LibraryController.js:553-560"
+      ],
+      "tests": [
+        "go-backend/internal/library/libraries_test.go:145#TestDeleteLibraryIsOneTransactionWithEffectsAfter",
+        "go-backend/testmachine/scenarios/library_manage/run_test.go#TestReplacement/event-removed-to-every-authenticated-socket",
+        "go-backend/testmachine/scenarios/library_manage/run_test.go#TestReplacement/event-removed-carries-latest-document",
+        "go-backend/testmachine/scenarios/library_manage/run_test.go#TestReplacement/event-removed-once-then-not-again",
+        "go-backend/testmachine/scenarios/library_manage/run_test.go#TestReplacement/event-removed-not-sent-for-rejected-delete"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

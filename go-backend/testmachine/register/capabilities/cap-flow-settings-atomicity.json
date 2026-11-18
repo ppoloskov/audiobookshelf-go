@@ -1,0 +1,91 @@
+{
+  "id": "cap-flow-settings-atomicity",
+  "parent": "http/admin",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Settings mutation merges only supplied fields into current document, validates before commit, commits a coherent settings value, and notifies watchers from the committed version; concurrent read-modify-write must not lose independent updates.",
+  "source": [
+    "server/objects/settings/ServerSettings.js"
+  ],
+  "implementation": [
+    "go-backend/internal/settings/settings.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
+    "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
+    "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+    "go-backend/internal/settings/settings_test.go:252#TestConcurrentUpdatesLoseNothing",
+    "go-backend/internal/settings/settings_test.go:230#TestUpdateServerErrorLeavesRowAndCache",
+    "go-backend/internal/settings/settings_test.go:220#TestServerSnapshotsAreIndependent",
+    "go-backend/internal/settings/settings_test.go:200#TestEnvOverridesAreNotPersisted",
+    "go-backend/internal/settings/settings_test.go:51#TestRoundTripFixtureServer",
+    "go-backend/internal/settings/settings_test.go:64#TestRoundTripEmailAndNotifications"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-CAP-FLOW-SETTINGS-ATOMICITY",
+      "class": "transaction",
+      "contract": "Settings mutation merges only supplied fields into current document, validates before commit, commits a coherent settings value, and notifies watchers from the committed version; concurrent read-modify-write must not lose independent updates.",
+      "status": "unverified",
+      "source": [
+        "server/objects/settings/ServerSettings.js"
+      ],
+      "tests": [
+        "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
+        "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SETTINGS-SEQUENTIAL-REOPEN-001",
+      "class": "state_transition",
+      "contract": "Sequential disjoint server settings changes merge and the committed value survives upstream reopen.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:139-171"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-merge-upstream-reopen"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "This does not prove concurrent writes or database write-failure rollback."
+      ]
+    },
+    {
+      "id": "INV-SETTINGS-REJECTION-001",
+      "class": "transaction",
+      "contract": "An invalid allowedOrigins update with another supplied field is rejected before changing stored or surfaced settings.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:139-165"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-invalid-unchanged"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

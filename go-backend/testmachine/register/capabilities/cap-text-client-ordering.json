@@ -1,0 +1,49 @@
+{
+  "id": "text-client-ordering",
+  "parent": "text",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Natural/locale ordering, sort prefixes and last-first name parsing preserve observable client ordering and stored/displayed title/name meanings; derive expected outcomes from pinned Node fixtures, including Unicode/numeric edge cases.",
+  "source": [
+    "server/utils/",
+    "go-backend/testmachine/scripts/gen-collation-fixture.cjs"
+  ],
+  "implementation": [
+    "go-backend/internal/text/"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/text/sort_test.go:16#TestMatchesNode",
+    "go-backend/internal/text/sort_test.go:50#TestPrefixes",
+    "go-backend/internal/text/names_test.go:12#TestToLastFirstMatchesUpstream"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": false,
+  "invariants": [
+    {
+      "id": "INV-TEXT-CLIENT-ORDERING",
+      "class": "shape",
+      "contract": "Natural/locale ordering, sort prefixes and last-first name parsing preserve observable client ordering and stored/displayed title/name meanings; derive expected outcomes from pinned Node fixtures, including Unicode/numeric edge cases.",
+      "status": "unverified",
+      "source": [
+        "server/utils/",
+        "go-backend/testmachine/scripts/gen-collation-fixture.cjs"
+      ],
+      "tests": [
+        "go-backend/internal/text/sort_test.go:16#TestMatchesNode",
+        "go-backend/internal/text/sort_test.go:50#TestPrefixes",
+        "go-backend/internal/text/names_test.go:12#TestToLastFirstMatchesUpstream"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

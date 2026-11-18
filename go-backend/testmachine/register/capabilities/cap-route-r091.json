@@ -1,0 +1,79 @@
+{
+  "id": "route-r091",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/playlists/:id. Read a playlist only with the required owner/library permissions; include ordered book/episode expansions and explicit nullable fields.",
+  "source": [
+    "server/routers/ApiRouter.js:161",
+    "server/controllers/PlaylistController.js:575",
+    "server/controllers/PlaylistController.js:152"
+  ],
+  "implementation": [
+    "go-backend/internal/list/list.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/list/list_ported_test.go:197#TestPortedReadValuesAndPermissions",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/get-owner-reads-book-playlist",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/get-podcast-playlist-episode-items",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/get-rejects-unknown-foreign-and-anonymous",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/get-hidden-when-library-access-revoked",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/get-foreign-in-inaccessible-library-is-403",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/get-playlist-preserves-unplayable-item-flags"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#playlist-missing (differential pass)",
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#playlist-read (differential pass)"
+  ],
+  "exceptions": [
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R091-SAMPLED",
+      "class": "shape",
+      "contract": "GET /api/playlists/:id answers the expanded playlist (id, name, description, libraryId, userId, lastUpdate, createdAt, items with libraryItemId/episodeId, episode and library item) in persisted order.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PlaylistController.js:152-155",
+        "server/models/Playlist.js:297-319"
+      ],
+      "tests": [
+        "go-backend/internal/list/list_ported_test.go:197#TestPortedReadValuesAndPermissions",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/get-owner-reads-book-playlist",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/get-podcast-playlist-episode-items",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/get-playlist-preserves-unplayable-item-flags"
+      ],
+      "evidence": [
+        "go-backend/testmachine/contracts/parity/full-suite-report.json#playlist-missing",
+        "go-backend/testmachine/contracts/parity/full-suite-report.json#playlist-read"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R091-ACCESS",
+      "class": "precedence",
+      "contract": "GET /api/playlists/:id answers 401 without a token, 404 for an unknown playlist or one in a library the user cannot access, and 403 for any user who does not own it, administrators included.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PlaylistController.js:575-593",
+        "server/routers/ApiRouter.js:161",
+        "server/controllers/PlaylistController.js:585-588"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/get-rejects-unknown-foreign-and-anonymous",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/get-hidden-when-library-access-revoked",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/get-foreign-in-inaccessible-library-is-403"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

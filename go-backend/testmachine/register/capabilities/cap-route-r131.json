@@ -1,0 +1,99 @@
+{
+  "id": "route-r131",
+  "parent": "http/author",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/authors/:id dispatches to the pinned TS handler AuthorController.middleware (ApiRouter.js:217, server/controllers/AuthorController.js:427) and Go registration mux.Handle(\"GET /api/authors/{id}\", h.authed(h.get)). Current assertion anchor(s): TestGetDetail; TestGetAccess. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:217",
+    "go-backend/internal/author/handler.go",
+    "go-backend/internal/author/handler.go:58",
+    "server/controllers/AuthorController.js:427",
+    "server/controllers/AuthorController.js:40-87",
+    "server/models/Author.js:177-198",
+    "server/Server.js:354",
+    "server/Auth.js:61-63",
+    "server/controllers/AuthorController.js:427-442"
+  ],
+  "implementation": [
+    "go-backend/internal/author/handler.go:58"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-fields",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-needs-no-write-permission",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-include-items",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-include-items-series",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-include-without-items",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-unauthenticated",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-not-found",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-inaccessible-library",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-items-item-tag-restrictions",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-items-explicit-restriction",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-series-items-natural-sequence-order"
+  ],
+  "evidence": [],
+  "exceptions": [],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R131-CONTRACT",
+      "class": "shape",
+      "contract": "GET /api/authors/:id (any authenticated user) returns Author.toOldJSON: id, asin, name, description, imagePath, libraryId, addedAt, updatedAt (epoch ms of the row timestamps) and no numBooks, libraryItems or series.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:217",
+        "server/controllers/AuthorController.js:40-43",
+        "server/controllers/AuthorController.js:87",
+        "server/models/Author.js:190-200"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-fields"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R131-ACCESS",
+      "class": "authorization",
+      "contract": "Without token the route is 401; an unknown id or an author of a library the user cannot access is 404; update, delete and upload permissions are not required to read.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/AuthorController.js:427-431",
+        "server/Auth.js:322"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-needs-no-write-permission",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-unauthenticated",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-not-found",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-inaccessible-library"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R131-ITEMS",
+      "class": "response",
+      "contract": "include=items adds libraryItems (minified items of the author books); include=items,series also adds series groups ordered by sequence with metadata.series on each item; include=series alone or unknown values add nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/AuthorController.js:41-87"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-include-items",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-include-items-series",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-include-without-items",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-items-item-tag-restrictions",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-items-explicit-restriction",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/get-author-series-items-natural-sequence-order"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "id": "route-r134",
+  "parent": "http/author",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/authors/:id/match dispatches to the pinned TS handler AuthorController.middleware (ApiRouter.js:220, server/controllers/AuthorController.js:427) and Go registration mux.Handle(\"POST /api/authors/{id}/match\", h.authed(h.match)). Current assertion anchor(s): TestMatch. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:220",
+    "go-backend/internal/author/handler.go",
+    "go-backend/internal/author/handler.go:61",
+    "server/controllers/AuthorController.js:427"
+  ],
+  "implementation": [
+    "go-backend/internal/author/handler.go:61"
+  ],
+  "cases": {
+    "normal": "not_applicable",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/match-denied-changes-nothing",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/match-no-result-is-404",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/match-no-result-repeat",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/match-by-update-only-user"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "changed is not applicable: the only offline-deterministic outcome is the no-match 404, which does not depend on author state; state-dependent branches need the provider",
+    "force is not applicable: the route has no force mode",
+    "Open question: the success branches of POST /api/authors/:id/match (lines 351-382 of the controller) are not covered because Audnexus is a fixed external host.",
+    "normal is not applicable: external host: api.audnex.us (the success path taking asin, image and description from the provider); offline the no-match, authorisation and not-found answers are asserted as error and edge scenarios"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "not_applicable",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R134-AUTH",
+      "class": "authorization",
+      "contract": "401 without token; 404 before 403; users need update permission; rejected requests change nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/AuthorController.js:427-438"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/match-denied-changes-nothing",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/match-by-update-only-user"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R134-CONTRACT",
+      "class": "behaviour",
+      "contract": "POST /api/authors/:id/match with no usable query (or no result from Audnexus, which is reachable only at the fixed host) answers 404 and changes nothing. Success branches need the external host and are not asserted (open question).",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:220",
+        "server/controllers/AuthorController.js:337-347",
+        "server/providers/Audnexus.js:47-125"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/match-no-result-is-404"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R134-NOMATCH",
+      "class": "repeat_operation",
+      "contract": "A no-result match is idempotent: 404 each time, row and events unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/AuthorController.js:345-347"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/match-no-result-repeat"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

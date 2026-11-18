@@ -1,7 +1,7 @@
 # Local acceptance environment
 
 Authoritative entrypoint: `make verify` (or `make check`) from repository root;
-see [VERIFICATION.md](VERIFICATION.md). Missing upstream requirement proof returns
+see [VERIFICATION.md](testmachine/VERIFICATION.md). Missing upstream requirement proof returns
 a nonzero result even when Go regressions and Node self-tests pass. The commands
 below configure prerequisites or diagnose individual components; they are not
 alternative whole-contract acceptance gates.
@@ -107,7 +107,7 @@ source tree; source version/hash/flags above remain durable when logs expire.
 From the repository root, with the existing upstream dependencies installed:
 
 ```sh
-mise exec node@22 -- node --test go-backend/tools/parity/test-playback-lifecycle.cjs
+mise exec node@22 -- node --test go-backend/testmachine/parity/test-playback-lifecycle.cjs
 ```
 
 This exercises the public live gate against recorded real TS/Go traces, then

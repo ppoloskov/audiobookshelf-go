@@ -17,11 +17,11 @@ a reference for what the contracts mean, not a template.
 
 ## Status
 
-[Unified verification](VERIFICATION.md) is now the authoritative upstream-first
+[Unified verification](testmachine/VERIFICATION.md) is now the authoritative upstream-first
 acceptance path: `make verify` (also `make check`). Go regressions and Node
 self-tests do not establish upstream coverage. Go replacement verification stays
 blocked until every in-scope upstream requirement has shared assertion proof.
-The earlier [integration report](docs/verification/unified-verification-integration-20261114.json) measured nine of 34 packets before additional owner work arrived. The [Q01 queue review](docs/verification/q01-embed-queue-review.md) records the subsequent tools check and whole-suite discovery failure.
+The earlier [integration report](testmachine/reports/unified-verification-integration-20261114.json) measured nine of 34 packets before additional owner work arrived. The [Q01 queue review](testmachine/reports/q01-embed-queue-review.md) records the subsequent tools check and whole-suite discovery failure.
 
 The rewrite is finished in code. The packages are listed in
 [ARCHITECTURE.md](ARCHITECTURE.md#packages); the old shared packages, sqlc and
@@ -37,9 +37,9 @@ repository checks pass; live acceptance evidence and review status are in
 The inherited-pipe cancellation and incremental-progress gate review findings
 are closed by architect re-review. No later production ownership packet has started.
 
-The [requirement-to-test mapping](docs/verification/replacement-requirement-map.md)
+The [requirement-to-test mapping](testmachine/reports/replacement-requirement-map.md)
 records 345 requirements and 620 invariants, with source/current test anchors and
-explicit proof gaps. The [ordered queue](docs/verification/replacement-gap-queue.md)
+explicit proof gaps. The [ordered queue](testmachine/reports/replacement-gap-queue.md)
 closes them one owner per invocation with architect review between packets.
 Q00 inventory is architect-accepted. The November 17 playlist review and current discovery blocker are in the [handover](handover.md). The target claim
 remains conditional on every defined requirement passing the final closure gate.
@@ -120,9 +120,10 @@ layers and the rollback check are described in
 ```
 cmd/audiobookshelf-go   main
 internal/               32 packages + db/dbtest; see ARCHITECTURE.md "Packages"
-contracts/              client-usage evidence and mobile audit
 docs/                   CHANGES.md, survey/ (pre-rewrite)
-tools/                  Node harness (parity, rollback), fixture builders
+tools/                  abooks-resource-report.py (not part of the test machine)
+testmachine/            unified verification machine: scenarios, cmd/verify,
+                        scripts, parity harness, register, reports, contracts
 archive/                superseded documents, evidence only
 ```
 
@@ -138,6 +139,6 @@ archive/                superseded documents, evidence only
 | [ROADMAP.md](ROADMAP.md) | the rewrite waves (done) and what is next |
 | [docs/CHANGES.md](docs/CHANGES.md) | behaviour changes for operators |
 | [docs/survey/](docs/survey/) | pre-rewrite area surveys; the HAZARDS sections still list behaviours to keep |
-| [contracts/README.md](contracts/README.md) | upstream source inventory and client evidence |
-| [tools/parity/README.md](tools/parity/README.md) | Node differential and rollback harness (advisory) |
+| [testmachine/contracts/README.md](testmachine/contracts/README.md) | upstream source inventory and client evidence |
+| [testmachine/parity/README.md](testmachine/parity/README.md) | Node differential and rollback harness (advisory) |
 | [archive/](archive/) | history |

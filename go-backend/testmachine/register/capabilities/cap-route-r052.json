@@ -1,0 +1,129 @@
+{
+  "id": "route-r052",
+  "parent": "http/item",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/items/:id/download dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:110, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"GET /api/items/{id}/download\", h.authed(h.downloadItem)). Current assertion anchor(s): TestDownloadItemStreamsAZipOfTheFolder. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "go-backend/internal/item/handler.go",
+    "go-backend/internal/item/handler.go:112",
+    "server/controllers/LibraryItemController.js:1220",
+    "server/controllers/LibraryItemController.js:1220-1250",
+    "server/controllers/LibraryItemController.js:152-160",
+    "server/controllers/LibraryItemController.js:163-173",
+    "server/controllers/LibraryItemController.js:169-198",
+    "server/controllers/LibraryItemController.js:179-186",
+    "server/models/User.js:646-683",
+    "server/routers/ApiRouter.js:110",
+    "server/utils/fileUtils.js:424-429",
+    "server/utils/zipHelpers.js:6-55"
+  ],
+  "implementation": [
+    "go-backend/internal/item/handler.go:112"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/item/files_test.go:100#TestDownloadItemStreamsAZipOfTheFolder",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-zip-of-multifile-item",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-zip-of-other-folders",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-zip-without-update-permission",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-without-permission",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-unauthenticated",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-unknown-item",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-item-access-denied",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-single-file-item-without-zip",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-item-files-gone-from-disk",
+    "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-unknown-item-before-permission"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#api-key-denied-download (differential pass)",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R052-SAMPLED",
+      "class": "error",
+      "contract": "GET /api/items/:id/download answers 403 without the download permission, sends no content and changes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/controllers/LibraryItemController.js:163-173",
+        "server/controllers/LibraryItemController.js:169-198",
+        "server/utils/zipHelpers.js:6-55"
+      ],
+      "tests": [
+        "go-backend/internal/item/files_test.go:100#TestDownloadItemStreamsAZipOfTheFolder",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-without-permission",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-unknown-item-before-permission"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
+        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
+        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+      ]
+    },
+    {
+      "id": "INV-R052-ZIP-001",
+      "class": "shape",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "The download of a folder item is application/zip attached as \"<title>.zip\" whose entries are exactly the files under the item folder, with unchanged bytes.",
+      "source": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/controllers/LibraryItemController.js:169-198",
+        "server/utils/zipHelpers.js:6-55"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-zip-of-multifile-item",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-zip-of-other-folders",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-zip-without-update-permission"
+      ]
+    },
+    {
+      "id": "INV-R052-ACCESS-001",
+      "class": "error",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "The download route answers 401 without a token, 404 for an unknown item and 403 for library, tag or explicit-content restrictions.",
+      "source": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/controllers/LibraryItemController.js:169-198",
+        "server/models/User.js:646-683"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-unauthenticated",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-unknown-item",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-item-access-denied"
+      ]
+    },
+    {
+      "id": "INV-R052-SINGLE-001",
+      "class": "shape",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "An item that is a single file in the library root is sent as that file (attachment named by its relative path, audio media type from the server table, exact bytes), not zipped.",
+      "source": [
+        "server/controllers/LibraryItemController.js:152-160",
+        "server/controllers/LibraryItemController.js:169-198",
+        "server/controllers/LibraryItemController.js:179-186",
+        "server/utils/fileUtils.js:424-429"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-single-file-item-without-zip",
+        "go-backend/testmachine/scenarios/item_read/run_test.go#TestReplacement/download-item-files-gone-from-disk"
+      ]
+    }
+  ]
+}

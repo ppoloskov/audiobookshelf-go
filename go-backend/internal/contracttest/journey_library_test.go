@@ -25,7 +25,7 @@ import (
 
 // libraryShapesFile holds the status, media type and shape each step got from TS
 // v2.37.2.
-const libraryShapesFile = "../../contracts/shapes/library.json"
+const libraryShapesFile = "../../testmachine/contracts/shapes/library.json"
 
 // librarySecondName and librarySecondFolder are the second library: its folder is
 // created inside the fixture's media root before the run.

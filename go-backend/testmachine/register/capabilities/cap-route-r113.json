@@ -1,0 +1,92 @@
+{
+  "id": "route-r113",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/me/item/:id/bookmark. Create or retitle current-user bookmark at a fractional time; retitling retains createdAt, validates title/time and emits user_updated after persistence.",
+  "source": [
+    "server/routers/ApiRouter.js:187",
+    "server/controllers/MeController.js:327"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-create",
+    "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-create-same-time",
+    "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-create-access-rules",
+    "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-create-rejections",
+    "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-create-after-remove"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#bookmark-create (differential pass)"
+  ],
+  "exceptions": [
+    "force is not applicable: this route has no force, hard or override mode"
+  ],
+  "invariants": [
+    {
+      "id": "INV-R113-SAMPLED",
+      "class": "state_transition",
+      "contract": "POST /api/me/item/:id/bookmark with a numeric time and non-empty string title answers {libraryItemId, time, title, createdAt: now ms}, appends it to users.bookmarks, and emits user_updated to the caller only; at an existing time of the same item it retitles and answers the existing bookmark (same createdAt) without a second entry.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:327-358",
+        "server/models/User.js:841-912"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-create",
+        "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-create-same-time",
+        "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-create-after-remove"
+      ],
+      "evidence": [
+        "go-backend/testmachine/contracts/parity/full-suite-report.json#bookmark-create"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R113-ACCESS-001",
+      "class": "state_transition",
+      "contract": "The caller must be allowed the item by library access, item tags (allow and deny mode) and explicit content, else 403 and nothing is stored.",
+      "source": [
+        "server/controllers/MeController.js:327-340",
+        "server/models/User.js:646-683"
+      ],
+      "status": "unverified",
+      "tests": [
+        "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-create-access-rules"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R113-ERROR-001",
+      "class": "state_transition",
+      "contract": "Unauthenticated answers 401, an unknown item 404 (before the body check), a missing, null or non-numeric time or a missing, empty or non-string title 400; nothing is stored and no event is sent.",
+      "source": [
+        "server/controllers/MeController.js:327-358",
+        "server/utils/index.js:53-55"
+      ],
+      "status": "unverified",
+      "tests": [
+        "go-backend/testmachine/scenarios/user_progress/run_test.go#TestReplacement/bookmark-create-rejections"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

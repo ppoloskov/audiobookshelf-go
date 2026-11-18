@@ -1,0 +1,115 @@
+{
+  "id": "route-r207",
+  "parent": "http/auth",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/authorize. Authorize the supplied client credentials and return the consumed user/default-library/server settings projection; reject inactive/invalid/expired credentials without session leakage.",
+  "source": [
+    "server/routers/ApiRouter.js:350",
+    "server/controllers/MiscController.js:285"
+  ],
+  "implementation": [
+    "go-backend/internal/auth/service.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/contracttest/journey_test.go:127#TestJourney/authorize",
+    "go-backend/internal/auth/service_test.go:254#TestAuthenticate",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-returns-user-payload",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-repeat-is-stable",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-reflects-permission-change",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-accepts-token-query-and-legacy-token",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-accepts-active-api-key",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-honours-jwt-secret-key-env",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-rejects-missing-and-invalid-tokens",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/rejected-authorize-leaves-state-unchanged",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-rejects-inactive-user",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-rejects-inactive-api-key",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-rejects-expired-api-key-and-deactivates-it",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-rejects-expired-access-token"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#authorize (differential pass)"
+  ],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "TestJourney/authorize checks recorded status/type shape only; TestAuthenticate checks the lower-level token boundary, not the authorize payload. Add decoded response-value assertions.",
+    "force is not applicable: this requirement has no force, hard or override mode"
+  ],
+  "invariants": [
+    {
+      "id": "INV-R207-SAMPLED",
+      "class": "shape",
+      "contract": "POST /api/authorize answers the login payload of the bearer's user (full user projection, userDefaultLibraryId following library permissions, serverSettings without secrets, ereaderDevices, Source) without creating sessions or cookies; repeat calls are identical.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:350",
+        "server/controllers/MiscController.js:285-288",
+        "server/Auth.js:96-105",
+        "server/models/User.js:691-694",
+        "server/controllers/UserController.js:254-320"
+      ],
+      "tests": [
+        "go-backend/internal/contracttest/journey_test.go:127#TestJourney/authorize",
+        "go-backend/internal/auth/service_test.go:254#TestAuthenticate",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-returns-user-payload",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-repeat-is-stable",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-reflects-permission-change"
+      ],
+      "evidence": [
+        "go-backend/testmachine/contracts/parity/full-suite-report.json#authorize"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R207-CREDENTIALS-001",
+      "class": "state_transition",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "The bearer may be an access token, the ?token= query parameter, the legacy non-expiring user token or an active API key. Missing, garbage, wrongly signed, refresh-type, expired, inactive-user, inactive or expired API-key credentials are denied with 401 without changing sessions; an expired API key is deactivated.",
+      "source": [
+        "server/Auth.js:120-135",
+        "server/auth/TokenManager.js:306-345",
+        "server/auth/TokenManager.js:278-304",
+        "server/controllers/ApiKeyController.js:50-110",
+        "server/auth/TokenManager.js:42-62",
+        "server/Auth.js:61-63",
+        "server/auth/TokenManager.js:81-85",
+        "server/auth/TokenManager.js:306-317",
+        "server/auth/TokenManager.js:320-326",
+        "server/auth/TokenManager.js:298-303",
+        "server/auth/TokenManager.js:278-285",
+        "server/controllers/ApiKeyController.js:112-160",
+        "server/auth/TokenManager.js:287-296",
+        "server/auth/TokenManager.js:15-23",
+        "server/auth/TokenManager.js:312-317"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-accepts-token-query-and-legacy-token",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-accepts-active-api-key",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-honours-jwt-secret-key-env",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-rejects-missing-and-invalid-tokens",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/rejected-authorize-leaves-state-unchanged",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-rejects-inactive-user",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-rejects-inactive-api-key",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-rejects-expired-api-key-and-deactivates-it",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/authorize-rejects-expired-access-token"
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "id": "socket-outgoing-collection-added",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing collection_added: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/controllers/CollectionController.js:104"
+  ],
+  "implementation": [
+    "go-backend/internal/list/collection.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/list/list_test.go:339#TestCollectionCreateReorderAndBatch",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-added-reaches-every-authenticated-socket",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-added-not-replayed-to-late-socket",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-added-repeat-emits-new-collection",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-added-by-updater-user",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-added-not-sent-for-rejected-create"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-COLLECTION-ADDED",
+      "class": "repeat_operation",
+      "contract": "collection_added carries the expanded collection of a successful create and goes to every authenticated socket (any user, any library access), never to an unauthenticated socket, and is not sent for rejected creates.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/CollectionController.js:99-105",
+        "server/SocketAuthority.js:57-66",
+        "server/controllers/CollectionController.js:104",
+        "server/controllers/CollectionController.js:450-453",
+        "server/controllers/CollectionController.js:38-64"
+      ],
+      "tests": [
+        "go-backend/internal/list/list_test.go:339#TestCollectionCreateReorderAndBatch",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-added-reaches-every-authenticated-socket",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-added-not-replayed-to-late-socket",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-added-repeat-emits-new-collection",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-added-by-updater-user",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-added-not-sent-for-rejected-create"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

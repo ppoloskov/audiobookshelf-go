@@ -1,0 +1,63 @@
+{
+  "id": "protocol-ranges-cache",
+  "parent": "httpx",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Direct/public/session/item/download media responds with correct bytes and MIME, 206/416 Content-Range including suffix/open-ended/unsatisfiable ranges; conditional requests retain ETag/304 semantics without fixing the ETag algorithm; headers and attachment names remain usable by clients after access revocation.",
+  "source": [
+    "server/routers/PublicRouter.js",
+    "server/controllers/LibraryItemController.js",
+    "go-backend/testmachine/contracts/clients/lissen.md",
+    "go-backend/testmachine/register/CONTRACT.md"
+  ],
+  "implementation": [
+    "go-backend/internal/httpx/files.go",
+    "go-backend/internal/httpx/respond.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/httpx/files_test.go:27#TestServeFile",
+    "go-backend/internal/httpx/files_test.go:68#TestDownload",
+    "go-backend/internal/httpx/respond_test.go:22#TestJSON",
+    "go-backend/internal/contracttest/mobile_protocol_test.go"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-PROTOCOL-RANGES-CACHE",
+      "class": "repeat_operation",
+      "contract": "Direct/public/session/item/download media responds with correct bytes and MIME, 206/416 Content-Range including suffix/open-ended/unsatisfiable ranges; conditional requests retain ETag/304 semantics without fixing the ETag algorithm; headers and attachment names remain usable by clients after access revocation.",
+      "status": "unverified",
+      "source": [
+        "server/routers/PublicRouter.js",
+        "server/controllers/LibraryItemController.js",
+        "go-backend/testmachine/contracts/clients/lissen.md",
+        "go-backend/testmachine/register/CONTRACT.md"
+      ],
+      "tests": [
+        "go-backend/internal/httpx/files_test.go:27#TestServeFile",
+        "go-backend/internal/httpx/files_test.go:68#TestDownload",
+        "go-backend/internal/httpx/respond_test.go:22#TestJSON",
+        "go-backend/internal/contracttest/mobile_protocol_test.go"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

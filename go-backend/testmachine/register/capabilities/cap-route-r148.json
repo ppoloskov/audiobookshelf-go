@@ -1,0 +1,118 @@
+{
+  "id": "route-r148",
+  "parent": "http/playback",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/session/:id/close. Close an owned/admin open session once, applying optional final sync and persisting only listened sessions; reap transcode and remove stream before one user_session_closed, then reject future sync/close.",
+  "source": [
+    "server/routers/ApiRouter.js:243",
+    "server/controllers/SessionController.js:338",
+    "server/controllers/SessionController.js:178"
+  ],
+  "implementation": [
+    "go-backend/internal/playback/playback.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/playback/playback_test.go:227#TestDirectPlayRangeOwnershipAndProgress",
+    "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
+    "go-backend/internal/playback/playback_test.go:330#TestCloseWithoutSyncDataSavesOnlyListenedSessions"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#session-close (differential pass)",
+    "go-backend/testmachine/contracts/parity/browser-playback-differential-report.json#results.playback"
+  ],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R148-SAMPLED",
+      "class": "shape",
+      "contract": "Sampled POST /session/:id/close via differential case(s) session-close: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: playback.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:243"
+      ],
+      "tests": [
+        "go-backend/internal/playback/playback_test.go:227#TestDirectPlayRangeOwnershipAndProgress",
+        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
+        "go-backend/internal/playback/playback_test.go:330#TestCloseWithoutSyncDataSavesOnlyListenedSessions"
+      ],
+      "evidence": [
+        "go-backend/testmachine/contracts/parity/full-suite-report.json#session-close"
+      ],
+      "exceptions": [
+        "Sampled evidence; unsampled request-shape variants are separate behaviors."
+      ]
+    },
+    {
+      "id": "INV-R148-CLOSE-001",
+      "class": "state_transition",
+      "contract": "POST /api/session/:id/close with a final sync stores the session with the total listening time, moves the progress, removes the open session, answers the owner's sockets with user_session_closed and the admins with one user_stream_update. Closing a session that never listened, with an empty body, stores no session row and touches no progress, but still removes the session and sends user_session_closed. Closing with an empty body after a sync keeps the synced row as stored and does not touch the progress. A session closes once: a second close or a later sync answers 404 and changes no row, progress or event. An admin can close another user's open session, as the web client's session dialog does; the stored session is kept and user_session_closed goes to the session owner's sockets.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:243",
+        "server/controllers/SessionController.js:107-112",
+        "server/managers/PlaybackSessionManager.js:376-387",
+        "server/managers/PlaybackSessionManager.js:389-399",
+        "server/controllers/SessionController.js:313-326",
+        "client/components/modals/ListeningSessionModal.vue:210"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-saves-and-announces",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-without-listening-stores-nothing",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-empty-keeps-synced-row",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-twice-and-sync-after-close",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-by-admin"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R148-AUTH-001",
+      "class": "error",
+      "contract": "Close is refused with 401 unauthenticated, 404 for an unknown session (before the owner check) and 403 for another non-admin user, and the session stays open without any event.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:243",
+        "server/controllers/SessionController.js:313-326"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-refusals-change-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R148-FAILURE-001",
+      "class": "error",
+      "contract": "Closing with a final sync after the item was deleted still answers 200 and closes the session with its event, but stores nothing and moves no progress.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:243",
+        "server/managers/PlaybackSessionManager.js:376-387",
+        "server/managers/PlaybackSessionManager.js:340-348"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-item-removed"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

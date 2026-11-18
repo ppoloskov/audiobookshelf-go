@@ -1,0 +1,65 @@
+{
+  "id": "socket-outgoing-collection-removed",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing collection_removed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/controllers/CollectionController.js:222"
+  ],
+  "implementation": [
+    "go-backend/internal/list/collection.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/list/list_test.go:191#TestCollectionDeleteRemovesEntriesKeepsBooks",
+    "go-backend/internal/list/list_test.go:228#TestCollectionDeleteClosesRSSFeed",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-removed-reaches-every-authenticated-socket",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-removed-emptied-collection-has-no-books",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-removed-not-repeated-for-second-delete",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-removed-not-sent-for-rejected-delete"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-COLLECTION-REMOVED",
+      "class": "repeat_operation",
+      "contract": "collection_removed carries the expanded collection as it was before a successful delete, to every authenticated socket; rejected or repeated deletes emit nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/CollectionController.js:214-224",
+        "server/SocketAuthority.js:57-66",
+        "server/controllers/CollectionController.js:215",
+        "server/controllers/CollectionController.js:222",
+        "server/controllers/CollectionController.js:433-438",
+        "server/controllers/CollectionController.js:433-453"
+      ],
+      "tests": [
+        "go-backend/internal/list/list_test.go:191#TestCollectionDeleteRemovesEntriesKeepsBooks",
+        "go-backend/internal/list/list_test.go:228#TestCollectionDeleteClosesRSSFeed",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-removed-reaches-every-authenticated-socket",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-removed-emptied-collection-has-no-books",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-removed-not-repeated-for-second-delete",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/event-removed-not-sent-for-rejected-delete"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

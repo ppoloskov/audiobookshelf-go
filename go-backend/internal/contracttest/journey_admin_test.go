@@ -24,12 +24,12 @@ import (
 // install and is recorded into contracts/shapes/admin.json, the same way as
 // TestJourney (journey_test.go). To record it against TS:
 //
-//	node go-backend/tools/contractfixture/serve-upstream.cjs   # prints ROOT and READY
+//	node go-backend/testmachine/scripts/contractfixture/serve-upstream.cjs   # prints ROOT and READY
 //	cd go-backend && go test ./internal/contracttest -run '^TestJourneyAdmin$' -record \
 //	    -upstream=<READY URL> -upstream-root=<ROOT>
 //
 // then stop the serve script.
-const adminShapesFile = "../../contracts/shapes/admin.json"
+const adminShapesFile = "../../testmachine/contracts/shapes/admin.json"
 
 func TestJourneyAdmin(t *testing.T) {
 	smtp := startAdminSMTPServer(t)

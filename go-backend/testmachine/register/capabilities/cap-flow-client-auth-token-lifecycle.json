@@ -1,0 +1,152 @@
+{
+  "id": "flow-client-auth-token-lifecycle",
+  "parent": "auth",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Authentication token and session lifecycle used by bundled/native clients: login response token mode, refresh-token rotation/grace, invalid/expired denial, logout revocation, and password-change session invalidation. Current assertions cover selected branches; full web/native cookie and recovery behavior remains open.",
+  "source": [
+    "server/Auth.js:218-268",
+    "server/Auth.js:322-360",
+    "server/auth/TokenManager.js:108-171"
+  ],
+  "implementation": [
+    "go-backend/internal/auth/service.go",
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-FLOW-CLIENT-AUTH-TOKEN-LIFECYCLE-001",
+      "class": "state_transition",
+      "contract": "Native (X-Return-Tokens plus x-refresh-token) and browser (cookie) clients complete login, use, refresh and logout flows; after logout the refresh token is dead and the session row gone.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:322-357",
+        "server/Auth.js:486-523",
+        "server/auth/TokenManager.js:350-425"
+      ],
+      "tests": [
+        "go-backend/internal/auth/service_test.go:100#TestLoginAnswerAndCookie",
+        "go-backend/internal/auth/service_test.go:160#TestRefreshRotationConvergesAndGraceTokenWorks",
+        "go-backend/internal/auth/service_test.go:199#TestRefreshFailsClosed",
+        "go-backend/internal/auth/service_test.go:234#TestLogoutRevokesTheSession",
+        "go-backend/internal/auth/service_test.go:352#TestChangePasswordAndInvalidateSessions",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/native-client-token-flow",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/browser-client-cookie-flow"
+      ],
+      "evidence": [
+        "go-backend/internal/auth/service_test.go:TestLoginAnswerAndCookie",
+        "go-backend/internal/auth/service_test.go:TestRefreshRotationConvergesAndGraceTokenWorks",
+        "go-backend/internal/auth/service_test.go:TestRefreshFailsClosed",
+        "go-backend/internal/auth/service_test.go:TestLogoutRevokesTheSession",
+        "go-backend/internal/auth/service_test.go:TestChangePasswordAndInvalidateSessions"
+      ],
+      "exceptions": [
+        "Historical pre-rewrite observation (not a fixed representation requirement): POST /login emits user accessToken and refreshToken when X-Return-Tokens is true; ordinary login issues refresh_token and connect.sid cookies."
+      ]
+    },
+    {
+      "id": "INV-FLOW-CLIENT-AUTH-TOKEN-LIFECYCLE-002",
+      "class": "repeat_operation",
+      "contract": "Concurrent refreshes with one token converge on one rotated token equal to the stored one; an expired access token is denied and a refresh restores access.",
+      "status": "unverified",
+      "source": [
+        "server/auth/TokenManager.js:372-388",
+        "server/auth/TokenManager.js:210-262",
+        "server/auth/TokenManager.js:15-23",
+        "server/auth/TokenManager.js:312-317"
+      ],
+      "tests": [
+        "go-backend/internal/auth/service_test.go:100#TestLoginAnswerAndCookie",
+        "go-backend/internal/auth/service_test.go:160#TestRefreshRotationConvergesAndGraceTokenWorks",
+        "go-backend/internal/auth/service_test.go:199#TestRefreshFailsClosed",
+        "go-backend/internal/auth/service_test.go:234#TestLogoutRevokesTheSession",
+        "go-backend/internal/auth/service_test.go:352#TestChangePasswordAndInvalidateSessions",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/concurrent-refresh-converges-on-one-token",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/access-token-expires-and-refresh-recovers",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/default-grace-period-ends-by-timestamp"
+      ],
+      "evidence": [
+        "go-backend/internal/auth/service_test.go:TestLoginAnswerAndCookie",
+        "go-backend/internal/auth/service_test.go:TestRefreshRotationConvergesAndGraceTokenWorks",
+        "go-backend/internal/auth/service_test.go:TestRefreshFailsClosed",
+        "go-backend/internal/auth/service_test.go:TestLogoutRevokesTheSession",
+        "go-backend/internal/auth/service_test.go:TestChangePasswordAndInvalidateSessions"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-FLOW-CLIENT-AUTH-TOKEN-LIFECYCLE-003",
+      "class": "error",
+      "contract": "Password change by the user revokes other sessions (keeping the current one on new tokens when it presents its refresh token, else all), an admin password reset revokes all of the user's sessions, and a rejected password change keeps sessions and password.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:438-474",
+        "server/auth/TokenManager.js:467-509",
+        "server/controllers/MeController.js:455-473",
+        "server/auth/TokenManager.js:503-508",
+        "server/controllers/MeController.js:449-453",
+        "server/auth/LocalAuthStrategy.js:145-160",
+        "server/controllers/UserController.js:244-250",
+        "server/controllers/UserController.js:335-348"
+      ],
+      "tests": [
+        "go-backend/internal/auth/service_test.go:100#TestLoginAnswerAndCookie",
+        "go-backend/internal/auth/service_test.go:160#TestRefreshRotationConvergesAndGraceTokenWorks",
+        "go-backend/internal/auth/service_test.go:199#TestRefreshFailsClosed",
+        "go-backend/internal/auth/service_test.go:234#TestLogoutRevokesTheSession",
+        "go-backend/internal/auth/service_test.go:352#TestChangePasswordAndInvalidateSessions",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/password-change-with-refresh-token-keeps-current-session",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/password-change-without-refresh-token-revokes-all-sessions",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/password-change-with-unknown-refresh-token-revokes-all-sessions",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/wrong-current-password-keeps-sessions",
+        "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/admin-password-reset-revokes-user-sessions"
+      ],
+      "evidence": [
+        "go-backend/internal/auth/service_test.go:TestLoginAnswerAndCookie",
+        "go-backend/internal/auth/service_test.go:TestRefreshRotationConvergesAndGraceTokenWorks",
+        "go-backend/internal/auth/service_test.go:TestRefreshFailsClosed",
+        "go-backend/internal/auth/service_test.go:TestLogoutRevokesTheSession",
+        "go-backend/internal/auth/service_test.go:TestChangePasswordAndInvalidateSessions"
+      ],
+      "exceptions": []
+    }
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/auth/service_test.go:100#TestLoginAnswerAndCookie",
+    "go-backend/internal/auth/service_test.go:160#TestRefreshRotationConvergesAndGraceTokenWorks",
+    "go-backend/internal/auth/service_test.go:199#TestRefreshFailsClosed",
+    "go-backend/internal/auth/service_test.go:234#TestLogoutRevokesTheSession",
+    "go-backend/internal/auth/service_test.go:352#TestChangePasswordAndInvalidateSessions",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/native-client-token-flow",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/browser-client-cookie-flow",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/concurrent-refresh-converges-on-one-token",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/access-token-expires-and-refresh-recovers",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/default-grace-period-ends-by-timestamp",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/password-change-with-refresh-token-keeps-current-session",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/password-change-without-refresh-token-revokes-all-sessions",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/password-change-with-unknown-refresh-token-revokes-all-sessions",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/wrong-current-password-keeps-sessions",
+    "go-backend/testmachine/scenarios/auth/run_test.go#TestReplacement/admin-password-reset-revokes-user-sessions"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Client evidence: contracts/clients/official-app.md HTTP rows for /login, /auth/refresh, /logout; contracts/clients/audiobooth.md Authentication sections. Actual native logout caller and all cookie transitions need separate coverage.",
+    "State scenario force is not applicable for this client workflow because none of its mapped operations has a force/refresh mode; changed and repeat outcomes remain unverified unless an invariant explicitly states otherwise.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+    "force is not applicable: this requirement has no force, hard or override mode"
+  ]
+}

@@ -60,7 +60,7 @@ jobs:
           sudo apt-get install -y ffmpeg
 
       # The harness verifies the oracle source matches the pinned upstream
-      # commit (tools/parity/lib/oracle.cjs: git diff --quiet <sha>); a
+      # commit (testmachine/parity/lib/oracle.cjs: git diff --quiet <sha>); a
       # depth-1 checkout does not contain it.
       - name: Fetch pinned upstream commit
         run: git fetch --no-tags --depth=1 origin edb1f7efc92ecacdef51aafb4d9d5054ce10604f
@@ -79,19 +79,19 @@ jobs:
           TMPDIR: ${{ runner.temp }}/abs-parity-work
         run: |
           mkdir -p "$TMPDIR"
-          node go-backend/tools/parity/suite-runner.cjs core
+          node go-backend/testmachine/parity/suite-runner.cjs core
 
       - name: In-place replacement trial
-        run: node go-backend/tools/parity/replacement-trial.cjs --work "$RUNNER_TEMP/abs-replacement-work"
+        run: node go-backend/testmachine/parity/replacement-trial.cjs --work "$RUNNER_TEMP/abs-replacement-work"
 
       - name: New content after the swap (scan trial)
-        run: node go-backend/tools/parity/scan-trial.cjs --work "$RUNNER_TEMP/abs-scan-work"
+        run: node go-backend/testmachine/parity/scan-trial.cjs --work "$RUNNER_TEMP/abs-scan-work"
 
       # Every route upstream registers must be handled by Go, not answered with
       # the 501 fallback. Reuses the seeded trial installation (read-only
       # snapshot restored first); runs last because it mutates the work dir.
       - name: Route probe (no not-implemented fallback)
-        run: node go-backend/tools/parity/route-probe.cjs --work "$RUNNER_TEMP/abs-replacement-work"
+        run: node go-backend/testmachine/parity/route-probe.cjs --work "$RUNNER_TEMP/abs-replacement-work"
 
       - name: Upload parity work directories and reports
         if: failure()
@@ -145,7 +145,7 @@ jobs:
         run: npm run build:server
 
       - name: Rollback check (TS reopens the Go-written database)
-        run: node go-backend/tools/parity/replacement-trial.cjs --rollback-only --work "$RUNNER_TEMP/abs-rollback-work"
+        run: node go-backend/testmachine/parity/replacement-trial.cjs --rollback-only --work "$RUNNER_TEMP/abs-rollback-work"
 
       - name: Upload rollback work directory and report
         if: failure()

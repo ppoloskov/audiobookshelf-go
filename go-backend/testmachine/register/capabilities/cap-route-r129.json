@@ -1,0 +1,53 @@
+{
+  "id": "route-r129",
+  "parent": "http/admin",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "GET /filesystem. Admin-only filesystem browsing returns POSIX flag and directory entries; invalid paths are rejected without durable changes.",
+  "source": [
+    "server/routers/ApiRouter.js:211",
+    "server/controllers/FileSystemController.js:24-77"
+  ],
+  "implementation": [
+    "go-backend/internal/admin/admin.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/admin/admin_test.go"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R129-ROUTE",
+      "class": "shape",
+      "contract": "Admin-only filesystem browsing returns POSIX flag and directory entries; invalid paths are rejected without durable changes.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/FileSystemController.js:24-77"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/filesystem-lists-install-directories",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/filesystem-directories-only-and-level",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/filesystem-root-and-level-fallback",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/filesystem-path-is-a-file",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/filesystem-rejects-callers-and-paths"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    }
+  ]
+}

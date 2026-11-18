@@ -1,0 +1,77 @@
+{
+  "id": "route-r027",
+  "parent": "http/list",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/libraries/:id/collections dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:80, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"GET /api/libraries/{libraryID}/collections\", get(h.libraryCollections)). Current assertion anchor(s): TestLibraryListingsNeedLibraryAccess. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:80",
+    "go-backend/internal/list/list.go",
+    "go-backend/internal/list/list.go:62",
+    "server/controllers/LibraryController.js:1475"
+  ],
+  "implementation": [
+    "go-backend/internal/list/list.go:62"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/list/list_test.go:420#TestLibraryListingsNeedLibraryAccess",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-defaults",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-query-echo",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-rssfeed-include",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-other-library-empty",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-rejections",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-hides-restricted-collection",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-limit-and-page-slicing",
+    "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-tag-restricted-user"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R027-CONTRACT",
+      "class": "shape",
+      "contract": "GET /api/libraries/:id/collections answers {results,total,limit,page,sortBy,sortDesc,filterBy,minified,include} with the library's collections the user may see (limit/page applied by slicing, parameters echoed, rssFeed only with include=rssfeed); 401 without a token, 403 without library access, 404 for an unknown library, 400 for a negative or fractional limit/page.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:814-844",
+        "server/controllers/LibraryController.js:1475-1498",
+        "server/controllers/LibraryController.js:815-830",
+        "server/controllers/LibraryController.js:1487-1495",
+        "server/controllers/LibraryController.js:815-833",
+        "server/models/Collection.js:34-40",
+        "server/models/Collection.js:90-93",
+        "server/controllers/LibraryController.js:833-843",
+        "server/models/Collection.js:62-82",
+        "server/controllers/LibraryController.js:833-835",
+        "server/controllers/LibraryController.js:835-843",
+        "server/models/Collection.js:76-94"
+      ],
+      "tests": [
+        "go-backend/internal/list/list_test.go:420#TestLibraryListingsNeedLibraryAccess",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-defaults",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-query-echo",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-rssfeed-include",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-other-library-empty",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-rejections",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-hides-restricted-collection",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-limit-and-page-slicing",
+        "go-backend/testmachine/scenarios/collections/run_test.go#TestReplacement/library-list-tag-restricted-user"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
+        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
+        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+      ]
+    }
+  ]
+}

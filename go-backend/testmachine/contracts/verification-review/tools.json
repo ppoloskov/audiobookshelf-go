@@ -1,0 +1,82 @@
+{
+  "packet": "tools",
+  "status": "partial",
+  "reviewer": "Independent source/client contract review, 2026-11-14, Codex /root/inventory",
+  "requirements_digest": "58e4b3b4888b070d9f4ca3760f564a4ff11729f2175ea1d423879be3d0f99b54",
+  "scenario_digest": "058eaee87e837a1fe224f5c41f60ed15a9a8af7466f84da68bb36e831f7e9cd9",
+  "review_scope": "Accept only the immediate/waiting/FIFO-dequeue success trace and self-contained repeat slice. Three scenarios bind two of the seventeen owner requirements; this is not owner-family completeness or Go replacement proof.",
+  "required_tuples": [
+    {
+      "requirement": "cap-event-metadata-embed-queue",
+      "invariant": "INV-CAP-EVENT-METADATA-EMBED-QUEUE",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "immediate-embed-has-no-queued-transition",
+      "sources": [
+        "server/controllers/ToolsController.js:84-100",
+        "server/managers/AudioMetadataManager.js:117-135",
+        "server/managers/AudioMetadataManager.js:266-281",
+        "server/SocketAuthority.js:57-85",
+        "client/layouts/default.vue:263-268"
+      ],
+      "rationale": "An idle job enters the running slot directly, broadcasts its matching successful task start/finish, and emits no queued transition on any tested authenticated or anonymous socket."
+    },
+    {
+      "requirement": "socket-outgoing-metadata-embed-queue-update",
+      "invariant": "INV-SOCKET-OUTGOING-METADATA-EMBED-QUEUE-UPDATE",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "waiting-embed-admission-and-fifo-dequeue-audiences",
+      "sources": [
+        "server/controllers/ToolsController.js:113-150",
+        "server/managers/AudioMetadataManager.js:52-55",
+        "server/managers/AudioMetadataManager.js:117-135",
+        "server/managers/AudioMetadataManager.js:270-281",
+        "server/managers/TaskManager.js:22-35",
+        "server/SocketAuthority.js:57-85",
+        "client/layouts/default.vue:263-268"
+      ],
+      "rationale": "Synchronous batch admission fills one slot and enqueues two waiters. Each socket has the exact source-defined trace: admin-only true admissions; FIFO false dequeue after predecessor finish and before own start for every authenticated audience, including inaccessible/revoked-library users; no anonymous task or queue events. Consumed payload keys have exact spelling, string IDs and non-null booleans."
+    },
+    {
+      "requirement": "cap-event-metadata-embed-queue",
+      "invariant": "INV-CAP-EVENT-METADATA-EMBED-QUEUE",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "idle-queue-repeat-keeps-immediate-and-waiting-distinct",
+      "sources": [
+        "server/controllers/ToolsController.js:113-150",
+        "server/managers/AudioMetadataManager.js:52-55",
+        "server/managers/AudioMetadataManager.js:117-135",
+        "server/managers/AudioMetadataManager.js:270-281",
+        "server/SocketAuthority.js:57-85",
+        "client/store/tasks.js:71-78"
+      ],
+      "rationale": "The scenario runs two successful batches itself, rotating item order for the second admission. Both independent socket traces distinguish the new immediate item from FIFO waiters without stale IDs, missing or duplicated transitions."
+    }
+  ],
+  "not_applicable": [],
+  "open_findings": [
+    "cap-event-metadata-embed-queue; socket-outgoing-metadata-embed-queue-update: successful immediate/waiting/dequeue traces are accepted, but no assertion covers queue advancement after embed failure, recovery/retry, option/force variants or multiple sockets of one user. No applicable error/force/failure facet has been independently disposed. AudioMetadataManager.js:139-199,217-245,270-281; SocketAuthority.js:57-85.",
+    "route-r185; route-r186: route completeness remains open. Add authentication/admin/access/missing/invalid/no-audio guards, currently-running and queued duplicate rejection, and rejected-request state/file/event invariance. Batch validation must complete before scheduling; duplicate IDs within one batch are not equivalent to duplicate calls while pending. Options backup and forceEmbedChapters need media/file effects. ToolsController.js:84-150,159-174; AudioMetadataManager.js:33-34,64-104,211-263. Current execution leaves controller denial ranges unexecuted.",
+    "route-r204: no GET /api/tasks assertions. Prove running Task projections, optional include=queue, queued-only task data in FIFO order, and reconnect/client restoration semantics. MiscController.js:116-129; AudioMetadataManager.js:29-34; client/layouts/default.vue:579-590. getQueuedTaskData is unexecuted in the scoped coverage report.",
+    "cap-event-task-lifecycle; cap-flow-tools-job-lifecycle; socket-outgoing-task-started; socket-outgoing-task-finished: task events are used only as matching success/order barriers in this slice. Full client-consumed task fields, timestamps/translations/errors, failure/cancellation, cleanup, following-job recovery and other producer call sites remain unproved. Task.js:54-72,85-130; TaskManager.js:22-35; AudioMetadataManager.js:139-199,217-245; AbMergeManager.js:42-48,260-298.",
+    "cap-event-track-progress; cap-event-track-finished; socket-outgoing-track-started; socket-outgoing-track-progress; socket-outgoing-track-finished; socket-outgoing-task-progress: no progress/track assertion exists in this packet. Require source-derived track identity, per-track and aggregate incremental progress, duration weighting or encode/embed phases, admin audiences, ordered successful completion and failure behavior; characterize short/zero-duration boundaries before claiming completeness. AudioMetadataManager.js:202-253; AbMergeManager.js:140-182; client/layouts/default.vue:242-261.",
+    "route-r183; route-r184: encode-m4b start/cancel are unexecuted and have no bound scenarios. Their deliberate guards/statuses, options, repeated/pending requests, resulting media/files, cancellation/error cleanup and client task/progress consequences remain open. ToolsController.js:29-72; AbMergeManager.js:42-48,57-99,110-250,260-298.",
+    "Whole tools-owner completeness is not reviewed or certified. The scoped V8 report leaves AudioMetadataManager getMetadataObjectForApi, queue snapshots, writable/cache/metadata/tag/backup failure paths and ToolsController route guard branches unexecuted; source execution of another branch would still need an outcome assertion. Remaining canonical invariant/facet bindings require further bounded packets and independent review, not promotion of these three successes."
+  ],
+  "evidence": {
+    "upstream_live_log": "/private/tmp/abs-verify-331670466/upstream/assertions.jsonl",
+    "inspected_upstream_result": "All three declared scenarios passed and emitted matching REPLACEMENT_PROOF records in the architect-run final diagnostic; this reviewer inspected those records.",
+    "source_execution_report": "/private/tmp/abs-q01-v8-nov14.md",
+    "independent_controls_directory": "/private/tmp/abs-q01-independent-review",
+    "independent_controls": {
+      "valid": 0,
+      "listener-order": 1,
+      "missing-false": 1,
+      "wrong-key-case": 1,
+      "extra-key": 0
+    },
+    "independent_control_method": "Actual final requireTrace was exercised stand-alone with synthetic socket transcripts through Go overlays. No pinned upstream, scenario or harness file was edited; zero exits are valid/extra-key controls and nonzero exits are intentional detected defects."
+  }
+}

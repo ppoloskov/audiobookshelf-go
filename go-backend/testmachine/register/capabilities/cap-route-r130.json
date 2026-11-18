@@ -1,0 +1,79 @@
+{
+  "id": "route-r130",
+  "parent": "http/admin",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "POST /filesystem/pathexists. Upload-authorized users may check paths in accessible library folders; results reflect disk and parent library items, and invalid requests leave durable state unchanged.",
+  "source": [
+    "server/routers/ApiRouter.js:212",
+    "server/controllers/FileSystemController.js:85-160"
+  ],
+  "implementation": [
+    "go-backend/internal/admin/admin.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/admin/admin_test.go"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: path existence checks have no force or override mode."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R130-ROUTE",
+      "class": "shape",
+      "contract": "Upload-authorized users may check paths in accessible library folders; results reflect disk and parent library items, and invalid requests leave durable state unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/FileSystemController.js:85-160"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/pathexists-existing-and-missing",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/pathexists-follows-the-disk",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/pathexists-library-item-in-parent",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/pathexists-podcast-folder-and-upload-user",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/pathexists-rejects-callers-and-bodies",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/pathexists-rejects-folders-and-traversal"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R130-REPEAT",
+      "class": "repeat_operation",
+      "contract": "Repeating a path-existence check returns the same result without creating a directory.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/FileSystemController.js:85-160"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/pathexists-repeat-is-stable"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
+      ]
+    }
+  ]
+}

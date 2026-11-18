@@ -1,0 +1,108 @@
+{
+  "id": "route-r210",
+  "parent": "http/admin",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "DELETE /tags/:tag at server/routers/ApiRouter.js:353. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "source": [
+    "server/routers/ApiRouter.js:353"
+  ],
+  "implementation": [
+    "go-backend/internal/admin/admin.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/admin/admin_test.go",
+    "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/tags-delete-admin-only",
+    "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/tags-delete-other-case-changes-nothing",
+    "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/tags-delete-visible-in-list-and-filterdata",
+    "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/tags-delete-removes-from-rows-and-files",
+    "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/tags-delete-encoded-value-emits-item-updated",
+    "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/tags-delete-repeat-changes-nothing"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: the route has no force, hard or override mode"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R210-ROUTE",
+      "class": "shape",
+      "contract": "DELETE /api/tags/:value answers 401 without a token and 403 for a non-admin and changes nothing. Deleting a value that exists only in another letter case matches nothing and changes nothing. After deletes, GET /api/tags and the library filter data no longer contain the deleted value.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:396-428",
+        "server/Database.js:485-489"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/tags-delete-admin-only",
+        "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/tags-delete-other-case-changes-nothing",
+        "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/tags-delete-visible-in-list-and-filterdata"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R210-REPEAT",
+      "class": "repeat_operation",
+      "contract": "Deleting an already deleted value answers 200 with numItemsUpdated 0 and emits no event.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:396-428"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/tags-delete-repeat-changes-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R210-PERSIST-001",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "class": "persistence",
+      "contract": "Deleting a base64-encoded value removes it from every book and podcast row and rewrites metadata.json under metadata/items when storeMetadataWithItem is off.",
+      "source": [
+        "server/controllers/MiscController.js:396-428",
+        "server/models/LibraryItem.js:612-700"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/tags-delete-removes-from-rows-and-files"
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R210-EVENT-001",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "class": "event",
+      "contract": "A value whose base64 contains '+' and '/' is deleted through the client's URL encoding, and item_updated reaches only users who can access the item.",
+      "source": [
+        "server/controllers/MiscController.js:396-428",
+        "server/SocketAuthority.js:104-110"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/admin_settings/run_test.go#TestReplacement/tags-delete-encoded-value-emits-item-updated"
+      ]
+    }
+  ]
+}

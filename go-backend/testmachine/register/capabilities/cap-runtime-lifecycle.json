@@ -1,0 +1,59 @@
+{
+  "id": "runtime-lifecycle",
+  "parent": "server",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Starting/stopping/restoring the runtime owns scanner watchers, schedules, podcast/backup jobs, sockets and media children; requests cannot observe a half-installed graph; shutdown/repeat close reaps owned work and restart removes orphan playback streams.",
+  "source": [
+    "server/Server.js",
+    "index.js",
+    "go-backend/testmachine/reports/playback-lifecycle-architect-review.md"
+  ],
+  "implementation": [
+    "go-backend/internal/server/runtime.go",
+    "go-backend/internal/server/manager.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/server/pipeline_test.go:338#TestCloseStopsServingAndIsIdempotent",
+    "go-backend/internal/server/wave_g_playback_startup_test.go:15#TestManagerStartupRemovesOrphanPlaybackStreams",
+    "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-RUNTIME-LIFECYCLE",
+      "class": "repeat_operation",
+      "contract": "Starting/stopping/restoring the runtime owns scanner watchers, schedules, podcast/backup jobs, sockets and media children; requests cannot observe a half-installed graph; shutdown/repeat close reaps owned work and restart removes orphan playback streams.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js",
+        "index.js",
+        "go-backend/testmachine/reports/playback-lifecycle-architect-review.md"
+      ],
+      "tests": [
+        "go-backend/internal/server/pipeline_test.go:338#TestCloseStopsServingAndIsIdempotent",
+        "go-backend/internal/server/wave_g_playback_startup_test.go:15#TestManagerStartupRemovesOrphanPlaybackStreams",
+        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

@@ -1,0 +1,212 @@
+{
+  "id": "sub-covers",
+  "parent": "http/item",
+  "kind": "subsystem",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Cover multipart upload and body.url fetch (POST), scanned-file selection (PATCH), raw serving, resized cache, lifecycle cleanup, and matching response/state behavior including the source SSRF filter.",
+  "source": [
+    "server/controllers/LibraryItemController.js:842-950",
+    "server/managers/CoverManager.js",
+    "server/managers/CacheManager.js",
+    "server/utils/constants.js"
+  ],
+  "implementation": [
+    "go-backend/internal/item/files.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-COVER-CACHE-001",
+      "class": "shape",
+      "contract": "Cover resizing and repeated cache hits serve valid requested dimensions/format and reflect changes to the source cover. Preserve persisted cache references where TS relies on them; exact cache key implementation, chunked framing and Content-Length presence are free when clients receive usable content.",
+      "status": "unverified",
+      "source": [
+        "server/managers/CacheManager.js",
+        "server/utils/ffmpegHelpers.js"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": [
+        "webp renders 500 on ffmpeg builds without libwebp on BOTH sides (same shared ffmpeg binary); case expectations pin 500 for this environment",
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage.",
+        "Historical pre-rewrite observation (not a fixed representation requirement): Cover cache files named {itemId}_{width}[x{height}].{format} under metadata/cache/covers; cache hits stream chunked without Content-Length; resize uses ffmpeg scale=<w||-1>:<h||-1> into the cache file (CacheManager.js:43-102, ffmpegHelpers.js:78-97)."
+      ]
+    },
+    {
+      "id": "INV-COVER-UPLOAD-001",
+      "class": "state_transition",
+      "contract": "Multipart upload accepts only the source extension allowlist; successful upload stores cover.<ext>, removes older cover files only when the extension is in the source allowlist (.jpeg, .jpg, .png, .webp, .jiff), purges the item cache, persists media.coverPath + item updatedAt, emits item_updated after commit, and responds {success, cover}. A sampled upload retains an unrelated cover.svg file.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js",
+        "server/managers/CoverManager.js"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": [
+        "Does not verify all allowed image formats, upload permission branches, event recipients, or storeCoverWithItem variants.",
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+      ]
+    },
+    {
+      "id": "INV-COVER-RAW-001",
+      "class": "shape",
+      "contract": "raw=1 returns unchanged original cover bytes with valid image MIME and usable conditional caching/Last-Modified semantics. The ETag algorithm and framing are not fixed; replaced covers invalidate the previous cached representation.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js",
+        "node_modules/send/index.js"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": [
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage.",
+        "Historical pre-rewrite observation (not a fixed representation requirement): raw=1 serves the original bytes with express sendFile defaults (Cache-Control public max-age=0 filled only when absent, weak file ETag W/<size hex>-<mtime hex>, Last-Modified) \u2014 send/index.js:862; byte-equal bodies verified."
+      ]
+    },
+    {
+      "id": "INV-COVER-DELETE-001",
+      "class": "state_transition",
+      "contract": "Deleting a cover returns HTTP 200, clears persisted coverPath and resized cache entries, and subsequent raw/resized reads return the required missing-cover status without serving stale image bytes.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:376-397",
+        "server/managers/CacheManager.js:93-110"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": [
+        "Evidence covers deletion after upload of one PNG with the sampled cache formats; it does not cover all permission and failure variants.",
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage.",
+        "Historical observation superseded by current semantic requirement: DELETE /api/items/:id/cover responds with Express sendStatus(200), clears the persisted media coverPath, purges every resized cache entry for the library item, and makes subsequent raw and resized cover reads return the upstream 404 response."
+      ]
+    },
+    {
+      "id": "INV-COVER-URL-UPLOAD-001",
+      "class": "state_transition",
+      "contract": "A whitelisted local image URL succeeds with the same stored cover path/body as upstream. A literal RFC1918 destination is rejected with the same status/body and leaves the prior cover path, file, and cache state unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:295-333",
+        "server/managers/CoverManager.js",
+        "server/utils/fileUtils.js"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": [
+        "Sample covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection. Redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+      ]
+    },
+    {
+      "id": "INV-COVER-PATCH-INVALID-IMAGE-001",
+      "class": "error",
+      "contract": "PATCH /api/items/:id/cover returns the upstream 500 text response Invalid image when the requested scanned library file is not a supported image.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:344-362",
+        "server/managers/CoverManager.js:132-180"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": [
+        "Successful copy behavior is separately covered by INV-COVER-PATCH-SUCCESS-001; this invariant remains scoped to rejected invalid-image bytes.",
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+      ]
+    },
+    {
+      "id": "INV-COVER-PROXY-REDIRECT-001",
+      "class": "error",
+      "contract": "With EXP_PROXY_SUPPORT=1, a 307 URL response is not followed; cover upload returns the upstream 400 failure and leaves the prior cover path, file, and cache state unchanged. Upstream Server.js sets axios maxRedirects=0 and its response interceptor manually retries only 301/302.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:89-107",
+        "server/utils/fileUtils.js:295-357",
+        "server/managers/CoverManager.js"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": [
+        "Only one 307 failure was tested in EXP_PROXY_SUPPORT mode. Manual 301/302 behavior, redirect chains, and blocked private addresses in this explicitly unfiltered mode remain unverified.",
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+      ]
+    },
+    {
+      "id": "INV-COVER-PATCH-SUCCESS-001",
+      "class": "state_transition",
+      "contract": "A valid scanned image selected as cover is installed at a TS-readable coverPath; response JSON retains fields/types consumed by clients. Same-path repeat succeeds, stale resized caches are invalidated and unrelated cover files are preserved. Incidental HTTP headers are free.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:344-375",
+        "server/managers/CoverManager.js:132-180",
+        "server/managers/CacheManager.js:93-98"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": [
+        "One scanned path, one copy, and a same-path repeat only; different-path replacement, item-folder storage, event delivery and updatedAt deltas remain unverified.",
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage.",
+        "Historical observation superseded by current semantic requirement: A valid scanned library file containing a supported image is copied to the item cover directory, response JSON and Express headers match the exact source response, a same-path repeat succeeds, a seeded stale cache entry is purged, and unrelated cover.svg is retained."
+      ]
+    },
+    {
+      "id": "INV-COVER-MULTIPART-URL-PRECEDENCE-001",
+      "class": "error",
+      "contract": "When a multipart cover request includes both url and file fields, the URL takes precedence; an unsupported image signature at that URL returns the upstream 400 and does not fall back to the valid uploaded file.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:295-307",
+        "server/managers/CoverManager.js"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": [
+        "One local unsupported URL/file combination only.",
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+      ]
+    },
+    {
+      "id": "INV-COVER-PATCH-BODY-LIMIT-001",
+      "class": "error",
+      "contract": "PATCH JSON uses the upstream express.json 10 MB limit: a 1.1 MB well-formed request passes parsing and reaches the source invalid-cover-path 500 response instead of being rejected at Go\u2019s former 1 MiB cap.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:352",
+        "server/controllers/LibraryItemController.js:344-362"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": [
+        "Only a 1.1 MB above-former-limit invalid-path request was exercised; exact 10,000,000-byte boundary and over-limit parser error shape remain unverified.",
+        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+      ]
+    }
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/item/files_test.go"
+  ],
+  "evidence": [
+    "go-backend/testmachine/contracts/parity/full-suite-report.json (2026-10-30: 101/101 HTTP cases; successful/repeated PATCH, Express response headers, stale-cache purge, allowlisted cleanup, multipart precedence, URL upload/failure, reads and delete lifecycle)"
+  ],
+  "exceptions": [
+    "EXP_PROXY_SUPPORT mode has one 307 rejection check; 301/302 chains remain unverified. The private-address probe is skipped in this mode because upstream disables SSRF filtering.",
+    "The SSRF probe covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection only; redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
+    "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
+    "Cover route parity beyond the exact sampled variants is not claimed.",
+    "PATCH event recipients, updatedAt deltas, alternate valid image paths, storeCoverWithItem, 10 MiB JSON boundary, and permission branches remain unverified.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ]
+}
