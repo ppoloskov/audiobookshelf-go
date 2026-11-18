@@ -1,0 +1,181 @@
+{
+  "tool": "scenario-sources-lint",
+  "scenarios_dir": "go-backend/testmachine/scenarios",
+  "files_scanned": 199,
+  "packets": 18,
+  "citations_by_packet": {
+    "admin_files": 5,
+    "admin_settings": 45,
+    "auth": 213,
+    "author": 155,
+    "browse": 166,
+    "collections": 120,
+    "item_read": 85,
+    "item_write": 47,
+    "library_data": 144,
+    "library_manage": 134,
+    "playback_sessions": 89,
+    "playlists": 134,
+    "server": 4,
+    "store": 52,
+    "tools": 78,
+    "user_admin": 122,
+    "user_me": 92,
+    "user_progress": 107
+  },
+  "citations_checked": 1792,
+  "citations_distinct": 931,
+  "citations_ok": 1787,
+  "finding_count": 12,
+  "findings_by_kind": {
+    "line-out-of-range": 4,
+    "unknown-form": 7,
+    "missing-file": 1
+  },
+  "findings": [
+    {
+      "packet": "auth",
+      "file": "go-backend/testmachine/scenarios/auth/permissions.go",
+      "line": 50,
+      "citation": "server/controllers/ApiKeyController.js:196-212",
+      "kind": "line-out-of-range",
+      "reason": "range 196-212 overruns end of file (server/controllers/ApiKeyController.js has 207 lines)"
+    },
+    {
+      "packet": "auth",
+      "file": "go-backend/testmachine/scenarios/auth/permissions.go",
+      "line": 56,
+      "citation": "server/controllers/ApiKeyController.js:196-212",
+      "kind": "line-out-of-range",
+      "reason": "range 196-212 overruns end of file (server/controllers/ApiKeyController.js has 207 lines)"
+    },
+    {
+      "packet": "auth",
+      "file": "go-backend/testmachine/scenarios/auth/users_acl.go",
+      "line": 131,
+      "citation": "server/controllers/ApiKeyController.js:196-212",
+      "kind": "line-out-of-range",
+      "reason": "range 196-212 overruns end of file (server/controllers/ApiKeyController.js has 207 lines)"
+    },
+    {
+      "packet": "browse",
+      "file": "go-backend/testmachine/scenarios/browse/series_list.go",
+      "line": 20,
+      "citation": "server/utils/queries/seriesFilters.js:28-222:185-222",
+      "kind": "unknown-form",
+      "reason": "citation has two line parts: the path server/utils/queries/seriesFilters.js:28-222 already ends with a line range (a const that carries a range is concatenated with another)"
+    },
+    {
+      "packet": "browse",
+      "file": "go-backend/testmachine/scenarios/browse/series_list.go",
+      "line": 49,
+      "citation": "server/utils/queries/seriesFilters.js:28-222:142-181",
+      "kind": "unknown-form",
+      "reason": "citation has two line parts: the path server/utils/queries/seriesFilters.js:28-222 already ends with a line range (a const that carries a range is concatenated with another)"
+    },
+    {
+      "packet": "browse",
+      "file": "go-backend/testmachine/scenarios/browse/series_list.go",
+      "line": 95,
+      "citation": "server/utils/queries/seriesFilters.js:28-222:152-158",
+      "kind": "unknown-form",
+      "reason": "citation has two line parts: the path server/utils/queries/seriesFilters.js:28-222 already ends with a line range (a const that carries a range is concatenated with another)"
+    },
+    {
+      "packet": "browse",
+      "file": "go-backend/testmachine/scenarios/browse/series_list.go",
+      "line": 108,
+      "citation": "server/utils/queries/seriesFilters.js:28-222:186-190",
+      "kind": "unknown-form",
+      "reason": "citation has two line parts: the path server/utils/queries/seriesFilters.js:28-222 already ends with a line range (a const that carries a range is concatenated with another)"
+    },
+    {
+      "packet": "browse",
+      "file": "go-backend/testmachine/scenarios/browse/series_list.go",
+      "line": 125,
+      "citation": "server/utils/queries/seriesFilters.js:28-222:28-140",
+      "kind": "unknown-form",
+      "reason": "citation has two line parts: the path server/utils/queries/seriesFilters.js:28-222 already ends with a line range (a const that carries a range is concatenated with another)"
+    },
+    {
+      "packet": "browse",
+      "file": "go-backend/testmachine/scenarios/browse/series_list.go",
+      "line": 176,
+      "citation": "server/utils/queries/seriesFilters.js:28-222:107-130",
+      "kind": "unknown-form",
+      "reason": "citation has two line parts: the path server/utils/queries/seriesFilters.js:28-222 already ends with a line range (a const that carries a range is concatenated with another)"
+    },
+    {
+      "packet": "browse",
+      "file": "go-backend/testmachine/scenarios/browse/series_list.go",
+      "line": 176,
+      "citation": "server/utils/queries/seriesFilters.js:28-222:193-210",
+      "kind": "unknown-form",
+      "reason": "citation has two line parts: the path server/utils/queries/seriesFilters.js:28-222 already ends with a line range (a const that carries a range is concatenated with another)"
+    },
+    {
+      "packet": "library_data",
+      "file": "go-backend/testmachine/scenarios/library_data/matchall.go",
+      "line": 186,
+      "citation": "server/providers/CustomProviderAdapter.js:19-150",
+      "kind": "line-out-of-range",
+      "reason": "range 19-150 overruns end of file (server/providers/CustomProviderAdapter.js has 148 lines)"
+    },
+    {
+      "packet": "user_progress",
+      "file": "go-backend/testmachine/scenarios/user_progress/finish.go",
+      "line": 14,
+      "citation": "client/components/modals/ItemMoreMenuModal.vue:327",
+      "kind": "missing-file",
+      "reason": "file not found: client/components/modals/ItemMoreMenuModal.vue"
+    }
+  ],
+  "dynamic_sources_count": 8,
+  "dynamic_sources": [
+    {
+      "file": "go-backend/testmachine/scenarios/admin_settings/helpers.go",
+      "line": 200,
+      "name": "sources"
+    },
+    {
+      "file": "go-backend/testmachine/scenarios/auth/login_scenarios.go",
+      "line": 172,
+      "name": "sources"
+    },
+    {
+      "file": "go-backend/testmachine/scenarios/item_read/access.go",
+      "line": 61,
+      "name": "spec"
+    },
+    {
+      "file": "go-backend/testmachine/scenarios/item_read/item_doc.go",
+      "line": 61,
+      "name": "spec"
+    },
+    {
+      "file": "go-backend/testmachine/scenarios/item_read/xaccel.go",
+      "line": 61,
+      "name": "spec"
+    },
+    {
+      "file": "go-backend/testmachine/scenarios/item_write/scenario.go",
+      "line": 13,
+      "name": "sources"
+    },
+    {
+      "file": "go-backend/testmachine/scenarios/playlists/restricted.go",
+      "line": 39,
+      "name": "source"
+    },
+    {
+      "file": "go-backend/testmachine/scenarios/user_progress/bookmark_errors.go",
+      "line": 47,
+      "name": "source"
+    }
+  ],
+  "notes": [
+    "citations_checked counts Sources values that parsed to a file path; an unparsable value is an unknown-form finding and is not counted as a citation.",
+    "scenarios/harness is the scenario toolkit (its Sources []string is the struct field type), so it is not scanned; packets counts directories that hold scenario files."
+  ],
+  "ok": false
+}
