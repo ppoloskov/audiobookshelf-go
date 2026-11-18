@@ -20,6 +20,7 @@ const (
 	userPassword = "library-data-pw"
 	eventWait    = 5 * time.Second
 	quietWindow  = 400 * time.Millisecond
+	scanWait     = 20 * time.Second // a library scan of the fixture media tree
 	missingID    = "00000000-0000-4000-8000-000000000000"
 )
 
@@ -252,7 +253,7 @@ func (l scratchLibrary) scan(t *testing.T, e *harness.Env, force bool, want int)
 		path += "?force=1"
 	}
 	requireStatus(t, e.Post(t, e.Token(t, "root"), path, nil), http.StatusOK, "scan")
-	harness.Eventually(t, 20*time.Second, fmt.Sprintf("library %s to hold %d items", l.Name, want), func() bool {
+	harness.Eventually(t, scanWait, fmt.Sprintf("library %s to hold %d items", l.Name, want), func() bool {
 		return e.Count(t, "SELECT COUNT(*) FROM libraryItems WHERE libraryId = ? AND isMissing = 0", l.ID) == want
 	})
 }

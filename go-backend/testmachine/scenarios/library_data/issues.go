@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
-	"time"
 
 	"audiobookshelf-compat/testmachine/scenarios/harness"
 )
@@ -38,6 +37,12 @@ func scanLibrary(t *testing.T, e *harness.Env, libraryID string) {
 	requireStatus(t, e.Post(t, e.Token(t, "root"), libPath(libraryID, "/scan"), nil), http.StatusOK, "scan")
 }
 
+// startIssues builds the issue rows in the database while the server is
+// stopped and then restarts it, so the cached filter data is rebuilt from the
+// rows. Writing a flag while a scan runs is not deterministic: the scan keeps
+// the library items it loaded before the write and saves them again for every
+// item it updates, which restores the old flag value, and the numIssues it then
+// resets never counts the lost flag.
 func startIssues(t *testing.T) *issuesEnv {
 	t.Helper()
 	e := harness.Start(t, harness.Options{})
@@ -226,13 +231,21 @@ func issuesScenarios(s *suite) []harness.Scenario {
 				lib := e.IDs[podcastLib]
 				disableWatcher(t, e, lib)
 				root := e.Token(t, "root")
-				getFilterData(t, e, root, lib)
+				// Load the filter cache before the scan: the scan's completion
+				// reset writes numIssues into the cached document, and the
+				// podcast branch of the upstream reload leaves numIssues at 0.
+				if before := getFilterData(t, e, root, lib); before.NumIssues != 0 {
+					t.Fatalf("numIssues before the scan: %d", before.NumIssues)
+				}
 				if err := os.RemoveAll(filepath.Join(e.Media, "podcasts", "Fixture Cast")); err != nil {
 					t.Fatal(err)
 				}
 				scanLibrary(t, e, lib)
-				harness.Eventually(t, 20*time.Second, "podcast flagged missing", func() bool {
-					return e.Count(t, "SELECT COUNT(*) FROM libraryItems WHERE id = ? AND isMissing = 1", e.IDs["podcast"]) == 1 && getFilterData(t, e, root, lib).NumIssues == 1
+				harness.Eventually(t, scanWait, "the scan to flag the removed podcast folder missing", func() bool {
+					return e.Count(t, "SELECT COUNT(*) FROM libraryItems WHERE id = ? AND isMissing = 1", e.IDs["podcast"]) == 1
+				})
+				harness.Eventually(t, scanWait, "numIssues to count the missing podcast", func() bool {
+					return getFilterData(t, e, root, lib).NumIssues == 1
 				})
 				episodes := []string{e.IDs["ep1"], e.IDs["ep2"], e.IDs["ep3"]}
 				progress := e.Count(t, "SELECT COUNT(*) FROM mediaProgresses WHERE mediaItemId IN (?, ?, ?)", episodes[0], episodes[1], episodes[2])

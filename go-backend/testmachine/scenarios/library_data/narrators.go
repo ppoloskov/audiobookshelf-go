@@ -282,13 +282,12 @@ func narratorScenarios(s *suite) []harness.Scenario {
 			Claim:   "A narrator whose id contains percent-encoded + and = is renamed to a Unicode name; renaming a name no book has answers {updated: 0}, changes nothing and emits no event.",
 			Run: func(t *testing.T, e *harness.Env) {
 				a := connect(t, e, map[string]string{"root": e.Token(t, "root")})
-				before := snapshotItems(t, e, allKeys...)
 				resp := e.Patch(t, e.Token(t, "root"), narratorPath(e.IDs[bookLib], "Q?>>"), map[string]any{"name": "Ünï Çödé"})
 				requireStatus(t, resp, http.StatusOK, "rename encoded")
 				requireEqual(t, "disposable", bookNarrators(t, e, e.IDs["disposable"]), []string{"Narrator 10", "Narrator 2", "Ünï Çödé"})
 				a.expectItemsUpdated(t, e.IDs[bookLib], map[string][]string{e.IDs["disposable"]: {"Narrator 10", "Narrator 2", "Ünï Çödé"}}, []string{"root"}, nil)
 				a.rearm()
-				before = snapshotItems(t, e, allKeys...)
+				before := snapshotItems(t, e, allKeys...)
 				resp = e.Patch(t, e.Token(t, "root"), narratorPath(e.IDs[bookLib], "Nora Narrator"), map[string]any{"name": "Anything"})
 				requireStatus(t, resp, http.StatusOK, "unknown narrator")
 				var body map[string]any
