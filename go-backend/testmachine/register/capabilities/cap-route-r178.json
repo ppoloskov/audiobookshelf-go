@@ -4,51 +4,49 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/search/authors dispatches to the pinned TS handler SearchController.findAuthor (ApiRouter.js:289, server/controllers/SearchController.js:165) and Go registration mux.Handle(\"GET /api/search/authors\", httpx.Handler(h.searchAuthorsRoute)). Current assertion anchor(s): TestProviderOutputs. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "GET /api/search/authors answers 401 without a token, 400 when q is absent or repeated as an array, and 200 with a null body when q is empty, without contacting Audnexus. A non-empty q searches the fixed external Audnexus host.",
   "source": [
     "server/routers/ApiRouter.js:289",
-    "go-backend/internal/metadata/metadata.go",
-    "go-backend/internal/metadata/metadata.go:109",
-    "server/controllers/SearchController.js:165"
+    "server/controllers/SearchController.js:165-184",
+    "server/finders/AuthorFinder.js:25-35",
+    "server/providers/Audnexus.js:116-149",
+    "server/utils/index.js:326-343"
   ],
   "implementation": [
     "go-backend/internal/metadata/metadata.go:109"
   ],
   "cases": {
-    "normal": "unverified",
+    "normal": "not_applicable",
     "error": "unverified",
     "edge": "unverified"
   },
   "stateful": false,
   "tests": [
-    "go-backend/internal/metadata/metadata_test.go:79#TestProviderOutputs"
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/authors-auth-and-q-validation",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/authors-empty-q-is-null"
   ],
   "evidence": [],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "normal is not applicable: the non-empty-q success path calls the fixed external host api.audnex.us, so only the offline auth, validation and empty-q paths are asserted.",
+    "Unexecuted here: the built-in provider success paths (google, itunes, openlibrary, fantlab, audiobookcovers, audible) call fixed external hosts, so their result parsing and fuzzy fallback are not asserted by this packet; every deterministic offline path is asserted."
   ],
   "invariants": [
     {
       "id": "INV-ROUTE-R178-CONTRACT",
       "class": "shape",
-      "contract": "GET /api/search/authors dispatches to the pinned TS handler SearchController.findAuthor (ApiRouter.js:289, server/controllers/SearchController.js:165) and Go registration mux.Handle(\"GET /api/search/authors\", httpx.Handler(h.searchAuthorsRoute)). Current assertion anchor(s): TestProviderOutputs. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "GET /api/search/authors answers 401 without a token, 400 when q is absent or an array, and 200 with a null body for q= (empty), calling no external host.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:289",
-        "go-backend/internal/metadata/metadata.go",
-        "go-backend/internal/metadata/metadata.go:109",
-        "server/controllers/SearchController.js:165"
+        "server/controllers/SearchController.js:165-184",
+        "server/finders/AuthorFinder.js:25-35",
+        "server/utils/index.js:326-343"
       ],
       "tests": [
-        "go-backend/internal/metadata/metadata_test.go:79#TestProviderOutputs"
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/authors-auth-and-q-validation",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/authors-empty-q-is-null"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
     }
   ]
 }

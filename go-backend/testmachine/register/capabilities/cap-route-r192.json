@@ -4,12 +4,14 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/custom-metadata-providers dispatches to the pinned TS handler CustomMetadataProviderController.middleware (ApiRouter.js:319, server/controllers/CustomMetadataProviderController.js:108) and Go registration mux.Handle(\"GET /api/custom-metadata-providers\", auth.Admin(httpx.Handler(h.listCustom))). Current assertion anchor(s): TestCustomProviderCRUDPermissionsAndFallback. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "GET /api/custom-metadata-providers is admin-only: 401 without a token, 403 for a normal user. The admin receives {providers: [...]} with one serialised model row per stored provider (id, name, mediaType, url, authHeaderValue, extraData, createdAt, updatedAt; no slug) and an empty array on the fixture state. The web settings page reads providers and the table shows name, url and authHeaderValue.",
   "source": [
     "server/routers/ApiRouter.js:319",
-    "go-backend/internal/metadata/metadata.go",
-    "go-backend/internal/metadata/metadata.go:111",
-    "server/controllers/CustomMetadataProviderController.js:108"
+    "server/controllers/CustomMetadataProviderController.js:24-35",
+    "server/controllers/CustomMetadataProviderController.js:108-124",
+    "server/models/CustomMetadataProvider.js:96-103",
+    "client/pages/config/item-metadata-utils/custom-metadata-providers.vue:50-62",
+    "client/components/tables/CustomMetadataProviderTable.vue:20-70"
   ],
   "implementation": [
     "go-backend/internal/metadata/metadata.go:111"
@@ -21,34 +23,32 @@
   },
   "stateful": false,
   "tests": [
-    "go-backend/internal/metadata/metadata_test.go:149#TestCustomProviderCRUDPermissionsAndFallback"
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/custom-providers-list-empty",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/custom-providers-list-auth",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/custom-providers-list-created-rows"
   ],
   "evidence": [],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Unexecuted here: no route in v2.37.2 creates an update or reorder of providers, so the admin list is observed with zero and three stored rows."
   ],
   "invariants": [
     {
       "id": "INV-ROUTE-R192-CONTRACT",
       "class": "shape",
-      "contract": "GET /api/custom-metadata-providers dispatches to the pinned TS handler CustomMetadataProviderController.middleware (ApiRouter.js:319, server/controllers/CustomMetadataProviderController.js:108) and Go registration mux.Handle(\"GET /api/custom-metadata-providers\", auth.Admin(httpx.Handler(h.listCustom))). Current assertion anchor(s): TestCustomProviderCRUDPermissionsAndFallback. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "GET /api/custom-metadata-providers answers 401 without a token and 403 for both non-admin fixture users. As the admin it answers 200 with {providers: []} on the fixture state, and after three creates it returns three rows keyed by their created ids, each with the created name, mediaType, url, authHeaderValue, parseable createdAt/updatedAt and no slug.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:319",
-        "go-backend/internal/metadata/metadata.go",
-        "go-backend/internal/metadata/metadata.go:111",
-        "server/controllers/CustomMetadataProviderController.js:108"
+        "server/controllers/CustomMetadataProviderController.js:24-35",
+        "server/controllers/CustomMetadataProviderController.js:108-124",
+        "server/models/CustomMetadataProvider.js:96-103"
       ],
       "tests": [
-        "go-backend/internal/metadata/metadata_test.go:149#TestCustomProviderCRUDPermissionsAndFallback"
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/custom-providers-list-empty",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/custom-providers-list-auth",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/custom-providers-list-created-rows"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
     }
   ]
 }

@@ -4,12 +4,13 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/search/providers dispatches to the pinned TS handler SearchController.getAllProviders (ApiRouter.js:291, server/controllers/SearchController.js:220) and Go registration mux.Handle(\"GET /api/search/providers\", httpx.Handler(h.providers)). Current assertion anchor(s): TestProviderOutputs. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "GET /api/search/providers returns {providers: {books, booksCovers, podcasts}} of {value, text} entries: books is BookFinder.providers without audiobookcovers in source order; booksCovers is best, the 15 built-in providers, the custom book providers and all; podcasts is itunes followed by the custom podcast providers. Every authenticated user may read it; without a token it is 401.",
   "source": [
     "server/routers/ApiRouter.js:291",
-    "go-backend/internal/metadata/metadata.go",
-    "go-backend/internal/metadata/metadata.go:105",
-    "server/controllers/SearchController.js:220"
+    "server/controllers/SearchController.js:220-231",
+    "server/finders/BookFinder.js:26-45",
+    "server/models/CustomMetadataProvider.js:96-103",
+    "client/store/scanners.js:26-57"
   ],
   "implementation": [
     "go-backend/internal/metadata/metadata.go:105"
@@ -21,34 +22,45 @@
   },
   "stateful": false,
   "tests": [
-    "go-backend/internal/metadata/metadata_test.go:79#TestProviderOutputs"
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/providers-static-catalogue",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/providers-requires-auth",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/providers-merge-custom-by-media-type"
   ],
   "evidence": [],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "The catalogue is derived from the static BookFinder.providers list and the stored custom providers, so every branch is asserted offline; no provider host is contacted by this route."
   ],
   "invariants": [
     {
       "id": "INV-ROUTE-R180-CONTRACT",
       "class": "shape",
-      "contract": "GET /api/search/providers dispatches to the pinned TS handler SearchController.getAllProviders (ApiRouter.js:291, server/controllers/SearchController.js:220) and Go registration mux.Handle(\"GET /api/search/providers\", httpx.Handler(h.providers)). Current assertion anchor(s): TestProviderOutputs. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "On the fixture state (no custom provider) GET /api/search/providers answers 200 for the admin with exactly books, booksCovers and podcasts: books is the 14 built-in book providers with their display names in list order, booksCovers is best, the 15 built-in providers including audiobookcovers, then all, and podcasts is only itunes. Without a token it is 401.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:291",
-        "go-backend/internal/metadata/metadata.go",
-        "go-backend/internal/metadata/metadata.go:105",
-        "server/controllers/SearchController.js:220"
+        "server/controllers/SearchController.js:220-231",
+        "server/finders/BookFinder.js:26-45"
       ],
       "tests": [
-        "go-backend/internal/metadata/metadata_test.go:79#TestProviderOutputs"
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/providers-static-catalogue",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/providers-requires-auth"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R180-CUSTOM-001",
+      "class": "shape",
+      "contract": "With one non-admin caller and stored custom providers, books keeps the 14 built-ins in order and appends both custom book providers; booksCovers starts with best, keeps the 15 built-ins in order, then the custom book providers, then all; podcasts is itunes plus the custom podcast provider only, so a custom provider appears only under its stored mediaType.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/SearchController.js:220-231",
+        "server/models/CustomMetadataProvider.js:96-103"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/providers-merge-custom-by-media-type"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }

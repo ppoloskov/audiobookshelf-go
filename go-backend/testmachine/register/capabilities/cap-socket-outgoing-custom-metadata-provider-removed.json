@@ -4,9 +4,11 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing custom_metadata_provider_removed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "custom_metadata_provider_removed is emitted by DELETE /api/custom-metadata-providers/:id after the row is destroyed and the library fallback update ran, through SocketAuthority.emitter, to every authenticated socket (admin and normal users alike, every connection) and to no unauthenticated socket. Its single argument is the toClientJson captured before deletion: {id, name, mediaType, slug: custom-<id>}. Each successful delete emits one event; a repeated delete (404) or a rejected delete (403) emits none.",
   "source": [
-    "server/controllers/CustomMetadataProviderController.js:96"
+    "server/controllers/CustomMetadataProviderController.js:76-99",
+    "server/SocketAuthority.js:49-60",
+    "server/models/CustomMetadataProvider.js:96-103"
   ],
   "implementation": [
     "go-backend/internal/metadata/custom_routes.go"
@@ -16,22 +18,35 @@
     "error": "unverified",
     "edge": "unverified"
   },
-  "tests": [],
+  "tests": [
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/removed-event-authorized-audience-payload",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/removed-event-every-connection-of-a-user",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/removed-event-second-delete-emits-none",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/removed-event-while-library-used",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/removed-event-rejected-delete-emits-none"
+  ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "force is not applicable: the event has no force/override variant; it is emitted once per successful delete."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-CUSTOM-METADATA-PROVIDER-REMOVED",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing custom_metadata_provider_removed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "A successful delete emits exactly one custom_metadata_provider_removed to every authenticated socket (admin, listener and finisher) and none to an unauthenticated socket, with the payload {id, name, mediaType, slug custom-<id>} captured before the row was destroyed. Two sockets of one user each get one. Deleting a provider that a library uses still emits that payload and the library falls back to google. A repeated delete (404) after the event or a rejected delete (403 or 404) emits no further event and changes no row.",
       "status": "unverified",
       "source": [
-        "server/controllers/CustomMetadataProviderController.js:96"
+        "server/controllers/CustomMetadataProviderController.js:76-99",
+        "server/SocketAuthority.js:49-60"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/removed-event-authorized-audience-payload",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/removed-event-every-connection-of-a-user",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/removed-event-second-delete-emits-none",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/removed-event-while-library-used",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/removed-event-rejected-delete-emits-none"
+      ],
       "evidence": [],
       "exceptions": []
     }
@@ -40,7 +55,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

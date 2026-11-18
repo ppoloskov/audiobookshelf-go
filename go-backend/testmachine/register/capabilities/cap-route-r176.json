@@ -4,12 +4,16 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/search/books dispatches to the pinned TS handler SearchController.findBooks (ApiRouter.js:287, server/controllers/SearchController.js:85) and Go registration mux.Handle(\"GET /api/search/books\", httpx.Handler(h.searchBooksRoute)). Current assertion anchor(s): TestProviderOutputs; TestSearchBooksFuzzyFallback. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "GET /api/search/books returns an array of book candidates. provider custom-<id> queries the stored provider at url + /search with mediaType=book, query=title, optional author and the stored Authorization header, and projects each match (numbers and arrays stringified, absent or unparsable fields omitted, genres/tags trimmed and deduped, invalid series dropped, description sanitised) in match order. Absent title returns [] without a provider call; an unknown library item id is 404; title longer than 1000 characters, an array title or array provider is 400; an unknown, malformed or unreachable custom provider returns [].",
   "source": [
     "server/routers/ApiRouter.js:287",
-    "go-backend/internal/metadata/metadata.go",
-    "go-backend/internal/metadata/metadata.go:106",
-    "server/controllers/SearchController.js:85"
+    "server/controllers/SearchController.js:85-111",
+    "server/controllers/SearchController.js:47-54",
+    "server/finders/BookFinder.js:374-409",
+    "server/finders/BookFinder.js:205-216",
+    "server/providers/CustomProviderAdapter.js:21-145",
+    "server/utils/index.js:326-343",
+    "client/components/cards/ItemUploadCard.vue:180-200"
   ],
   "implementation": [
     "go-backend/internal/metadata/metadata.go:106"
@@ -21,36 +25,62 @@
   },
   "stateful": false,
   "tests": [
-    "go-backend/internal/metadata/metadata_test.go:79#TestProviderOutputs",
-    "go-backend/internal/metadata/metadata_test.go:273#TestSearchBooksFuzzyFallback"
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/books-custom-provider-projection",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/books-auth-not-found-and-validation-order",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/books-empty-title-and-provider-degrades"
   ],
   "evidence": [],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Unexecuted here: the built-in provider success paths (google, itunes, openlibrary, fantlab, audiobookcovers, audible) call fixed external hosts, so their result parsing and fuzzy fallback are not asserted by this packet; every deterministic offline path is asserted."
   ],
   "invariants": [
     {
       "id": "INV-ROUTE-R176-CONTRACT",
       "class": "shape",
-      "contract": "GET /api/search/books dispatches to the pinned TS handler SearchController.findBooks (ApiRouter.js:287, server/controllers/SearchController.js:85) and Go registration mux.Handle(\"GET /api/search/books\", httpx.Handler(h.searchBooksRoute)). Current assertion anchor(s): TestProviderOutputs; TestSearchBooksFuzzyFallback. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "GET /api/search/books?provider=custom-<id>&title=Packet&author=Ann calls the configured provider once at /search with mediaType=book, query=Packet, author=Ann and the stored Authorization value, and answers 200 with the matches projected in match order: numeric title/publishedYear and array author become strings, sequence 2 becomes \"2\", duration \"12.5\" becomes 12.5, an unparsable duration, non-string genres and an empty series are omitted, tags are trimmed and deduped, a series entry without a string series is dropped and the allowed description HTML is kept.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:287",
-        "go-backend/internal/metadata/metadata.go",
-        "go-backend/internal/metadata/metadata.go:106",
-        "server/controllers/SearchController.js:85"
+        "server/controllers/SearchController.js:85-111",
+        "server/finders/BookFinder.js:205-216",
+        "server/providers/CustomProviderAdapter.js:21-145"
       ],
       "tests": [
-        "go-backend/internal/metadata/metadata_test.go:79#TestProviderOutputs",
-        "go-backend/internal/metadata/metadata_test.go:273#TestSearchBooksFuzzyFallback"
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/books-custom-provider-projection"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R176-REJECT-001",
+      "class": "error",
+      "contract": "GET /api/search/books answers 401 without a token; 404 with an error string when id names no library item; and 400 when title exceeds 1000 characters even though id is also unknown, when title is repeated as an array, or when provider is repeated, so query validation precedes the library item lookup.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/SearchController.js:47-54",
+        "server/controllers/SearchController.js:85-111",
+        "server/utils/index.js:326-343"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/books-auth-not-found-and-validation-order"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R176-DEGRADE-001",
+      "class": "error",
+      "contract": "A book search that cannot produce a result answers 200 with an empty array: an absent title under the default google provider (no provider call), an absent title with a valid library item id (the item is loaded first, then the empty search returns), a custom-<uuid> id that does not exist, a provider whose response has no matches array, and a provider whose server address is closed.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/SearchController.js:85-111",
+        "server/finders/BookFinder.js:374-409",
+        "server/providers/CustomProviderAdapter.js:21-145"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/books-empty-title-and-provider-degrades"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }

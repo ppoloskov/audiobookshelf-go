@@ -4,12 +4,14 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "POST /api/custom-metadata-providers dispatches to the pinned TS handler CustomMetadataProviderController.middleware (ApiRouter.js:320, server/controllers/CustomMetadataProviderController.js:108) and Go registration mux.Handle(\"POST /api/custom-metadata-providers\", auth.Admin(httpx.Handler(h.createCustom))). Current assertion anchor(s): TestCustomProviderCRUDPermissionsAndFallback. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "POST /api/custom-metadata-providers is admin-only: 401 without a token, 403 for a normal user. name, url and mediaType are required and url must parse (400 Invalid request body / 400 Invalid url), otherwise the provider is stored (authHeaderValue empty becomes NULL) and 200 returns {provider} with the serialised model, no slug. Every identical post creates another row. validateUrl only parses the string, so loopback and private-range URLs are accepted and stored verbatim (no SSRF or scheme filtering).",
   "source": [
     "server/routers/ApiRouter.js:320",
-    "go-backend/internal/metadata/metadata.go",
-    "go-backend/internal/metadata/metadata.go:112",
-    "server/controllers/CustomMetadataProviderController.js:108"
+    "server/controllers/CustomMetadataProviderController.js:38-65",
+    "server/controllers/CustomMetadataProviderController.js:108-124",
+    "server/models/CustomMetadataProvider.js:96-103",
+    "server/utils/index.js:233-241",
+    "client/components/modals/AddCustomMetadataProviderModal.vue:70-95"
   ],
   "implementation": [
     "go-backend/internal/metadata/metadata.go:112"
@@ -21,41 +23,71 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/metadata/metadata_test.go:149#TestCustomProviderCRUDPermissionsAndFallback"
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/create-first-provider",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/create-repeat-adds-second-row",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/create-podcast-provider-and-empty-auth",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/create-rejections-change-nothing",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/create-accepts-loopback-and-private-urls"
   ],
   "evidence": [],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: the create route has no force/overwrite mode; a repeated create always adds a row.",
+    "The SSRF disposition is characterised as the live server behaves: upstream v2.37.2 performs no host, private-range or scheme filtering in validateUrl, so loopback and 192.168/10 addresses are accepted and stored; only a string that does not parse is rejected."
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "invariants": [
     {
       "id": "INV-ROUTE-R193-CONTRACT",
       "class": "shape",
-      "contract": "POST /api/custom-metadata-providers dispatches to the pinned TS handler CustomMetadataProviderController.middleware (ApiRouter.js:320, server/controllers/CustomMetadataProviderController.js:108) and Go registration mux.Handle(\"POST /api/custom-metadata-providers\", auth.Admin(httpx.Handler(h.createCustom))). Current assertion anchor(s): TestCustomProviderCRUDPermissionsAndFallback. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "POST /api/custom-metadata-providers as the admin answers 200 with {provider} carrying the stored id, name, the submitted url verbatim, mediaType, authHeaderValue and RFC 3339 timestamps at or after the request, and no slug; it persists the row with those values. The same body posted twice answers 200 twice with different ids and two rows. mediaType is stored as sent and an empty authHeaderValue is stored NULL.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:320",
-        "go-backend/internal/metadata/metadata.go",
-        "go-backend/internal/metadata/metadata.go:112",
-        "server/controllers/CustomMetadataProviderController.js:108"
+        "server/controllers/CustomMetadataProviderController.js:38-65",
+        "server/models/CustomMetadataProvider.js:96-103"
       ],
       "tests": [
-        "go-backend/internal/metadata/metadata_test.go:149#TestCustomProviderCRUDPermissionsAndFallback"
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/create-first-provider",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/create-repeat-adds-second-row",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/create-podcast-provider-and-empty-auth"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R193-REJECT-001",
+      "class": "error",
+      "contract": "POST /api/custom-metadata-providers answers 401 without a token, 403 for a non-admin, 400 with the body Invalid request body when name, url or mediaType is missing or url is empty, and 400 with Invalid url for a string that is not a URL; none of these adds a row.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/CustomMetadataProviderController.js:38-65",
+        "server/utils/index.js:233-241"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/create-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R193-URL-001",
+      "class": "error",
+      "contract": "validateUrl performs no SSRF, host or scheme filtering: POST accepts a 127.0.0.1 loopback URL and an http://192.168.1.10 private-range URL with 200 and stores each verbatim.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/CustomMetadataProviderController.js:38-52",
+        "server/utils/index.js:233-241"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/create-accepts-loopback-and-private-urls"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }
