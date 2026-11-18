@@ -24,6 +24,14 @@ func Packet() harness.Packet {
 			userOnlineScenarios(),
 			userOfflineScenarios(),
 			messageScenarios(),
+			searchCoversScenarios(),
+			cancelCoversScenarios(),
+			setLogListenerScenarios(),
+			removeLogListenerScenarios(),
+			socketioScenarios(),
+			// Last: the cancel_scan group stages folders into the fixture
+			// library and leaves them behind.
+			cancelScanScenarios(),
 		),
 	}
 }

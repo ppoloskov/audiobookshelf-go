@@ -4,9 +4,12 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO incoming cancel_cover_search: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "cancel_cover_search cancels an active search by requestId and is silent otherwise: any authenticated socket may call it; an unauthenticated call emits nothing and does not abort an in-flight search; cancelling an active search emits cover_search_cancelled {requestId} on the cancelling socket exactly once (a second cancel emits nothing) and the aborted search emits no complete, result or provider error; cancelling after completion or with an unknown requestId emits nothing.",
   "source": [
-    "server/SocketAuthority.js:198"
+    "server/SocketAuthority.js:198",
+      "server/SocketAuthority.js:433-451",
+    "server/managers/CoverSearchManager.js:24-30,110-122,178-196",
+    "client/components/modals/item/tabs/Cover.vue:385"
   ],
   "implementation": [
     "go-backend/internal/realtime/hub.go",
@@ -19,25 +22,38 @@
   },
   "tests": [
     "go-backend/internal/contracttest/cover_search_test.go:148#TestCoverSearchCancel",
-    "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+    "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cover-cancel-aborts-in-flight-search",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cover-cancel-idempotent-single-event",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cover-cancel-after-completion-noop",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cover-cancel-gated-by-auth"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: cancel_cover_search has no force or override mode.",
+    "Cancelling another user's active search (no ownership check in CoverSearchManager.cancelSearch) is not asserted: no known client offers a cross-user cancellation."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-INCOMING-CANCEL-COVER-SEARCH",
       "class": "repeat_operation",
-      "contract": "Socket.IO incoming cancel_cover_search: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "cancel_cover_search cancels an active search by requestId and is silent otherwise: any authenticated socket may call it; an unauthenticated call emits nothing and does not abort an in-flight search (which then reaches the 10 s provider timeout and completes); cancelling an active search emits exactly one cover_search_cancelled {requestId} on the cancelling socket and the aborted search emits no complete, result or provider error; cancelling after completion or with an unknown requestId emits nothing.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:198"
+        "server/SocketAuthority.js:198",
+      "server/SocketAuthority.js:433-451",
+        "server/managers/CoverSearchManager.js:24-30,110-122,178-196",
+        "client/components/modals/item/tabs/Cover.vue:385"
       ],
       "tests": [
         "go-backend/internal/contracttest/cover_search_test.go:148#TestCoverSearchCancel",
-        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cover-cancel-aborts-in-flight-search",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cover-cancel-idempotent-single-event",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cover-cancel-after-completion-noop",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cover-cancel-gated-by-auth"
       ],
       "evidence": [],
       "exceptions": []
@@ -47,7 +63,8 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
-  }
+  },
+  "invariant": "cancel_cover_search cancels an active search by requestId and is silent otherwise: any authenticated socket may call it; an unauthenticated call emits nothing and does not abort an in-flight search (which then reaches the 10 s provider timeout and completes); cancelling an active search emits exactly one cover_search_cancelled {requestId} on the cancelling socket and the aborted search emits no complete, result or provider error; cancelling after completion or with an unknown requestId emits nothing."
 }

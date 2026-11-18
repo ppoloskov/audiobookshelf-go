@@ -4,9 +4,12 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO incoming set_log_listener: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "set_log_listener registers the emitting socket at the Logger for one level: admin only; a non-integer level or one outside LogLevel (0-6) is rejected with a WARN log and replaces nothing; a rejected call from a non-admin or unauthenticated socket replaces nothing; a second call on the same socket replaces the level; the Logger then delivers every log call as a log event {timestamp, source, message, levelName, level} on that socket only, while the event level is at least the listener level.",
   "source": [
-    "server/SocketAuthority.js:201"
+    "server/SocketAuthority.js:89-94",
+      "server/SocketAuthority.js:201-209",
+    "server/Logger.js:28-33,44-63,72-93",
+    "client/pages/config/log.vue:127,171,182"
   ],
   "implementation": [
     "go-backend/internal/realtime/hub.go"
@@ -18,25 +21,39 @@
   },
   "tests": [
     "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
-    "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+    "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/log-listener-delivers-matching-levels",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/log-listener-admin-gated",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/log-listener-replaces-level",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/log-listener-set-twice-no-duplicates"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: set_log_listener has no force or override mode.",
+    "Delivery of FATAL and NOTE events (always delivered, server/Logger.js:84-86) is not asserted: no offline-deterministic trigger exists (Logger.fatal fires only on uncaught errors and missing binaries, and Logger.note has no caller in server/).",
+    "The log message field is asserted as a non-empty string and identified by stable trigger substrings; the full log text is not pinned."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-INCOMING-SET-LOG-LISTENER",
       "class": "repeat_operation",
-      "contract": "Socket.IO incoming set_log_listener: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "set_log_listener registers the emitting socket at the Logger for one level: admin only; a non-integer level or one outside LogLevel (0-6) is rejected with the WARN log it produces and replaces nothing; a rejected call from a non-admin or unauthenticated socket replaces nothing; a second call on the same socket replaces the level instead of adding a listener; the Logger then delivers every log call of the server as a log event {timestamp: 'YYYY-MM-DD HH:mm:ss.SSS', source: 'basename.js:line', message, levelName, level} on that socket only, once per log call, while the event level is at least the listener level.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:201"
+        "server/SocketAuthority.js:89-94",
+      "server/SocketAuthority.js:201-209",
+        "server/Logger.js:28-33,44-63,72-93",
+        "client/pages/config/log.vue:127,171,182"
       ],
       "tests": [
         "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
-        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/log-listener-delivers-matching-levels",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/log-listener-admin-gated",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/log-listener-replaces-level",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/log-listener-set-twice-no-duplicates"
       ],
       "evidence": [],
       "exceptions": []
@@ -46,7 +63,8 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
-  }
+  },
+  "invariant": "set_log_listener registers the emitting socket at the Logger for one level: admin only; a non-integer level or one outside LogLevel (0-6) is rejected with the WARN log it produces and replaces nothing; a rejected call from a non-admin or unauthenticated socket replaces nothing; a second call on the same socket replaces the level instead of adding a listener; the Logger then delivers every log call of the server as a log event {timestamp: 'YYYY-MM-DD HH:mm:ss.SSS', source: 'basename.js:line', message, levelName, level} on that socket only, once per log call, while the event level is at least the listener level."
 }

@@ -4,9 +4,15 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO incoming search_covers: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "search_covers streams a provider cover search to the requesting socket: any authenticated user may search, the payload is {requestId, title, author, provider, podcast}; a socket without a user is answered cover_search_error {requestId, error 'Unauthorized'}; a payload without requestId or title is answered cover_search_error error 'Invalid request parameters' carrying the requestId only when the payload defined one; a valid search emits cover_search_result {requestId, provider, covers, total} per provider batch before cover_search_complete {requestId} and nothing else; a custom metadata provider (provider 'custom-<id>') is queried with mediaType=book&query=<title>&author=<author> and its answer's covers are streamed; an answer without covers completes without result events; concurrent searches are separated by requestId.",
   "source": [
-    "server/SocketAuthority.js:197"
+    "server/SocketAuthority.js:197",
+      "server/SocketAuthority.js:374-431",
+    "server/managers/CoverSearchManager.js:51-75,110-122,201-216",
+    "server/providers/CustomProviderAdapter.js:21-66",
+      "server/providers/CustomProviderAdapter.js:90-136",
+    "client/components/modals/item/tabs/Cover.vue:385,417",
+    "server/controllers/SearchController.js:231"
   ],
   "implementation": [
     "go-backend/internal/realtime/hub.go",
@@ -20,26 +26,46 @@
   "tests": [
     "go-backend/internal/contracttest/cover_search_test.go:125#TestCoverSearchSocket",
     "go-backend/internal/contracttest/cover_search_test.go:148#TestCoverSearchCancel",
-    "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+    "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/covers-custom-provider-streams-results",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/covers-concurrent-searches-carry-own-ids",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/covers-unauthorized-gets-error",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/covers-invalid-parameters",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/covers-empty-provider-answer-completes-quietly"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: search_covers has no force or override mode.",
+    "search_covers with no payload at all kills the server with an unhandled rejection that calls process.exit(1) (server/SocketAuthority.js:379, server/Server.js:246-251); no real client sends it, so it is not asserted.",
+    "search_covers with no payload at all fails upstream with an unhandled exception before emitting anything (server/SocketAuthority.js:379 reads payload.requestId); no real client sends it, so the scenario asserts only that no event is emitted.",
+    "Cancelling another user's active search is not asserted (no ownership check in CoverSearchManager.cancelSearch): no known client offers a cross-user cancellation."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-INCOMING-SEARCH-COVERS",
       "class": "repeat_operation",
-      "contract": "Socket.IO incoming search_covers: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "search_covers streams a provider cover search to the requesting socket: any authenticated user may search; an unauthenticated socket gets cover_search_error {requestId, error 'Unauthorized'} and starts no search; a payload without requestId or title gets cover_search_error 'Invalid request parameters' with the requestId carried only when defined; a valid custom-provider search streams cover_search_result {requestId, provider: 'custom-<id>', covers, total} before cover_search_complete {requestId}, queries the provider with mediaType=book&query=<title>&author=<author>, completes without errors when the answer has no covers, and keeps concurrent searches separate by requestId.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:197"
+        "server/SocketAuthority.js:197",
+      "server/SocketAuthority.js:374-431",
+        "server/managers/CoverSearchManager.js:51-75,110-122,201-216",
+        "server/providers/CustomProviderAdapter.js:21-66",
+      "server/providers/CustomProviderAdapter.js:90-136",
+        "client/components/modals/item/tabs/Cover.vue:385,417",
+        "server/controllers/SearchController.js:231"
       ],
       "tests": [
         "go-backend/internal/contracttest/cover_search_test.go:125#TestCoverSearchSocket",
         "go-backend/internal/contracttest/cover_search_test.go:148#TestCoverSearchCancel",
-        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/covers-custom-provider-streams-results",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/covers-concurrent-searches-carry-own-ids",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/covers-unauthorized-gets-error",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/covers-invalid-parameters",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/covers-empty-provider-answer-completes-quietly"
       ],
       "evidence": [],
       "exceptions": []
@@ -49,7 +75,8 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
-  }
+  },
+  "invariant": "search_covers streams a provider cover search to the requesting socket: any authenticated user may search; an unauthenticated socket gets cover_search_error {requestId, error 'Unauthorized'} and starts no search; a payload without requestId or title gets cover_search_error 'Invalid request parameters' with the requestId carried only when defined; a valid custom-provider search streams cover_search_result {requestId, provider: 'custom-<id>', covers, total} before cover_search_complete {requestId}, queries the provider with mediaType=book&query=<title>&author=<author>, completes without errors when the answer has no covers, and keeps concurrent searches separate by requestId."
 }

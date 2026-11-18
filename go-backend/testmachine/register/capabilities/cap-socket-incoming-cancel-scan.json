@@ -4,9 +4,13 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO incoming cancel_scan: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "cancel_scan flags a running library scan for cancellation: admin only; a call from an unauthenticated or non-admin socket does nothing (the running scan completes normally and moves libraries.lastScan); a call for a library that is not scanning sets no cancel flag (a following scan completes normally); cancelling a running scan finishes its task with 'Task canceled by user', does not move libraries.lastScan and stops before all pending items are added; repeated cancels cancel the scan once.",
   "source": [
-    "server/SocketAuthority.js:191"
+    "server/SocketAuthority.js:89-94",
+      "server/SocketAuthority.js:191-194",
+    "server/Server.js:163-165",
+    "server/scanner/LibraryScanner.js:41-44,88-135,286-293",
+    "client/components/cards/ItemTaskRunningCard.vue:124-132"
   ],
   "implementation": [
     "go-backend/internal/realtime/hub.go"
@@ -17,24 +21,37 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+    "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cancel-scan-admin-stops-running-scan",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cancel-scan-gated-to-admin",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cancel-scan-unknown-library-is-noop",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cancel-scan-double-cancel-single-cancelled-task"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: cancel_scan has no force or override mode."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-INCOMING-CANCEL-SCAN",
       "class": "repeat_operation",
-      "contract": "Socket.IO incoming cancel_scan: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "cancel_scan flags a running library scan for cancellation: admin only; a call from an unauthenticated or non-admin socket does nothing (the running scan completes normally and moves libraries.lastScan); a call for a library that is not scanning sets no cancel flag (a following scan completes normally); cancelling a running scan finishes its library-scan task with description 'Task canceled by user' and data.libraryId set, does not move libraries.lastScan and stops before all pending items are added; a repeated cancel during the same scan cancels it once.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:191"
+        "server/SocketAuthority.js:89-94",
+      "server/SocketAuthority.js:191-194",
+        "server/Server.js:163-165",
+        "server/scanner/LibraryScanner.js:41-44,88-135,286-293",
+        "client/components/cards/ItemTaskRunningCard.vue:124-132"
       ],
       "tests": [
-        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cancel-scan-admin-stops-running-scan",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cancel-scan-gated-to-admin",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cancel-scan-unknown-library-is-noop",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/cancel-scan-double-cancel-single-cancelled-task"
       ],
       "evidence": [],
       "exceptions": []
@@ -44,7 +61,8 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
-  }
+  },
+  "invariant": "cancel_scan flags a running library scan for cancellation: admin only; a call from an unauthenticated or non-admin socket does nothing (the running scan completes normally and moves libraries.lastScan); a call for a library that is not scanning sets no cancel flag (a following scan completes normally); cancelling a running scan finishes its library-scan task with description 'Task canceled by user' and data.libraryId set, does not move libraries.lastScan and stops before all pending items are added; a repeated cancel during the same scan cancels it once."
 }

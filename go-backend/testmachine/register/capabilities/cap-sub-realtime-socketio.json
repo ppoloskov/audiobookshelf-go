@@ -4,10 +4,11 @@
   "kind": "subsystem",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO/Engine.IO engine-compatible endpoint on legacy and configured-prefixed paths: connect auth, per-user rooms, event payloads/order/recipients, log listeners, dispatch actions.",
+  "contract": "The Socket.IO v4/Engine.IO v4 endpoint is served on the configured-prefixed path and, while ROUTER_BASE_PATH is set, on the legacy path as a second Socket.IO server sharing one client registry: the open packet carries the engine.io defaults (upgrades [websocket], pingInterval 25000, pingTimeout 20000, maxPayload 1000000), the namespace connect ack carries a sid, the auth handler dispatches identically on both paths, the online list and broadcasts span both paths, the server pings an idle connection at the advertised interval and closes it when the client stops answering, and a server shutdown closes every connection on both paths.",
   "source": [
-    "server/SocketAuthority.js",
-    "server/SocketAuthority.js"
+    "server/SocketAuthority.js:147-171,178-188,269-361",
+    "client/layouts/default.vue:389-396",
+    "server/SocketAuthority.js:164-167"
   ],
   "implementation": [
     "go-backend/internal/realtime/hub.go"
@@ -19,7 +20,12 @@
   },
   "tests": [
     "go-backend/internal/realtime/hub_test.go",
-    "go-backend/internal/server/manager_test.go"
+    "go-backend/internal/server/manager_test.go",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/socketio-legacy-path-handshake-and-auth",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/socketio-shared-state-across-paths",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/socketio-heartbeat-cycle",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/socketio-legacy-rejection-leaves-no-state",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/socketio-shutdown-closes-clients"
   ],
   "evidence": [
     "go-backend/testmachine/contracts/parity/core-flow-report.json#socket-connect-prefixed",
@@ -28,8 +34,11 @@
     "go-backend/testmachine/contracts/parity/scanner-flow-report.json (2026-10-30 isolated run: socket-connect-prefixed and socket-connect-legacy pass via the JS v4 client with auth/init handshake on both Engine.IO paths; earlier transient timeout under load noted in TASK ledger and kept under watch)"
   ],
   "exceptions": [
-    "Connect/auth handshake plus selected destructive-cascade and backup-restore event sequences verified; full per-event recipient/payload matrix remains unverified (source-inventory.json lists 165 Socket.IO event candidates).",
-    "One transient authentication timeout was observed in one full-suite run (2026-10-30) and not reproduced in the following run; suspected single-connection DB-pool contention under parallel probes \u2014 investigation packet recorded in the TASK ledger.",
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: the transport has no force or override mode.",
+    "The polling transport is not asserted: every known client opens the websocket transport only (client/layouts/default.vue:389-396 transports ['websocket'] upgrade false; go-backend/testmachine/contracts/mobile-client-audit.md rows audiobookshelf-app, absorb, storii, yaabsa all websocket-only), so long-polling parity has no caller evidence.",
+    "Binary frames and the maxHttpBufferSize bound are not asserted: engine.io 6.5.4 enforces maxHttpBufferSize (1e6) only on polling request bodies (node_modules/engine.io/build/transports/polling.js:129) and accepts unbounded websocket frames (node_modules/engine.io/build/transports/websocket.js:17-20), while no known client sends binary payloads or oversized frames (all client emits are small JSON strings).",
+    "Client-side reconnection is not asserted beyond the server contract: a fresh connection after a close authenticates normally, which the socket-incoming-connection scenarios and the shutdown scenario cover.",
     "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
   ],
   "stateful": true,
@@ -37,27 +46,34 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "invariants": [
     {
       "id": "INV-SUB-REALTIME-SOCKETIO",
       "class": "repeat_operation",
-      "contract": "Socket.IO/Engine.IO engine-compatible endpoint on legacy and configured-prefixed paths: connect auth, per-user rooms, event payloads/order/recipients, log listeners, dispatch actions.",
+      "contract": "The Socket.IO v4/Engine.IO v4 endpoint is served on the configured-prefixed path and, while ROUTER_BASE_PATH is set, on the legacy path as a second Socket.IO server sharing one client registry: the open packet carries the engine.io defaults (upgrades [websocket], pingInterval 25000, pingTimeout 20000, maxPayload 1000000), the namespace connect ack carries a sid, the auth handler dispatches identically on both paths (a rejected auth answers auth_failed, writes no lastSeen and announces nothing), the online list and broadcasts span both paths while anonymous connections receive no user-directed events, the server pings an idle connection at the advertised interval and closes it when the client stops answering, and a server shutdown closes every connection on both paths.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js",
-        "server/SocketAuthority.js"
+        "server/SocketAuthority.js:147-171,178-188,269-361",
+        "client/layouts/default.vue:389-396",
+        "server/SocketAuthority.js:164-167"
       ],
       "tests": [
         "go-backend/internal/realtime/hub_test.go",
-        "go-backend/internal/server/manager_test.go"
+        "go-backend/internal/server/manager_test.go",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/socketio-legacy-path-handshake-and-auth",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/socketio-shared-state-across-paths",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/socketio-heartbeat-cycle",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/socketio-legacy-rejection-leaves-no-state",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/socketio-shutdown-closes-clients"
       ],
       "evidence": [],
       "exceptions": [
         "Required detailed state/recipient/failure assertions are not yet characterized."
       ]
     }
-  ]
+  ],
+  "invariant": "The Socket.IO v4/Engine.IO v4 endpoint is served on the configured-prefixed path and, while ROUTER_BASE_PATH is set, on the legacy path as a second Socket.IO server sharing one client registry: the open packet carries the engine.io defaults (upgrades [websocket], pingInterval 25000, pingTimeout 20000, maxPayload 1000000), the namespace connect ack carries a sid, the auth handler dispatches identically on both paths (a rejected auth answers auth_failed, writes no lastSeen and announces nothing), the online list and broadcasts span both paths while anonymous connections receive no user-directed events, the server pings an idle connection at the advertised interval and closes it when the client stops answering, and a server shutdown closes every connection on both paths."
 }
