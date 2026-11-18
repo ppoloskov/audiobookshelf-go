@@ -4,11 +4,11 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "DELETE /api/api-keys/:id. Admin deletes the selected API key and invalidates authentication; repeat deletion returns 404, retaining the user and other keys.",
+  "contract": "DELETE /api/api-keys/:id requires admin access, deletes only the selected key (its bearer then gets 401) and keeps the user and other keys; an unknown or already deleted key answers 404.",
   "source": [
     "server/routers/ApiRouter.js:341",
-    "server/controllers/ApiKeyController.js:197",
-    "server/controllers/ApiKeyController.js:179"
+    "server/controllers/ApiKeyController.js:179-193",
+    "server/controllers/ApiKeyController.js:195-207"
   ],
   "implementation": [
     "go-backend/internal/user/user.go"
@@ -26,27 +26,37 @@
     "go-backend/testmachine/contracts/parity/full-suite-report.json#api-key-delete (differential pass)"
   ],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: this route has no force, hard or override mode"
   ],
   "invariants": [
     {
       "id": "INV-R202-SAMPLED",
-      "class": "shape",
-      "contract": "Sampled DELETE /api-keys/:id via differential case(s) api-key-delete: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: api-keys.",
+      "class": "state_transition",
+      "contract": "DELETE /api/api-keys/:id answers 200, removes only that row, makes its JWT unauthorized, keeps the user row and every other key, and a repeat delete of the same id answers 404 without changing other rows.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:341"
+        "server/controllers/ApiKeyController.js:179-193"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:215#TestAPIKeys"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-delete-invalidates",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-delete-repeat",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-delete-keeps-others"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/full-suite-report.json#api-key-delete"
+      "evidence": []
+    },
+    {
+      "id": "INV-R202-ERRORS-001",
+      "class": "error",
+      "contract": "DELETE /api/api-keys/:id answers 403 for a user below admin and 404 for an unknown id, 401 without a valid token, and a forbidden delete removes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ApiKeyController.js:179-183",
+        "server/controllers/ApiKeyController.js:195-207"
       ],
-      "exceptions": [
-        "Sampled evidence; unsampled request-shape variants are separate behaviors."
-      ]
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-delete-errors"
+      ],
+      "evidence": []
     }
   ],
   "state_scenarios": {

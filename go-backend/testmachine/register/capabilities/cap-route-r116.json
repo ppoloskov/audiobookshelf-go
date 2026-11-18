@@ -4,10 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "PATCH /api/me/password. Verify the current password before changing the authenticated account password; enforce body/password validation and required session invalidation without leaking hashes.",
+  "contract": "PATCH /api/me/password verifies the current password for a non-guest caller, rejects a mismatch and invalid payload types with 400, changes the stored hash, invalidates the user's other sessions (rotating the current session and returning new tokens only when the x-refresh-token header names it), and lets root set an empty password.",
   "source": [
     "server/routers/ApiRouter.js:190",
-    "server/controllers/MeController.js:438"
+    "server/controllers/MeController.js:438-474",
+    "server/auth/LocalAuthStrategy.js:145-183",
+    "server/auth/TokenManager.js:467-504"
   ],
   "implementation": [
     "go-backend/internal/user/user.go"
@@ -23,9 +25,7 @@
   ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-    "Mapped tests cover selected denial or lower-level behavior only; successful endpoint payload/state and complete source/client variants need explicit owner-packet assertions."
+    "force is not applicable: this route has no force, hard or override mode"
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -38,19 +38,61 @@
     {
       "id": "INV-R116-CONTRACT-001",
       "class": "state_transition",
-      "contract": "PATCH /api/me/password. Verify the current password before changing the authenticated account password; enforce body/password validation and required session invalidation without leaking hashes.",
+      "contract": "PATCH /api/me/password verifies the current password: a wrong password, a missing or non-string password/newPassword answer 400 for a non-guest user, an empty new password answers 400 unless the caller is root, a guest answers 403 and an unauthenticated caller 401; every rejected request leaves the stored hash and the session rows unchanged.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:190",
-        "server/controllers/MeController.js:438"
+        "server/controllers/MeController.js:438-453",
+        "server/auth/LocalAuthStrategy.js:145-160",
+        "server/routers/ApiRouter.js:190"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:95#TestStatuses"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-rejects-without-side-effects",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-old-login-rejected"
       ],
-      "evidence": [],
-      "exceptions": [
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-      ]
+      "evidence": []
+    },
+    {
+      "id": "INV-R116-TOKENS-001",
+      "class": "state_transition",
+      "contract": "A successful change invalidates sessions: with an x-refresh-token that names one of the user's sessions it rotates that session, destroys the others and returns {success:true,user:{accessToken,refreshToken}} that authenticate; without a matching session it answers 200 without tokens and destroys every session of the user.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:455-473",
+        "server/auth/TokenManager.js:467-504"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-rotates-tokens",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-without-refresh-destroys-sessions",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-unknown-refresh-destroys-sessions"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "INV-R116-ROOT-001",
+      "class": "edge",
+      "contract": "Only root may set an empty new password: the route answers 200 and stores an empty hash, while an empty newPassword for a non-root user is 400 and keeps the hash.",
+      "status": "unverified",
+      "source": [
+        "server/auth/LocalAuthStrategy.js:145-151"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-root-empty-password"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "INV-R116-HASH-001",
+      "class": "security",
+      "contract": "A successful change stores a new non-empty password hash that verifies the new password, and no password-change response body contains the stored hash.",
+      "status": "unverified",
+      "source": [
+        "server/auth/LocalAuthStrategy.js:161-176",
+        "server/controllers/MeController.js:449-473"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-repeat-updates-hash"
+      ],
+      "evidence": []
     }
   ]
 }

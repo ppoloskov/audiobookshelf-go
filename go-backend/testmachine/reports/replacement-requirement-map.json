@@ -6,7 +6,7 @@
   "proof": "Mapping only. No behavior tests executed by this renderer. Test references are assertion/discovery leads, not inferred full coverage.",
   "counts": {
     "requirements": 345,
-    "invariants": 801,
+    "invariants": 829,
     "route_sites": 226,
     "socket_sites": 165,
     "socket_names": 77,
@@ -88,17 +88,17 @@
     "go-backend/testmachine/register/capabilities/cap-route-r045.json": "3d8299bcb9090977c9bc057408d2d878a5db9991145248baf034a16e1c6a757e",
     "go-backend/testmachine/register/capabilities/cap-route-r046.json": "ab0a82c52e83199114ae878a299b04293e8781b8ff753ba4cb00f7b9513e8a6d",
     "go-backend/testmachine/register/capabilities/cap-route-r047.json": "76618d18acdc1d0012b22c3df5a5387f8dcae2c97b5a29b6760d1b4b0d71f179",
-    "go-backend/testmachine/register/capabilities/cap-route-r048.json": "1e567c979d006d6997eec8246acbc7ec04912873842e50d54bf37d8e175bad6b",
+    "go-backend/testmachine/register/capabilities/cap-route-r048.json": "42ca626a2d666fb82b998f97be001f56aa151fcb2cf3e3eb126ec339e3491a34",
     "go-backend/testmachine/register/capabilities/cap-route-r049.json": "ed73ee524608a0294083bae0db3902ac0ec9309eb9fc766206d1fb11009eee1c",
     "go-backend/testmachine/register/capabilities/cap-route-r050.json": "21e40a743c84eff152a3dc6299d1b567df6247645204bf24626f1ef7829dfb70",
     "go-backend/testmachine/register/capabilities/cap-route-r051.json": "d4be8945b48dc10d10cd5bd45196efbb29dec2b5feca4b9d933cf1017dd2e96c",
     "go-backend/testmachine/register/capabilities/cap-route-r052.json": "5250d73aab44931fdcd99282d495a6e46eca4deb381ba5b2ac4d25347e751913",
     "go-backend/testmachine/register/capabilities/cap-route-r053.json": "928c0b65effdd45a4e8f7f1a78fd962e663062c708a5f294c609956d4da48c6b",
-    "go-backend/testmachine/register/capabilities/cap-route-r054.json": "40c2bd5d5704dc0d1877a83fc6caba3bc953c1652bc2bebbf9fb2b4b157b86d7",
-    "go-backend/testmachine/register/capabilities/cap-route-r055.json": "dcdcd1dd792ce45f93a9e66038831f5b7719c3063b6dab685ce0ed066efd2c55",
-    "go-backend/testmachine/register/capabilities/cap-route-r056.json": "0d90603a7d222b5f9064c1cb8538595c8be6de755d79fb6dd1e9c3b04ea560ae",
-    "go-backend/testmachine/register/capabilities/cap-route-r057.json": "1d24a6133770d02ee5ee68d5db777c41e64b1468aab8706ef9dd477a668720ba",
-    "go-backend/testmachine/register/capabilities/cap-route-r058.json": "00c16ca0c5d954ee2d8da2def96a0c453397ac9f14b6512c2b2537b78eebcfea",
+    "go-backend/testmachine/register/capabilities/cap-route-r054.json": "8642c21c7f49f3ec311ab1345c7352e66532f76af57f9cbc0830330a69dbc826",
+    "go-backend/testmachine/register/capabilities/cap-route-r055.json": "9b629f281217cc210980a5af356d3b59af12245f078e4291128fa9db6e8bb68e",
+    "go-backend/testmachine/register/capabilities/cap-route-r056.json": "969921256cb48c6ba62442b1ca3c0db58ffbf4db4ec653f5d35c9ae41efea6c0",
+    "go-backend/testmachine/register/capabilities/cap-route-r057.json": "6b6befde01c90cb8f1f7d25f3470d2ba56dc9580b0f64133379996eb7ac01cce",
+    "go-backend/testmachine/register/capabilities/cap-route-r058.json": "852ec2d797b49c02d6deefe07e641b640c5e1f410d91909f76acba5184fee140",
     "go-backend/testmachine/register/capabilities/cap-route-r059.json": "ba8797c8887adf8499f660491e467b2e706cc8ced448dad1005027909b87e35a",
     "go-backend/testmachine/register/capabilities/cap-route-r060.json": "80de4e278dc7460194b60fc4886ff8fe9b919311f65242fd2651a8864b3cab97",
     "go-backend/testmachine/register/capabilities/cap-route-r061.json": "0af1f55640530f180beabd21456d1c79e43f6d8c6008a09a6cf114acfc857cc7",
@@ -156,12 +156,12 @@
     "go-backend/testmachine/register/capabilities/cap-route-r113.json": "490486d0b1242f1f489b71c901e4e707783e4c738a25f398e7a2de2adfdd65ee",
     "go-backend/testmachine/register/capabilities/cap-route-r114.json": "ee9bd4c7416494a7cc6a3ec93f419d0a5bb53c7bd8b549dad8c5dc9218363003",
     "go-backend/testmachine/register/capabilities/cap-route-r115.json": "39e893c03f2f4b64ae8b4806dadd72f440eb2f3b2e4dc1408b887a05fd9cdd72",
-    "go-backend/testmachine/register/capabilities/cap-route-r116.json": "82338ecd82321e37071865ccb2fed9e69bfaa786a9b9a3e73abe4feff044c6dc",
-    "go-backend/testmachine/register/capabilities/cap-route-r117.json": "e5d8bb78f21f7858ae90436442a1308f7e9c740528c6ad185ec9c7e4a459c47c",
-    "go-backend/testmachine/register/capabilities/cap-route-r118.json": "bddad2236df5f947f6f535a40dbbcbe70477ff6eefb0454a1e20708c5ec01475",
-    "go-backend/testmachine/register/capabilities/cap-route-r119.json": "bcb46e3748934fea0ff2d003d9394544ede13e5aef56fbd3a975c79a226fd54d",
-    "go-backend/testmachine/register/capabilities/cap-route-r120.json": "fe649bf2233bce443d5ef14ccc9162920699f34e94b4030ab9732309e501c3e8",
-    "go-backend/testmachine/register/capabilities/cap-route-r121.json": "4017dc75c2208e408a816034e5b64570f42ca1bee30d0c92a7c855606f345d15",
+    "go-backend/testmachine/register/capabilities/cap-route-r116.json": "f2b7320b0c2caa6aa070c356170854dfcaa3ff3f717e1cfb449c91d41543008e",
+    "go-backend/testmachine/register/capabilities/cap-route-r117.json": "074084e9ea30204014d0a32cf40461a4e01ca11e6727c40e26edbd74afd9f12a",
+    "go-backend/testmachine/register/capabilities/cap-route-r118.json": "45c6d9e6db9a471301f95fe171e457c2410756f1ab8928ef29964e8cd5ab44a4",
+    "go-backend/testmachine/register/capabilities/cap-route-r119.json": "1160c67c5d78f93a1b9bd227608bb6b66dc9ace8a711b444f17f43c0b9b782ce",
+    "go-backend/testmachine/register/capabilities/cap-route-r120.json": "d1cd1e3dd1f97af74772b2380e0b6f741d5e72fc5c81820a6644120545c17fb1",
+    "go-backend/testmachine/register/capabilities/cap-route-r121.json": "2af0867d8cae0cf30baca8573e2ec93b69250c8e397cfc87df59629d22ff3bb2",
     "go-backend/testmachine/register/capabilities/cap-route-r122.json": "f608c87172b8a8c10ff78e8adaa64b7fcc7f5aad56de7227a1b591015f099760",
     "go-backend/testmachine/register/capabilities/cap-route-r123.json": "73ecd1f1b2edbb75647dba13a5353cdb879eb94801260ad72b20d8f9b6ef774b",
     "go-backend/testmachine/register/capabilities/cap-route-r124.json": "fecc5acd82c76e0290692785504ccaf2306976def3a1011f4045e078d4265d83",
@@ -239,10 +239,10 @@
     "go-backend/testmachine/register/capabilities/cap-route-r196.json": "3aed723308c949b6e5b4554c62e2a45cf89d7919c06d0246d05a6c329f096fa2",
     "go-backend/testmachine/register/capabilities/cap-route-r197.json": "8729ef34331acb9a2bfd526e4a71bd2e1b8b39d2def57e4732d64f47359c9865",
     "go-backend/testmachine/register/capabilities/cap-route-r198.json": "8e89b6c222cd1ca7b988658204c0ce1c584ae26eb8472f91d81ff867897ccb57",
-    "go-backend/testmachine/register/capabilities/cap-route-r199.json": "d05edfe5ad6937cb4f7f9c089126c289d989197b620f43fd026e3aac9a30b74a",
-    "go-backend/testmachine/register/capabilities/cap-route-r200.json": "36633440f33bf46ed5e620b3d99d09bceef3a0282e3d2af274cc4b36cb11a84f",
-    "go-backend/testmachine/register/capabilities/cap-route-r201.json": "cad9edf16045116cbeb5f1ca82305c7ea7d5dfd4d55e9ce221e74efa4ecefa86",
-    "go-backend/testmachine/register/capabilities/cap-route-r202.json": "7b3bf2ac354a7614c90c6f21b5545d078a4807c103ff5927833ac75f4c3da5ea",
+    "go-backend/testmachine/register/capabilities/cap-route-r199.json": "f1929bd577ea7a1e493aeeb532ed73c5c3998f368979a40e4313d774bb9c92e7",
+    "go-backend/testmachine/register/capabilities/cap-route-r200.json": "426582c26514433194ef47f04071c5f8d68d47236d5d1a07dd58c6eb3d0f3f7a",
+    "go-backend/testmachine/register/capabilities/cap-route-r201.json": "1b9812b32b7e94a785f3dbfb4e3e3360eec56aaa1a0fcc934bbf2d43b4595287",
+    "go-backend/testmachine/register/capabilities/cap-route-r202.json": "e6bc3b0f7536be0a48fc1184f78272c72b73a70659c893d229238c0f9c4d4ecc",
     "go-backend/testmachine/register/capabilities/cap-route-r203.json": "14a5faeffa407be579a3dcafdb322fc154d2bb51f5d8bf5271607f2e70f37e25",
     "go-backend/testmachine/register/capabilities/cap-route-r204.json": "92771c55eec7c2331b3779653303f53d3123a4a48a667ea14c76195c8e9c5b9e",
     "go-backend/testmachine/register/capabilities/cap-route-r205.json": "9663689dc3f0bc31073ca65ce2084d849f7767f46d8691eb4d1f6b9f3c63e394",
@@ -287,7 +287,7 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-updated.json": "3abbebc7b37d86be4521be5bb291dd0f67fea6acacd4d6b2832c144ef67627b0",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-authors-num-books-updated.json": "a18c5019176018778e49b56cb3b4a0764f831fe28f389d514d62c9a51604c5e8",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-backup-applied.json": "46eb7fcd2477c569785116119e11bf3f2c35695d43cfabec58c10ab89cecf430",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-batch-quickmatch-complete.json": "a69cf9f1bd7edff0df91cc0bec18785b0e6bf96d29b1f2dbb58da43a40755fd0",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-batch-quickmatch-complete.json": "79bb579024340f7b166d7a29a6bc5ba77502ab818f30f4b1300a3c3d2f3a390e",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-collection-added.json": "613d743fcea56b7943aefbae9de20109a81555e61417c0805951e605cd79f2f1",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-collection-removed.json": "e33f32c5794da33c8300a949dea6bb21c63f0dcc31a71fbf1c3ced4a9f107abc",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-collection-updated.json": "2a6343dacf5857fb65e5febbefe149688e9354855cc8f6064bb597c4c3486f30",
@@ -303,12 +303,12 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-queue-cleared.json": "8a4a7f8c63a4b43e9fefd571ef3c97df4e5e7da0174cf86bbfe49eba48fcec5b",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-queued.json": "b6c5e40860abb00b2d4780dd9c9ee1a009b37c26fd1218f5382e62bd8ea6af13",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-started.json": "25577e5eb0fc958e29898f0d97439b15a8e065abab216c93b8ba7670d2db20da",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-ereader-devices-updated.json": "4ed2af63875e154bd522fa1ba6f5c62fdd470cf4f0cc5bf4df344b9fded4958b",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-ereader-devices-updated.json": "f2e82909a679d0262007d7bcb48010d00d7898fdc49ab5d07caa193931e241ea",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-init.json": "15ca712b83c48924c2f7dc9d55001ac671dc423d4783512de5cbcd7cecd613f0",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-added.json": "a59c6a84397221efe5875db775b20ac9e06b4dc430feb0787f6056cab7871adc",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-added.json": "357b6bab0e797c1883ac913fe288c9b9c0d09ebf8080416b3b37a6df93ac6959",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-removed.json": "8433ac679a536e6e1145bc1f38e882de69a92b680135fc6ec0f10a70524d5f68",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-updated.json": "4e87ea11825ef3a41240a93dd702bf3cf4fac2816526235d43db9085dfd1bf4b",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-items-added.json": "070c5fb76d7053977239d5cf24ae233c9c1e60ab48c3bd6eb93600acafbfe9fe",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-items-added.json": "1c61458aff4cba5c844dfc6e409ff5587a9f1c67b315d20949dc1d59bbb3ec09",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-items-updated.json": "5216c36b61b51aa2b4d7305fda06b43d9b0ca2c3850bb85823590c02b83fb29d",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-library-added.json": "6e6d3ca76beef8a9c0c1faa1fafd6fe93346b532b972a6535e3b13219fa0e550",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-library-removed.json": "96ff2b58dec1075f9ba7aba07da547d4614052071e87986e3bab493b701772fe",
@@ -349,7 +349,7 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-updated.json": "c98decd5c97a4521ba9dc870c489751ee5f0a235889496782e322aa2ceec1b30",
     "go-backend/testmachine/register/capabilities/cap-sub-authorization-ownership.json": "34c749bdfe64802c5f32b01dc560aebe2b532c9aedb887c99faa7f70f2f84169",
     "go-backend/testmachine/register/capabilities/cap-sub-backup-scheduler.json": "bf7b013730ba46657453c6cac2e57d9267bffc1c2ab536e61fd87637cda3842b",
-    "go-backend/testmachine/register/capabilities/cap-sub-covers.json": "60dd572222998a79bf6b59aa1539fd5e0d5e81de6b88244d78f81d64ce7979bb",
+    "go-backend/testmachine/register/capabilities/cap-sub-covers.json": "9449712d53e504592c42282be561680e88de5af361ea593d062c05d8d354d748",
     "go-backend/testmachine/register/capabilities/cap-sub-database-schema.json": "197effbde241807b54bf83807e8a398d5a0d45ef92b8894d760e35a82f365ecf",
     "go-backend/testmachine/register/capabilities/cap-sub-destructive-cascades-w6.json": "ba59fc40ed8cf180d6e5a2c1d56c3b36f55db7bae34714cc950be4d9ae2de9ab",
     "go-backend/testmachine/register/capabilities/cap-sub-downloads.json": "f3c4b48cb2171af656d4d25a4c761f2448200fb9e3699327f86225291814cb73",
@@ -14092,16 +14092,23 @@
       "invariant": "INV-ROUTE-R048-CONTRACT",
       "owner": "item",
       "packet": "Q12",
-      "contract": "POST /api/items/batch/quickmatch dispatches to the pinned TS handler LibraryItemController.batchQuickMatch (ApiRouter.js:105, server/controllers/LibraryItemController.js:763) and Go registration mux.Handle(\"POST /api/items/batch/quickmatch\", h.authed(h.batchQuickMatch)). Current assertion anchor(s): TestBatchQuickMatch. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "POST /api/items/batch/quickmatch is admin-only; a non-admin gets 403, a body without libraryItemIds or whose ids match nothing gets 400, and an accepted batch gets 200 before processing. For each loaded item Scanner.quickMatchLibraryItem applies the provider match: empty detail fields are filled (and all are replaced with overrideDetails), an empty coverPath is filled (or replaced with overrideCover), and the response is immediate while the per-item work continues asynchronously.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:105",
-        "go-backend/internal/item/handler.go",
-        "go-backend/internal/item/handler.go:104",
-        "server/controllers/LibraryItemController.js:763"
+        "server/controllers/LibraryItemController.js:757-816",
+        "server/scanner/Scanner.js:37-135",
+        "server/providers/CustomProviderAdapter.js:24-190"
       ],
       "tests": [
-        "go-backend/internal/item/match_test.go:397#TestBatchQuickMatch"
+        "go-backend/internal/item/match_test.go:397#TestBatchQuickMatch",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-requires-admin-and-ids",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-applies-a-custom-provider-match",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-repeat-reports-no-updates",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-override-replaces-details-and-cover",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-keeps-an-existing-cover-and-title-without-override",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-mixed-ids-process-the-known-item",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-unmatched-provider-changes-nothing"
       ],
       "evidence": [],
       "cases": {
@@ -14118,11 +14125,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "Provider results come from a loopback custom metadata provider: the built-in google/itunes/audible providers need the real internet, so their search paths are not asserted here.",
+        "force is applicable (overrideCover/overrideDetails options) and is asserted by quickmatch-override-replaces-details-and-cover."
       ]
     },
     {
@@ -14833,19 +14837,19 @@
     },
     {
       "requirement": "route-r054",
-      "invariant": "INV-R054-SAMPLED",
+      "invariant": "INV-R054-RAW-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "GET /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.getCover (ApiRouter.js:112, server/controllers/LibraryItemController.js:401) and Go registration mux.Handle(\"GET /api/items/{id}/cover\", httpx.Handler(h.cover)). Current assertion anchor(s): TestCoverRawIsPublicAndCached. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "GET /api/items/:id/cover with raw=1 is public: it answers 200 with the stored cover file's bytes, its image MIME type and Content-Length plus an ETag and Last-Modified, adds Cache-Control private, max-age=86400 when ts is present, answers 304 to a matching If-None-Match, and answers 404 when the item has no coverPath or the stored file is gone.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:112",
-        "go-backend/internal/item/handler.go",
-        "go-backend/internal/item/handler.go:108",
-        "server/controllers/LibraryItemController.js:401"
+        "server/controllers/LibraryItemController.js:401-425",
+        "node_modules/send/index.js:862",
+        "client/store/globals.js:96-108"
       ],
       "tests": [
-        "go-backend/internal/item/files_test.go:136#TestCoverRawIsPublicAndCached"
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-raw-serves-original-bytes",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-raw-without-file-is-404"
       ],
       "evidence": [],
       "cases": {
@@ -14856,30 +14860,53 @@
       "stateful": false,
       "state_scenarios": {},
       "exceptions": [
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#cover-raw (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-default (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-jpeg-size (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-png-size (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-webp-size (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-ts-header (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-raw-after-delete (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-after-delete (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-jpeg-after-delete (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-png-after-delete (differential pass)",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "X-Accel hand-off (USE_X_ACCEL) is not asserted: the packet runs without the reverse proxy environment."
+      ]
+    },
+    {
+      "requirement": "route-r054",
+      "invariant": "INV-R054-RESIZED-001",
+      "owner": "item",
+      "packet": "Q12",
+      "contract": "GET /api/items/:id/cover without raw validates format (webp|jpeg|png, default webp when the client accepts it), clamps width and height to 4096 (absent or non-positive means the defaults 400 wide and no height), and answers image/<format> for the resized image; an unsupported format or unknown item is 400/404 and writes no cache file.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:427-440",
+        "server/managers/CacheManager.js:43-91",
+        "server/utils/index.js:62-65",
+        "server/utils/index.js:144-147"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-resized-is-jpeg-of-requested-width",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-resized-rejects-invalid-format",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-resized-clamps-width-and-defaults-to-webp"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": [
+        "X-Accel hand-off (USE_X_ACCEL) is not asserted: the packet runs without the reverse proxy environment."
       ]
     },
     {
       "requirement": "route-r055",
-      "invariant": "INV-R055-SAMPLED",
+      "invariant": "INV-R055-AUTH-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "POST /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:113, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"POST /api/items/{id}/cover\", h.authed(h.uploadCover)). Current assertion anchor(s): TestUploadCoverRemovesOnlyOlderCoverImages; TestUploadCoverChecksPermissionsAndInput. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "POST /api/items/:id/cover rejects in this order: no token 401, unknown item 404 (before any permission check), no access to the item's library 403, no update permission 403, no upload permission 403, and no url and no cover file 400; every rejection writes no file, changes no row and emits no item_updated.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:113",
-        "go-backend/internal/item/handler.go",
-        "go-backend/internal/item/handler.go:109",
-        "server/controllers/LibraryItemController.js:1220"
+        "server/controllers/LibraryItemController.js:289-341",
+        "server/controllers/LibraryItemController.js:1220-1251",
+        "server/Auth.js:322"
       ],
       "tests": [
-        "go-backend/internal/item/files_test.go:178#TestUploadCoverRemovesOnlyOlderCoverImages",
-        "go-backend/internal/item/files_test.go:216#TestUploadCoverChecksPermissionsAndInput"
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-auth-order"
       ],
       "evidence": [],
       "cases": {
@@ -14892,34 +14919,163 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Single-file/single-URL request shapes only. Multipart URL-over-file precedence is tested on an unsupported URL; broad request sizes, every image format, permission branches, redirects, and SSRF address variants remain unverified.",
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#cover-upload (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-upload-unsupported-gif (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-url-upload (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-url-ssrf-blocked (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-url-redirect-307 (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-upload-multipart-url-precedence (differential pass)",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "force is not applicable: the route has no force or override mode; a new cover simply replaces the old one.",
+        "Only loopback cover urls are used: the SSRF whitelist is set to 127.0.0.1 and literal private addresses are rejected without a network attempt."
+      ]
+    },
+    {
+      "requirement": "route-r055",
+      "invariant": "INV-R055-URL-001",
+      "owner": "item",
+      "packet": "Q12",
+      "contract": "POST cover with body.url downloads the image through fileUtils.downloadImageFile (content type image/*, not svg) to metadata/items/:id/cover.<ext>, validates the image signature, stores media.coverPath, answers {success:true,cover} with the stored path, moves updatedAt and emits item_updated to users with access to the item.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:295-315",
+        "server/managers/CoverManager.js:300-345",
+        "server/utils/fileUtils.js:289-356"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-from-url"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: the route has no force or override mode; a new cover simply replaces the old one.",
+        "Only loopback cover urls are used: the SSRF whitelist is set to 127.0.0.1 and literal private addresses are rejected without a network attempt."
+      ]
+    },
+    {
+      "requirement": "route-r055",
+      "invariant": "INV-R055-FILE-001",
+      "owner": "item",
+      "packet": "Q12",
+      "contract": "POST cover with a multipart cover file requires a supported extension (png, jpg, jpeg, webp), stores metadata/items/:id/cover.<ext> with the uploaded bytes, removes older cover images of the same item whose extension is in that allowlist, keeps other files, purges the resized cover cache, sets media.coverPath, moves updatedAt and emits item_updated; repeating the same upload succeeds again.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:316-341",
+        "server/managers/CoverManager.js:47-125",
+        "server/managers/CacheManager.js:93-110"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-file-replaces-older-cover",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-repeat-keeps-working"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: the route has no force or override mode; a new cover simply replaces the old one.",
+        "Only loopback cover urls are used: the SSRF whitelist is set to 127.0.0.1 and literal private addresses are rejected without a network attempt."
+      ]
+    },
+    {
+      "requirement": "route-r055",
+      "invariant": "INV-R055-INVALID-001",
+      "owner": "item",
+      "packet": "Q12",
+      "contract": "POST cover answers 400 and changes no row, file or event when the url serves a non-image content type, when the body is not a recognised image signature, or when the multipart extension is not in the allowlist; a multipart part named other than cover with no url is also 400.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:316-323",
+        "server/managers/CoverManager.js:63-80",
+        "server/utils/fileUtils.js:353-356"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-rejects-non-image-and-unsupported-type"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: the route has no force or override mode; a new cover simply replaces the old one.",
+        "Only loopback cover urls are used: the SSRF whitelist is set to 127.0.0.1 and literal private addresses are rejected without a network attempt."
+      ]
+    },
+    {
+      "requirement": "route-r055",
+      "invariant": "INV-R055-EDGE-001",
+      "owner": "item",
+      "packet": "Q12",
+      "contract": "A multipart POST cover body without a url and without a cover field answers 400 and writes no file; the item is unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:318-323",
+        "server/Server.js:340-348"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-requires-the-cover-field"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: the route has no force or override mode; a new cover simply replaces the old one.",
+        "Only loopback cover urls are used: the SSRF whitelist is set to 127.0.0.1 and literal private addresses are rejected without a network attempt."
       ]
     },
     {
       "requirement": "route-r056",
-      "invariant": "INV-R056-SAMPLED",
+      "invariant": "INV-R056-AUTH-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "PATCH /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:114, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"PATCH /api/items/{id}/cover\", h.authed(h.chooseCover)). Current assertion anchor(s): TestChooseCoverCopiesALibraryImage. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "PATCH /api/items/:id/cover rejects in this order: no token 401, unknown item 404 (before the permission check), no library access 403, no update permission 403, and a body without cover 400, changing nothing.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:114",
-        "go-backend/internal/item/handler.go",
-        "go-backend/internal/item/handler.go:110",
-        "server/controllers/LibraryItemController.js:1220"
+        "server/controllers/LibraryItemController.js:344-375",
+        "server/controllers/LibraryItemController.js:1220-1251"
       ],
       "tests": [
-        "go-backend/internal/item/files_test.go:244#TestChooseCoverCopiesALibraryImage"
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-auth-and-body-order"
       ],
       "evidence": [],
       "cases": {
@@ -14932,34 +15088,196 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Only one successful source-file copy and same-path repeat were exercised; switching to a different cover, storeCoverWithItem, permission branches, event recipients, updatedAt details, and 10,000,000-byte boundary and over-limit parser error shape remain unverified.",
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#cover-patch-success; go-backend/testmachine/contracts/parity/full-suite-report.json#cover-patch-repeat; go-backend/testmachine/contracts/parity/full-suite-report.json#cover-patch-invalid-image; go-backend/testmachine/contracts/parity/full-suite-report.json#statefulChecks.coverPatch; go-backend/testmachine/contracts/parity/full-suite-report.json#cover-patch-large-invalid-path",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "force is not applicable: the route has no force or override mode; selecting another scanned image replaces the cover.",
+        "The cover copy is only asserted with the default storeCoverWithItem=false setting; the storeCoverWithItem=true branch is the same copy code with an item-folder destination."
+      ]
+    },
+    {
+      "requirement": "route-r056",
+      "invariant": "INV-R056-SUCCESS-001",
+      "owner": "item",
+      "packet": "Q12",
+      "contract": "PATCH cover with a path that is one of the item's scanned library files validates the path (not http, a scanned file of the item, existing, a file, a supported image) and, when the stored coverPath is a different path, copies it to metadata/items/:id/cover.<ext>, removes older cover images of the item, purges the resized cache, sets media.coverPath, moves updatedAt and emits item_updated; the answer is {success:true,cover}.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:344-375",
+        "server/managers/CoverManager.js:132-207",
+        "server/managers/CacheManager.js:93-110"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-copies-a-library-image",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-switches-to-another-scanned-image"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: the route has no force or override mode; selecting another scanned image replaces the cover.",
+        "The cover copy is only asserted with the default storeCoverWithItem=false setting; the storeCoverWithItem=true branch is the same copy code with an item-folder destination."
+      ]
+    },
+    {
+      "requirement": "route-r056",
+      "invariant": "INV-R056-REPEAT-001",
+      "owner": "item",
+      "packet": "Q12",
+      "contract": "Repeating PATCH cover with the same scanned path when the stored coverPath is the metadata copy copies it again, moves updatedAt and emits item_updated again.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:346-370",
+        "server/managers/CoverManager.js:182-207"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-repeat-recopies-and-emits"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: the route has no force or override mode; selecting another scanned image replaces the cover.",
+        "The cover copy is only asserted with the default storeCoverWithItem=false setting; the storeCoverWithItem=true branch is the same copy code with an item-folder destination."
+      ]
+    },
+    {
+      "requirement": "route-r056",
+      "invariant": "INV-R056-NOOP-001",
+      "owner": "item",
+      "packet": "Q12",
+      "contract": "PATCH cover with a path equal to the stored coverPath answers 200 with that path without copying, purging the cache, moving updatedAt or emitting item_updated.",
+      "status": "unverified",
+      "source": [
+        "server/managers/CoverManager.js:161-166"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-already-stored-path-is-a-noop"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: the route has no force or override mode; selecting another scanned image replaces the cover.",
+        "The cover copy is only asserted with the default storeCoverWithItem=false setting; the storeCoverWithItem=true branch is the same copy code with an item-folder destination."
+      ]
+    },
+    {
+      "requirement": "route-r056",
+      "invariant": "INV-R056-INVALID-001",
+      "owner": "item",
+      "packet": "Q12",
+      "contract": "PATCH cover answers 500 and changes no row, file or cache entry when the path is not a scanned file of the item, is an http url, is a scanned text file (Invalid image), or has disappeared from disk; a JSON body above the 10 MB express.json limit is rejected with 413, while a 1.1 MB body is parsed and reaches the handler.",
+      "status": "unverified",
+      "source": [
+        "server/managers/CoverManager.js:132-180",
+        "server/Server.js:352"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-rejects-invalid-paths",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-json-body-limit"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: the route has no force or override mode; selecting another scanned image replaces the cover.",
+        "The cover copy is only asserted with the default storeCoverWithItem=false setting; the storeCoverWithItem=true branch is the same copy code with an item-folder destination."
+      ]
+    },
+    {
+      "requirement": "route-r056",
+      "invariant": "INV-R056-BODY-LIMIT-001",
+      "owner": "item",
+      "packet": "Q12",
+      "contract": "PATCH cover parses JSON bodies up to the express.json 10 MB limit (a 1.1 MB body reaches the handler and answers 500 invalid path) and rejects a larger body with 413 without changing the item.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:352",
+        "server/controllers/LibraryItemController.js:344-362"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-json-body-limit"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: the route has no force or override mode; selecting another scanned image replaces the cover.",
+        "The cover copy is only asserted with the default storeCoverWithItem=false setting; the storeCoverWithItem=true branch is the same copy code with an item-folder destination."
       ]
     },
     {
       "requirement": "route-r057",
-      "invariant": "INV-R057-SAMPLED",
+      "invariant": "INV-R057-DELETE-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "DELETE /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:115, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"DELETE /api/items/{id}/cover\", h.authed(h.removeCover)). Current assertion anchor(s): TestJourneyItems. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "DELETE /api/items/:id/cover on an item with a stored coverPath answers 200, sets media.coverPath to null, purges the item's resized cover cache, moves updatedAt and emits item_updated; the cover file itself is left on disk (upstream removes no file) and later raw and resized reads answer 404. DELETE cover on an item whose coverPath is already null answers 200 without moving updatedAt or emitting item_updated.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:115",
-        "go-backend/internal/item/handler.go",
-        "go-backend/internal/item/handler.go:111",
-        "server/controllers/LibraryItemController.js:1220"
+        "server/controllers/LibraryItemController.js:377-397",
+        "server/managers/CacheManager.js:93-110"
       ],
       "tests": [
-        "go-backend/internal/contracttest/journey_items_test.go:39#TestJourneyItems"
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-clears-path-and-cache",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-without-cover-is-a-noop",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-then-a-new-upload-is-served"
       ],
       "evidence": [],
       "cases": {
@@ -14972,33 +15290,67 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#cover-delete (differential pass)",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "force is not applicable: DELETE has no force or override mode.",
+        "The DELETE route does not remove the cover file upstream (it only clears the pointer); the scenario asserts the file stays, so a target that deletes it fails."
+      ]
+    },
+    {
+      "requirement": "route-r057",
+      "invariant": "INV-R057-AUTH-001",
+      "owner": "item",
+      "packet": "Q12",
+      "contract": "DELETE cover answers 401 without a token, 404 for an unknown item (the item lookup precedes the permission check), 403 without access to the item's library and 403 without the delete permission, changing nothing and emitting no event.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:377-397",
+        "server/controllers/LibraryItemController.js:1236-1243"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-auth-order",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-without-a-cover"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: DELETE has no force or override mode.",
+        "The DELETE route does not remove the cover file upstream (it only clears the pointer); the scenario asserts the file stays, so a target that deletes it fails."
       ]
     },
     {
       "requirement": "route-r058",
-      "invariant": "INV-ROUTE-R058-CONTRACT",
+      "invariant": "INV-R058-MATCH-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "POST /api/items/:id/match dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:116, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"POST /api/items/{id}/match\", h.authed(h.match)). Current assertion anchor(s): TestMatchAppliesDetails. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "POST /api/items/:id/match runs Scanner.quickMatchLibraryItem for one accessible item with the string options provider, title, author, isbn and asin plus the boolean overrideCover and overrideDetails; it is not admin-only but the middleware still requires item access and the update permission. The response is the match result itself: {updated:boolean, libraryItem:expanded item} on a provider hit, or {warning:'No <provider> match found'} when the search returns nothing; a successful update moves updatedAt, persists the changed fields and cover and emits item_updated.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:116",
-        "go-backend/internal/item/handler.go",
-        "go-backend/internal/item/handler.go:100",
-        "server/controllers/LibraryItemController.js:1220"
+        "server/controllers/LibraryItemController.js:526-545",
+        "server/scanner/Scanner.js:37-135"
       ],
       "tests": [
-        "go-backend/internal/item/match_test.go:72#TestMatchAppliesDetails"
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-auth-and-unknown-item",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-applies-provider-details",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-override-replaces-cover-and-details",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-repeat-reports-updated-false",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-reflects-an-earlier-edit",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-unknown-provider-warns-and-changes-nothing",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-honours-title-and-author-options"
       ],
       "evidence": [],
       "cases": {
@@ -15015,11 +15367,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "Provider results come from a loopback custom metadata provider; the built-in internet providers are not exercised.",
+        "force is applicable (overrideCover/overrideDetails body options) and is asserted by match-override-replaces-cover-and-details."
       ]
     },
     {
@@ -19785,14 +20134,16 @@
       "invariant": "INV-R116-CONTRACT-001",
       "owner": "user",
       "packet": "Q09",
-      "contract": "PATCH /api/me/password. Verify the current password before changing the authenticated account password; enforce body/password validation and required session invalidation without leaking hashes.",
+      "contract": "PATCH /api/me/password verifies the current password: a wrong password, a missing or non-string password/newPassword answer 400 for a non-guest user, an empty new password answers 400 unless the caller is root, a guest answers 403 and an unauthenticated caller 401; every rejected request leaves the stored hash and the session rows unchanged.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:190",
-        "server/controllers/MeController.js:438"
+        "server/controllers/MeController.js:438-453",
+        "server/auth/LocalAuthStrategy.js:145-160",
+        "server/routers/ApiRouter.js:190"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:95#TestStatuses"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-rejects-without-side-effects",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-old-login-rejected"
       ],
       "evidence": [],
       "cases": {
@@ -19809,10 +20160,104 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Mapped tests cover selected denial or lower-level behavior only; successful endpoint payload/state and complete source/client variants need explicit owner-packet assertions.",
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r116",
+      "invariant": "INV-R116-TOKENS-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "A successful change invalidates sessions: with an x-refresh-token that names one of the user's sessions it rotates that session, destroys the others and returns {success:true,user:{accessToken,refreshToken}} that authenticate; without a matching session it answers 200 without tokens and destroys every session of the user.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:455-473",
+        "server/auth/TokenManager.js:467-504"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-rotates-tokens",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-without-refresh-destroys-sessions",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-unknown-refresh-destroys-sessions"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r116",
+      "invariant": "INV-R116-ROOT-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "Only root may set an empty new password: the route answers 200 and stores an empty hash, while an empty newPassword for a non-root user is 400 and keeps the hash.",
+      "status": "unverified",
+      "source": [
+        "server/auth/LocalAuthStrategy.js:145-151"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-root-empty-password"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r116",
+      "invariant": "INV-R116-HASH-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "A successful change stores a new non-empty password hash that verifies the new password, and no password-change response body contains the stored hash.",
+      "status": "unverified",
+      "source": [
+        "server/auth/LocalAuthStrategy.js:161-176",
+        "server/controllers/MeController.js:449-473"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/password-change-repeat-updates-hash"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
       ]
     },
     {
@@ -19820,14 +20265,16 @@
       "invariant": "INV-R117-CONTRACT-001",
       "owner": "user",
       "packet": "Q09",
-      "contract": "GET /api/me/items-in-progress. Return current-user in-progress library items with progressLastUpdate, retaining separate podcast episodes and limit semantics while filtering inaccessible media.",
+      "contract": "GET /api/me/items-in-progress returns one minified library item per qualifying progress row, newest progressLastUpdate first: id, libraryId, folderId, relPath, file timestamps, mediaType, the book/podcast media projection (metadata, coverPath, duration/track/ebook fields or episode fields, size) and progressLastUpdate equal to the progress lastUpdate in milliseconds; a podcast entry additionally carries recentEpisode (id, title, season/episode, pubDate, publishedAt, audioFile duration); finished progress is omitted.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:191",
-        "server/controllers/MeController.js:485"
+        "server/controllers/MeController.js:485-524",
+        "server/models/LibraryItem.js:1000-1030"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:313#TestItemsInProgress"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/items-in-progress-listener",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/items-in-progress-requires-authentication"
       ],
       "evidence": [],
       "cases": {
@@ -19837,24 +20284,45 @@
       },
       "stateful": false,
       "state_scenarios": {},
-      "exceptions": [
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-      ]
+      "exceptions": []
+    },
+    {
+      "requirement": "route-r117",
+      "invariant": "INV-R117-LIMIT-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "GET /api/me/items-in-progress slices the sorted list to a numeric limit, falls back to 25 for 0 or a non-number, and returns an empty libraryItems array for a user whose only progress is finished.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:486,518-523"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/items-in-progress-limit-and-empty"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": []
     },
     {
       "requirement": "route-r118",
       "invariant": "INV-R118-CONTRACT-001",
       "owner": "user",
       "packet": "Q09",
-      "contract": "GET /api/me/series/:id/remove-from-continue-listening. Hide a series from current-user continue listening without duplicate entries or events on repeated requests; preserve the user_updated projection.",
+      "contract": "Removing an existing series appends its id to the caller's stored seriesHideFromContinueListening, answers 200 with the browser user view that GET /api/me returns afterwards, moves users.updatedAt forward and emits user_updated with that view to the caller's sockets only; another user's hidden list stays untouched.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:192",
-        "server/controllers/MeController.js:532"
+        "server/controllers/MeController.js:532-543",
+        "server/models/User.js:920-929"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:269#TestSeriesVisibility"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-remove-hides",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-remove-other-user"
       ],
       "evidence": [],
       "cases": {
@@ -19871,9 +20339,70 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r118",
+      "invariant": "INV-R118-IDEMPOTENT-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "Removing an already hidden series answers 200 with the same single-entry list, does not duplicate the id, leaves users.extraData and updatedAt unchanged and emits no user_updated event.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:538-542",
+        "server/models/User.js:920-929"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-remove-repeat"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r118",
+      "invariant": "INV-R118-ERRORS-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "Removing an unknown series answers 404 without changing any user's hidden list; without a valid token the route answers 401.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:532-536"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-remove-not-found"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
       ]
     },
     {
@@ -19881,14 +20410,15 @@
       "invariant": "INV-R119-CONTRACT-001",
       "owner": "user",
       "packet": "Q09",
-      "contract": "GET /api/me/series/:id/readd-to-continue-listening. Readd a series to current-user continue listening, removing only its hidden-series identity and avoiding duplicate events on repeat.",
+      "contract": "Readding a hidden series removes only its id from the caller's stored list, answers 200 with the browser user view that GET /api/me returns afterwards, moves users.updatedAt forward and emits user_updated with that view to the caller's sockets only; a caller without a stored entry gets 200 and an empty list.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:193",
-        "server/controllers/MeController.js:551"
+        "server/controllers/MeController.js:551-562",
+        "server/models/User.js:936-945"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:269#TestSeriesVisibility"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-readd-restores",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-readd-without-hidden-list"
       ],
       "evidence": [],
       "cases": {
@@ -19905,9 +20435,70 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r119",
+      "invariant": "INV-R119-IDEMPOTENT-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "Readding when nothing is hidden answers 200 with an empty list, leaves users.extraData and updatedAt unchanged and emits no user_updated event.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:557-561",
+        "server/models/User.js:936-945"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-readd-repeat"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r119",
+      "invariant": "INV-R119-ERRORS-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "Readding an unknown series answers 404 without changing the stored hidden list; without a valid token the route answers 401.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:551-555"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-readd-not-found"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
       ]
     },
     {
@@ -19915,14 +20506,14 @@
       "invariant": "INV-R120-CONTRACT-001",
       "owner": "user",
       "packet": "Q09",
-      "contract": "GET /api/me/stats/year/:year. Return current-user yearly listening totals, rankings and month/day statistics with stable time units, tie ordering and empty-history null/array fields; invalid years deny.",
+      "contract": "GET /api/me/stats/year/2026 returns totalListeningSessions, whole-second totalListeningTime/totalBookListeningTime/totalPodcastListeningTime, topAuthors/genres (name/genre and rounded time, max 3), mostListenedNarrator {time,name} or null, mostListenedMonth {month,time} or null, numBooksFinished, numBooksListened, longestAudiobookFinished or null, and booksWithCovers/finishedBooksWithCovers id arrays computed from the caller's sessions and finished progress.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:194",
-        "server/controllers/MeController.js:647"
+        "server/controllers/MeController.js:647-655",
+        "server/utils/queries/userStats.js:71-209"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:286#TestListeningStatsAndYear"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/year-stats-listener"
       ],
       "evidence": [],
       "cases": {
@@ -19932,24 +20523,68 @@
       },
       "stateful": false,
       "state_scenarios": {},
-      "exceptions": [
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-      ]
+      "exceptions": []
+    },
+    {
+      "requirement": "route-r120",
+      "invariant": "INV-R120-YEAR-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "The path year selects only that year's sessions and finished progress: a year without history returns zero totals, empty arrays and null single-value picks, and another user's history is never included.",
+      "status": "unverified",
+      "source": [
+        "server/utils/queries/userStats.js:15-66,71-209"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/year-stats-year-filter-and-empty"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": []
+    },
+    {
+      "requirement": "route-r120",
+      "invariant": "INV-R120-ERRORS-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "GET /api/me/stats/year/:year answers 400 for a non-numeric year and for years outside 2000..9999, and 401 without a valid token.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:647-652"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/year-stats-invalid-year"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": []
     },
     {
       "requirement": "route-r121",
       "invariant": "INV-R121-CONTRACT-001",
       "owner": "user",
       "packet": "Q09",
-      "contract": "POST /api/me/ereader-devices. Persist the current-user ereader device settings with valid unique names/emails and user availability restrictions, preserving response/event projection and unrelated users devices.",
+      "contract": "A valid device list answers 200 with exactly the caller's submitted devices, persists them in the email-settings row (creating the row with its defaults) and the caller's login payload serves the same accessible devices; an empty array removes every device of the caller and is valid.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:195",
-        "server/controllers/MeController.js:595"
+        "server/controllers/MeController.js:595-639",
+        "server/objects/settings/EmailSettings.js:164-166"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:330#TestEreaderDevices"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/ereader-create-devices",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/ereader-empty-list"
       ],
       "evidence": [],
       "cases": {
@@ -19966,9 +20601,72 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r121",
+      "invariant": "INV-R121-PERSIST-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "Writing devices replaces only the caller's single-user specificUsers devices: other users' devices stay in the stored row and are never returned to the caller, and re-sending the stored list leaves the row and the response unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:609-635",
+        "server/objects/settings/EmailSettings.js:146-156"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/ereader-repeat-unchanged",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/ereader-other-user-preserved"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r121",
+      "invariant": "INV-R121-VALIDATION-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "POST /api/me/ereader-devices answers 400 for a missing or non-array ereaderDevices, an item without name or email, an availabilityOption other than specificUsers, and a users list that is not exactly the caller, and 400 for a name already used by any stored device; rejected requests leave the settings row unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:595-627"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/ereader-validation-errors",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/ereader-duplicate-name"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
       ]
     },
     {
@@ -26234,17 +26932,16 @@
       "invariant": "INV-R199-SAMPLED",
       "owner": "user",
       "packet": "Q09",
-      "contract": "Sampled GET /api-keys via differential case(s) api-key-list: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: api-keys.",
+      "contract": "GET /api/api-keys answers 403 to a user below admin and 401 without a valid token; a non-root admin may list every key.",
       "status": "unverified",
       "source": [
+        "server/controllers/ApiKeyController.js:195-207",
         "server/routers/ApiRouter.js:338"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:215#TestAPIKeys"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/keys-list-forbidden"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/full-suite-report.json#api-key-list"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -26252,27 +26949,54 @@
       },
       "stateful": false,
       "state_scenarios": {},
-      "exceptions": [
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Sampled evidence; unsampled request-shape variants are separate behaviors."
-      ]
+      "exceptions": []
+    },
+    {
+      "requirement": "route-r199",
+      "invariant": "INV-R199-LIST-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "GET /api/api-keys returns {apiKeys:[...]} where each key has its id, name, null description/lastUsedAt/permissions, ISO expiresAt or null, isActive, ISO timestamps, userId, and the user and createdByUser {id,username,type} projections; the signed key secret and password hashes are absent, and the empty table returns an empty array.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ApiKeyController.js:19-46",
+        "server/models/ApiKey.js:48-80",
+        "client/components/tables/ApiKeysTable.vue:24-134"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/keys-list-empty",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/keys-list-created-key",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/keys-list-never-expiring"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": []
     },
     {
       "requirement": "route-r200",
       "invariant": "INV-R200-SAMPLED",
       "owner": "user",
       "packet": "Q09",
-      "contract": "Sampled POST /api-keys via differential case(s) api-key-create: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: api-keys.",
+      "contract": "A valid create answers 200 with {apiKey:{apiKey:<JWT>, id, name, expiresAt, userId, isActive, createdByUserId, createdAt, updatedAt, user:{id,username,type}}}, persists the row with the requested user/flag/expiry (expiresAt 3600s after creation for expiresIn 3600), allows repeated names as separate rows, and the JWT authenticates its bearer as the target user; omitted expiresIn and expiresIn 0 store a never-expiring inactive key whose token is rejected.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:339"
+        "server/controllers/ApiKeyController.js:48-110",
+        "server/models/ApiKey.js:166-191",
+        "server/auth/TokenManager.js:277-305"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:215#TestAPIKeys"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-create",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-create-repeat",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-create-target-user",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-create-minimal"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/full-suite-report.json#api-key-create"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -26287,9 +27011,38 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Sampled evidence; unsampled request-shape variants are separate behaviors."
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r200",
+      "invariant": "INV-R200-ERRORS-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "POST /api/api-keys answers 400 for a missing or non-string name, a non-positive or non-numeric expiresIn, a missing/non-string/unknown userId, 403 when a non-root admin targets root and 401 without a token; every rejection adds no row.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ApiKeyController.js:50-78"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-create-errors"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
       ]
     },
     {
@@ -26297,17 +27050,16 @@
       "invariant": "INV-R201-SAMPLED",
       "owner": "user",
       "packet": "Q09",
-      "contract": "Sampled PATCH /api-keys/:id via differential case(s) api-key-update: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: api-keys.",
+      "contract": "PATCH /api/api-keys/:id with isActive/userId answers 200 with {apiKey:{..., user:{id,username,type}}}, persists the new flag or owner, moves updatedAt forward on a change, keeps omitted name/expiry/isActive values, and the key token authorises as the new owner or is rejected while inactive.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:340"
+        "server/controllers/ApiKeyController.js:112-177"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:215#TestAPIKeys"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-update-deactivate",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-update-partial-reassign"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/full-suite-report.json#api-key-update"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -26322,9 +27074,71 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Sampled evidence; unsampled request-shape variants are separate behaviors."
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r201",
+      "invariant": "INV-R201-NOOP-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "PATCH /api/api-keys/:id with the already stored values answers 200 with the stored key, keeps updatedAt and the persisted row unchanged, and preserves omitted fields.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ApiKeyController.js:155-175"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-update-noop"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r201",
+      "invariant": "INV-R201-ERRORS-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "PATCH /api/api-keys/:id answers 404 for an unknown key, 400 for a non-boolean isActive and a missing/unknown/non-string userId, 403 for a non-admin caller and 403 for a non-root admin updating a root-owned key; rejected requests leave the stored key unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ApiKeyController.js:113-140",
+        "server/controllers/ApiKeyController.js:195-207"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-update-errors",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-update-root-key-forbidden"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
       ]
     },
     {
@@ -26332,17 +27146,17 @@
       "invariant": "INV-R202-SAMPLED",
       "owner": "user",
       "packet": "Q09",
-      "contract": "Sampled DELETE /api-keys/:id via differential case(s) api-key-delete: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: api-keys.",
+      "contract": "DELETE /api/api-keys/:id answers 200, removes only that row, makes its JWT unauthorized, keeps the user row and every other key, and a repeat delete of the same id answers 404 without changing other rows.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:341"
+        "server/controllers/ApiKeyController.js:179-193"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:215#TestAPIKeys"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-delete-invalidates",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-delete-repeat",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-delete-keeps-others"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/full-suite-report.json#api-key-delete"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -26357,9 +27171,39 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Sampled evidence; unsampled request-shape variants are separate behaviors."
+        "force is not applicable: this route has no force, hard or override mode"
+      ]
+    },
+    {
+      "requirement": "route-r202",
+      "invariant": "INV-R202-ERRORS-001",
+      "owner": "user",
+      "packet": "Q09",
+      "contract": "DELETE /api/api-keys/:id answers 403 for a user below admin and 404 for an unknown id, 401 without a valid token, and a forbidden delete removes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ApiKeyController.js:179-183",
+        "server/controllers/ApiKeyController.js:195-207"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/key-delete-errors"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: this route has no force, hard or override mode"
       ]
     },
     {
@@ -29732,14 +30576,19 @@
       "invariant": "INV-SOCKET-OUTGOING-BATCH-QUICKMATCH-COMPLETE",
       "owner": "item",
       "packet": "Q12",
-      "contract": "Socket.IO outgoing batch_quickmatch_complete: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "After an accepted batch quickmatch the server emits batch_quickmatch_complete with one object {success:boolean, updates:number, unmatched:number} to every socket of the requesting user and to no other user's or unauthenticated socket, after the item_updated events of the batch; a rejected request emits nothing.",
       "status": "unverified",
       "source": [
-        "server/controllers/LibraryItemController.js:811"
+        "server/controllers/LibraryItemController.js:807-812",
+        "server/SocketAuthority.js:68-78",
+        "client/layouts/default.vue:352-363"
       ],
       "tests": [
-        "go-backend/internal/contracttest/socketio_client_test.go:156#TestParseSocketIOEvent",
-        "go-backend/internal/item/match_test.go:397#TestBatchQuickMatch"
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-payload-and-audience",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-override",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-no-updates",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-follows-the-changed-item",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-not-emitted-on-rejection"
       ],
       "evidence": [],
       "cases": {
@@ -29756,7 +30605,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "The event is only asserted for the batch/quickmatch call site (LibraryItemController.js:807); no other source emits it.",
+        "force is applicable and asserted through the overrideCover/overrideDetails quickmatch."
       ]
     },
     {
@@ -30476,14 +31326,19 @@
       "invariant": "INV-SOCKET-OUTGOING-EREADER-DEVICES-UPDATED",
       "owner": "user",
       "packet": "Q09",
-      "contract": "Socket.IO outgoing ereader-devices-updated: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients; specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "POST /api/me/ereader-devices emits ereader-devices-updated with one argument {ereaderDevices:[...]} naming only the caller's accessible devices to the caller's sockets on every changing write (including a shortened or emptied list), to no other user's socket, and emits nothing for an unchanged list or a rejected payload; the admin POST /api/emails/ereader-devices emits the same event with the complete stored device list to every admin socket.",
       "status": "unverified",
       "source": [
-        "server/controllers/EmailController.js:79",
-        "server/controllers/MeController.js:632"
+        "server/controllers/MeController.js:629-635",
+        "server/controllers/EmailController.js:64-85",
+        "server/objects/settings/EmailSettings.js:164-166"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:330#TestEreaderDevices"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/ereader-event-create",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/ereader-event-repeat",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/ereader-event-changed-list",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/ereader-event-rejected-write",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/ereader-event-admin-settings"
       ],
       "evidence": [],
       "cases": {
@@ -30496,11 +31351,11 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "force is not applicable: this event has no force, hard or override mode"
       ]
     },
     {
@@ -30549,14 +31404,20 @@
       "invariant": "INV-SOCKET-OUTGOING-ITEM-ADDED",
       "owner": "item",
       "packet": "Q12",
-      "contract": "Socket.IO outgoing item_added: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: clients_with_library_item_access. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "item_added carries the created library item's old-format expanded document (id, libraryId, folderId, path, mediaType, media.metadata.title, media.coverPath) and reaches every socket whose user can access the item, including users limited to the podcast library, but no unauthenticated socket; it is emitted after the item exists and after the response body of POST /api/podcasts, not on a rejected creation.",
       "status": "unverified",
       "source": [
-        "server/controllers/PodcastController.js:181",
-        "server/managers/PodcastManager.js:723",
-        "server/scanner/LibraryScanner.js:631"
+        "server/controllers/PodcastController.js:143-186",
+        "server/SocketAuthority.js:98-112",
+        "server/models/LibraryItem.js"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-not-emitted-on-rejected-podcast",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-podcast-created-with-cover",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-podcast-without-a-usable-cover",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-unicode-title-without-image",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-not-repeated-for-an-existing-path"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -30568,11 +31429,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Only the POST /api/podcasts call site is asserted; the OPML import (PodcastManager.js:723) and the file-watcher single-item add (LibraryScanner.js:631) call sites are not, because the watcher is timing dependent and OPML import needs an RSS fetch task.",
+        "force is not applicable: podcast creation has no force or override mode."
       ]
     },
     {
@@ -30685,13 +31547,19 @@
       "invariant": "INV-SOCKET-OUTGOING-ITEMS-ADDED",
       "owner": "item",
       "packet": "Q12",
-      "contract": "Socket.IO outgoing items_added: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: clients_with_access_to_any_library_item. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "A library scan emits items_added with an array of the newly created items' old-format expanded documents, in chunks of at most ten (ten then the remainder), to each socket whose user can access at least one of those items and to no other socket; a scan that adds nothing emits no items_added, and a scan requested by a non-admin is rejected without any event.",
       "status": "unverified",
       "source": [
-        "server/scanner/LibraryScanner.js:271",
-        "server/scanner/LibraryScanner.js:279"
+        "server/scanner/LibraryScanner.js:254-285",
+        "server/SocketAuthority.js:112-135"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-not-emitted-to-non-admins",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-one-new-book",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-chunks-of-ten",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-not-emitted-for-a-clean-rescan",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-not-emitted-for-a-scan-without-audio"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -30703,11 +31571,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Only the full-library scan call sites (LibraryScanner.js:271,279) are asserted; the event carries no item for libraries with no new files by construction.",
+        "force is not applicable: a forced rescan of existing items never adds items, and the scanner adds new files identically with or without the force flag."
       ]
     },
     {
@@ -32886,13 +33755,15 @@
       "invariant": "INV-COVER-CACHE-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "Cover resizing and repeated cache hits serve valid requested dimensions/format and reflect changes to the source cover. Preserve persisted cache references where TS relies on them; exact cache key implementation, chunked framing and Content-Length presence are free when clients receive usable content.",
+      "contract": "A resized cover request writes the cache file <id>_<width>[x<height>].<format> under metadata/cache/covers with the requested dimensions, a repeated request serves the same bytes from that file, and a cover upload or selection purges the item's cache entries so the next request renders the new source.",
       "status": "unverified",
       "source": [
         "server/managers/CacheManager.js",
         "server/utils/ffmpegHelpers.js"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-cache-generates-hits-and-invalidates"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -32904,19 +33775,15 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "EXP_PROXY_SUPPORT mode has one 307 rejection check; 301/302 chains remain unverified. The private-address probe is skipped in this mode because upstream disables SSRF filtering.",
-        "The SSRF probe covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection only; redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
-        "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
-        "Cover route parity beyond the exact sampled variants is not claimed.",
-        "PATCH event recipients, updatedAt deltas, alternate valid image paths, storeCoverWithItem, 10 MiB JSON boundary, and permission branches remain unverified.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "webp renders 500 on ffmpeg builds without libwebp on BOTH sides (same shared ffmpeg binary); case expectations pin 500 for this environment",
-        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage.",
-        "Historical pre-rewrite observation (not a fixed representation requirement): Cover cache files named {itemId}_{width}[x{height}].{format} under metadata/cache/covers; cache hits stream chunked without Content-Length; resize uses ffmpeg scale=<w||-1>:<h||-1> into the cache file (CacheManager.js:43-102, ffmpegHelpers.js:78-97)."
+        "force is not applicable: none of the cover routes has a force or override mode; a cover write simply replaces the previous cover.",
+        "All remote resources are loopback httptest servers (SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1); no real internet host is used.",
+        "webp resizing is asserted as a produced WebP container with the FFmpeg build of the verification environment; exact encoder bytes are not pinned.",
+        "The X-Accel hand-off of the raw and cached covers is not asserted (no reverse proxy in the harness).",
+        "storeCoverWithItem=true (covers stored in the item folder) is not asserted here; the packet runs with the fixture default false."
       ]
     },
     {
@@ -32924,13 +33791,15 @@
       "invariant": "INV-COVER-UPLOAD-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "Multipart upload accepts only the source extension allowlist; successful upload stores cover.<ext>, removes older cover files only when the extension is in the source allowlist (.jpeg, .jpg, .png, .webp, .jiff), purges the item cache, persists media.coverPath + item updatedAt, emits item_updated after commit, and responds {success, cover}. A sampled upload retains an unrelated cover.svg file.",
+      "contract": "A multipart upload stores cover.<ext> with the uploaded bytes, removes older cover files only when their extension is in the allowlist (.jpeg, .jpg, .png, .webp, .jiff), keeps non-allowlisted files such as cover.svg, purges the item's cover cache, persists media.coverPath and item updatedAt, and emits item_updated after the commit.",
       "status": "unverified",
       "source": [
         "server/controllers/LibraryItemController.js",
         "server/managers/CoverManager.js"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-upload-cleanup-allowlist"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -32942,18 +33811,15 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "EXP_PROXY_SUPPORT mode has one 307 rejection check; 301/302 chains remain unverified. The private-address probe is skipped in this mode because upstream disables SSRF filtering.",
-        "The SSRF probe covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection only; redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
-        "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
-        "Cover route parity beyond the exact sampled variants is not claimed.",
-        "PATCH event recipients, updatedAt deltas, alternate valid image paths, storeCoverWithItem, 10 MiB JSON boundary, and permission branches remain unverified.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Does not verify all allowed image formats, upload permission branches, event recipients, or storeCoverWithItem variants.",
-        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+        "force is not applicable: none of the cover routes has a force or override mode; a cover write simply replaces the previous cover.",
+        "All remote resources are loopback httptest servers (SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1); no real internet host is used.",
+        "webp resizing is asserted as a produced WebP container with the FFmpeg build of the verification environment; exact encoder bytes are not pinned.",
+        "The X-Accel hand-off of the raw and cached covers is not asserted (no reverse proxy in the harness).",
+        "storeCoverWithItem=true (covers stored in the item folder) is not asserted here; the packet runs with the fixture default false."
       ]
     },
     {
@@ -32961,13 +33827,15 @@
       "invariant": "INV-COVER-RAW-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "raw=1 returns unchanged original cover bytes with valid image MIME and usable conditional caching/Last-Modified semantics. The ETag algorithm and framing are not fixed; replaced covers invalidate the previous cached representation.",
+      "contract": "raw=1 serves the current stored cover file byte for byte with its image MIME type, Content-Length, Last-Modified and an ETag, answers 304 for a matching If-None-Match, and after a replacement serves the new bytes with a different ETag; a missing coverPath or file is 404.",
       "status": "unverified",
       "source": [
         "server/controllers/LibraryItemController.js",
         "node_modules/send/index.js"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-raw-follows-the-current-cover"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -32979,18 +33847,15 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "EXP_PROXY_SUPPORT mode has one 307 rejection check; 301/302 chains remain unverified. The private-address probe is skipped in this mode because upstream disables SSRF filtering.",
-        "The SSRF probe covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection only; redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
-        "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
-        "Cover route parity beyond the exact sampled variants is not claimed.",
-        "PATCH event recipients, updatedAt deltas, alternate valid image paths, storeCoverWithItem, 10 MiB JSON boundary, and permission branches remain unverified.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage.",
-        "Historical pre-rewrite observation (not a fixed representation requirement): raw=1 serves the original bytes with express sendFile defaults (Cache-Control public max-age=0 filled only when absent, weak file ETag W/<size hex>-<mtime hex>, Last-Modified) \u2014 send/index.js:862; byte-equal bodies verified."
+        "force is not applicable: none of the cover routes has a force or override mode; a cover write simply replaces the previous cover.",
+        "All remote resources are loopback httptest servers (SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1); no real internet host is used.",
+        "webp resizing is asserted as a produced WebP container with the FFmpeg build of the verification environment; exact encoder bytes are not pinned.",
+        "The X-Accel hand-off of the raw and cached covers is not asserted (no reverse proxy in the harness).",
+        "storeCoverWithItem=true (covers stored in the item folder) is not asserted here; the packet runs with the fixture default false."
       ]
     },
     {
@@ -32998,13 +33863,15 @@
       "invariant": "INV-COVER-DELETE-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "Deleting a cover returns HTTP 200, clears persisted coverPath and resized cache entries, and subsequent raw/resized reads return the required missing-cover status without serving stale image bytes.",
+      "contract": "Deleting a cover answers 200, clears coverPath, purges the item's resized cache and makes raw and resized reads 404 without serving stale bytes; the cover file stays on disk as upstream leaves it.",
       "status": "unverified",
       "source": [
         "server/controllers/LibraryItemController.js:376-397",
         "server/managers/CacheManager.js:93-110"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-delete-purges-cache-and-reads-404"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -33016,19 +33883,15 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "EXP_PROXY_SUPPORT mode has one 307 rejection check; 301/302 chains remain unverified. The private-address probe is skipped in this mode because upstream disables SSRF filtering.",
-        "The SSRF probe covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection only; redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
-        "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
-        "Cover route parity beyond the exact sampled variants is not claimed.",
-        "PATCH event recipients, updatedAt deltas, alternate valid image paths, storeCoverWithItem, 10 MiB JSON boundary, and permission branches remain unverified.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Evidence covers deletion after upload of one PNG with the sampled cache formats; it does not cover all permission and failure variants.",
-        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage.",
-        "Historical observation superseded by current semantic requirement: DELETE /api/items/:id/cover responds with Express sendStatus(200), clears the persisted media coverPath, purges every resized cache entry for the library item, and makes subsequent raw and resized cover reads return the upstream 404 response."
+        "force is not applicable: none of the cover routes has a force or override mode; a cover write simply replaces the previous cover.",
+        "All remote resources are loopback httptest servers (SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1); no real internet host is used.",
+        "webp resizing is asserted as a produced WebP container with the FFmpeg build of the verification environment; exact encoder bytes are not pinned.",
+        "The X-Accel hand-off of the raw and cached covers is not asserted (no reverse proxy in the harness).",
+        "storeCoverWithItem=true (covers stored in the item folder) is not asserted here; the packet runs with the fixture default false."
       ]
     },
     {
@@ -33036,14 +33899,17 @@
       "invariant": "INV-COVER-URL-UPLOAD-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "A whitelisted local image URL succeeds with the same stored cover path/body as upstream. A literal RFC1918 destination is rejected with the same status/body and leaves the prior cover path, file, and cache state unchanged.",
+      "contract": "A cover url on a whitelisted loopback host stores the image bytes as cover.<ext> and sets coverPath; a literal private IPv4 destination that fails the SSRF filter answers 400 and leaves the previous coverPath, file and cache state unchanged.",
       "status": "unverified",
       "source": [
         "server/controllers/LibraryItemController.js:295-333",
         "server/managers/CoverManager.js",
         "server/utils/fileUtils.js"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-url-ssrf-filter",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-url-follows-store-with-item"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -33055,18 +33921,15 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "EXP_PROXY_SUPPORT mode has one 307 rejection check; 301/302 chains remain unverified. The private-address probe is skipped in this mode because upstream disables SSRF filtering.",
-        "The SSRF probe covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection only; redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
-        "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
-        "Cover route parity beyond the exact sampled variants is not claimed.",
-        "PATCH event recipients, updatedAt deltas, alternate valid image paths, storeCoverWithItem, 10 MiB JSON boundary, and permission branches remain unverified.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Sample covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection. Redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
-        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+        "force is not applicable: none of the cover routes has a force or override mode; a cover write simply replaces the previous cover.",
+        "All remote resources are loopback httptest servers (SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1); no real internet host is used.",
+        "webp resizing is asserted as a produced WebP container with the FFmpeg build of the verification environment; exact encoder bytes are not pinned.",
+        "The X-Accel hand-off of the raw and cached covers is not asserted (no reverse proxy in the harness).",
+        "storeCoverWithItem=true (covers stored in the item folder) is not asserted here; the packet runs with the fixture default false."
       ]
     },
     {
@@ -33074,13 +33937,15 @@
       "invariant": "INV-COVER-PATCH-INVALID-IMAGE-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "PATCH /api/items/:id/cover returns the upstream 500 text response Invalid image when the requested scanned library file is not a supported image.",
+      "contract": "PATCH cover whose requested scanned library file is not a supported image answers 500 with the body 'Invalid image' and changes no coverPath, file or updatedAt.",
       "status": "unverified",
       "source": [
         "server/controllers/LibraryItemController.js:344-362",
         "server/managers/CoverManager.js:132-180"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-patch-invalid-image-text"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -33092,18 +33957,15 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "EXP_PROXY_SUPPORT mode has one 307 rejection check; 301/302 chains remain unverified. The private-address probe is skipped in this mode because upstream disables SSRF filtering.",
-        "The SSRF probe covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection only; redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
-        "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
-        "Cover route parity beyond the exact sampled variants is not claimed.",
-        "PATCH event recipients, updatedAt deltas, alternate valid image paths, storeCoverWithItem, 10 MiB JSON boundary, and permission branches remain unverified.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Successful copy behavior is separately covered by INV-COVER-PATCH-SUCCESS-001; this invariant remains scoped to rejected invalid-image bytes.",
-        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+        "force is not applicable: none of the cover routes has a force or override mode; a cover write simply replaces the previous cover.",
+        "All remote resources are loopback httptest servers (SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1); no real internet host is used.",
+        "webp resizing is asserted as a produced WebP container with the FFmpeg build of the verification environment; exact encoder bytes are not pinned.",
+        "The X-Accel hand-off of the raw and cached covers is not asserted (no reverse proxy in the harness).",
+        "storeCoverWithItem=true (covers stored in the item folder) is not asserted here; the packet runs with the fixture default false."
       ]
     },
     {
@@ -33111,14 +33973,16 @@
       "invariant": "INV-COVER-PROXY-REDIRECT-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "With EXP_PROXY_SUPPORT=1, a 307 URL response is not followed; cover upload returns the upstream 400 failure and leaves the prior cover path, file, and cache state unchanged. Upstream Server.js sets axios maxRedirects=0 and its response interceptor manually retries only 301/302.",
+      "contract": "With EXP_PROXY_SUPPORT=1 upstream disables the SSRF filter but sets axios maxRedirects=0 and retries only 301/302: a cover url answering 307 answers 400 and leaves the previous coverPath, file and cache state unchanged.",
       "status": "unverified",
       "source": [
         "server/Server.js:89-107",
         "server/utils/fileUtils.js:295-357",
         "server/managers/CoverManager.js"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-url-307-not-followed-in-proxy-mode"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -33130,18 +33994,15 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "EXP_PROXY_SUPPORT mode has one 307 rejection check; 301/302 chains remain unverified. The private-address probe is skipped in this mode because upstream disables SSRF filtering.",
-        "The SSRF probe covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection only; redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
-        "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
-        "Cover route parity beyond the exact sampled variants is not claimed.",
-        "PATCH event recipients, updatedAt deltas, alternate valid image paths, storeCoverWithItem, 10 MiB JSON boundary, and permission branches remain unverified.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Only one 307 failure was tested in EXP_PROXY_SUPPORT mode. Manual 301/302 behavior, redirect chains, and blocked private addresses in this explicitly unfiltered mode remain unverified.",
-        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+        "force is not applicable: none of the cover routes has a force or override mode; a cover write simply replaces the previous cover.",
+        "All remote resources are loopback httptest servers (SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1); no real internet host is used.",
+        "webp resizing is asserted as a produced WebP container with the FFmpeg build of the verification environment; exact encoder bytes are not pinned.",
+        "The X-Accel hand-off of the raw and cached covers is not asserted (no reverse proxy in the harness).",
+        "storeCoverWithItem=true (covers stored in the item folder) is not asserted here; the packet runs with the fixture default false."
       ]
     },
     {
@@ -33149,14 +34010,16 @@
       "invariant": "INV-COVER-PATCH-SUCCESS-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "A valid scanned image selected as cover is installed at a TS-readable coverPath; response JSON retains fields/types consumed by clients. Same-path repeat succeeds, stale resized caches are invalidated and unrelated cover files are preserved. Incidental HTTP headers are free.",
+      "contract": "PATCH cover with a scanned image that differs from the stored coverPath copies it to metadata/items/<id>/cover.<ext>, removes older cover images, purges the resized cache, keeps unrelated files such as cover.svg, sets coverPath and emits item_updated; a same-path repeat copies again and emits again.",
       "status": "unverified",
       "source": [
         "server/controllers/LibraryItemController.js:344-375",
         "server/managers/CoverManager.js:132-180",
         "server/managers/CacheManager.js:93-98"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-patch-copies-and-repeats"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -33168,19 +34031,15 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "EXP_PROXY_SUPPORT mode has one 307 rejection check; 301/302 chains remain unverified. The private-address probe is skipped in this mode because upstream disables SSRF filtering.",
-        "The SSRF probe covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection only; redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
-        "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
-        "Cover route parity beyond the exact sampled variants is not claimed.",
-        "PATCH event recipients, updatedAt deltas, alternate valid image paths, storeCoverWithItem, 10 MiB JSON boundary, and permission branches remain unverified.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "One scanned path, one copy, and a same-path repeat only; different-path replacement, item-folder storage, event delivery and updatedAt deltas remain unverified.",
-        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage.",
-        "Historical observation superseded by current semantic requirement: A valid scanned library file containing a supported image is copied to the item cover directory, response JSON and Express headers match the exact source response, a same-path repeat succeeds, a seeded stale cache entry is purged, and unrelated cover.svg is retained."
+        "force is not applicable: none of the cover routes has a force or override mode; a cover write simply replaces the previous cover.",
+        "All remote resources are loopback httptest servers (SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1); no real internet host is used.",
+        "webp resizing is asserted as a produced WebP container with the FFmpeg build of the verification environment; exact encoder bytes are not pinned.",
+        "The X-Accel hand-off of the raw and cached covers is not asserted (no reverse proxy in the harness).",
+        "storeCoverWithItem=true (covers stored in the item folder) is not asserted here; the packet runs with the fixture default false."
       ]
     },
     {
@@ -33188,13 +34047,15 @@
       "invariant": "INV-COVER-MULTIPART-URL-PRECEDENCE-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "When a multipart cover request includes both url and file fields, the URL takes precedence; an unsupported image signature at that URL returns the upstream 400 and does not fall back to the valid uploaded file.",
+      "contract": "When a multipart cover request carries both a url and a cover file the url takes precedence; an unsupported image signature at that url answers 400 without falling back to the uploaded file and leaves the item unchanged.",
       "status": "unverified",
       "source": [
         "server/controllers/LibraryItemController.js:295-307",
         "server/managers/CoverManager.js"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-url-precedes-multipart-file"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -33206,18 +34067,15 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "EXP_PROXY_SUPPORT mode has one 307 rejection check; 301/302 chains remain unverified. The private-address probe is skipped in this mode because upstream disables SSRF filtering.",
-        "The SSRF probe covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection only; redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
-        "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
-        "Cover route parity beyond the exact sampled variants is not claimed.",
-        "PATCH event recipients, updatedAt deltas, alternate valid image paths, storeCoverWithItem, 10 MiB JSON boundary, and permission branches remain unverified.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "One local unsupported URL/file combination only.",
-        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+        "force is not applicable: none of the cover routes has a force or override mode; a cover write simply replaces the previous cover.",
+        "All remote resources are loopback httptest servers (SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1); no real internet host is used.",
+        "webp resizing is asserted as a produced WebP container with the FFmpeg build of the verification environment; exact encoder bytes are not pinned.",
+        "The X-Accel hand-off of the raw and cached covers is not asserted (no reverse proxy in the harness).",
+        "storeCoverWithItem=true (covers stored in the item folder) is not asserted here; the packet runs with the fixture default false."
       ]
     },
     {
@@ -33225,13 +34083,15 @@
       "invariant": "INV-COVER-PATCH-BODY-LIMIT-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "PATCH JSON uses the upstream express.json 10 MB limit: a 1.1 MB well-formed request passes parsing and reaches the source invalid-cover-path 500 response instead of being rejected at Go\u2019s former 1 MiB cap.",
+      "contract": "PATCH cover accepts JSON bodies up to the 10 MB express.json limit: a 1.1 MB body is parsed and reaches the invalid-path 500 response, while a larger body is rejected with 413; neither changes the item.",
       "status": "unverified",
       "source": [
         "server/Server.js:352",
         "server/controllers/LibraryItemController.js:344-362"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-patch-10mb-json-limit"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -33243,18 +34103,15 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "EXP_PROXY_SUPPORT mode has one 307 rejection check; 301/302 chains remain unverified. The private-address probe is skipped in this mode because upstream disables SSRF filtering.",
-        "The SSRF probe covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection only; redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
-        "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
-        "Cover route parity beyond the exact sampled variants is not claimed.",
-        "PATCH event recipients, updatedAt deltas, alternate valid image paths, storeCoverWithItem, 10 MiB JSON boundary, and permission branches remain unverified.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Only a 1.1 MB above-former-limit invalid-path request was exercised; exact 10,000,000-byte boundary and over-limit parser error shape remain unverified.",
-        "Inherited evidence reference was not confirmed as a current assertion for this invariant; map exact Go assertions before claiming coverage."
+        "force is not applicable: none of the cover routes has a force or override mode; a cover write simply replaces the previous cover.",
+        "All remote resources are loopback httptest servers (SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1); no real internet host is used.",
+        "webp resizing is asserted as a produced WebP container with the FFmpeg build of the verification environment; exact encoder bytes are not pinned.",
+        "The X-Accel hand-off of the raw and cached covers is not asserted (no reverse proxy in the harness).",
+        "storeCoverWithItem=true (covers stored in the item folder) is not asserted here; the packet runs with the fixture default false."
       ]
     },
     {

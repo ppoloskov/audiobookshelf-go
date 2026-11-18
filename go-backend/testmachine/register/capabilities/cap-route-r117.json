@@ -4,10 +4,11 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/me/items-in-progress. Return current-user in-progress library items with progressLastUpdate, retaining separate podcast episodes and limit semantics while filtering inaccessible media.",
+  "contract": "GET /api/me/items-in-progress returns the caller's unfinished media progress with currentTime or ebookProgress above zero as minified library items sorted by progressLastUpdate descending, adding recentEpisode for podcast episodes and progressLastUpdate, limited by the numeric limit query (default 25).",
   "source": [
     "server/routers/ApiRouter.js:191",
-    "server/controllers/MeController.js:485"
+    "server/controllers/MeController.js:485-524",
+    "server/models/LibraryItem.js:1000-1030"
   ],
   "implementation": [
     "go-backend/internal/user/user.go"
@@ -22,26 +23,36 @@
     "go-backend/internal/user/user_test.go:313#TestItemsInProgress"
   ],
   "evidence": [],
-  "exceptions": [
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
-  ],
+  "exceptions": [],
   "invariants": [
     {
       "id": "INV-R117-CONTRACT-001",
       "class": "shape",
-      "contract": "GET /api/me/items-in-progress. Return current-user in-progress library items with progressLastUpdate, retaining separate podcast episodes and limit semantics while filtering inaccessible media.",
+      "contract": "GET /api/me/items-in-progress returns one minified library item per qualifying progress row, newest progressLastUpdate first: id, libraryId, folderId, relPath, file timestamps, mediaType, the book/podcast media projection (metadata, coverPath, duration/track/ebook fields or episode fields, size) and progressLastUpdate equal to the progress lastUpdate in milliseconds; a podcast entry additionally carries recentEpisode (id, title, season/episode, pubDate, publishedAt, audioFile duration); finished progress is omitted.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:191",
-        "server/controllers/MeController.js:485"
+        "server/controllers/MeController.js:485-524",
+        "server/models/LibraryItem.js:1000-1030"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:313#TestItemsInProgress"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/items-in-progress-listener",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/items-in-progress-requires-authentication"
       ],
-      "evidence": [],
-      "exceptions": [
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-      ]
+      "evidence": []
+    },
+    {
+      "id": "INV-R117-LIMIT-001",
+      "class": "shape",
+      "contract": "GET /api/me/items-in-progress slices the sorted list to a numeric limit, falls back to 25 for 0 or a non-number, and returns an empty libraryItems array for a user whose only progress is finished.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:486,518-523"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/items-in-progress-limit-and-empty"
+      ],
+      "evidence": []
     }
   ]
 }

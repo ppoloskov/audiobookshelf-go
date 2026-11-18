@@ -4,10 +4,11 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/me/series/:id/readd-to-continue-listening. Readd a series to current-user continue listening, removing only its hidden-series identity and avoiding duplicate events on repeat.",
+  "contract": "GET /api/me/series/:id/readd-to-continue-listening removes only the selected series id from the caller's users.extraData.seriesHideFromContinueListening, answers 200 with the caller's browser user view, and emits user_updated to the caller only when the stored list changed; an unknown series answers 404.",
   "source": [
     "server/routers/ApiRouter.js:193",
-    "server/controllers/MeController.js:551"
+    "server/controllers/MeController.js:551-562",
+    "server/models/User.js:936-945"
   ],
   "implementation": [
     "go-backend/internal/user/user.go"
@@ -23,8 +24,7 @@
   ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: this route has no force, hard or override mode"
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -37,19 +37,44 @@
     {
       "id": "INV-R119-CONTRACT-001",
       "class": "state_transition",
-      "contract": "GET /api/me/series/:id/readd-to-continue-listening. Readd a series to current-user continue listening, removing only its hidden-series identity and avoiding duplicate events on repeat.",
+      "contract": "Readding a hidden series removes only its id from the caller's stored list, answers 200 with the browser user view that GET /api/me returns afterwards, moves users.updatedAt forward and emits user_updated with that view to the caller's sockets only; a caller without a stored entry gets 200 and an empty list.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:193",
-        "server/controllers/MeController.js:551"
+        "server/controllers/MeController.js:551-562",
+        "server/models/User.js:936-945"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:269#TestSeriesVisibility"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-readd-restores",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-readd-without-hidden-list"
       ],
-      "evidence": [],
-      "exceptions": [
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-      ]
+      "evidence": []
+    },
+    {
+      "id": "INV-R119-IDEMPOTENT-001",
+      "class": "repeat_operation",
+      "contract": "Readding when nothing is hidden answers 200 with an empty list, leaves users.extraData and updatedAt unchanged and emits no user_updated event.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:557-561",
+        "server/models/User.js:936-945"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-readd-repeat"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "INV-R119-ERRORS-001",
+      "class": "error",
+      "contract": "Readding an unknown series answers 404 without changing the stored hidden list; without a valid token the route answers 401.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:551-555"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-readd-not-found"
+      ],
+      "evidence": []
     }
   ]
 }

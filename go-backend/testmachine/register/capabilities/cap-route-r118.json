@@ -4,10 +4,11 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/me/series/:id/remove-from-continue-listening. Hide a series from current-user continue listening without duplicate entries or events on repeated requests; preserve the user_updated projection.",
+  "contract": "GET /api/me/series/:id/remove-from-continue-listening adds an existing series id to the caller's users.extraData.seriesHideFromContinueListening, answers 200 with the caller's browser user view, and emits user_updated to the caller only when the stored list changed; an unknown series answers 404.",
   "source": [
     "server/routers/ApiRouter.js:192",
-    "server/controllers/MeController.js:532"
+    "server/controllers/MeController.js:532-543",
+    "server/models/User.js:920-929"
   ],
   "implementation": [
     "go-backend/internal/user/user.go"
@@ -23,8 +24,7 @@
   ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: this route has no force, hard or override mode"
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -37,19 +37,44 @@
     {
       "id": "INV-R118-CONTRACT-001",
       "class": "state_transition",
-      "contract": "GET /api/me/series/:id/remove-from-continue-listening. Hide a series from current-user continue listening without duplicate entries or events on repeated requests; preserve the user_updated projection.",
+      "contract": "Removing an existing series appends its id to the caller's stored seriesHideFromContinueListening, answers 200 with the browser user view that GET /api/me returns afterwards, moves users.updatedAt forward and emits user_updated with that view to the caller's sockets only; another user's hidden list stays untouched.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:192",
-        "server/controllers/MeController.js:532"
+        "server/controllers/MeController.js:532-543",
+        "server/models/User.js:920-929"
       ],
       "tests": [
-        "go-backend/internal/user/user_test.go:269#TestSeriesVisibility"
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-remove-hides",
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-remove-other-user"
       ],
-      "evidence": [],
-      "exceptions": [
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-      ]
+      "evidence": []
+    },
+    {
+      "id": "INV-R118-IDEMPOTENT-001",
+      "class": "repeat_operation",
+      "contract": "Removing an already hidden series answers 200 with the same single-entry list, does not duplicate the id, leaves users.extraData and updatedAt unchanged and emits no user_updated event.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:538-542",
+        "server/models/User.js:920-929"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-remove-repeat"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "INV-R118-ERRORS-001",
+      "class": "error",
+      "contract": "Removing an unknown series answers 404 without changing any user's hidden list; without a valid token the route answers 401.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:532-536"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/user_misc/run_test.go#TestReplacement/series-remove-not-found"
+      ],
+      "evidence": []
     }
   ]
 }
