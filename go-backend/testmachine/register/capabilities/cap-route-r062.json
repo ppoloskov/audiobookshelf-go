@@ -4,16 +4,15 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "POST /api/items/:id/scan dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:120, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"POST /api/items/batch/scan\", auth.Admin(httpx.Handler(s.batchScan))). Current assertion anchor(s): TestJourneyItems. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "POST /api/items/:id/scan rescans one library item and answers {result:\"UPDATED\"|\"UPTODATE\"}; it is admin-only and additionally requires the update permission, answers 404 for an unknown item and 500 for a file library item, and every call rereads the item's metadata/items/<id>/metadata.json for books and podcasts.",
   "source": [
     "server/routers/ApiRouter.js:120",
-    "go-backend/internal/scan/routes.go",
-    "go-backend/internal/scan/routes.go:17",
-    "go-backend/internal/scan/routes.go:19",
-    "server/controllers/LibraryItemController.js:1220"
+    "server/controllers/LibraryItemController.js:860-877",
+    "server/controllers/LibraryItemController.js:1220-1251",
+    "server/scanner/LibraryItemScanner.js:29-76"
   ],
   "implementation": [
-    "go-backend/internal/scan/routes.go:17"
+    "go-backend/internal/scan/routes.go:19"
   ],
   "cases": {
     "normal": "unverified",
@@ -22,45 +21,74 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/scan/scan_test.go:356#TestRoutes",
-    "go-backend/internal/contracttest/journey_items_test.go:39#TestJourneyItems"
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/item-scan-applies-edited-sidecar",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/item-scan-repeat-is-uptodate",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/item-scan-applies-sidecar-chapters",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/item-scan-applies-podcast-sidecar",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/item-scan-rejections-change-nothing"
   ],
-  "evidence": [],
+  "evidence": [
+    "go-backend/testmachine/scenarios/scan: 5 upstream scenarios, all passing in two consecutive full packet runs"
+  ],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#book-item-scan-rerun (differential pass)",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: POST /api/items/:id/scan has no force or override parameter; every call rescans the item, so a repeat call is the only no-change variant.",
+    "Historical evidence leads retained for provenance: go-backend/testmachine/contracts/parity/full-suite-report.json#book-item-scan-rerun."
   ],
   "invariants": [
     {
       "id": "INV-R062-SAMPLED",
       "class": "shape",
-      "contract": "POST /api/items/:id/scan dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:120, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"POST /api/items/batch/scan\", auth.Admin(httpx.Handler(s.batchScan))). Current assertion anchor(s): TestJourneyItems. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "The route is admin-only and requires canUpdate: an anonymous POST answers 401, a user without update permission 403, an unknown item id 404 and a file library item 500; no rejected call rescans anything, moves the item's timestamps or rewrites its sidecar.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:120",
-        "go-backend/internal/scan/routes.go",
-        "go-backend/internal/scan/routes.go:17",
-        "go-backend/internal/scan/routes.go:19",
-        "server/controllers/LibraryItemController.js:1220"
+        "server/controllers/LibraryItemController.js:860-877",
+        "server/controllers/LibraryItemController.js:1220-1251"
       ],
       "tests": [
-        "go-backend/internal/scan/scan_test.go:356#TestRoutes",
-        "go-backend/internal/contracttest/journey_items_test.go:39#TestJourneyItems"
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/item-scan-rejections-change-nothing"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-R062-RESPONSE-001",
+      "class": "state_transition",
+      "contract": "An item scan answers {result:\"UPDATED\"} when it changed the item and {result:\"UPTODATE\"} when the item and its sidecar are unchanged; a repeat call leaves updatedAt, lastScan and the metadata.json bytes untouched.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:860-877",
+        "server/scanner/LibraryItemScanner.js:63-75"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/item-scan-repeat-is-uptodate"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R062-SIDECAR-001",
+      "class": "state_transition",
+      "contract": "Every item scan rereads metadata/items/<id>/metadata.json: for a book it applies title, authors, series and chapters (chapters renumbered from 0 with start/end untouched) and creates unknown author and series rows with their sequence; for a podcast it applies title, author, genres and podcastType; in both cases the scanner rewrites the sidecar with the canonical key set of the media type.",
+      "status": "unverified",
+      "source": [
+        "server/scanner/AbsMetadataFileScanner.js:20-84",
+        "server/scanner/BookScanner.js:230-262",
+        "server/scanner/PodcastScanner.js:207-224"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/item-scan-applies-edited-sidecar",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/item-scan-applies-sidecar-chapters",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/item-scan-applies-podcast-sidecar"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

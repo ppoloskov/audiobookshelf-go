@@ -4,11 +4,12 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "metadata.json written after changes remains readable by v2.37.2 and reconstructs book/podcast metadata, locked fields and identity; empty/null values and repeated write/rescan preserve meaning; write failure cannot leave a partially installed metadata file.",
+  "contract": "metadata/items/<id>/metadata.json is written with the media type's canonical key set: a book file holds the seventeen book keys (including chapters and the book-only keys) and a podcast file the podcast keys, values are the current item values, cleared values are written as explicit null or empty array, series entries are \"name #sequence\" strings, the file stays outside the item's libraryFiles while storeMetadataWithItem is off, a no-change update does not rewrite it, a scan rereads it, and a failed write leaves the previous file intact while the item keeps the new values.",
   "source": [
-    "server/utils/generators/abmetadataGenerator.js",
-    "server/scanner/",
-    "go-backend/ARCHITECTURE.md"
+    "server/models/LibraryItem.js:614-711",
+    "server/scanner/BookScanner.js:825-901",
+    "server/utils/generators/abmetadataGenerator.js:60-150",
+    "server/scanner/AbsMetadataFileScanner.js:20-84"
   ],
   "implementation": [
     "go-backend/internal/scan/metadata.go"
@@ -19,28 +20,40 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/scan/scan_test.go:270#TestWriteMetadataIsReadableAndRoundTrips",
-    "go-backend/internal/scan/scan_test.go:249#TestMetadataJSONSeriesStringsAreRead"
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-repeat-write-is-skipped",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-round-trips-through-scan",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-write-failure-keeps-old-file",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-writes-cleared-values",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-written-by-media-update",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-sidecar-write-failure-keeps-file"
   ],
-  "evidence": [],
+  "evidence": [
+    "go-backend/testmachine/scenarios/scan: 5 upstream scenarios, all passing in two consecutive full packet runs"
+  ],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "force is not applicable: the metadata writer has no force or override mode; it writes when an accepted media update changed something or a scan detected metadata changes.",
+    "The podcast key set is pinned through the podcast item scan (route-r062), which rewrites and rereads the podcast sidecar."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-FORMAT-METADATA-JSON",
       "class": "repeat_operation",
-      "contract": "metadata.json written after changes remains readable by v2.37.2 and reconstructs book/podcast metadata, locked fields and identity; empty/null values and repeated write/rescan preserve meaning; write failure cannot leave a partially installed metadata file.",
+      "contract": "metadata.json is written at metadata/items/<id>/metadata.json (storeMetadataWithItem off) with exactly the canonical keys of the media type, the item's current values, explicit null/empty arrays for cleared values and \"name #sequence\" series strings; it is not a library file, a no-change update leaves it byte-identical, a scan rereads it (series strings become name and sequence), and an unwritable file keeps its previous content while the item keeps the new values, both for a media update and for a scan's own write.",
       "status": "unverified",
       "source": [
-        "server/utils/generators/abmetadataGenerator.js",
-        "server/scanner/",
-        "go-backend/ARCHITECTURE.md"
+        "server/models/LibraryItem.js:614-711",
+        "server/scanner/BookScanner.js:825-901",
+        "server/utils/generators/abmetadataGenerator.js:60-150",
+        "server/scanner/AbsMetadataFileScanner.js:20-51"
       ],
       "tests": [
-        "go-backend/internal/scan/scan_test.go:270#TestWriteMetadataIsReadableAndRoundTrips",
-        "go-backend/internal/scan/scan_test.go:249#TestMetadataJSONSeriesStringsAreRead"
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-repeat-write-is-skipped",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-round-trips-through-scan",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-write-failure-keeps-old-file",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-writes-cleared-values",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-written-by-media-update",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-sidecar-write-failure-keeps-file"
       ],
       "evidence": [],
       "exceptions": []
@@ -50,7 +63,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

@@ -4,12 +4,11 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "POST /api/items/batch/scan dispatches to the pinned TS handler LibraryItemController.batchScan (ApiRouter.js:106, server/controllers/LibraryItemController.js:820) and Go registration mux.Handle(\"POST /api/items/batch/scan\", auth.Admin(httpx.Handler(s.batchScan))). Current assertion anchor(s): TestRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "POST /api/items/batch/scan is the admin batch item scan: with a non-empty libraryItemIds array that matches at least one item it answers 200 and rescans each folder item asynchronously, skipping file items; a non-admin answers 403 and an empty or fully unmatched id list answers 400; rejected requests rescan nothing.",
   "source": [
     "server/routers/ApiRouter.js:106",
-    "go-backend/internal/scan/routes.go",
-    "go-backend/internal/scan/routes.go:17",
-    "server/controllers/LibraryItemController.js:820"
+    "server/controllers/LibraryItemController.js:820-856",
+    "server/scanner/LibraryItemScanner.js:29-76"
   ],
   "implementation": [
     "go-backend/internal/scan/routes.go:17"
@@ -21,41 +20,44 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/scan/scan_test.go:356#TestRoutes"
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/batch-scan-rescans-each-item",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/batch-scan-repeat-is-silent",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/batch-scan-skips-file-items",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/batch-scan-rejections-change-nothing"
   ],
-  "evidence": [],
+  "evidence": [
+    "go-backend/testmachine/scenarios/scan: 4 upstream scenarios, all passing in two consecutive full packet runs"
+  ],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: POST /api/items/batch/scan has no force or override parameter; every listed folder item is rescanned unconditionally.",
+    "The 200 response body is the reason phrase Express sends for sendStatus(200); clients do not read it, so scenarios assert the status only."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R049-CONTRACT",
+      "class": "shape",
+      "contract": "The route is admin-only and answers 200 for a non-empty libraryItemIds list (rescans each folder item through LibraryItemScanner.scanLibraryItem, skips file items), 403 for a non-admin, and 400 for an empty list or ids that match no item; each accepted item takes its edited metadata.json values and the rejected requests leave rows and sidecars unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:106",
+        "server/controllers/LibraryItemController.js:820-856",
+        "server/scanner/LibraryItemScanner.js:29-76"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/batch-scan-rescans-each-item",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/batch-scan-repeat-is-silent",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/batch-scan-skips-file-items",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/batch-scan-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
-  },
-  "invariants": [
-    {
-      "id": "INV-ROUTE-R049-CONTRACT",
-      "class": "shape",
-      "contract": "POST /api/items/batch/scan dispatches to the pinned TS handler LibraryItemController.batchScan (ApiRouter.js:106, server/controllers/LibraryItemController.js:820) and Go registration mux.Handle(\"POST /api/items/batch/scan\", auth.Admin(httpx.Handler(s.batchScan))). Current assertion anchor(s): TestRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
-      "status": "unverified",
-      "source": [
-        "server/routers/ApiRouter.js:106",
-        "go-backend/internal/scan/routes.go",
-        "go-backend/internal/scan/routes.go:17",
-        "server/controllers/LibraryItemController.js:820"
-      ],
-      "tests": [
-        "go-backend/internal/scan/scan_test.go:356#TestRoutes"
-      ],
-      "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
-    }
-  ]
+  }
 }

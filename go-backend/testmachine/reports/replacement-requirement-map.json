@@ -6,7 +6,7 @@
   "proof": "Mapping only. No behavior tests executed by this renderer. Test references are assertion/discovery leads, not inferred full coverage.",
   "counts": {
     "requirements": 345,
-    "invariants": 703,
+    "invariants": 706,
     "route_sites": 226,
     "socket_sites": 165,
     "socket_names": 77,
@@ -36,7 +36,7 @@
     "go-backend/testmachine/register/capabilities/cap-flow-tools-job-lifecycle.json": "58d884439842456ee9aa81020c78561da5a22149c489f3fbda7f642c63741f04",
     "go-backend/testmachine/register/capabilities/cap-format-backup-archive.json": "d4f87440082f4205bc874fc6944bf1fe9fe6c71974a9edac29284ab8b2a447f5",
     "go-backend/testmachine/register/capabilities/cap-format-daily-logs.json": "791490b3f7f32ba24b0444cb92c61344e56d68cd6d9e8e09b9723131e571e027",
-    "go-backend/testmachine/register/capabilities/cap-format-metadata-json.json": "82748eb1984e6fb4f5d445ab81320323eb6d48fa500299ab17baeb978271e4a5",
+    "go-backend/testmachine/register/capabilities/cap-format-metadata-json.json": "ed2690614fa9873650b02096c12454eba48eb43cd776cdaf47293afaf02fcc2d",
     "go-backend/testmachine/register/capabilities/cap-persisted-column-semantics.json": "ee5f345d6daac714e6c7cc364bd21033b6b23745706a4752bdd8e77facf930cd",
     "go-backend/testmachine/register/capabilities/cap-protocol-cors-basepath.json": "f7112864bdea052f4bfe97096b4e6053977c6fcad0062462d65a81c87fb2fec1",
     "go-backend/testmachine/register/capabilities/cap-protocol-ranges-cache.json": "abe41bb20d59448b2f72699d95d456468423f6cfbe04ece4fbefb24eb448d183",
@@ -259,17 +259,17 @@
     "go-backend/testmachine/register/capabilities/cap-route-r216.json": "87a2d7728d5fe033bfdbc49f6d0bcef4b1fdf417da1f456b154e81efdddf0d3a",
     "go-backend/testmachine/register/capabilities/cap-route-r217.json": "9e4aaaaf812b1a620a6716b85fb12609328f2089b2717c9193c8735d34b7661c",
     "go-backend/testmachine/register/capabilities/cap-route-r218.json": "517e80ff846fd5f8b3cb66724556c187edd6e8c6fafa08746351976adabeb4d4",
-    "go-backend/testmachine/register/capabilities/cap-route-r219.json": "578e5407c6c8a0f3277984b3c93452d9d351a8bac0e6655f8afe6032d5fa68af",
+    "go-backend/testmachine/register/capabilities/cap-route-r219.json": "9ebcc148f19308d3157f9035edff68f6453fa42d86b1246eebb4d378c92c5507",
     "go-backend/testmachine/register/capabilities/cap-route-r220.json": "b20fa86f27a02ebb2b7d968f71f0a9be468b37fc4e00b0b277769403ab00bceb",
     "go-backend/testmachine/register/capabilities/cap-route-r221.json": "8f1085dff7ee80d131eeee1274b4da0a990b99385fa69b5d378257b3a6e814c3",
     "go-backend/testmachine/register/capabilities/cap-route-r222.json": "d9d4c56c59f8e0c3eae99389894311673f64ae2bb261d07645b9e9a871786e31",
     "go-backend/testmachine/register/capabilities/cap-route-r223.json": "d497433ba89fd4f4e9434dc4b7ce710dbeddda99568fabe0c0f1fafbc7d46e01",
     "go-backend/testmachine/register/capabilities/cap-route-r224.json": "1b77abf8eda2cbfcf7b953cfd6d3da3308242d8b65e08489481e1a3ee9631bc5",
-    "go-backend/testmachine/register/capabilities/cap-route-r225.json": "1c44b2da52c23c5e54b3a6c372855916dc35169b369a21575821c416c4c7f78c",
+    "go-backend/testmachine/register/capabilities/cap-route-r225.json": "ca80539961b732e5f2af1ea2ba850e513787b5f292a2bc08859a919585cd11bf",
     "go-backend/testmachine/register/capabilities/cap-runtime-binary.json": "eeb4a0a5e5f16772a8c246df70ea54615b3c7544491dfa1d07d2fcf8a6b35832",
     "go-backend/testmachine/register/capabilities/cap-runtime-configuration.json": "c34db6707d154ecc92f34686ceec77b7e58d55ebde5af1a2fc34f2aeba967bc0",
     "go-backend/testmachine/register/capabilities/cap-runtime-lifecycle.json": "9cec1dc587a20f1f0d1c7437a97b56cd94da1db031c787c5962f2ad7610d6ab2",
-    "go-backend/testmachine/register/capabilities/cap-scan-precedence-timeline.json": "8412419c79be84912fcd6b8aab5bc5cfd16f2c383f3fcefd2677cb50bfbb1592",
+    "go-backend/testmachine/register/capabilities/cap-scan-precedence-timeline.json": "cff8210b8230045e4b49b36bdbc35f11152a870bcc5152acea1295b14ebd8e2c",
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-auth.json": "34a606a00858db8437a3eb34cf0ea3940340e5fef20756e6f8e877f2ff001d1c",
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-cancel-cover-search.json": "5f553f5e92990d3f4db57d1ed369c74086f3d1f1d86fa8a72cff4fa143680694",
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-cancel-scan.json": "f3d623b34a211c25a8f750baa8aebb431f7234357435c89511db3adc634e8d80",
@@ -327,10 +327,10 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-series-updated.json": "7638b0eb35d9044b083f25c42e256cb329d46bd8962d245a77c3aa852527cad1",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-share-closed.json": "c2dbcab55501fec441a00269d0277df94f94e0892c877bf1a09ffd4f7e8c2181",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-share-open.json": "8ac32a3cf29d9341c356b1ab54f10c146da7c341a2227481e23f3f3f171e4ab3",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-closed.json": "83ed40ef829d0220c21585e029672afdd5c8313b1d8af6e6e67dfd10f97f450f",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-closed.json": "f09a48b82cb2fc22f6cf84e6c6174343851358342b47da2f3ee9dc47eab397d7",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-error.json": "18f36f1db68761ec902936b299b764acbf1910304104eebe5e66d1a038e26a52",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-open.json": "33634a6daf0a3e641979bc12270b40da33ab6f61f7b18070cfe0eeab09ad25c7",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-progress.json": "984d27fa3ddcef77b3bf1f4822673803814ff2a3cf98124417951831fd41f841",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-open.json": "ab467f7d0047eea8f3f72e45306f9e56e9e25c4982c30556ff96d6d37c7681e7",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-progress.json": "bb06e95cdd993044bfe634f84871a3f9081894c2b6a2db84411ca6f8ef3603ca",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-ready.json": "9f49ca24ca2d2f4a490c331cc699644b8d92e13d6378a54124e267ae8c85fc93",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-reset.json": "4b73c36cd0a6e10145f01b2a69d4d5387b6b01d9d3b662fc2f3b658f6ee31970",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-finished.json": "c78c66151f94bb579fa720fc700b0f1cd6c3df848303feacc129156db6b99a95",
@@ -356,7 +356,7 @@
     "go-backend/testmachine/register/capabilities/cap-sub-oidc-auth.json": "87c6b7f65e6cadd3eea60e581a7566827a7a016ed46dcb079b324cc3b8538e06",
     "go-backend/testmachine/register/capabilities/cap-sub-podcast-download-queue.json": "33e43036b41d6859a018f5ef3b16e5a83230d57fb8ac879aa842a45fd2a7728d",
     "go-backend/testmachine/register/capabilities/cap-sub-realtime-socketio.json": "6b9051d918f18eb74a38f0ad5d0e89ab3ca718eddc2c77a5cfcc586c383f1ffb",
-    "go-backend/testmachine/register/capabilities/cap-sub-scanner-watcher.json": "d267ac94615ecefc02407c6445671d9b28249eb840db8215ed11a85c3114bea9",
+    "go-backend/testmachine/register/capabilities/cap-sub-scanner-watcher.json": "0b0667335a5fe2655da6de42c91ae5729b04c4cf9a042ea476e7c7506eb7445f",
     "go-backend/testmachine/register/capabilities/cap-sub-static-client.json": "22bd0dcb5011350ca6b13c0fd72ca7ea854eb624b8c9b2b4f577b93c52068c71",
     "go-backend/testmachine/register/capabilities/cap-text-client-ordering.json": "8fa7c7eb3e216294c93a894d40139ffa4a8f6c173ddbbc19be7ab2656e9f9557"
   },
@@ -7965,7 +7965,7 @@
       "invariant": "INV-FORMAT-METADATA-JSON",
       "owner": "scan",
       "packet": "Q10",
-      "contract": "metadata.json is written at metadata/items/<id>/metadata.json (storeMetadataWithItem off) with exactly the canonical keys of the media type, the item's current values, explicit null/empty arrays for cleared values and \"name #sequence\" series strings; it is not a library file, a no-change update leaves it byte-identical, a scan rereads it (series strings become name and sequence), and an unwritable file keeps its previous content while the item keeps the new values.",
+      "contract": "metadata.json is written at metadata/items/<id>/metadata.json (storeMetadataWithItem off) with exactly the canonical keys of the media type, the item's current values, explicit null/empty arrays for cleared values and \"name #sequence\" series strings; it is not a library file, a no-change update leaves it byte-identical, a scan rereads it (series strings become name and sequence), and an unwritable file keeps its previous content while the item keeps the new values, both for a media update and for a scan's own write.",
       "status": "unverified",
       "source": [
         "server/models/LibraryItem.js:614-711",
@@ -7974,11 +7974,12 @@
         "server/scanner/AbsMetadataFileScanner.js:20-51"
       ],
       "tests": [
-        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-written-by-media-update",
         "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-repeat-write-is-skipped",
         "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-round-trips-through-scan",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-write-failure-keeps-old-file",
         "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-writes-cleared-values",
-        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-write-failure-keeps-old-file"
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/metadata-json-written-by-media-update",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-sidecar-write-failure-keeps-file"
       ],
       "evidence": [],
       "cases": {
@@ -25367,15 +25368,17 @@
       "invariant": "INV-R219-FILE-001",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "GET /hls/:stream/output.m3u8 of an open transcoded session answers 200 without a bearer token as application/vnd.apple.mpegurl with a VOD playlist (#EXTM3U, version 3, target duration 6, media sequence 0, end list) that lists output-0.ts through output-10.ts for The Beginning; GET of output-0.ts answers 200 as video/mp2t with Accept-Ranges: bytes, and the same request with the owner's token returns identical bytes.",
+      "contract": "GET /hls/:stream/output.m3u8 of an open transcoded session answers 200 without a bearer token as application/vnd.apple.mpegurl with a VOD playlist (#EXTM3U, version 3, target duration 6, media sequence 0, end list) that lists output-0.ts through output-10.ts for The Beginning; GET of output-0.ts answers 200 as video/mp2t with Accept-Ranges: bytes, and the same request with the owner's token returns identical bytes. An AC3 audiobook also transcodes (with its bitrate and channel options) and serves its playlist and first segment.",
       "status": "unverified",
       "source": [
         "server/routers/HlsRouter.js:48-96",
         "server/Server.js:353-356",
-        "server/utils/generators/hlsPlaylistGenerator.js:9-18"
+        "server/utils/generators/hlsPlaylistGenerator.js:9-18",
+        "server/objects/Stream.js:270-283"
       ],
       "tests": [
-        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-playlist-and-first-segment"
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-playlist-and-first-segment",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-ac3-item-transcodes"
       ],
       "evidence": [],
       "cases": {
@@ -25709,15 +25712,17 @@
       "invariant": "INV-R225-FILE-001",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "GET /public/session/:id/track/1 of a direct-play session answers 200 without a bearer token with Accept-Ranges: bytes and the exact bytes of the track file: audio/mpeg for the first mp3 of The Beginning and audio/mp4 for the m4b of Single File Novel.",
+      "contract": "GET /public/session/:id/track/1 of a direct-play session answers 200 without a bearer token with Accept-Ranges: bytes and the exact bytes of the track file: audio/mpeg for the first mp3 of The Beginning and audio/mp4 for the m4b of Single File Novel. With USE_X_ACCEL set the route answers 204 with X-Accel-Redirect holding the configured prefix plus the percent-encoded audio path.",
       "status": "unverified",
       "source": [
         "server/routers/PublicRouter.js:21",
         "server/controllers/SessionController.js:279-336",
-        "client/players/AudioTrack.js:1-37"
+        "client/players/AudioTrack.js:1-37",
+        "server/Server.js:86"
       ],
       "tests": [
-        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/public-track-direct-play-file"
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/public-track-direct-play-file",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/public-track-x-accel-redirect"
       ],
       "evidence": [],
       "cases": {
@@ -26080,16 +26085,21 @@
       "invariant": "INV-SCAN-PRECEDENCE-TIMELINE",
       "owner": "scan",
       "packet": "Q10",
-      "contract": "The library's settings.metadataPrecedence array is applied in order by BookMetadataSourceHandler, each source overwriting the fields it supplies; a changed order forces the next library scan to re-evaluate items whose files did not change and the order is stored in extraData.lastScanMetadataPrecedence.",
+      "contract": "The library's settings.metadataPrecedence array is applied in order by BookMetadataSourceHandler, each source overwriting the fields it supplies (folderStructure, audioMetatags, nfoFile, txtFiles, opfFile, absMetadata); an unknown source name is ignored, a changed order forces the next library scan to re-evaluate items whose files did not change and the order is stored in extraData.lastScanMetadataPrecedence.",
       "status": "unverified",
       "source": [
         "server/scanner/BookScanner.js:660-700",
+        "server/scanner/BookScanner.js:684-692",
         "server/scanner/LibraryScanner.js:62-67",
-        "server/scanner/LibraryScanner.js:94-104"
+        "server/scanner/LibraryScanner.js:94-104",
+        "server/scanner/NfoFileScanner.js:13-50",
+        "server/scanner/OpfFileScanner.js:13-45"
       ],
       "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-change-forces-rescan",
         "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-default-sidecar-wins",
-        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-change-forces-rescan"
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-nfo-txt-opf-sources",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-unknown-source-is-ignored"
       ],
       "evidence": [],
       "cases": {
@@ -28411,7 +28421,7 @@
       "invariant": "INV-SOCKET-OUTGOING-STREAM-CLOSED",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "Closing a transcoded session answers 200, removes the metadata/streams/<id> folder and emits stream_closed with the session id exactly once on both sockets of the owner and on no admin or other-user socket.",
+      "contract": "Closing a transcoded session answers 200, removes the metadata/streams/<id> folder and persists the playback session row when listening time was synced, emits stream_closed with the session id exactly once on both sockets of the owner and on no admin or other-user socket.",
       "status": "unverified",
       "source": [
         "server/objects/Stream.js:358-379",
@@ -28554,7 +28564,7 @@
       "invariant": "INV-SOCKET-OUTGOING-STREAM-OPEN",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "Starting a transcoded book at 40 s emits stream_open once on both sockets of the owning user with {id: session id, userId: owner, libraryItem: The Beginning (mediaType book, book id, title), episode null, segmentLength 6, playlistPath metadata/streams/<id>/output.m3u8, clientPlaylistUri /hls/<id>/output.m3u8, startTime 40, segmentStartNumber 1, isTranscodeComplete false} and on no admin or other-user socket; a three-second item that finishes before the first segment check carries isTranscodeComplete false too.",
+      "contract": "Starting a transcoded book at 40 s emits stream_open once on both sockets of the owning user with {id: session id, userId: owner, libraryItem: The Beginning (mediaType book, book id, title), episode null, segmentLength 6, playlistPath metadata/streams/<id>/output.m3u8, clientPlaylistUri /hls/<id>/output.m3u8, startTime 40, segmentStartNumber 1, isTranscodeComplete false} and on no admin or other-user socket; a transcoded podcast episode carries the expanded episode (its id, the podcast media type) instead of null; a three-second item that finishes before the first segment check carries isTranscodeComplete false too.",
       "status": "unverified",
       "source": [
         "server/objects/Stream.js:174",
@@ -28564,6 +28574,7 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-payload-and-audience",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-podcast-episode",
         "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-short-item-completion"
       ],
       "evidence": [],
@@ -28591,7 +28602,7 @@
       "invariant": "INV-SOCKET-OUTGOING-STREAM-OPEN-EMIT-001",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "stream_open is emitted exactly once per stream and not again on later segment checks; a new session of the same user emits its own event with the new session id, including after a previous stream was closed, and a transcode that fails on its input emits stream_error instead of stream_open.",
+      "contract": "stream_open is emitted exactly once per stream and not again on later segment checks; starting playback again on the same device closes the previous session (it is no longer open) and emits the new session's stream_open, including after a previous stream was closed, and a transcode that fails on its input emits stream_error instead of stream_open.",
       "status": "unverified",
       "source": [
         "server/objects/Stream.js:171-175",
@@ -28628,7 +28639,7 @@
       "invariant": "INV-SOCKET-OUTGOING-STREAM-PROGRESS",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "A transcoded book first emits stream_progress {stream: session id, percent \"0%\", chunks [], numSegments 0} and then, on the first segment check that finds segments, {percent \"100.00%\", chunks [\"0-10\"], numSegments 11} on both sockets of the owning user and on no admin or other-user socket; a transcode that completes before the first check emits only the zero payload and nothing after stream_open.",
+      "contract": "A transcoded book first emits stream_progress {stream: session id, percent \"0%\", chunks [], numSegments 0} and then, on the first segment check that finds segments, {percent \"100.00%\", chunks [\"0-10\"], numSegments 11} (a chunk is the number of a single created segment and a \"first-last\" string for a run, as PlayerUi.setChunksReady handles both) on both sockets of the owning user and on no admin or other-user socket; a missing produced segment splits the chunk list into two ranges (percent \"90.91%\", chunks [\"0-4\", \"6-10\"] for one missing segment of eleven); a transcode that completes before the first check emits only the zero payload and nothing after stream_open.",
       "status": "unverified",
       "source": [
         "server/objects/Stream.js:219",
@@ -28637,6 +28648,8 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-payload",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-single-segment-chunk",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-chunk-gap",
         "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-stops-after-completion"
       ],
       "evidence": [],
@@ -31313,6 +31326,41 @@
     },
     {
       "requirement": "sub-scanner-watcher",
+      "invariant": "INV-SCAN-MISSING-001",
+      "owner": "scan",
+      "packet": "Q10",
+      "contract": "A book item that loses its only media file (its ebook) is flagged isMissing by the library scan, and a later scan after the file returns clears the flag.",
+      "status": "unverified",
+      "source": [
+        "server/scanner/BookScanner.js:175-207",
+        "server/scanner/LibraryScanner.js:169-200"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/book-without-media-is-missing"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "OverDrive MediaMarkers chapters cannot be produced from this pin's ffprobe JSON path (recorded limitation).",
+        "The watcher is asserted through its observable effect (a watcher-scan task and the imported item), never through a fixed delay; the packet disables the library watcher for its other file changes so no assertion depends on watcher timing.",
+        "Ebook-only items are grouped but not imported: owner-approved compatibility-stub exception (2026-10-30).",
+        "Series RSS-feed closure on a removed series is not wired to the Go RSS manager and is not asserted."
+      ]
+    },
+    {
+      "requirement": "sub-scanner-watcher",
       "invariant": "INV-SCAN-DISCOVERY-001",
       "owner": "scan",
       "packet": "Q10",
@@ -31350,10 +31398,46 @@
     },
     {
       "requirement": "sub-scanner-watcher",
+      "invariant": "INV-SCAN-IMPORT-001",
+      "owner": "scan",
+      "packet": "Q10",
+      "contract": "A new podcast folder imports as one podcast item whose title comes from the album tag of its first episode file and whose episodes take title and publishedAt from the audio tags, later item scans add an episode for a copied audio file and delete the episode row of a deleted file, and a new book folder holding audio and an epub imports both with the epub as ebookFile.",
+      "status": "unverified",
+      "source": [
+        "server/scanner/PodcastScanner.js:274-373",
+        "server/scanner/PodcastScanner.js:70-165"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/book-import-keeps-audio-and-ebook",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/podcast-import-and-episode-changes"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "OverDrive MediaMarkers chapters cannot be produced from this pin's ffprobe JSON path (recorded limitation).",
+        "The watcher is asserted through its observable effect (a watcher-scan task and the imported item), never through a fixed delay; the packet disables the library watcher for its other file changes so no assertion depends on watcher timing.",
+        "Ebook-only items are grouped but not imported: owner-approved compatibility-stub exception (2026-10-30).",
+        "Series RSS-feed closure on a removed series is not wired to the Go RSS manager and is not asserted."
+      ]
+    },
+    {
+      "requirement": "sub-scanner-watcher",
       "invariant": "INV-SCAN-PRECEDENCE-001",
       "owner": "scan",
       "packet": "Q10",
-      "contract": "The library's persisted metadataPrecedence is applied by a forced scan and re-persisted unchanged in extraData.lastScanMetadataPrecedence on every completed scan; with absMetadata first the folder title wins for title and authors while values only the sidecar supplied (series) remain.",
+      "contract": "The library's persisted metadataPrecedence is applied by a forced scan and re-persisted unchanged in extraData.lastScanMetadataPrecedence on every completed scan; with absMetadata first the folder title wins for title and authors while values only the sidecar supplied (series) remain; an item whose only media is an ebook falls back to the ebook metadata source and scans without losing its stored title.",
       "status": "unverified",
       "source": [
         "server/scanner/BookScanner.js:660-700",
@@ -31361,7 +31445,8 @@
         "server/scanner/LibraryScanner.js:94-104"
       ],
       "tests": [
-        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-snapshot-applied-by-forced-scan"
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-snapshot-applied-by-forced-scan",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/ebook-only-item-scans-with-ebook-metadata"
       ],
       "evidence": [],
       "cases": {
@@ -31389,7 +31474,7 @@
       "invariant": "INV-SCAN-EVENTS-001",
       "owner": "scan",
       "packet": "Q10",
-      "contract": "A scan that adds a book emits one items_added event whose payload is an array holding the expanded item (id, media.metadata.title) to every authenticated socket whose user can access the library, and to no socket of a user restricted to another library and to no unauthenticated socket.",
+      "contract": "A scan that adds books emits items_added events whose payloads are arrays of expanded items (id and media.metadata.title) of at most ten items each, delivering every new item exactly once, to every authenticated socket whose user can access the library, and to no socket of a user restricted to another library and to no unauthenticated socket.",
       "status": "unverified",
       "source": [
         "server/scanner/LibraryScanner.js:224-281",
@@ -31503,6 +31588,42 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/cron-runs-a-library-scan"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "OverDrive MediaMarkers chapters cannot be produced from this pin's ffprobe JSON path (recorded limitation).",
+        "The watcher is asserted through its observable effect (a watcher-scan task and the imported item), never through a fixed delay; the packet disables the library watcher for its other file changes so no assertion depends on watcher timing.",
+        "Ebook-only items are grouped but not imported: owner-approved compatibility-stub exception (2026-10-30).",
+        "Series RSS-feed closure on a removed series is not wired to the Go RSS manager and is not asserted."
+      ]
+    },
+    {
+      "requirement": "sub-scanner-watcher",
+      "invariant": "INV-SCAN-COVER-001",
+      "owner": "scan",
+      "packet": "Q10",
+      "contract": "Image library files set the item cover: adding a cover.jpg to an item folder without a cover sets media.coverPath to that file on the next scan, renaming it moves coverPath to the new file and deleting it clears coverPath; audio that gains attached cover art has that art extracted as the item cover.",
+      "status": "unverified",
+      "source": [
+        "server/scanner/BookScanner.js:142-176",
+        "server/scanner/BookScanner.js:407-423"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/cover-file-sets-and-clears-cover-path",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/embedded-cover-art-becomes-item-cover"
       ],
       "evidence": [],
       "cases": {

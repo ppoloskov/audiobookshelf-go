@@ -4,10 +4,13 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Scanning applies configured metadata/sidecar/tag/folder precedence including absent/empty/locked values, orders all audio files, offsets multi-file chapters in seconds, retains item identity through moves and inode collisions, reconciles removed files/authors/series, and preserves durable state through repeated/forced/failed scans.",
+  "contract": "Scanning applies the library's configured metadata sources in the stored order, each enabled source overwriting only the fields it supplies (with non-empty arrays for authors/series/genres/tags/chapters and null/absent values skipped). A precedence change forces the next scan to re-evaluate unchanged items and the order is persisted in library extraData. Audio files are ordered by disc then track and chapters are rebuilt from file durations with cumulative offsets. Item identity survives moves and inode collisions, removed files/authors/series are reconciled, an unprobeable file yields no audio entry, an unreadable metadata.json is ignored and a cancelled scan stops without recording a completed scan.",
   "source": [
-    "server/scanner/",
-    "server/objects/metadata/"
+    "server/scanner/BookScanner.js:660-817",
+    "server/scanner/LibraryScanner.js:51-135,169-281",
+    "server/scanner/AudioFileScanner.js:52-100,495-573",
+    "server/scanner/AbsMetadataFileScanner.js:20-51",
+    "server/utils/generators/abmetadataGenerator.js:60-150"
   ],
   "implementation": [
     "go-backend/internal/scan/"
@@ -18,37 +21,114 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/scan/rules_test.go:114#TestBuildChapters",
-    "go-backend/internal/scan/rules_test.go:271#TestReadSidecarsSources",
-    "go-backend/internal/scan/rules_test.go:364#TestApplyTags",
-    "go-backend/internal/scan/scan_test.go:140#TestScanImportsBooksAndKeepsIdentityOnRename",
-    "go-backend/internal/scan/scan_test.go:522#TestFilesDiffKeepsStoredEntryOrderAndAddedAt",
-    "go-backend/internal/scan/scan_test.go:545#TestPairPrefersPathThenFirstFreeInode",
-    "go-backend/internal/scan/scan_test.go:228#TestRescanSweepsAuthorsAndSeriesTheBookLeft"
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/chapters-removal-rebuilds-offsets",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/chapters-repeat-scan-is-unchanged",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-absent-and-empty-keep-values",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-change-forces-rescan",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-default-sidecar-wins",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-cancelled-mid-run",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-inode-collision-keeps-identity",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-invalid-sidecar-is-ignored",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-move-reconciles-authors-and-series",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-partial-probe-failure-imports-valid-files",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-nfo-txt-opf-sources",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-unknown-source-is-ignored"
   ],
-  "evidence": [],
+  "evidence": [
+    "go-backend/testmachine/scenarios/scan: 10 upstream scenarios, all passing in two consecutive full packet runs"
+  ],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Upstream v2.37.2 has no locked-metadata-field concept; the requirement's \"locked\" case is expressed by the absent/null/empty-array skip rules of AbsMetadataFileScanner.js:33-48, which keep stored values the sidecar does not supply.",
+    "Cancel is triggered through the cancel_scan Socket.IO event (owned by realtime/socket-incoming-cancel-scan); this packet asserts the scan-side effect only."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SCAN-PRECEDENCE-TIMELINE",
       "class": "repeat_operation",
-      "contract": "Scanning applies configured metadata/sidecar/tag/folder precedence including absent/empty/locked values, orders all audio files, offsets multi-file chapters in seconds, retains item identity through moves and inode collisions, reconciles removed files/authors/series, and preserves durable state through repeated/forced/failed scans.",
+      "contract": "The library's settings.metadataPrecedence array is applied in order by BookMetadataSourceHandler, each source overwriting the fields it supplies (folderStructure, audioMetatags, nfoFile, txtFiles, opfFile, absMetadata); an unknown source name is ignored, a changed order forces the next library scan to re-evaluate items whose files did not change and the order is stored in extraData.lastScanMetadataPrecedence.",
       "status": "unverified",
       "source": [
-        "server/scanner/",
-        "server/objects/metadata/"
+        "server/scanner/BookScanner.js:660-700",
+        "server/scanner/BookScanner.js:684-692",
+        "server/scanner/LibraryScanner.js:62-67",
+        "server/scanner/LibraryScanner.js:94-104",
+        "server/scanner/NfoFileScanner.js:13-50",
+        "server/scanner/OpfFileScanner.js:13-45"
       ],
       "tests": [
-        "go-backend/internal/scan/rules_test.go:114#TestBuildChapters",
-        "go-backend/internal/scan/rules_test.go:271#TestReadSidecarsSources",
-        "go-backend/internal/scan/rules_test.go:364#TestApplyTags",
-        "go-backend/internal/scan/scan_test.go:140#TestScanImportsBooksAndKeepsIdentityOnRename",
-        "go-backend/internal/scan/scan_test.go:522#TestFilesDiffKeepsStoredEntryOrderAndAddedAt",
-        "go-backend/internal/scan/scan_test.go:545#TestPairPrefersPathThenFirstFreeInode",
-        "go-backend/internal/scan/scan_test.go:228#TestRescanSweepsAuthorsAndSeriesTheBookLeft"
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-change-forces-rescan",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-default-sidecar-wins",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-nfo-txt-opf-sources",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-unknown-source-is-ignored"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SCAN-PRECEDENCE-ABSENT-001",
+      "class": "precedence",
+      "contract": "AbsMetadataFileScanner skips a sidecar value that is undefined or null and skips an empty authors, genres, tags or chapters array, so fields another enabled source supplies are re-derived from that source and fields only the sidecar supplied keep their stored value; a non-empty scalar or array from the sidecar replaces the earlier value.",
+      "status": "unverified",
+      "source": [
+        "server/scanner/AbsMetadataFileScanner.js:33-48",
+        "server/utils/generators/abmetadataGenerator.js:85-118"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-absent-and-empty-keep-values"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SCAN-CHAPTERS-OFFSETS-001",
+      "class": "shape",
+      "contract": "Chapters of a multi-file book are built from the files in smart track order: ids are renumbered 0..n-1, start is the cumulative duration of the preceding files and end is start plus the file's duration; removing a file rebuilds the array from the remaining files and an unchanged repeat scan leaves it untouched.",
+      "status": "unverified",
+      "source": [
+        "server/scanner/AudioFileScanner.js:495-573",
+        "server/scanner/BookScanner.js:100-150"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/chapters-removal-rebuilds-offsets",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/chapters-repeat-scan-is-unchanged"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SCAN-RECONCILE-001",
+      "class": "state_transition",
+      "contract": "An existing item is matched by exact path first and by inode second: a renamed folder or an audio file moved into a folder keeps the same library item and book ids while path/relPath follow the files; authors and series left without books are deleted after the scan; a deleted audio file leaves audioFiles and libraryFiles; an unprobeable file yields no audio entry but stays a library file; an unreadable metadata.json changes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/scanner/LibraryScanner.js:169-200",
+        "server/scanner/LibraryScanner.js:641-647",
+        "server/scanner/BookScanner.js:221-290",
+        "server/scanner/LibraryItemScanner.js:84-92",
+        "server/scanner/AudioFileScanner.js:160-180"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-move-reconciles-authors-and-series",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-inode-collision-keeps-identity",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-invalid-sidecar-is-ignored",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-partial-probe-failure-imports-valid-files"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SCAN-CANCEL-001",
+      "class": "state_transition",
+      "contract": "A library scan cancelled through the cancel_scan event stops before it finishes adding items (fewer than all staged items exist), finishes its task with the description \"Task canceled by user\", isFinished true and isFailed false, and does not update libraries.lastScan.",
+      "status": "unverified",
+      "source": [
+        "server/scanner/LibraryScanner.js:88-135",
+        "server/scanner/LibraryScanner.js:230-275",
+        "server/SocketAuthority.js:191-194"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-cancelled-mid-run"
       ],
       "evidence": [],
       "exceptions": []

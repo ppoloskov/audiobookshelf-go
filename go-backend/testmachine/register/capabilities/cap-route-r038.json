@@ -4,12 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "POST /api/libraries/:id/scan dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:91, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"POST /api/libraries/{id}/scan\", auth.Admin(httpx.Handler(s.scanLibraryRoute))). Current assertion anchor(s): TestRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "POST /api/libraries/:id/scan is the admin library scan: an admin who can access the library gets 200 and the scan runs asynchronously, updating libraries.lastScan and lastScanVersion and persisting the metadata precedence snapshot on completion; ?force=1 rescans even unchanged items; unauthenticated, non-admin, inaccessible-library and unknown-library requests are rejected without a scan.",
   "source": [
     "server/routers/ApiRouter.js:91",
-    "go-backend/internal/scan/routes.go",
-    "go-backend/internal/scan/routes.go:18",
-    "server/controllers/LibraryController.js:1475"
+    "server/controllers/LibraryController.js:1262-1275",
+    "server/controllers/LibraryController.js:1475-1500",
+    "server/scanner/LibraryScanner.js:51-135"
   ],
   "implementation": [
     "go-backend/internal/scan/routes.go:18"
@@ -21,35 +21,70 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/scan/scan_test.go:356#TestRoutes"
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-records-completion",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-repeat-is-stable",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-without-force-skips-unread-sidecar",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-force-rereads-sidecar",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-adds-new-item",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-rejections-change-nothing"
   ],
-  "evidence": [],
+  "evidence": [
+    "go-backend/testmachine/scenarios/scan: 6 upstream scenarios, all passing in two consecutive full packet runs"
+  ],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#library-scan-rerun (differential pass)",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Historical evidence leads retained for provenance: go-backend/testmachine/contracts/parity/full-suite-report.json#library-scan-rerun.",
+    "The 200 response body is the reason phrase Express sends for sendStatus(200); clients do not read it, so scenarios assert the status only."
   ],
   "invariants": [
     {
       "id": "INV-R038-SAMPLED",
       "class": "shape",
-      "contract": "POST /api/libraries/:id/scan dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:91, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"POST /api/libraries/{id}/scan\", auth.Admin(httpx.Handler(s.scanLibraryRoute))). Current assertion anchor(s): TestRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "The route exists at POST /api/libraries/:id/scan and is admin-only: an anonymous request answers 401, a non-admin 403, an admin without access to that library 403 from the middleware and an unknown library id 404; no rejected request runs a scan or moves libraries.lastScan, and the item rows stay unchanged.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:91",
-        "go-backend/internal/scan/routes.go",
-        "go-backend/internal/scan/routes.go:18",
-        "server/controllers/LibraryController.js:1475"
+        "server/controllers/LibraryController.js:1266-1270",
+        "server/controllers/LibraryController.js:1475-1484"
       ],
       "tests": [
-        "go-backend/internal/scan/scan_test.go:356#TestRoutes"
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-rejections-change-nothing"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-R038-RESPONSE-001",
+      "class": "state_transition",
+      "contract": "An accepted scan answers 200 and runs asynchronously; when it completes it moves libraries.lastScan strictly forward, writes lastScanVersion 2.37.2 and extraData.lastScanMetadataPrecedence, without changing the ids or titles of items whose files did not change, and a scan after a new book folder appears adds exactly that one item.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:1262-1275",
+        "server/scanner/LibraryScanner.js:94-104",
+        "server/scanner/LibraryScanner.js:258-281"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-records-completion",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-repeat-is-stable",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-adds-new-item"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R038-FORCE-001",
+      "class": "repeat_operation",
+      "contract": "A plain scan skips items without file changes, so an edited metadata/items/<id>/metadata.json is not reread; ?force=1 rescans every item, applies the edited sidecar and rewrites it.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:1273-1274",
+        "server/scanner/LibraryScanner.js:203-218"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-without-force-skips-unread-sidecar",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-force-rereads-sidecar"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ],
   "state_scenarios": {
