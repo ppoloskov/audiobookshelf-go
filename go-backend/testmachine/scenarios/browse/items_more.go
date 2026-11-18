@@ -103,6 +103,109 @@ func (s *suite) includeCollapseScenarios() []harness.Scenario {
 				expectKeys(t, e, "sub-series all", page, "saga1", "saga2")
 			},
 		},
+		{
+			Requirement: "route-r022", Invariant: "INV-R022-COLLAPSE-001", Case: "edge", State: "stateless", Assertion: "book-items-collapse-subseries-invalid-and-sort",
+			Sources: []string{srcCollapse, "server/utils/libraryHelpers.js:105-109", "server/controllers/LibraryController.js:626-636"},
+			Claim:   "On the sub-series collapse path an unknown series id and a filter value whose decode fails answer an empty list with total 0, an invalid sort falls back to the sequence order, and a title sort orders by series or title.",
+			Run: func(t *testing.T, e *harness.Env) {
+				s.enrich(t, e)
+				token := e.Token(t, "listener")
+				unknown := query("filter", filterParam("series", "00000000-0000-4000-8000-000000000000"), "collapseseries", "1")
+				page := getItems(t, e, token, bookLibrary, unknown)
+				if len(page.Results) != 0 {
+					t.Fatalf("unknown series with collapse: %v", keysOf(e, page.ids()))
+				}
+				expectInt(t, "unknown series total", page.Total, 0)
+				// The raw value "%ZZ" reaches the server as a bare % inside decodeURIComponent and is decoded to null.
+				broken := getItems(t, e, token, bookLibrary, query("filter", "series.%ZZ", "collapseseries", "1"))
+				if len(broken.Results) != 0 {
+					t.Fatalf("undecodable filter with collapse: %v", keysOf(e, broken.ids()))
+				}
+				expectInt(t, "undecodable total", broken.Total, 0)
+				page = getItems(t, e, token, bookLibrary, query("filter", filterParam("series", seriesIDByName(t, e, long)), "collapseseries", "1", "sort", "nonsense"))
+				expectKeys(t, e, "invalid sort falls back to sequence", page, "saga1", "saga2")
+				page = getItems(t, e, token, bookLibrary, query("filter", filterParam("series", seriesIDByName(t, e, long)), "collapseseries", "1", "sort", "addedAt", "desc", "1"))
+				expectKeys(t, e, "addedAt desc on the sub-series path", page, "saga2", "saga1")
+				filter := filterParam("series", seriesIDByName(t, e, long))
+				page = getItems(t, e, token, bookLibrary, query("filter", filter, "collapseseries", "1", "sort", "media.metadata.title"))
+				expectKeys(t, e, "title sort on the sub-series path", page, "saga1", "saga2")
+				root := e.Token(t, "root")
+				mustOK(t, "enable prefix", patchJSON(t, e, root, "/api/settings", `{"sortingIgnorePrefix":true}`))
+				page = getItems(t, e, token, bookLibrary, query("filter", filter, "collapseseries", "1", "sort", "media.metadata.title", "prefix", "1"))
+				expectKeys(t, e, "title sort with prefix ignored", page, "saga1", "saga2")
+				mustOK(t, "disable prefix", patchJSON(t, e, root, "/api/settings", `{"sortingIgnorePrefix":false}`))
+			},
+		},
+		{
+			Requirement: "route-r022", Invariant: "INV-R022-COLLAPSE-001", Case: "edge", State: "stateless", Assertion: "book-items-collapse-subseries-collapsed-json",
+			Sources: []string{srcCollapse, "server/utils/libraryHelpers.js:232-260"},
+			Claim:   "On the sub-series collapse path a book that also belongs to another series is represented by that series with collapsedSeries carrying the sequence inside the filtered series and the seriesSequenceList ranges.",
+			Run: func(t *testing.T, e *harness.Env) {
+				s.enrich(t, e)
+				root := e.Token(t, "root")
+				mustOK(t, "add novel to Long Saga", patchJSON(t, e, root, "/api/items/"+e.IDs["novel"]+"/media", `{"metadata":{"series":[{"name":"Solo Series","sequence":"1"},{"name":"Long Saga","sequence":"3"}]}}`))
+				filter := filterParam("series", seriesIDByName(t, e, long))
+				page := getItems(t, e, e.Token(t, "listener"), bookLibrary, query("filter", filter, "collapseseries", "1"))
+				expectKeys(t, e, "sub-series with a sub-collapsed book", page, "saga1", "saga2", "novel")
+				expectInt(t, "total", page.Total, 3)
+				collapsed := page.Results[2].CollapsedSeries
+				soloID := seriesIDByName(t, e, solo)
+				// On the sub-series path the collapsed libraryItemIds are library item ids.
+				if collapsed == nil || collapsed.ID != soloID || collapsed.Name != solo || collapsed.NumBooks != 1 || len(collapsed.LibraryItemIDs) != 1 || collapsed.LibraryItemIDs[0] != e.IDs["novel"] {
+					t.Fatalf("collapsed series of novel: %+v (soloID=%s)", collapsed, soloID)
+				}
+				// The sub-series collapsedSeries carries no sequence, only the sequence list inside the filtered series.
+				if collapsed.Sequence != nil || collapsed.SeriesSequenceList != "3" {
+					t.Fatalf("collapsed series sequences: %+v", collapsed)
+				}
+				// With hideSingleBookSeries on, a single-book sub-series is not collapsed: the book stays flat.
+				setLibrarySettings(t, e, `{"hideSingleBookSeries":true}`)
+				hidden := getItems(t, e, e.Token(t, "listener"), bookLibrary, query("filter", filter, "collapseseries", "1", "hidden", "1"))
+				expectKeys(t, e, "single-book sub-series stays flat", hidden, "saga1", "saga2", "novel")
+				if collapsed := hidden.Results[2].CollapsedSeries; collapsed != nil {
+					t.Fatalf("novel must be flat with the hide setting: %+v", collapsed)
+				}
+				setLibrarySettings(t, e, `{"hideSingleBookSeries":false}`)
+				mustOK(t, "restore novel series", patchJSON(t, e, root, "/api/items/"+e.IDs["novel"]+"/media", `{"metadata":{"series":[{"name":"Solo Series","sequence":"1"}]}}`))
+				page = getItems(t, e, e.Token(t, "listener"), bookLibrary, query("filter", filter, "collapseseries", "1"))
+				expectKeys(t, e, "restored sub-series", page, "saga1", "saga2")
+			},
+		},
+		{
+			Requirement: "route-r022", Invariant: "INV-R022-COLLAPSE-001", Case: "edge", State: "stateless", Assertion: "book-items-collapse-subseries-sorts-and-merge",
+			Sources: []string{srcCollapse, "server/utils/libraryHelpers.js:173-182", "server/utils/libraryHelpers.js:184-213", "server/utils/libraryHelpers.js:240-259"},
+			Claim:   "On the sub-series collapse path a two-book sub-series merges its sequences into one range, and the collapsed series sorts by name under non-title sorts and by its name or the title under title sorts, with and without sortingIgnorePrefix.",
+			Run: func(t *testing.T, e *harness.Env) {
+				s.enrich(t, e)
+				root := e.Token(t, "root")
+				defer func() {
+					mustOK(t, "restore novel", patchJSON(t, e, root, "/api/items/"+e.IDs["novel"]+"/media", `{"metadata":{"series":[{"name":"Solo Series","sequence":"1"}]}}`))
+					mustOK(t, "restore saga2", patchJSON(t, e, root, "/api/items/"+e.IDs["saga2"]+"/media", `{"metadata":{"series":[{"name":"Long Saga","sequence":"2"}]}}`))
+				}()
+				mustOK(t, "novel joins Long Saga", patchJSON(t, e, root, "/api/items/"+e.IDs["novel"]+"/media", `{"metadata":{"series":[{"name":"Solo Series","sequence":"1"},{"name":"Long Saga","sequence":"3"}]}}`))
+				mustOK(t, "saga2 joins Solo Series", patchJSON(t, e, root, "/api/items/"+e.IDs["saga2"]+"/media", `{"metadata":{"series":[{"name":"Long Saga","sequence":"2"},{"name":"Solo Series","sequence":"2"}]}}`))
+				filter := filterParam("series", seriesIDByName(t, e, long))
+				page := getItems(t, e, e.Token(t, "listener"), bookLibrary, query("filter", filter, "collapseseries", "1"))
+				expectKeys(t, e, "two-book sub-series", page, "saga1", "novel")
+				collapsed := page.Results[1].CollapsedSeries
+				if collapsed == nil || collapsed.Name != solo || collapsed.NumBooks != 2 || len(collapsed.LibraryItemIDs) != 2 || collapsed.LibraryItemIDs[0] != e.IDs["novel"] || collapsed.LibraryItemIDs[1] != e.IDs["saga2"] {
+					t.Fatalf("merged collapsed series: %+v", collapsed)
+				}
+				if collapsed.SeriesSequenceList != "2-3" {
+					t.Fatalf("merged sequence list: %+v", collapsed)
+				}
+				page = getItems(t, e, e.Token(t, "listener"), bookLibrary, query("filter", filter, "collapseseries", "1", "sort", "addedAt", "desc", "1", "merge", "1"))
+				expectKeys(t, e, "addedAt desc sends the collapsed series last", page, "saga1", "novel")
+				mustOK(t, "enable prefix", patchJSON(t, e, root, "/api/settings", `{"sortingIgnorePrefix":true}`))
+				page = getItems(t, e, e.Token(t, "listener"), bookLibrary, query("filter", filter, "collapseseries", "1", "sort", "addedAt", "desc", "1", "merge", "2"))
+				expectKeys(t, e, "addedAt desc with the prefix ignored", page, "saga1", "novel")
+				page = getItems(t, e, e.Token(t, "listener"), bookLibrary, query("filter", filter, "collapseseries", "1", "sort", "media.metadata.title", "merge", "3"))
+				expectKeys(t, e, "title sort with the prefix ignored", page, "saga1", "novel")
+				mustOK(t, "disable prefix", patchJSON(t, e, root, "/api/settings", `{"sortingIgnorePrefix":false}`))
+				page = getItems(t, e, e.Token(t, "listener"), bookLibrary, query("filter", filter, "collapseseries", "1", "sort", "media.metadata.title", "merge", "4"))
+				expectKeys(t, e, "title sort", page, "novel", "saga1")
+			},
+		},
 	}
 }
 
@@ -203,6 +306,12 @@ func (s *suite) podcastScenarios() []harness.Scenario {
 				expectSet(t, "podcast random", random.titles(), []string{second, "Fixture Cast"})
 				page := getItems(t, e, token, podcastLibrary, query("sort", "media.metadata.title", "limit", "1", "page", "1"))
 				expectOrder(t, "podcast page 1", page.titles(), []string{"Fixture Cast"})
+				// The title sort honours the server setting for podcasts too.
+				root := e.Token(t, "root")
+				mustOK(t, "enable prefix", patchJSON(t, e, root, "/api/settings", `{"sortingIgnorePrefix":true}`))
+				page = getItems(t, e, token, podcastLibrary, query("sort", "media.metadata.title"))
+				expectOrder(t, "podcast title sort with prefix ignored", page.titles(), []string{second, "Fixture Cast"})
+				mustOK(t, "disable prefix", patchJSON(t, e, root, "/api/settings", `{"sortingIgnorePrefix":false}`))
 			},
 		},
 		{

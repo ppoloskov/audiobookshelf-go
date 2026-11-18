@@ -140,6 +140,21 @@ func (s *suite) filterScenarios() []harness.Scenario {
 			},
 		},
 		{
+			Requirement: "route-r022", Invariant: "INV-R022-FILTER-001", Case: "edge", State: "stateless", Assertion: "book-items-filter-undecodable-value",
+			Sources: []string{srcLibFilter, "server/utils/queries/libraryFilters.js:13-19"},
+			Claim:   "A filter value carrying a bare % makes the base64 decode throw, the value becomes null and matches nothing: an empty list with total 0.",
+			Run: func(t *testing.T, e *harness.Env) {
+				s.enrich(t, e)
+				for _, group := range []string{"tags", "genres"} {
+					page := getItems(t, e, e.Token(t, "listener"), bookLibrary, query("filter", group+".%ZZ", "sort", "media.metadata.title"))
+					if len(page.Results) != 0 {
+						t.Fatalf("filter %s with an undecodable value: %v", group, keysOf(e, page.ids()))
+					}
+					expectInt(t, group+" total", page.Total, 0)
+				}
+			},
+		},
+		{
 			Requirement: "route-r022", Invariant: "INV-R022-FILTER-001", Case: "edge", State: "stateless", Assertion: "book-items-filter-unknown-and-series-edges",
 			Sources: []string{srcLibFilter, "server/utils/queries/libraryItemsBookFilters.js:223-243"},
 			Claim:   "An unknown filter group selects everything, a series filter naming an unknown series selects nothing, and series.no-series selects books without a series.",

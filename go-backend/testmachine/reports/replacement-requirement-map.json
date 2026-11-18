@@ -62,14 +62,14 @@
     "go-backend/testmachine/register/capabilities/cap-route-r019.json": "95aa7cd863d066b96551f0dcee4dcc2683575d43b1012ae21ccebcb5a00071ff",
     "go-backend/testmachine/register/capabilities/cap-route-r020.json": "9da936a05b73f995b07e5094758daf893304b5cea333292e5f4d874904ab294d",
     "go-backend/testmachine/register/capabilities/cap-route-r021.json": "155a5f70afef8376f149bef38c3868c7266f62ab5bac55870ea54a6e1a5903ac",
-    "go-backend/testmachine/register/capabilities/cap-route-r022.json": "a6550890b2df324c8877f09cdc9d942984d4e044d5fae0b6f40ddbe89a74d27b",
+    "go-backend/testmachine/register/capabilities/cap-route-r022.json": "1c0c6e9dfb8728ae813fa3522ef76db68797cd1724e2109523ba367421468481",
     "go-backend/testmachine/register/capabilities/cap-route-r023.json": "4da39c1a2471a0639a8a8add7e5ebb44e084f3b888d704239c65b7a7154ab9a1",
     "go-backend/testmachine/register/capabilities/cap-route-r024.json": "af64af8240a184b887c1c7984dd39e46dcc633f3904a0520006219504586a090",
     "go-backend/testmachine/register/capabilities/cap-route-r025.json": "4c04c1dfa92e83d17d6c91af6bf1fd4f23e8adeef13a091037bbe22cc2e40bcd",
     "go-backend/testmachine/register/capabilities/cap-route-r026.json": "88a99282679d3e63e4e598fca2922574ba8d405b54a6725b751a9e21317f1a64",
     "go-backend/testmachine/register/capabilities/cap-route-r027.json": "0a79e5c91ca4c2851fe83c15bd1c1b46996469e9ee4478131f40984f5a766f20",
     "go-backend/testmachine/register/capabilities/cap-route-r028.json": "4b7a397ec7cc3cd46298a842fb3dead73f504a3d0a8ead57325f1017cd08baec",
-    "go-backend/testmachine/register/capabilities/cap-route-r029.json": "b014aaab6fb02b086e7a90d6649e545a0d09b003be62a99966ed171877354dd4",
+    "go-backend/testmachine/register/capabilities/cap-route-r029.json": "87b4fe9fa23b6c8c005182ec555829d3386815469e84f6f354ad250872fbd03d",
     "go-backend/testmachine/register/capabilities/cap-route-r030.json": "0b93c5a60a7c351d355f3a2ee7d1c5a0398666334dcfe8fd3fa7fc616fc816af",
     "go-backend/testmachine/register/capabilities/cap-route-r031.json": "3a2fd5b6fa39a9dd99ae6603345383dbb0bd80734c10bf6a017a55cd06311ac8",
     "go-backend/testmachine/register/capabilities/cap-route-r032.json": "f1a9e705c5efc2b7bf6bc7c8bf4469c4957d443a4a7cc6be81bf828d7a648a8b",
@@ -10240,6 +10240,7 @@
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-recent",
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-progress-per-user",
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-unknown-and-series-edges",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-undecodable-value",
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-series-filter-sequence-order"
       ],
       "evidence": [],
@@ -10300,7 +10301,10 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-series",
-        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-with-series-filter"
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-with-series-filter",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-subseries-invalid-and-sort",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-subseries-collapsed-json",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-subseries-sorts-and-merge"
       ],
       "evidence": [],
       "cases": {
@@ -10856,7 +10860,8 @@
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-book-shelves-finisher-and-root",
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-podcast-shelves",
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-limit-and-include",
-        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-after-progress-change"
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-after-progress-change",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-continue-series-next-book-feed-and-share"
       ],
       "evidence": [],
       "cases": {

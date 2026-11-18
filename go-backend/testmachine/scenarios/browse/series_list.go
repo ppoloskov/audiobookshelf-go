@@ -154,6 +154,10 @@ func (s *suite) seriesListScenarios() []harness.Scenario {
 					page := getSeriesPage(t, e, token, query("limit", "10", "sort", "name", "filter", filter))
 					expectOrder(t, "filter "+filter, page.names(), all)
 				}
+				// A value that cannot be decoded is null and matches nothing.
+				page := getSeriesPage(t, e, token, query("limit", "10", "sort", "name", "filter", "tags.%ZZ"))
+				expectOrder(t, "undecodable tags filter", page.names(), []string{})
+				expectInt(t, "undecodable tags total", page.Total, 0)
 				finisher := getSeriesPage(t, e, e.Token(t, "finisher"), query("limit", "10", "sort", "name", "filter", filterParam("progress", "in-progress")))
 				expectOrder(t, "finisher in-progress", finisher.names(), []string{})
 			},

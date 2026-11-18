@@ -800,6 +800,7 @@ server/utils/queries/libraryItemsBookFilters.js:388-394","go-backend/testmachine
 go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-recent
 go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-progress-per-user
 go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-unknown-and-series-edges
+go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-undecodable-value
 go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-series-filter-sequence-order",,unverified,unverified,unverified,False,{},"Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.
 Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#library-items-invalid-pagination (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#book-library-items (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#book-library-items-minified (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#book-list-after-library-scan (differential pass)
 Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
@@ -812,7 +813,10 @@ route-r022,INV-R022-COLLAPSE-001,Q14,browse,"collapseseries=1 shows the first bo
 server/utils/queries/libraryItemsBookFilters.js:486-500
 server/controllers/LibraryController.js:622-631
 server/utils/libraryHelpers.js:105-215","go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-series
-go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-with-series-filter",,unverified,unverified,unverified,False,{},"Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.
+go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-with-series-filter
+go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-subseries-invalid-and-sort
+go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-subseries-collapsed-json
+go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-subseries-sorts-and-merge",,unverified,unverified,unverified,False,{},"Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.
 Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#library-items-invalid-pagination (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#book-library-items (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#book-library-items-minified (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#book-list-after-library-scan (differential pass)
 Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
 route-r022,INV-R022-PODCAST-001,Q14,browse,"The podcast library lists podcasts with author, genres, numEpisodes, rssFeed and per-user numEpisodesIncomplete, supports the podcast sort keys and the genres, tags, languages, explicit, issues, feed-open and recent filters, and ignores book-only groups.",unverified,"server/utils/queries/libraryItemsPodcastFilters.js:131-250
@@ -936,7 +940,8 @@ server/managers/ApiCacheManager.js:7-12","go-backend/testmachine/scenarios/brows
 go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-book-shelves-finisher-and-root
 go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-podcast-shelves
 go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-limit-and-include
-go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-after-progress-change",,unverified,unverified,unverified,False,{},"Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.
+go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-after-progress-change
+go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-continue-series-next-book-feed-and-share",,unverified,unverified,unverified,False,{},"Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.
 Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
 route-r029,INV-ROUTE-R029-AUTH-001,Q14,browse,"401 without token, 404 unknown library, 403 outside the user's libraries, 400 for an invalid limit.",unverified,"server/controllers/LibraryController.js:1475-1498
 server/Auth.js:322",go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-auth-errors,,unverified,unverified,unverified,False,{},"Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.

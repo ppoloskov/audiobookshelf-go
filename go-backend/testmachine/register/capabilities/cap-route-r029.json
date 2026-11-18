@@ -34,6 +34,7 @@
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-podcast-shelves",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-limit-and-include",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-after-progress-change",
+    "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-continue-series-next-book-feed-and-share",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-auth-errors",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-user-restrictions"
   ],
@@ -60,7 +61,8 @@
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-book-shelves-finisher-and-root",
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-podcast-shelves",
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-limit-and-include",
-        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-after-progress-change"
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-after-progress-change",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/personalized-continue-series-next-book-feed-and-share"
       ],
       "evidence": [],
       "exceptions": []

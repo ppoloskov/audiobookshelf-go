@@ -218,6 +218,45 @@ func (s *suite) personalizedScenarios() []harness.Scenario {
 			},
 		},
 		{
+			Requirement: "route-r029", Invariant: "INV-ROUTE-R029-CONTRACT", Case: "normal", State: "stateless", Assertion: "personalized-continue-series-next-book-feed-and-share",
+			Sources: []string{"server/utils/queries/libraryItemsBookFilters.js:722-727", "server/utils/queries/libraryItemsBookFilters.js:802-812", "server/utils/queries/libraryFilters.js:144-156", "server/models/LibraryItem.js:384-399"},
+			Claim:   "With onlyShowLaterBooksInContinueSeries a finished first book moves continue-series to the next book, and that entity carries the open feed and, for an admin, the share.",
+			Run: func(t *testing.T, e *harness.Env) {
+				s.enrich(t, e)
+				root := e.Token(t, "root")
+				// Restore the fixture state whatever happens: close the feed, reset the setting, drop the progress rows.
+				defer func() {
+					setLibrarySettings(t, e, `{"onlyShowLaterBooksInContinueSeries":false}`)
+					removeRootProgress(t, e, "saga1")
+					removeRootProgress(t, e, "saga2")
+					closeFeed(t, e, root, "browse-saga2-feed")
+				}()
+				mustOK(t, "open saga2 feed", postJSON(t, e, root, "/api/feeds/item/"+e.IDs["saga2"]+"/open", `{"serverAddress":"http://127.0.0.1","slug":"browse-saga2-feed"}`))
+				// An in-progress shared book carries the share on the continue-listening shelf.
+				mustOK(t, "start saga2", patchJSON(t, e, root, "/api/me/progress/"+e.IDs["saga2"], `{"currentTime":1.5,"duration":3.056327,"progress":0.49}`))
+				listening := shelfItems(t, shelfByID(t, getShelves(t, e, root, bookLibrary, query("include", "share", "listening", "1")), "continue-listening"))
+				if len(listening) != 1 || listening[0].ID != e.IDs["saga2"] || listening[0].MediaItemShare == nil || listening[0].MediaItemShare.Slug != "trial-share-saga2" {
+					t.Fatalf("continue-listening share: %+v", listening[0])
+				}
+				removeRootProgress(t, e, "saga2")
+				// Finish only the first book: the next one is the continue-series entity.
+				mustOK(t, "finish saga1", patchJSON(t, e, root, "/api/me/progress/"+e.IDs["saga1"], `{"isFinished":true}`))
+				setLibrarySettings(t, e, `{"onlyShowLaterBooksInContinueSeries":true}`)
+				shelves := getShelves(t, e, root, bookLibrary, query("include", "rssfeed", "later", "2"))
+				next := shelfItems(t, shelfByID(t, shelves, "continue-series"))
+				if len(next) != 1 || next[0].ID != e.IDs["saga2"] {
+					t.Fatalf("continue-series under the setting: %+v", next)
+				}
+				if next[0].RssFeed == nil || !strings.HasSuffix(next[0].RssFeed.FeedURL, "/feed/browse-saga2-feed") {
+					t.Fatalf("continue-series rssFeed: %+v", next[0].RssFeed)
+				}
+				again := shelfItems(t, shelfByID(t, getShelves(t, e, root, bookLibrary, query("include", "rssfeed,share", "later", "3")), "listen-again"))
+				if len(again) != 1 || again[0].ID != e.IDs["saga1"] {
+					t.Fatalf("listen-again after finishing saga1: %+v", again)
+				}
+			},
+		},
+		{
 			Requirement: "route-r029", Invariant: "INV-ROUTE-R029-CONTRACT", Case: "normal", State: "stateless", Assertion: "personalized-after-progress-change",
 			Sources: []string{srcShelves, "server/managers/ApiCacheManager.js:7-12"},
 			Claim:   "After the listener finishes the first saga book and starts the first book of the third saga, the continue, continue-series, discover and listen-again shelves follow.",
@@ -244,4 +283,35 @@ func (s *suite) personalizedScenarios() []harness.Scenario {
 			},
 		},
 	}
+}
+
+// removeRootProgress deletes the root user's progress rows for an item key.
+// mediaProgresses.mediaItemId is the book or podcast id, not the item id.
+func removeRootProgress(t *testing.T, e *harness.Env, key string) {
+	t.Helper()
+	rows := e.Rows(t, "SELECT mp.id FROM mediaProgresses mp JOIN libraryItems li ON li.mediaId = mp.mediaItemId WHERE li.id = ? AND mp.userId = (SELECT id FROM users WHERE username = 'trial-root')", e.IDs[key])
+	for _, row := range rows {
+		mustOK(t, "remove progress "+key, e.Delete(t, e.Token(t, "root"), "/api/me/progress/"+row["id"].(string)))
+	}
+}
+
+// closeFeed closes an open RSS feed by slug.
+func closeFeed(t *testing.T, e *harness.Env, token, slug string) {
+	t.Helper()
+	feeds := e.Do(t, harness.Request{Path: "/api/feeds", Token: token})
+	mustOK(t, "feeds list", feeds)
+	var open struct {
+		Feeds []struct {
+			ID   string `json:"id"`
+			Slug string `json:"slug"`
+		} `json:"feeds"`
+	}
+	feeds.JSON(t, &open)
+	for _, feed := range open.Feeds {
+		if feed.Slug == slug {
+			mustOK(t, "close feed "+slug, postJSON(t, e, token, "/api/feeds/"+feed.ID+"/close", ""))
+			return
+		}
+	}
+	t.Fatalf("open feed %s not found", slug)
 }

@@ -192,6 +192,11 @@ func (s *suite) shelfDetailScenarios() []harness.Scenario {
 				if len(shared) != 2 || shared[e.IDs["saga2"]] != "trial-share-saga2" || shared[e.IDs["novel"]] != "trial-share-novel" {
 					t.Fatalf("admin shares on recently-added: %v", shared)
 				}
+				for _, item := range shelfItems(t, shelfByID(t, root, "discover")) {
+					if item.ID == e.IDs["novel"] && item.MediaItemShare != nil {
+						t.Fatalf("discover never carries a share: %+v", item.MediaItemShare)
+					}
+				}
 				for _, raw := range shelfByID(t, root, "recent-series").Entities {
 					var series seriesJSON
 					if err := json.Unmarshal(raw, &series); err != nil {

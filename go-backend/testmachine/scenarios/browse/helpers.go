@@ -59,14 +59,18 @@ type itemMedia struct {
 	NumEpisodes *int         `json:"numEpisodes"`
 }
 
-// collapsedSeries is the collapsedSeries object of a collapsed item.
+// collapsedSeries is the collapsedSeries object of a collapsed item. An empty
+// SeriesSequenceList means the key is absent or the item was not collapsed on
+// the sub-series path, where the key names the sequences the collapsed series
+// represents inside the filtered series.
 type collapsedSeries struct {
-	ID             string   `json:"id"`
-	Name           string   `json:"name"`
-	NameIgnore     string   `json:"nameIgnorePrefix"`
-	Sequence       *string  `json:"sequence"`
-	NumBooks       int      `json:"numBooks"`
-	LibraryItemIDs []string `json:"libraryItemIds"`
+	ID                 string   `json:"id"`
+	Name               string   `json:"name"`
+	NameIgnore         string   `json:"nameIgnorePrefix"`
+	Sequence           *string  `json:"sequence"`
+	NumBooks           int      `json:"numBooks"`
+	LibraryItemIDs     []string `json:"libraryItemIds"`
+	SeriesSequenceList string   `json:"seriesSequenceList"`
 }
 
 // feedRef is the minified feed of an item or series.

@@ -317,6 +317,11 @@ func (s *suite) reviewScenarios() []harness.Scenario {
 						t.Fatalf("shelves %v lack %s", got, want)
 					}
 				}
+				// An admin sees the share of a finished shared book on listen-again.
+				finished := shelfItems(t, shelfByID(t, getShelves(t, e, root, bookLibrary, query("include", "share", "finished", "1")), "listen-again"))
+				if len(finished) != 1 || finished[0].ID != e.IDs["saga2"] || finished[0].MediaItemShare == nil || finished[0].MediaItemShare.Slug != "trial-share-saga2" {
+					t.Fatalf("listen-again share: %+v", finished)
+				}
 				setLibrarySettings(t, e, `{"onlyShowLaterBooksInContinueSeries":true}`)
 				later := summary(t, e, getShelves(t, e, root, bookLibrary, query("later", "1")), "discover")
 				setLibrarySettings(t, e, `{"onlyShowLaterBooksInContinueSeries":false}`)

@@ -72,10 +72,14 @@
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-recent",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-progress-per-user",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-unknown-and-series-edges",
+    "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-undecodable-value",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-series-filter-sequence-order",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-include-rssfeed-and-share",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-series",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-with-series-filter",
+    "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-subseries-invalid-and-sort",
+    "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-subseries-collapsed-json",
+    "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-subseries-sorts-and-merge",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/podcast-items-shape-and-include",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/podcast-items-sorts",
     "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/podcast-items-filters",
@@ -185,6 +189,7 @@
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-recent",
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-progress-per-user",
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-unknown-and-series-edges",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-filter-undecodable-value",
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-series-filter-sequence-order"
       ],
       "evidence": [],
@@ -219,7 +224,10 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-series",
-        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-with-series-filter"
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-with-series-filter",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-subseries-invalid-and-sort",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-subseries-collapsed-json",
+        "go-backend/testmachine/scenarios/browse/run_test.go#TestReplacement/book-items-collapse-subseries-sorts-and-merge"
       ],
       "evidence": [],
       "exceptions": []
