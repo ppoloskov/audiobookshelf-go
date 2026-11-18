@@ -4,11 +4,13 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/libraries/:id/opml dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:93, server/controllers/LibraryController.js:1475) and Go registration No direct registrar match found; review composition wiring. Current assertion anchor(s): TestLibraryRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "GET /api/libraries/:id/opml answers an application/xml OPML 1.0 document for a caller who may access the library, listing each podcast of the library that has a feed URL as one rss outline carrying type, text and title (the podcast title) and xmlUrl (the feed URL) plus the escaped description and the language when the podcast has them; the generator never writes htmlUrl, skips podcasts without a feed URL, and filters the list by the caller's explicit-content and tag permissions. Unauthenticated is 401, an admin without the library is 403 and an unknown library id is 404.",
   "source": [
     "server/routers/ApiRouter.js:93",
-    "go-backend/internal/podcast/podcast.go",
-    "server/controllers/LibraryController.js:1475"
+    "server/controllers/LibraryController.js:1306-1324",
+    "server/controllers/LibraryController.js:1475-1500",
+    "server/utils/generators/opmlGenerator.js:1-50",
+    "server/utils/queries/libraryItemsPodcastFilters.js:12-44"
   ],
   "implementation": [
     "go-backend/internal/podcast/podcast.go"
@@ -20,33 +22,65 @@
   },
   "stateful": false,
   "tests": [
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/library-opml-lists-podcast-feeds",
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/library-opml-empty-for-book-library",
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/library-opml-respects-explicit-and-tag-permissions",
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/library-opml-rejections",
     "go-backend/internal/contracttest/journey_test.go:127#TestJourney"
   ],
-  "evidence": [],
+  "evidence": [
+    "go-backend/testmachine/scenarios/podcast_feed: the four OPML scenarios pass against pinned upstream in two consecutive full packet runs"
+  ],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "The stored description is escaped by opmlGenerator escapeForXML and again by the XML serializer, so a podcast description \"<p>Signal <b>description</b></p>\" appears as &lt;p&gt;Signal &lt;b&gt;description&lt;/b&gt;&lt;/p&gt; in the attribute; the scenario pins that value.",
+    "opmlGenerator tests podcast.itunesPageUrl although the model attribute is itunesPageURL, so the htmlUrl attribute is never written; the scenario asserts its absence."
   ],
   "invariants": [
     {
-      "id": "INV-ROUTE-R040-CONTRACT",
-      "class": "shape",
-      "contract": "GET /api/libraries/:id/opml dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:93, server/controllers/LibraryController.js:1475) and Go registration No direct registrar match found; review composition wiring. Current assertion anchor(s): TestLibraryRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "id": "INV-R040-SAMPLED",
+      "class": "auth",
+      "contract": "GET /api/libraries/:id/opml answers 401 without a token, 403 for an admin whose librariesAccessible does not contain the library and 404 for an unknown library id, and a rejected request returns no document.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:93",
-        "go-backend/internal/podcast/podcast.go",
-        "server/controllers/LibraryController.js:1475"
+        "server/controllers/LibraryController.js:1475-1500"
       ],
       "tests": [
-        "go-backend/internal/contracttest/journey_test.go:127#TestJourney"
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/library-opml-rejections"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-R040-OPML-001",
+      "class": "shape",
+      "contract": "An accepted request answers 200 with Content-Type application/xml and an OPML 1.0 document whose head title is \"Audiobookshelf Podcast Subscriptions\"; the body holds exactly one rss outline per podcast of the library that has a feedURL, with text and title equal to the podcast title, xmlUrl equal to the feedURL, description equal to the escaped stored description when set, language when set and no htmlUrl attribute, and no outline for a podcast without a feedURL; a library without podcasts answers the same document with an empty body.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:1306-1324",
+        "server/utils/generators/opmlGenerator.js:12-48"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/library-opml-lists-podcast-feeds",
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/library-opml-empty-for-book-library"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R040-PERM-001",
+      "class": "auth",
+      "contract": "The outline set is filtered by the caller, not by the admin role: a user without accessExplicitContent receives every subscription except an explicit podcast, and a user with accessAllTags false whose itemTagsSelected do not match receives every subscription except the podcast carrying that tag, while both keep the remaining outlines.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:1306-1320",
+        "server/utils/queries/libraryItemsPodcastFilters.js:12-44",
+        "server/models/User.js:646-683"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/library-opml-respects-explicit-and-tag-permissions"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }

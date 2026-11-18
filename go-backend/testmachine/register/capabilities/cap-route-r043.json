@@ -4,11 +4,11 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/libraries/:id/podcast-titles dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:96, server/controllers/LibraryController.js:1475) and Go registration No direct registrar match found; review composition wiring. Current assertion anchor(s): TestLibraryRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "GET /api/libraries/:id/podcast-titles is admin-only and answers {podcasts: [{title, itunesId, libraryItemId, libraryId}]} for every podcast whose library item belongs to the library, without tag or explicit filtering; a library with no podcasts answers an empty array. 401 without a token, 403 for a non-admin or an admin without the library, 404 for an unknown library id.",
   "source": [
     "server/routers/ApiRouter.js:96",
-    "go-backend/internal/podcast/podcast.go",
-    "server/controllers/LibraryController.js:1475"
+    "server/controllers/LibraryController.js:1386-1413",
+    "server/controllers/LibraryController.js:1475-1500"
   ],
   "implementation": [
     "go-backend/internal/podcast/podcast.go"
@@ -20,33 +20,48 @@
   },
   "stateful": false,
   "tests": [
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/podcast-titles-lists-library-podcasts",
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/podcast-titles-empty-for-book-library",
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/podcast-titles-rejections",
     "go-backend/internal/contracttest/journey_test.go:127#TestJourney"
   ],
-  "evidence": [],
+  "evidence": [
+    "go-backend/testmachine/scenarios/podcast_feed: the three title scenarios pass against pinned upstream in two consecutive full packet runs"
+  ],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "The itunesId of a podcast created by the OPML import is the empty string rather than null because PodcastManager.createPodcastsFromFeedUrls posts itunesId \"\"; the scenario pins that value."
   ],
   "invariants": [
     {
-      "id": "INV-ROUTE-R043-CONTRACT",
-      "class": "shape",
-      "contract": "GET /api/libraries/:id/podcast-titles dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:96, server/controllers/LibraryController.js:1475) and Go registration No direct registrar match found; review composition wiring. Current assertion anchor(s): TestLibraryRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "id": "INV-R043-SAMPLED",
+      "class": "auth",
+      "contract": "GET /api/libraries/:id/podcast-titles answers 401 without a token, 403 for a listener and for a finisher, 403 for an admin whose librariesAccessible does not contain the library, and 404 for an unknown library id.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:96",
-        "go-backend/internal/podcast/podcast.go",
-        "server/controllers/LibraryController.js:1475"
+        "server/controllers/LibraryController.js:1386-1390",
+        "server/controllers/LibraryController.js:1475-1500"
       ],
       "tests": [
-        "go-backend/internal/contracttest/journey_test.go:127#TestJourney"
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/podcast-titles-rejections"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-R043-TITLES-001",
+      "class": "shape",
+      "contract": "An admin request answers {podcasts} with one entry per podcast of the library carrying the stored title, the stored itunesId (null when never set), the library item id the client opens and the libraryId; the audiobook library answers an empty podcasts array.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:1392-1412",
+        "client/pages/library/_library/podcast/search.vue:214-219"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/podcast-titles-lists-library-podcasts",
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/podcast-titles-empty-for-book-library"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }

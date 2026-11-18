@@ -4,11 +4,13 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/podcasts/:id/checknew dispatches to the pinned TS handler PodcastController.middleware (ApiRouter.js:252, server/controllers/PodcastController.js:560) and Go registration No direct registrar match found; review composition wiring. Current assertion anchor(s): TestFeedOPMLAndSearchRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "GET /api/podcasts/:id/checknew is admin-only and requires a podcast item with a feed URL (400) that the user may access (403): it fetches the feed, reports the episodes published after media.lastEpisodeCheck that the podcast does not already have, limited to the ?limit query (default 3 when not a number; zero or negative means all), starts downloading each reported episode, sets lastEpisodeCheck to the request time, saves the item and emits item_updated with the new check time. An episode counts as already present when a stored episode has the same extraData.guid or the same enclosureURL; title, subtitle and publication time play no part in that identity. A failed feed fetch or a feed without episodes reports no episodes but still advances lastEpisodeCheck.",
   "source": [
     "server/routers/ApiRouter.js:252",
-    "go-backend/internal/podcast/podcast.go",
-    "server/controllers/PodcastController.js:560"
+    "server/controllers/PodcastController.js:277-303",
+    "server/managers/PodcastManager.js:380-455",
+    "server/models/Podcast.js:393-399",
+    "server/models/PodcastEpisode.js:66-107,168-176"
   ],
   "implementation": [
     "go-backend/internal/podcast/podcast.go"
@@ -18,35 +20,109 @@
     "error": "unverified",
     "edge": "unverified"
   },
-  "stateful": false,
+  "stateful": true,
   "tests": [
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-reports-new-episodes-and-advances-the-check",
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-repeat-returns-no-new-and-advances",
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-limit-parsing",
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-enclosure-identity",
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-new-episode-is-downloaded-with-its-guid",
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-guid-identity-survives-title-and-url-change",
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-unreachable-feed-still-advances",
+    "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-rejections-change-nothing",
     "go-backend/internal/podcast/podcast_test.go:552#TestFeedOPMLAndSearchRoutes"
   ],
-  "evidence": [],
+  "evidence": [
+    "go-backend/testmachine/scenarios/podcast_feed: the eight checknew scenarios pass against pinned upstream in two consecutive full packet runs"
+  ],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: checknew has no force parameter; the bundled client resets media.lastEpisodeCheck with PATCH /api/items/:id/media before asking for a given window.",
+    "The episode download started by the check is used as state setup only; the download queue lifecycle belongs to the podcast_episodes packet."
   ],
   "invariants": [
     {
-      "id": "INV-ROUTE-R153-CONTRACT",
-      "class": "shape",
-      "contract": "GET /api/podcasts/:id/checknew dispatches to the pinned TS handler PodcastController.middleware (ApiRouter.js:252, server/controllers/PodcastController.js:560) and Go registration No direct registrar match found; review composition wiring. Current assertion anchor(s): TestFeedOPMLAndSearchRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "id": "INV-R153-SAMPLED",
+      "class": "auth",
+      "contract": "GET /api/podcasts/:id/checknew answers 401 without a token, 403 for a non-admin and for an admin who cannot access the item library, 404 for an unknown or non-podcast item id, 500 for a book item and 400 for a podcast without a feed URL; no rejected request changes lastEpisodeCheck or any row.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:252",
-        "go-backend/internal/podcast/podcast.go",
-        "server/controllers/PodcastController.js:560"
+        "server/controllers/PodcastController.js:277-290",
+        "server/controllers/PodcastController.js:560-585"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:552#TestFeedOPMLAndSearchRoutes"
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-rejections-change-nothing"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-R153-CHECK-001",
+      "class": "state_transition",
+      "contract": "A check answers the feed episodes published after the stored lastEpisodeCheck that the podcast does not already have, sets media.lastEpisodeCheck to the request time (strictly forward on every call), persists it and emits item_updated whose media.lastEpisodeCheck equals the stored value; an unchanged feed checked again reports no episodes because they are no longer after the new check time.",
+      "status": "unverified",
+      "source": [
+        "server/managers/PodcastManager.js:380-455",
+        "server/controllers/PodcastController.js:294-301"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-reports-new-episodes-and-advances-the-check",
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-repeat-returns-no-new-and-advances"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R153-LIMIT-001",
+      "class": "shape",
+      "contract": "The ?limit query caps the reported episodes: a numeric limit reports at most that many, a non-numeric limit falls back to three, and zero or a negative limit reports every new episode.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PodcastController.js:292-293"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-limit-parsing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R153-IDENTITY-001",
+      "class": "identity",
+      "contract": "An episode counts as already present when a stored episode has the same extraData.guid or the same enclosureURL, so a title-only and enclosure-only change are not new while a new guid with a new enclosure is; a reported new episode is downloaded and stored with the feed guid in extraData, the feed enclosure URL and type, the feed title and publication time, and a later feed with the same guid but a new title and enclosure neither reports it nor rewrites the stored episode.",
+      "status": "unverified",
+      "source": [
+        "server/models/Podcast.js:393-399",
+        "server/models/PodcastEpisode.js:66-107,168-176",
+        "server/managers/PodcastManager.js:206-262"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-enclosure-identity",
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-new-episode-is-downloaded-with-its-guid",
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-guid-identity-survives-title-and-url-change"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R153-UNREACHABLE-001",
+      "class": "error",
+      "contract": "When the feed cannot be fetched the check answers an empty episodes array, still moves lastEpisodeCheck forward, still emits item_updated and creates no episode row.",
+      "status": "unverified",
+      "source": [
+        "server/managers/PodcastManager.js:385-455"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/checknew-unreachable-feed-still-advances"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
-  ]
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
 }
