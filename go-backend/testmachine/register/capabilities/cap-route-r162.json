@@ -4,9 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "GET /notifications at server/routers/ApiRouter.js:265. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "GET /notifications answers the notification settings document of the database and the notification event catalogue to an admin, answering 401 without a token and 403 for any authenticated user below admin.",
   "source": [
-    "server/routers/ApiRouter.js:265"
+    "server/routers/ApiRouter.js:265",
+    "server/controllers/NotificationController.js:25-30",
+    "server/objects/settings/NotificationSettings.js:21-42",
+    "server/utils/notifications.js:3-108"
   ],
   "implementation": [
     "go-backend/internal/notify/handlers.go"
@@ -21,10 +24,13 @@
     {
       "id": "INV-ROUTE-R162-ROUTE",
       "class": "shape",
-      "contract": "GET /notifications at server/routers/ApiRouter.js:265. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "GET /notifications answers 200 with {data: {events: [...6 events...]}, settings: {...}} where settings is NotificationSettings.toJSON (id notification-settings, appriseType api, appriseApiUrl, notifications, maxFailedAttempts, maxNotificationQueue, notificationDelay) and every event of server/utils/notifications.js is present in order with its name, requiresLibrary, descriptionKey, variables, defaults and testData; the onTest testData version is \"v\" plus the running server version, and the answer reflects stored settings and records without regard to query parameters.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:265"
+        "server/routers/ApiRouter.js:265",
+        "server/controllers/NotificationController.js:25-30",
+        "server/objects/settings/NotificationSettings.js:21-42",
+        "server/utils/notifications.js:3-108"
       ],
       "tests": [
         "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
@@ -35,12 +41,29 @@
         "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
         "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
         "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-get-defaults",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-get-reflects-stored-settings"
       ],
       "evidence": [],
       "exceptions": [
         "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
       ]
+    },
+    {
+      "id": "INV-ROUTE-R162-AUTH-001",
+      "class": "authorisation",
+      "contract": "GET /notifications answers 401 without a token and 403 for the fixture non-admin user through NotificationController.middleware, and a rejected read creates no notification-settings row.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:265",
+        "server/controllers/NotificationController.js:137-150"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-get-rejects-non-admin"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ],
   "tests": [
@@ -52,13 +75,14 @@
     "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
     "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
     "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-get-defaults",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-get-reflects-stored-settings",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-get-rejects-non-admin"
   ],
   "evidence": [],
   "exceptions": [
-    "Create, update, delete and delivery routes remain unverified; the tested GET samples do not cover notification record mutations or delivery side effects.",
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "normal, error and edge facets are covered by the listed scenarios.",
+    "The event catalogue is a static document; its 6 entries, order and every field are pinned, with onTest testData.version asserted as \"v\" plus the /status serverVersion so the value is not hard-coded."
   ]
 }

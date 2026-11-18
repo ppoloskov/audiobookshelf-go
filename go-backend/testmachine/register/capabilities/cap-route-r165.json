@@ -4,12 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "GET /notifications/test triggers the onTest notification event and must match upstream v2.37.2 response, authorization, delivery, state transitions, and broadcasts for tested query variants. at server/routers/ApiRouter.js:268. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "GET /notifications/test fires the onTest notification trigger for the enabled onTest subscriptions, delivering one Apprise payload each and counting the firing in the settings document; the fail query forces a failed attempt instead, and a non-admin is refused.",
   "source": [
     "server/routers/ApiRouter.js:268",
-    "server/controllers/NotificationController.js:67-69",
-    "server/managers/NotificationManager.js:150-200",
-    "server/objects/Notification.js:97-103"
+    "server/controllers/NotificationController.js:67-70",
+    "server/managers/NotificationManager.js:151-210",
+    "server/objects/Notification.js:41-102"
   ],
   "implementation": [
     "go-backend/internal/notify/handlers.go"
@@ -36,19 +36,26 @@
     "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
     "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
     "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-test-delivers-to-enabled-subscription",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-test-uses-the-updated-template",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-test-without-subscribers-sends-nothing",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-test-fail-override-counts-a-failure",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-test-repeats-increment-count",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-test-rejections-change-nothing"
   ],
   "invariants": [
     {
       "id": "INV-ROUTE-R165-ROUTE",
       "class": "shape",
-      "contract": "GET /notifications/test triggers the onTest notification event and must match upstream v2.37.2 response, authorization, delivery, state transitions, and broadcasts for tested query variants. at server/routers/ApiRouter.js:268. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "GET /notifications/test answers 200 with the text body OK, posts one Apprise payload {urls, title, body} per enabled onTest subscription with both templates rendered from the event test data (version is the running server version), and records numTimesFired plus one with lastFiredAt set and no failed attempt in memory and in the notification-settings row; it reads the current record values, sends nothing when no subscription is active for onTest, and ?fail=1 skips the Apprise request yet still counts one failed attempt and keeps the record enabled until maxFailedAttempts is reached.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:268",
-        "server/controllers/NotificationController.js:67-69",
-        "server/managers/NotificationManager.js:150-200",
-        "server/objects/Notification.js:97-103"
+        "server/controllers/NotificationController.js:67-70",
+        "server/managers/NotificationManager.js:151-178",
+        "server/managers/NotificationManager.js:222-235",
+        "server/objects/Notification.js:97-131"
       ],
       "tests": [
         "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
@@ -59,7 +66,11 @@
         "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
         "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
         "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-test-delivers-to-enabled-subscription",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-test-uses-the-updated-template",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-test-without-subscribers-sends-nothing",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-test-fail-override-counts-a-failure"
       ],
       "evidence": [],
       "exceptions": [
@@ -69,13 +80,11 @@
     {
       "id": "INV-ROUTE-R165-REPEAT",
       "class": "repeat_operation",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "Firing GET /notifications/test twice delivers the same rendered payload twice and increments numTimesFired to 2 with the consecutive failure count at 0.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:268",
-        "server/controllers/NotificationController.js:67-69",
-        "server/managers/NotificationManager.js:150-200",
-        "server/objects/Notification.js:97-103"
+        "server/controllers/NotificationController.js:67-70",
+        "server/objects/Notification.js:97-102"
       ],
       "tests": [
         "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
@@ -86,19 +95,34 @@
         "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
         "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
         "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-test-repeats-increment-count"
       ],
       "evidence": [],
       "exceptions": [
         "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
       ]
+    },
+    {
+      "id": "INV-ROUTE-R165-AUTH-001",
+      "class": "authorisation",
+      "contract": "GET /notifications/test answers 401 without a token and 403 for the fixture non-admin user, delivering nothing and leaving the settings document unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:268",
+        "server/controllers/NotificationController.js:137-150"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-test-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ],
   "evidence": [],
   "exceptions": [
-    "Queue saturation, concurrency and ordering, delayed drain, redirects/timeouts, and non-test lifecycle notification event types remain unverified.",
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "initial, repeat, changed, force and failure facets are covered by the listed scenarios.",
+    "An admitted trigger rewrites the settings row with the same value, so a no-subscriber trigger leaves the document value unchanged but moves the row updatedAt; the scenario asserts the value, not the timestamp.",
+    "Queue saturation and ordering under concurrent triggers are not asserted: the manager serialises triggers with a one second delay and stores only eventName/eventData in the queue, so a queued ?fail trigger loses its override; the packet waits for each trigger event instead of racing the queue."
   ]
 }

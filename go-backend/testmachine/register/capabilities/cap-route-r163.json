@@ -4,9 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "PATCH /notifications at server/routers/ApiRouter.js:266. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "PATCH /notifications stores the Apprise URL, the maximum queue size and the maximum failed attempts of the notification settings document and answers 200 OK; a non-admin is refused and an identical payload writes nothing.",
   "source": [
-    "server/routers/ApiRouter.js:266"
+    "server/routers/ApiRouter.js:266",
+    "server/controllers/NotificationController.js:38-44",
+    "server/objects/settings/NotificationSettings.js:73-95",
+    "server/Database.js:446-449"
   ],
   "implementation": [
     "go-backend/internal/notify/handlers.go"
@@ -21,10 +24,13 @@
     {
       "id": "INV-ROUTE-R163-ROUTE",
       "class": "shape",
-      "contract": "PATCH /notifications at server/routers/ApiRouter.js:266. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "PATCH /notifications with the settings page payload {appriseApiUrl, maxNotificationQueue, maxFailedAttempts} answers 200 with the text body OK, updates only those three values in settings (notificationDelay stays 1000, records are untouched), persists the whole document in the notification-settings settings row and a restarted server serves the same values; appriseApiUrl null clears the URL, after which a trigger delivers nothing and writes nothing.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:266"
+        "server/routers/ApiRouter.js:266",
+        "server/controllers/NotificationController.js:38-44",
+        "server/objects/settings/NotificationSettings.js:73-95",
+        "server/Database.js:446-449"
       ],
       "tests": [
         "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
@@ -35,7 +41,10 @@
         "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
         "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
         "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-settings-patch-persists",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-settings-patch-survives-a-restart",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-settings-patch-clears-the-apprise-url"
       ],
       "evidence": [],
       "exceptions": [
@@ -45,10 +54,11 @@
     {
       "id": "INV-ROUTE-R163-REPEAT",
       "class": "repeat_operation",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "Repeating the identical PATCH /notifications payload answers 200 and leaves the notification-settings row value and updatedAt unchanged because NotificationSettings.update reports no change and the controller then skips Database.updateSetting.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:266"
+        "server/controllers/NotificationController.js:38-44",
+        "server/objects/settings/NotificationSettings.js:73-95"
       ],
       "tests": [
         "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
@@ -59,19 +69,35 @@
         "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
         "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
         "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-settings-patch-repeat-writes-nothing"
       ],
       "evidence": [],
       "exceptions": [
         "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
       ]
+    },
+    {
+      "id": "INV-ROUTE-R163-AUTH-001",
+      "class": "authorisation",
+      "contract": "PATCH /notifications answers 401 without a token, 403 for the fixture non-admin user and 400 for a body that is not JSON, and none of the rejected requests changes the settings document or its row.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:266",
+        "server/controllers/NotificationController.js:137-150"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-settings-patch-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "tests": [
@@ -83,13 +109,17 @@
     "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
     "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
     "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-settings-patch-persists",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-settings-patch-survives-a-restart",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-settings-patch-clears-the-apprise-url",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-settings-patch-repeat-writes-nothing",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-settings-patch-rejections-change-nothing"
   ],
   "evidence": [],
   "exceptions": [
-    "Malformed-body failure behavior and repeated/no-op persistence semantics remain unverified.",
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "initial, repeat, changed and failure facets are covered by the listed scenarios.",
+    "force is not applicable: the settings PATCH has no force, override or refresh parameter.",
+    "A value that is absent from the body is not validated here: the web client always sends the three keys, and NotificationSettings.update coerces an absent maxFailedAttempts/maxNotificationQueue to 5/20 rather than rejecting it."
   ]
 }

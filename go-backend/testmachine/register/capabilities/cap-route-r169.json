@@ -4,9 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "GET /notifications/:id/test at server/routers/ApiRouter.js:272. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "GET /notifications/:id/test sends the event test data of that record as one Apprise payload and answers 200, 400 when no Apprise URL is configured and 500 when the endpoint fails; an unknown id answers 404 and a non-admin is refused.",
   "source": [
-    "server/routers/ApiRouter.js:272"
+    "server/routers/ApiRouter.js:272",
+    "server/controllers/NotificationController.js:122-128",
+    "server/managers/NotificationManager.js:212-235",
+    "server/objects/Notification.js:104-131"
   ],
   "implementation": [
     "go-backend/internal/notify/handlers.go"
@@ -26,16 +29,22 @@
     "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
     "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
     "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notification-test-delivers-event-test-data",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notification-test-apprise-failure-is-500",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notification-test-errors"
   ],
   "invariants": [
     {
       "id": "INV-ROUTE-R169-ROUTE",
       "class": "shape",
-      "contract": "GET /notifications/:id/test at server/routers/ApiRouter.js:272. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "GET /notifications/:id/test answers 200 with the text body OK and posts one Apprise payload {urls, title, body} rendered from that event's testData (not from a trigger), without changing lastFiredAt, numTimesFired, the failed-attempt counters or the settings row; it answers 500 when the Apprise endpoint rejects the payload with a non-2xx answer, when the record names an event the catalogue does not know, and when the endpoint does not answer within the six second client timeout.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:272"
+        "server/routers/ApiRouter.js:272",
+        "server/controllers/NotificationController.js:122-128",
+        "server/managers/NotificationManager.js:212-235",
+        "server/objects/Notification.js:104-131"
       ],
       "tests": [
         "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
@@ -46,19 +55,37 @@
         "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
         "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
         "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notification-test-delivers-event-test-data",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notification-test-apprise-failure-is-500"
       ],
       "evidence": [],
       "exceptions": [
         "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
       ]
+    },
+    {
+      "id": "INV-ROUTE-R169-AUTH-001",
+      "class": "authorisation",
+      "contract": "GET /notifications/:id/test answers 401 without a token, 403 for the fixture non-admin user, 404 for an unknown id and 400 with the client-visible text Apprise is not configured when no Apprise URL is set, delivering nothing in every case.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:272",
+        "server/controllers/NotificationController.js:122-128",
+        "server/controllers/NotificationController.js:137-150"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notification-test-errors"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ],
   "evidence": [],
   "exceptions": [
-    "This record covers selected route scenarios; edge cases and unrelated notification APIs are not established.",
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "normal, error and edge facets are covered by the listed scenarios.",
+    "The 400 body text \"Apprise is not configured\" is asserted because the notification card shows error.response.data in a toast (client/components/cards/NotificationCard.vue:100-110).",
+    "The timeout assertion waits about six seconds because the Apprise client timeout is fixed at 6000 ms.",
+    "A record with an event name outside the six-entry catalogue is reachable only through the API (the edit modal offers the catalogue), and the route answers 500 for it; the scenario asserts only the status and that nothing was posted."
   ]
 }

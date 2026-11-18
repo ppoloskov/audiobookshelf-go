@@ -4,9 +4,12 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Admitted notification triggers deliver enabled matching subscriptions, persist delivery outcomes, then emit notifications_updated with the ENTIRE settings object (appriseApiUrl,maxNotificationQueue,maxFailedAttempts,notifications). Characterize no-active-subscription and failed-delivery admission separately; no Go-derived no-change suppression is assumed.",
+  "contract": "An admitted notification trigger emits notifications_updated carrying the ENTIRE settings document (id, appriseType, appriseApiUrl, every notification record with its counters, maxFailedAttempts, maxNotificationQueue, notificationDelay) after the delivery outcomes are persisted; triggers that are not admitted emit nothing.",
   "source": [
-    "server/managers/NotificationManager.js"
+    "server/managers/NotificationManager.js:174-177",
+    "server/objects/settings/NotificationSettings.js:33-42",
+    "server/objects/Notification.js:41-57",
+    "client/pages/config/notifications.vue:167-172"
   ],
   "implementation": [
     "go-backend/internal/notify/delivery.go"
@@ -19,12 +22,19 @@
   "stateful": true,
   "tests": [
     "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
-    "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable"
+    "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-updated-event-carries-the-whole-document",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-updated-event-repeats-per-trigger",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-updated-event-reflects-changed-settings",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-updated-event-with-no-subscribers",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-updated-event-reflects-a-fail-override",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-updated-event-absent-when-not-admitted"
   ],
   "evidence": [],
   "exceptions": [
-    "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+    "initial, repeat, changed, force and failure facets are covered by the listed scenarios.",
+    "The payload is pinned field by field, including the complete record list in document order; only lastFiredAt and the delivered payload's own createdAt are validated as live timestamps instead of fixed numbers.",
+    "No event is emitted for record or settings writes: only triggerNotification emits it (server/managers/NotificationManager.js:174-177), and the settings page updates from the route responses for those writes."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -37,14 +47,36 @@
     {
       "id": "INV-CAP-EVENT-NOTIFICATIONS-UPDATED",
       "class": "state_transition",
-      "contract": "Admitted notification triggers deliver enabled matching subscriptions, persist delivery outcomes, then emit notifications_updated with the ENTIRE settings object (appriseApiUrl,maxNotificationQueue,maxFailedAttempts,notifications). Characterize no-active-subscription and failed-delivery admission separately; no Go-derived no-change suppression is assumed.",
+      "contract": "Every admitted trigger emits exactly one notifications_updated event whose single object payload is Database.notificationSettings.toJSON(): id notification-settings, appriseType api, the current appriseApiUrl, maxFailedAttempts, maxNotificationQueue, notificationDelay and every notification record with id, libraryId, eventName, urls, templates, enabled, type, lastFiredAt, lastAttemptFailed, numConsecutiveFailedAttempts, numTimesFired and createdAt after the delivery outcome was applied; a repeat trigger emits another payload with the incremented counter, a settings or record write is reflected in the next payload, and a trigger without subscribers still emits the payload with an empty notifications array.",
       "status": "unverified",
       "source": [
-        "server/managers/NotificationManager.js"
+        "server/managers/NotificationManager.js:174-177",
+        "server/objects/settings/NotificationSettings.js:33-42",
+        "server/objects/Notification.js:41-57",
+        "client/pages/config/notifications.vue:167-172"
       ],
       "tests": [
-        "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
-        "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable"
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-updated-event-carries-the-whole-document",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-updated-event-repeats-per-trigger",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-updated-event-reflects-changed-settings",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-updated-event-with-no-subscribers",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-updated-event-reflects-a-fail-override"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-CAP-EVENT-NOTIFICATIONS-UPDATED-ADMISSION-001",
+      "class": "admission",
+      "contract": "No notifications_updated event is emitted when the notification system has no Apprise URL (the manager returns before the queue and the emitter) or when the trigger request is rejected for a non-admin, and the settings document is unchanged by either.",
+      "status": "unverified",
+      "source": [
+        "server/managers/NotificationManager.js:151-153",
+        "server/managers/NotificationManager.js:174-177",
+        "server/controllers/NotificationController.js:137-150"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-updated-event-absent-when-not-admitted"
       ],
       "evidence": [],
       "exceptions": []

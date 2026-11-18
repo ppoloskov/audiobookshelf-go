@@ -4,9 +4,11 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "GET /notificationdata at server/routers/ApiRouter.js:267. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "GET /notificationdata answers the deprecated bare notification event catalogue to an admin, answering 401 without a token and 403 for any authenticated user below admin; it never includes the settings document.",
   "source": [
-    "server/routers/ApiRouter.js:267"
+    "server/routers/ApiRouter.js:267",
+    "server/controllers/NotificationController.js:55-57",
+    "server/utils/notifications.js:3-108"
   ],
   "implementation": [
     "go-backend/internal/notify/handlers.go"
@@ -26,22 +28,26 @@
     "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
     "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
     "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notificationdata-returns-event-catalogue",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notificationdata-ignores-notification-settings",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notificationdata-rejects-non-admin"
   ],
   "evidence": [],
   "exceptions": [
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "normal, error and edge facets are covered by the listed scenarios.",
+    "The route is a deprecated alias kept for older clients; its body is pinned against the same catalogue as route-r162 and compared by value with the data field of GET /notifications."
   ],
   "invariants": [
     {
       "id": "INV-ROUTE-R164-ROUTE",
       "class": "shape",
-      "contract": "GET /notificationdata at server/routers/ApiRouter.js:267. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "GET /notificationdata answers 200 with exactly {events: [...6 events...]} (the same object GET /notifications nests under data, with no settings key) and ignores the notification settings entirely, also after they were written.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:267"
+        "server/routers/ApiRouter.js:267",
+        "server/controllers/NotificationController.js:55-57",
+        "server/utils/notifications.js:3-108"
       ],
       "tests": [
         "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
@@ -52,12 +58,29 @@
         "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
         "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
         "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notificationdata-returns-event-catalogue",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notificationdata-ignores-notification-settings"
       ],
       "evidence": [],
       "exceptions": [
         "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
       ]
+    },
+    {
+      "id": "INV-ROUTE-R164-AUTH-001",
+      "class": "authorisation",
+      "contract": "GET /notificationdata answers 401 without a token and 403 for the fixture non-admin user.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:267",
+        "server/controllers/NotificationController.js:137-150"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notificationdata-rejects-non-admin"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }

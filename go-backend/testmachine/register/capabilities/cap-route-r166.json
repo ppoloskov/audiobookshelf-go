@@ -4,9 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "POST /notifications at server/routers/ApiRouter.js:269. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "POST /notifications creates one notification record from the edit modal payload, stores it in the notification settings document and answers the whole settings object; a non-admin is refused.",
   "source": [
-    "server/routers/ApiRouter.js:269"
+    "server/routers/ApiRouter.js:269",
+    "server/controllers/NotificationController.js:78-90",
+    "server/objects/Notification.js:59-69",
+    "server/objects/settings/NotificationSettings.js:97-105"
   ],
   "implementation": [
     "go-backend/internal/notify/handlers.go"
@@ -26,23 +29,31 @@
     "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
     "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
     "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-stores-the-record",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-survives-a-settings-write",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-edge-values",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-twice-yields-two-records",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-rejections-change-nothing",
+    "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-survives-a-restart"
   ],
   "evidence": [],
   "exceptions": [
-    "force is not applicable to this HTTP CRUD operation; no force or refresh parameter exists.",
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "initial, repeat, changed and failure facets are covered by the listed scenarios.",
+    "force is not applicable: the create route has no force, override or refresh parameter.",
+    "A POST whose body has eventName but no urls array throws in NotificationSettings.createNotification and raises an unhandled rejection that terminates the server, so the packet does not send it; no client omits the urls array (the edit modal initialises it) and the behaviour is recorded as an upstream accident."
   ],
   "invariants": [
     {
       "id": "INV-ROUTE-R166-ROUTE",
       "class": "shape",
-      "contract": "POST /notifications at server/routers/ApiRouter.js:269. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "POST /notifications answers 200 with the whole settings object holding one appended record whose id is a v4 UUID, createdAt is a millisecond timestamp, libraryId and type are null when the payload sends null, enabled follows the payload, lastFiredAt is null, both counters are 0 and urls/templates are the posted values; the record survives later settings writes and a server restart with the same id, type, urls, templates and createdAt, and a payload with a library id, an explicit type info and enabled false is stored exactly.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:269"
+        "server/routers/ApiRouter.js:269",
+        "server/controllers/NotificationController.js:78-90",
+        "server/objects/Notification.js:59-69",
+        "server/objects/settings/NotificationSettings.js:97-105"
       ],
       "tests": [
         "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
@@ -53,7 +64,11 @@
         "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
         "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
         "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-stores-the-record",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-survives-a-settings-write",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-edge-values",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-survives-a-restart"
       ],
       "evidence": [],
       "exceptions": [
@@ -63,10 +78,11 @@
     {
       "id": "INV-ROUTE-R166-REPEAT",
       "class": "repeat_operation",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "Posting the same payload twice stores two records with different v4 UUIDs in creation order instead of replacing or ignoring the duplicate.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:269"
+        "server/controllers/NotificationController.js:78-90",
+        "server/objects/settings/NotificationSettings.js:97-105"
       ],
       "tests": [
         "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
@@ -77,19 +93,36 @@
         "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
         "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
         "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
-        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-twice-yields-two-records"
       ],
       "evidence": [],
       "exceptions": [
         "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
       ]
+    },
+    {
+      "id": "INV-ROUTE-R166-AUTH-001",
+      "class": "authorisation",
+      "contract": "POST /notifications answers 401 without a token and 403 for the fixture non-admin user; a body without eventName or with an empty urls list answers 200 and stores nothing, and no rejected request changes the settings document.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:269",
+        "server/controllers/NotificationController.js:78-90",
+        "server/objects/settings/NotificationSettings.js:97-105"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }
