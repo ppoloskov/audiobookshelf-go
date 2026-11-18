@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -227,11 +226,6 @@ func getUser(t *testing.T, e *harness.Env, token, id string) userView {
 	var view userView
 	resp.JSON(t, &view)
 	return view
-}
-
-// looksLikeJWT reports the three-part shape of a JWT.
-func looksLikeJWT(token string) bool {
-	return len(strings.Split(token, ".")) == 3
 }
 
 // withCopy returns the map with extra keys set (a copy).

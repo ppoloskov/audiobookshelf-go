@@ -30,14 +30,6 @@ func decodeProgressUpdated(t *testing.T, ev harness.Event) progressUpdated {
 	return payload
 }
 
-// progressUpdatedWhere matches a user_item_progress_updated event by its data.
-func progressUpdatedWhere(match func(progressUpdated) bool) func([]json.RawMessage) bool {
-	return func(args []json.RawMessage) bool {
-		var payload progressUpdated
-		return len(args) == 1 && json.Unmarshal(args[0], &payload) == nil && match(payload)
-	}
-}
-
 const progressEvent = "user_item_progress_updated"
 
 // session is a started playback session.

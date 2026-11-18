@@ -188,7 +188,7 @@ func checkHiddenFromListings(t *testing.T, e *harness.Env) {
 				NumBooks int    `json:"numBooks"`
 			} `json:"authors"`
 		}
-		json.Unmarshal(body(token, "/authors"), &list) // a decode failure leaves an empty map and fails below
+		_ = json.Unmarshal(body(token, "/authors"), &list) // a decode failure leaves an empty map and fails below
 		counts := map[string]int{}
 		for _, a := range list.Authors {
 			counts[a.Name] = a.NumBooks

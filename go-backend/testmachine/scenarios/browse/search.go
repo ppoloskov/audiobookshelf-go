@@ -65,29 +65,11 @@ func hitKeys(e *harness.Env, hits []searchHit) []string {
 	return keysOf(e, ids)
 }
 
-// names lists the names of count hits.
-func countNames(hits []countName) []string {
-	out := make([]string, 0, len(hits))
-	for _, hit := range hits {
-		out = append(out, hit.Name)
-	}
-	return out
-}
-
 // seriesHits lists the matched series names.
 func (r searchResult) seriesNames() []string {
 	out := make([]string, 0, len(r.Series))
 	for _, hit := range r.Series {
 		out = append(out, hit.Series.Name)
-	}
-	return out
-}
-
-// authorNames lists the matched author names.
-func (r searchResult) authorNames() []string {
-	out := make([]string, 0, len(r.Authors))
-	for _, hit := range r.Authors {
-		out = append(out, hit.Name)
 	}
 	return out
 }
