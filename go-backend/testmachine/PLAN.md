@@ -1,12 +1,13 @@
 # Test machine delivery plan — 2026-11-18
 
-Tasks for workers (DeepSeek V4.1 Flash `opencode-go/deepseek-v4.1-flash` and
-GLM 5.3 Flash `opencode-go/glm-5.3-flash`), dispatched by the architect, who
-reviews and commits every packet. One bounded owner packet per invocation, at
-most 3–4 workers in parallel, no overlapping write sets. Budget per packet:
-45 min characterization + 90 min implementation checkpoint (planning limits).
-Audit basis: [AUDIT.md](AUDIT.md). Paths below are the post-consolidation
-layout under `go-backend/testmachine/`.
+Status through commit `7fcd129f`: waves C, H, G and the oracle-hardening
+series (route parity, overfit audit, citation lint — all machine-health gates)
+are DONE; all 18 built packets have zero scenario coverage gaps. Workers:
+DeepSeek V4.1 Flash `opencode-go/deepseek-v4.1-flash` and GLM 5.3 Flash
+`opencode-go/glm-5.3-flash`, one bounded owner packet per invocation, at most
+3–4 in parallel, no overlapping write sets; the architect reviews, verifies
+and commits every landing. Audit basis: [AUDIT.md](AUDIT.md). Paths below are
+the post-consolidation layout under `go-backend/testmachine/`.
 
 Owner confirmation required before waves G–R are dispatched in full
 (≈ 30 worker invocations; flash-model effort dominated, highest-value first).

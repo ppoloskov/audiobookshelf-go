@@ -1,6 +1,6 @@
 # Go backend handover
 
-Updated 2026-11-18.
+Updated 2026-11-18 (evening).
 
 ## Current direction: one upstream-first verification machine
 
@@ -9,7 +9,34 @@ v2.37.2. Run `make verify VERIFY_ARGS="-target upstream"` for acceptance. A
 separate replacement assessment owns the Go comparison and rollback against
 Go-written data. [Delivery plan](ROADMAP.md#verification-delivery-plan)
 
-The second `store` slice added four upstream scenarios. Fresh init creates the
+The machine lives under `go-backend/testmachine/` (consolidated 2026-11-18;
+see `testmachine/AUDIT.md` and `testmachine/PLAN.md`). Baseline ledger,
+measured at commits through `7fcd129f`: **all 18 built packets have zero
+scenario coverage gaps** — store 20, author 76, browse 91, tools 94,
+playback_sessions 78, server 61, item_write 94, playlists 86, collections 62,
+library_data 49, auth 100, user_progress 50, user_me 48, admin_settings 71,
+library_manage 57, user_admin 58, item_read 101, plus the earlier slices.
+Every landing passed upstream twice by its worker and once more by the
+architect. Three oracle-hardening checkers are machine-health gates now:
+route parity (226/226 upstream sites in Go, 0 missing), the Go fixture-overfit
+audit (0 findings) and the scenario-citation lint (2155 citations, 0 findings).
+
+Remaining coverage work is the 16 zero-scenario packets (wave N in
+`testmachine/PLAN.md`): backup, feeds, item_cover, launch, mail, metadata,
+notify, oidc, playback_streams, podcast_episodes, podcast_feed, protocol,
+realtime, scan, share, user_misc — realtime first. After those, the dominant
+obligation is wave R: per-packet review receipts (only `auth` is accepted;
+author's is malformed and predates its scenarios; every other packet's is
+absent or stale — the `-gaps` review lines are now almost the whole ledger),
+the independent whole-contract inventory receipt, then the certification run.
+Known recorded quirks for the later Go adjudication: upstream's API cache can
+replay another origin's CORS header; `backup_applied` carries one null
+argument; upstream re-saves pre-write libraryItems during a scan
+(`BookScanner.js:428`) so live-server issue flags can be lost mid-scan.
+GLM 5.3 Flash hit the provider 5-hour usage limit during wave G; workers
+continued on DeepSeek V4.1 Flash.
+
+The earlier November 18 store slice added four upstream scenarios. Fresh init creates the
 26 named tables and seven triggers and preserves the new root identity and
 login across reopen. A mobile-shaped offline upload persists a 10-second
 session and its history while preserving the newer 27.5-second position.
