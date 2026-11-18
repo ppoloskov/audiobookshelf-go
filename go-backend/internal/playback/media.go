@@ -24,6 +24,7 @@ type sessionMedia struct {
 	metadata  any // item.BookMetadataFull or item.PodcastMetadataFull
 	chapters  []db.Chapter
 	files     []db.AudioFile // the playable files, with their MIME type filled in
+	episode   *item.EpisodeExpanded
 }
 
 // loadMedia reads the item and, for episodeID, that episode. It returns
@@ -60,6 +61,8 @@ func (h *Handler) loadMedia(ctx context.Context, itemID, episodeID string) (*ses
 		return nil, sql.ErrNoRows
 	}
 	episode := it.Podcast.Episodes[i]
+	expandedEpisode := episode.Expanded(it.ID)
+	m.episode = &expandedEpisode
 	file := playable(episode.AudioFile.V)
 	file.Index = 1
 	m.files, m.duration, m.chapters, m.title = []db.AudioFile{file}, db.Val(file.Duration), episode.Chapters.V, db.Val(episode.Title)

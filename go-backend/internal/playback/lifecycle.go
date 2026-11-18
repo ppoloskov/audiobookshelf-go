@@ -99,16 +99,21 @@ func (h *Handler) start(w http.ResponseWriter, r *http.Request, user *auth.Princ
 		if !media.FFmpegAvailable() {
 			return httpx.JSONStatus(w, r, http.StatusNotImplemented, map[string]string{"error": "FFmpeg is required for transcoded playback"})
 		}
-		if s.stream, err = h.startStream(s.ID, m.files, s.Duration, s.StartTime); err != nil {
+		if s.stream, err = h.startStream(s.ID, user.ID, s.item, m.episode, m.files, s.Duration, s.StartTime); err != nil {
 			return err
 		}
 	}
-	slog.Debug("playback session started", "session", s.ID, "user", user.ID, "item", m.item.ID, "playMethod", s.PlayMethod, "device", device.description())
-	h.add(s)
 	announce := s.forClient()
 	announce.LibraryItem = item.JSONNull
+	response := s.forClient()
+	stream := s.stream
+	h.add(s)
+	if stream != nil {
+		stream.start()
+	}
+	slog.Debug("playback session started", "session", s.ID, "user", user.ID, "item", m.item.ID, "playMethod", s.PlayMethod, "device", device.description())
 	h.emit.ToAdmins("user_stream_update", onlineUserOf(user, announce))
-	return httpx.JSON(w, r, s.forClient())
+	return httpx.JSON(w, r, response)
 }
 
 func onlineUserOf(user *auth.Principal, session Session) onlineUser {

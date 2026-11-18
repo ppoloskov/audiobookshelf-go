@@ -715,9 +715,9 @@ func TestMissingSegmentsResetOnlyWhenFarFromTheTranscode(t *testing.T) {
 	if n := e.events("stream_reset"); n != 1 {
 		t.Fatalf("%d resets, want 1", n)
 	}
-	payload, _ := e.payload["stream_reset"].(map[string]any)
-	if payload["startTime"] != float64(72) || payload["streamId"] != id {
-		t.Fatalf("payload %#v", payload)
+	payload, ok := e.payload["stream_reset"].(streamReset)
+	if !ok || payload.StartTime != 72 || payload.StreamID != id {
+		t.Fatalf("payload %#v", e.payload["stream_reset"])
 	}
 	waitIdle(t, st, 2) // sent to 72 s, started 30 s earlier: segment 2
 	if playlist, err := os.ReadFile(filepath.Join(dir, "output.m3u8")); err != nil || !strings.Contains(string(playlist), "output-10.ts") {

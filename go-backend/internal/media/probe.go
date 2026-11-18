@@ -12,7 +12,10 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
+
+const commandWaitDelay = time.Second
 
 func binary(env, name string) string {
 	if p := strings.TrimSpace(os.Getenv(env)); p != "" {
@@ -107,21 +110,45 @@ func ProbeRaw(ctx context.Context, path string) (any, error) {
 // Run runs ffmpeg with the arguments. On failure the error carries what
 // ffmpeg wrote to stderr.
 func Run(ctx context.Context, args ...string) error {
-	_, err := run(ctx, binary("FFMPEG_PATH", "ffmpeg"), append([]string{"-hide_banner", "-loglevel", "error"}, args...)...)
+	return RunStarted(ctx, nil, args...)
+}
+
+// RunStarted runs ffmpeg and calls onStarted only after the executable starts
+// successfully. The callback runs synchronously before waiting for completion.
+// It shares Run's command configuration and error handling.
+func RunStarted(ctx context.Context, onStarted func(), args ...string) error {
+	_, err := runStarted(ctx, onStarted, binary("FFMPEG_PATH", "ffmpeg"), append([]string{"-hide_banner", "-loglevel", "error"}, args...))
 	return err
 }
 
 func run(ctx context.Context, bin string, args ...string) ([]byte, error) {
+	return runStarted(ctx, nil, bin, args)
+}
+
+func runStarted(ctx context.Context, onStarted func(), bin string, args []string) ([]byte, error) {
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, bin, args...)
+	// WaitDelay bounds pipe draining after cancellation or direct-child exit;
+	// it does not impose a runtime limit on a command that is still running.
+	cmd.WaitDelay = commandWaitDelay
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		if msg := strings.TrimSpace(stderr.String()); msg != "" {
-			return nil, fmt.Errorf("%w: %s", err, msg[max(0, len(msg)-1024):])
-		}
-		return nil, err
+	if err := cmd.Start(); err != nil {
+		return nil, commandError(err, stderr.String())
+	}
+	if onStarted != nil {
+		onStarted()
+	}
+	if err := cmd.Wait(); err != nil {
+		return nil, commandError(err, stderr.String())
 	}
 	return stdout.Bytes(), nil
+}
+
+func commandError(err error, stderr string) error {
+	if msg := strings.TrimSpace(stderr); msg != "" {
+		return fmt.Errorf("%w: %s", err, msg[max(0, len(msg)-1024):])
+	}
+	return err
 }
 
 func FFmpegAvailable() bool {

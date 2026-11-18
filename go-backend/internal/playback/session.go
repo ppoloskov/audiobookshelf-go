@@ -205,9 +205,13 @@ func (h *Handler) remove(id string) {
 	h.mu.Lock()
 	s := h.sessions[id]
 	delete(h.sessions, id)
+	var transcode *stream
+	if s != nil {
+		transcode = s.stream
+	}
 	h.mu.Unlock()
 	if s != nil {
-		s.stream.stop(s.ID)
+		transcode.stop(s.ID)
 	}
 }
 
