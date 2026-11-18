@@ -22,12 +22,19 @@
     "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
     "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
     "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
-    "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing"
+    "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/fifo-order-one-at-a-time",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/queue-depth-three-drains-and-repeats-in-order",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/drained-queue-starts-next-admission-immediately",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-embed-runs-one-at-a-time",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-duplicate-keeps-task-order",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-embed-does-not-block-following-entries"
   ],
   "evidence": [],
   "exceptions": [
     "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+    "This packet binds the queued embed ordering and failure clauses with source-derived upstream scenarios. The task snapshot, track progress and encode cancellation clauses belong to the task/track event and encode route requirements of the later tools slice."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -43,14 +50,55 @@
       "contract": "Task records use stable id/action/start time; queued embed jobs preserve order; cancellation marks the task failed with cancellation message, kills work and installs no output; one failed embed does not prevent following queue entries; task_started/task_finished snapshots expose lifecycle fields to clients.",
       "status": "unverified",
       "source": [
-        "server/managers/AudioMetadataManager.js"
+        "server/managers/AudioMetadataManager.js:20-35",
+        "server/managers/AudioMetadataManager.js:51-56",
+        "server/managers/AudioMetadataManager.js:117-135",
+        "server/managers/AudioMetadataManager.js:266-287"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:181#TestCancelEncode",
         "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
         "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
         "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
-        "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing"
+        "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/fifo-order-one-at-a-time",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/queue-depth-three-drains-and-repeats-in-order",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/drained-queue-starts-next-admission-immediately",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-embed-runs-one-at-a-time"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-CAP-FLOW-TOOLS-JOB-LIFECYCLE-REJECT-001",
+      "class": "error",
+      "contract": "A duplicate admission refused with 400 creates no task record and does not disturb the running batch: the admitted items still start and finish one at a time in their original order.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ToolsController.js:84-101",
+        "server/controllers/ToolsController.js:112-151",
+        "server/managers/AudioMetadataManager.js:33-35"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-duplicate-keeps-task-order"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-CAP-FLOW-TOOLS-JOB-LIFECYCLE-FAILURE-001",
+      "class": "state_transition",
+      "contract": "One failed embed, whether it fails before touching media or inside the FFmpeg tagging step, is reported as isFailed with its error and removed from the running slots, and does not stop the queue: every following waiting entry is dequeued, started and finished in admission order, the failed item's audio is unchanged, a tag failure leaves the item cache directory and metadata file the source does not clean up, and a retry after the cause is removed succeeds.",
+      "status": "unverified",
+      "source": [
+        "server/managers/AudioMetadataManager.js:139-151",
+        "server/managers/AudioMetadataManager.js:236-246",
+        "server/managers/AudioMetadataManager.js:266-287",
+        "server/objects/Task.js:104-111",
+        "server/managers/TaskManager.js:32-37"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-embed-does-not-block-following-entries"
       ],
       "evidence": [],
       "exceptions": []

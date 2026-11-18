@@ -24,27 +24,29 @@
   "tests": [
     "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
     "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/immediate-embed-has-no-queued-transition",
-    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/idle-queue-repeat-keeps-immediate-and-waiting-distinct"
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/idle-queue-repeat-keeps-immediate-and-waiting-distinct",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/occupied-item-admissions-emit-no-transition",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-admission-keeps-queue-transitions",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-embed-advances-waiters"
   ],
   "evidence": [
     "go-backend/testmachine/reports/q01-embed-queue-review.md"
   ],
   "exceptions": [
-    "The Go unit test is a discovery lead. Earlier inspection found that immediate Go jobs may emit spurious transitions. Assessment against the shared upstream scenarios awaits the full upstream gate.",
-    "The upstream queue tests cover successful immediate, waiting and repeated work. Failure and recovery remain open."
+    "The Go unit test is a discovery lead. Earlier inspection found that immediate Go jobs may emit spurious transitions. Assessment against these shared upstream scenarios awaits the Go gate.",
+    "The failure facet induces three client-reachable causes: an unwritable item directory, an unwritable audio file and an unreadable (write-only) audio file that fails inside FFmpeg. The first two fail before media changes; the tag failure leaves the item cache directory and its metadata file, which the source does not clean up on an early return. Event stream, file state and retry are asserted for each."
   ],
   "invariants": [
     {
       "id": "INV-CAP-EVENT-METADATA-EMBED-QUEUE",
       "class": "shape",
-      "contract": "metadata_embed_queue_update emits admin-only {libraryItemId,queued:true} only for an admission that must wait behind a running job. A later dequeue emits {libraryItemId,queued:false} to all users; immediately started work does not fabricate a queued transition (AudioMetadataManager.js).",
+      "contract": "metadata_embed_queue_update carries exactly one object with a string libraryItemId and a boolean queued: admins receive queued:true only for an admission that waits behind the running job, every authenticated socket receives queued:false for that item when the slot frees and before its task starts, and an immediately started embed produces neither transition.",
       "status": "unverified",
       "source": [
-        "server/managers/AudioMetadataManager.js",
-        "server/SocketAuthority.js",
-        "server/managers/TaskManager.js:22-35",
-        "client/layouts/default.vue:263-268",
-        "client/store/tasks.js"
+        "server/managers/AudioMetadataManager.js:117-126",
+        "server/managers/AudioMetadataManager.js:270-287",
+        "server/SocketAuthority.js:57-88",
+        "client/layouts/default.vue:263-272"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
@@ -54,6 +56,58 @@
       "evidence": [
         "go-backend/testmachine/reports/q01-embed-queue-review.md"
       ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-CAP-EVENT-METADATA-EMBED-QUEUE-REJECT-001",
+      "class": "error",
+      "contract": "A single or batch admission refused because the item is already running or waiting answers 400, emits no metadata_embed_queue_update on any socket, creates no task and leaves the FIFO waiting list unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ToolsController.js:84-101",
+        "server/controllers/ToolsController.js:112-151",
+        "server/managers/AudioMetadataManager.js:33-35"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/occupied-item-admissions-emit-no-transition"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-CAP-EVENT-METADATA-EMBED-QUEUE-FAILURE-001",
+      "class": "state_transition",
+      "contract": "When the running embed fails at any pre-success stage (unwritable item directory, unwritable audio file or an FFmpeg tag failure), its task_finished reports isFailed true with that stage's error key and subs and it emits no queue transition of its own; every waiting item is still dequeued with queued:false and runs in admission order, a pre-media failure touches no media, and the same item embeds successfully once the cause is removed.",
+      "status": "unverified",
+      "source": [
+        "server/managers/AudioMetadataManager.js:139-151",
+        "server/managers/AudioMetadataManager.js:153-168",
+        "server/managers/AudioMetadataManager.js:236-246",
+        "server/managers/AudioMetadataManager.js:266-287",
+        "server/objects/Task.js:104-111",
+        "server/managers/TaskManager.js:32-37"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-embed-advances-waiters"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-CAP-EVENT-METADATA-EMBED-QUEUE-OPTIONS-001",
+      "class": "repeat_operation",
+      "contract": "forceEmbedChapters=1 changes only the recorded task option: a forced admission that finds the single running slot busy still waits behind it with queued:true and dequeues with queued:false, and a forced admission on an idle queue starts at once without a transition.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ToolsController.js:95-98",
+        "server/controllers/ToolsController.js:145-148",
+        "server/managers/AudioMetadataManager.js:65-75",
+        "server/managers/AudioMetadataManager.js:117-126"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-admission-keeps-queue-transitions"
+      ],
+      "evidence": [],
       "exceptions": []
     }
   ],

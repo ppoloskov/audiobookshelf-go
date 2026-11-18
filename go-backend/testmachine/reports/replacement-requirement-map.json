@@ -17,7 +17,7 @@
     "go-backend/testmachine/register/capabilities/cap-client-device-acceptance.json": "efa941f33b1a96475182a691547d00e993af489795f7db04583cd0eaec183fb3",
     "go-backend/testmachine/register/capabilities/cap-event-backup-applied.json": "6fa68d2175e1a4ffd9bf7d94413d69a9522d6b938a0c2350aa1dce15255d325c",
     "go-backend/testmachine/register/capabilities/cap-event-log.json": "786e14c6df3ae1ce0f76a708b0b875ebf774c6c91dd929b6aae08bbe0203e860",
-    "go-backend/testmachine/register/capabilities/cap-event-metadata-embed-queue.json": "403be52ab57dba046758415f5b4673685d3340985777f4cee8d8c05bcce46bbb",
+    "go-backend/testmachine/register/capabilities/cap-event-metadata-embed-queue.json": "50a0e9285ca5d76b4058d9c8969fe2b481faaeaefd39301e6400341f6a69bd7b",
     "go-backend/testmachine/register/capabilities/cap-event-notifications-updated.json": "c2525832e42e046bb92469a1c3ca1b39d99b3b9e9421b729147e209514252fbc",
     "go-backend/testmachine/register/capabilities/cap-event-task-lifecycle.json": "2a9ea244fe200f0fcd0c16363e8213feebc79073c2e556449e55a6668c40c2a7",
     "go-backend/testmachine/register/capabilities/cap-event-track-finished.json": "51d26350179ecbdcc736b13f9e543148f8996aee97ff1e8c4a46eed3c9759cee",
@@ -33,7 +33,7 @@
     "go-backend/testmachine/register/capabilities/cap-flow-mail-smtp-mime.json": "3f90f7285f91ea86e7f1c5157c674e7fea3d7c76030a774a72da238685d2d496",
     "go-backend/testmachine/register/capabilities/cap-flow-notify-delivery.json": "577150b63a87696e2c73359b9bdba378eca0573639e24ce6c286bf34efeee19d",
     "go-backend/testmachine/register/capabilities/cap-flow-settings-atomicity.json": "ee24b7e09a0606736c4dfc043330760514c2c3eaaf97d57bcde327742ab01a32",
-    "go-backend/testmachine/register/capabilities/cap-flow-tools-job-lifecycle.json": "f5586abf1525ef4bffd2df694123d904dbe19d8ef6cd9a0914274998b2d3dcc4",
+    "go-backend/testmachine/register/capabilities/cap-flow-tools-job-lifecycle.json": "58d884439842456ee9aa81020c78561da5a22149c489f3fbda7f642c63741f04",
     "go-backend/testmachine/register/capabilities/cap-format-backup-archive.json": "d4f87440082f4205bc874fc6944bf1fe9fe6c71974a9edac29284ab8b2a447f5",
     "go-backend/testmachine/register/capabilities/cap-format-daily-logs.json": "791490b3f7f32ba24b0444cb92c61344e56d68cd6d9e8e09b9723131e571e027",
     "go-backend/testmachine/register/capabilities/cap-format-metadata-json.json": "0a00c4e9c8a8da5c0123a01a958dfa270241db1a0bc52e35133f5eb9c00c655b",
@@ -6606,7 +6606,7 @@
       },
       "exceptions": [
         "The Go unit test is a discovery lead. Earlier inspection found that immediate Go jobs may emit spurious transitions. Assessment against these shared upstream scenarios awaits the Go gate.",
-        "The failure facet is characterized by removing the item directory's write permission, so the manager's own writability check fails before any media change; the event stream, retry and file state are asserted."
+        "The failure facet induces three client-reachable causes: an unwritable item directory, an unwritable audio file and an unreadable (write-only) audio file that fails inside FFmpeg. The first two fail before media changes; the tag failure leaves the item cache directory and its metadata file, which the source does not clean up on an early return. Event stream, file state and retry are asserted for each."
       ]
     },
     {
@@ -6640,7 +6640,7 @@
       },
       "exceptions": [
         "The Go unit test is a discovery lead. Earlier inspection found that immediate Go jobs may emit spurious transitions. Assessment against these shared upstream scenarios awaits the Go gate.",
-        "The failure facet is characterized by removing the item directory's write permission, so the manager's own writability check fails before any media change; the event stream, retry and file state are asserted."
+        "The failure facet induces three client-reachable causes: an unwritable item directory, an unwritable audio file and an unreadable (write-only) audio file that fails inside FFmpeg. The first two fail before media changes; the tag failure leaves the item cache directory and its metadata file, which the source does not clean up on an early return. Event stream, file state and retry are asserted for each."
       ]
     },
     {
@@ -6648,10 +6648,12 @@
       "invariant": "INV-CAP-EVENT-METADATA-EMBED-QUEUE-FAILURE-001",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "When the running embed fails before touching media, its task_finished reports isFailed true with the target-directory error and it emits no queue transition of its own; every waiting item is still dequeued with queued:false and runs in admission order, and the same item embeds successfully once the cause is removed.",
+      "contract": "When the running embed fails at any pre-success stage (unwritable item directory, unwritable audio file or an FFmpeg tag failure), its task_finished reports isFailed true with that stage's error key and subs and it emits no queue transition of its own; every waiting item is still dequeued with queued:false and runs in admission order, a pre-media failure touches no media, and the same item embeds successfully once the cause is removed.",
       "status": "unverified",
       "source": [
         "server/managers/AudioMetadataManager.js:139-151",
+        "server/managers/AudioMetadataManager.js:153-168",
+        "server/managers/AudioMetadataManager.js:236-246",
         "server/managers/AudioMetadataManager.js:266-287",
         "server/objects/Task.js:104-111",
         "server/managers/TaskManager.js:32-37"
@@ -6675,7 +6677,7 @@
       },
       "exceptions": [
         "The Go unit test is a discovery lead. Earlier inspection found that immediate Go jobs may emit spurious transitions. Assessment against these shared upstream scenarios awaits the Go gate.",
-        "The failure facet is characterized by removing the item directory's write permission, so the manager's own writability check fails before any media change; the event stream, retry and file state are asserted."
+        "The failure facet induces three client-reachable causes: an unwritable item directory, an unwritable audio file and an unreadable (write-only) audio file that fails inside FFmpeg. The first two fail before media changes; the tag failure leaves the item cache directory and its metadata file, which the source does not clean up on an early return. Event stream, file state and retry are asserted for each."
       ]
     },
     {
@@ -6710,7 +6712,7 @@
       },
       "exceptions": [
         "The Go unit test is a discovery lead. Earlier inspection found that immediate Go jobs may emit spurious transitions. Assessment against these shared upstream scenarios awaits the Go gate.",
-        "The failure facet is characterized by removing the item directory's write permission, so the manager's own writability check fails before any media change; the event stream, retry and file state are asserted."
+        "The failure facet induces three client-reachable causes: an unwritable item directory, an unwritable audio file and an unreadable (write-only) audio file that fails inside FFmpeg. The first two fail before media changes; the tag failure leaves the item cache directory and its metadata file, which the source does not clean up on an early return. Event stream, file state and retry are asserted for each."
       ]
     },
     {
@@ -7714,12 +7716,14 @@
       "invariant": "INV-CAP-FLOW-TOOLS-JOB-LIFECYCLE-FAILURE-001",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "One failed embed, reported as isFailed with its error and removed from the running slots, does not stop the queue: every following waiting entry is dequeued, started and finished in admission order, the failed item's media is unchanged, and a retry after the cause is removed succeeds.",
+      "contract": "One failed embed, whether it fails before touching media or inside the FFmpeg tagging step, is reported as isFailed with its error and removed from the running slots, and does not stop the queue: every following waiting entry is dequeued, started and finished in admission order, the failed item's audio is unchanged, a tag failure leaves the item cache directory and metadata file the source does not clean up, and a retry after the cause is removed succeeds.",
       "status": "unverified",
       "source": [
         "server/managers/AudioMetadataManager.js:139-151",
+        "server/managers/AudioMetadataManager.js:236-246",
         "server/managers/AudioMetadataManager.js:266-287",
-        "server/objects/Task.js:104-111"
+        "server/objects/Task.js:104-111",
+        "server/managers/TaskManager.js:32-37"
       ],
       "tests": [
         "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-embed-does-not-block-following-entries"

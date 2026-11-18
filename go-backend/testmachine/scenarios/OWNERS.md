@@ -170,9 +170,13 @@ Run your packet with coverage and look at the handlers you own:
 ```sh
 export REPLACEMENT_V8=$(mktemp -d)
 make verify-packet PACKET=<packet>
-node go-backend/testmachine/scripts/verify-coverage.mjs --v8 "$REPLACEMENT_V8" \
+node go-backend/testmachine/scripts/verify-coverage.mjs --root "$(git rev-parse --show-toplevel)" \
+  --v8 "$REPLACEMENT_V8" \
   --md "$REPLACEMENT_V8/coverage.md" --filter server/controllers/<Your>Controller.js
 ```
+
+`--root` is required: without it the script resolves the upstream tree
+relative to `go-backend/` and silently reports zero files.
 
 Every function and branch of the handlers behind your routes should be
 executed by a scenario that asserts its outcome. For each range that stays
