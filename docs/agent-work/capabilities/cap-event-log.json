@@ -1,0 +1,54 @@
+{
+  "id": "cap-event-log",
+  "parent": "http/server",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Only subscribed socket IDs receive log event; payload uses upstream LogObject shape and log setting levels control which entries are emitted.",
+  "source": [
+    "server/Logger.js:85",
+    "client/layouts/default.vue"
+  ],
+  "implementation": [
+    "go-backend/internal/server/runtime.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+    "State scenarios are not applicable to this stateless event-shape/audience requirement.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ],
+  "invariants": [
+    {
+      "id": "INV-CAP-EVENT-LOG",
+      "class": "shape",
+      "contract": "Only subscribed socket IDs receive log event; payload uses upstream LogObject shape and log setting levels control which entries are emitted.",
+      "status": "unverified",
+      "source": [
+        "server/Logger.js:85",
+        "client/layouts/default.vue"
+      ],
+      "tests": [
+        "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

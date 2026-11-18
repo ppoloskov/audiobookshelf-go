@@ -77,6 +77,66 @@ Per-area facts of the old code (routes, tables, hazards) are in
 
 ## Next
 
+- [ ] **Unified verification (foundation accepted; coverage open):** one Go-first/.mjs machine
+  ([VERIFICATION.md](VERIFICATION.md)). Deliver a suite certified against pinned
+  upstream v2.37.2 and ready for a separate Go comparison. Existing exclusions
+  retained. Migrate useful assertions
+  into the shared backend-independent suite without dropping older evidence.
+  The November 18 plan found scenarios in 17 of 34 owner packets. Twelve
+  filesystem-browse and path-existence scenarios passed upstream. Seven other
+  admin-file requirements still need scenarios and packet review. The item-write
+  repair resolved 50 missing bindings and passed 77 upstream scenarios.
+  Playback sessions resolved 21 missing bindings and passed 31 upstream scenarios.
+  Full plan validation succeeds and all 968 declared upstream scenarios passed
+  in the integrated run. The new `store` packet adds three passing checks for
+  repeat boot and bookmark, progress and catalog file persistence. The second
+  slice adds fresh init, offline sessions and settings durability. The latest
+  run passed 974 of 975 scenarios across 18 owner packets. Repair the intermittent
+  issue-count setup in `library_data` next. Tagged lint, unbound invariants,
+  incomplete owner packets and the whole-contract audit still block certification.
+  [Current handover](handover.md)
+  Q01 tools adds upstream scenarios for immediate, waiting and repeated metadata embeds. [Queue review and discovery blockers](docs/verification/q01-embed-queue-review.md).
+
+- [x] **Q00 requirement mapping (architect accepted):** [complete register and test mapping](docs/verification/replacement-requirement-map.md),
+  [source reconciliation](docs/verification/replacement-inventory-reconciliation.md),
+  and [ordered gap queue](docs/verification/replacement-gap-queue.md). This is
+  inventory, not whole-contract verification. Acceptance/review evidence is in
+  [the map task](../docs/agent-work/tasks/TASK-20261113-replacement-contract-map.md).
+- [ ] **Q01 tools — source-assertion family, implementation deferred:** audio task progress and
+  metadata queue lifecycle. Failure advancing the next waiter, task progress and persisted media effects remain open. One owner per invocation; review
+  between packets. Upstream assertion closure now precedes Go feature fixes. Q02–Q29 follow the queue, with packet splitting when needed.
+  Accepted playback lifecycle evidence remains separately scoped.
+
+### Verification delivery plan
+
+1. **Done.** Full plan validation passes after reconciling the declared
+   `item_write` and `playback_sessions` invariants with pinned source.
+2. **Baseline captured.** All 968 existing scenarios passed against upstream.
+   Resolve the inherited tagged lint findings in their owner packets. Check that the
+   upstream-only verdict can be reproduced on a supported clean setup and
+   reports discovery, assertion and review failures clearly. Address confirmed
+   runner defects in their own tooling packet. Review how the whole-contract
+   receipt depends on the local Node executable, installed dependencies and
+   Go application tree when establishing a reproducible handoff.
+3. Close the requirement gaps in `tests/replacement/packets.json`. Reuse working
+   fixtures, shared scenarios and reviewed assertions first. Prioritise database
+   state, lifecycle, real-client authentication and Socket.IO, scan and playback,
+   then fill remaining owner requirements. Each packet must substantiate its
+   errors, edge cases, transitions and durable and protocol effects as applicable.
+   Source-execution data identifies missed paths for review. Use the existing
+   author and library-data assertions when reconciling `items_updated` across
+   its producers and add evidence for any remaining scan producers.
+4. Give a Terra worker one bounded owner packet per invocation at medium effort.
+   The architect reviews the source and client claims and reruns the acceptance
+   checks before the next dispatch. Reuse current receipts. Use a single extra
+   review for high-risk or failed packets as needed, and reserve an independent
+   cross-packet audit for the complete source, client and persistence inventory.
+5. Deliver when `make verify VERIFY_ARGS="-target upstream"` exits zero from a
+   documented setup, with all applicable facets and active review receipts
+   accepted, upstream scenarios passing and input digests stable. Include the
+   report, setup and exact rerun command. The Go comparison and rollback trial
+   against Go-written data belong to the subsequent replacement assessment.
+
 Open follow-ups (details in [handover.md](handover.md)):
 
 - Replace the `logging` printf helpers with `slog` and delete them.

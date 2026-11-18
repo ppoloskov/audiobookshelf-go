@@ -1,0 +1,25 @@
+{
+ "id": "route-r205",
+ "parent": "http/adminops",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "PATCH /settings candidate recorded from server/routers/ApiRouter.js:348. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:348"
+ ],
+ "implementation": [
+  "go-backend/internal/adminops/handler.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/adminops/handler.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

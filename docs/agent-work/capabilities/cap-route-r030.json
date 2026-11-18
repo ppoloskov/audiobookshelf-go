@@ -1,25 +1,121 @@
 {
- "id": "route-r030",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /libraries/:id/filterdata candidate recorded from server/routers/ApiRouter.js:83. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:83"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r030",
+  "parent": "http/library",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/libraries/:id/filterdata dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:83, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"GET /api/libraries/{id}/filterdata\", inLibrary(h.filterData)). Current assertion anchor(s): TestJourneyLibrary. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:83",
+    "go-backend/internal/library/libraries.go",
+    "go-backend/internal/library/libraries.go:67",
+    "server/controllers/LibraryController.js:1475"
+  ],
+  "implementation": [
+    "go-backend/internal/library/libraries.go:67"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/contracttest/journey_library_test.go:47#TestJourneyLibrary",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/filterdata-book-library-fixture",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/filterdata-podcast-library-fixture",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/filterdata-repeat-returns-cached-document",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/filterdata-series-and-author-added-by-item-update",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/filterdata-denied-unknown-and-bad-paging",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/filterdata-enriched-values-for-every-user"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R030-CONTRACT",
+      "class": "shape",
+      "contract": "GET /api/libraries/:id/filterdata of the fixture book library answers its authors and series with ids, genres, narrators and languages, empty lists as arrays, the book, author and series counts, numIssues 0 and a loadedAt of now.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:83",
+        "server/controllers/LibraryController.js:878-881",
+        "server/utils/queries/libraryFilters.js:449-646"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/filterdata-book-library-fixture"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R030-PODCAST-001",
+      "class": "shape",
+      "contract": "GET /api/libraries/:id/filterdata of a podcast library lists only the podcast genres, tags and languages, keeps the book-only lists empty arrays, and reports podcastCount with zero book, author and series counts.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:83",
+        "server/controllers/LibraryController.js:878-881",
+        "server/utils/queries/libraryFilters.js:478-541"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/filterdata-podcast-library-fixture"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R030-CACHE-001",
+      "class": "shape",
+      "contract": "A second GET of the filter data without writes in between answers the identical document, including the same loadedAt, as the filter data is cached for 30 minutes. Updating an item through the API with a new series and a new author adds both, with their new ids, to the cached filter data without a restart, and the filter data keeps its loadedAt.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:83",
+        "server/utils/queries/libraryFilters.js:449-646",
+        "server/controllers/LibraryItemController.js:236-270",
+        "server/Database.js:551-575"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/filterdata-repeat-returns-cached-document",
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/filterdata-series-and-author-added-by-item-update"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R030-AUTH-001",
+      "class": "error",
+      "contract": "GET filterdata answers 401 without a token, 403 for a user without access to the library (also for an unknown id: access is checked before existence), 404 for an unknown id of an all-access user, and 400 for a negative limit before anything else.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:83",
+        "server/controllers/LibraryController.js:1475-1497"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/filterdata-denied-unknown-and-bad-paging"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R030-ENRICHED-001",
+      "class": "shape",
+      "contract": "After items are updated through the API and the server restarted, the filter data lists every distinct genre, tag, narrator, publisher, language and published decade sorted naturally, all series and authors with ids, the counts, and is identical for an explicit-content-restricted user and a tag-restricted user.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:83",
+        "server/controllers/LibraryController.js:878-881",
+        "server/utils/queries/libraryFilters.js:449-646",
+        "server/controllers/LibraryItemController.js:170-300"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/filterdata-enriched-values-for-every-user"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

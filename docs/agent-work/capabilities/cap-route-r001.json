@@ -1,74 +1,160 @@
 {
- "id": "route-r001",
- "parent": "http/identity",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /auth/refresh candidate recorded from server/Auth.js:331. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/Auth.js:331"
- ],
- "implementation": [
-  "go-backend/internal/identity/identity.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "verified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/identity/identity.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#refresh (differential pass)",
-  "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-rotation (rotation)",
-  "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-rotation-grace-replay (old token replay within 10-minute grace)",
-  "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-logout-refresh-revoked (revoked token 401)",
-  "go-backend/contracts/parity/parity-f01-f07-closure-report.json#differential"
- ],
- "exceptions": [],
- "invariants": [
-  {
-   "id": "INV-R001-SAMPLED",
-   "class": "shape",
-   "contract": "Sampled POST /auth/refresh via differential case(s) refresh: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: authentication.",
-   "status": "verified",
-   "source": [
-    "server/Auth.js:331"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#refresh"
-   ],
-   "exceptions": [
-    "Sampled evidence; unsampled request-shape variants are separate behaviors."
-   ]
+  "id": "route-r001",
+  "parent": "http/auth",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /auth/refresh. Refresh credentials from X-Refresh-Token take precedence over refresh_token cookie; successful refresh rotates/converges stored sessions and returns user.accessToken with refreshToken returned only for header clients; missing/invalid/expired/revoked credentials deny with 401.",
+  "source": [
+    "server/Auth.js:331",
+    "server/Auth.js:331-358",
+    "server/auth/TokenManager.js:205-268",
+    "server/auth/TokenManager.js:350-425",
+    "server/auth/TokenManager.js:19-20",
+    "server/Auth.js:349-358",
+    "server/auth/TokenManager.js:350-455"
+  ],
+  "implementation": [
+    "go-backend/internal/auth/service.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
   },
-  {
-   "id": "INV-R001-REFRESH-LIFECYCLE-001",
-   "class": "state_transition",
-   "contract": "Refresh lifecycle relationships verified per side: rotation CHANGES the refresh token and its Set-Cookie refresh_token equals the returned token; the rotated (old) token replays within the 10-minute grace returning the SAME stored rotated token re-cookied with matching Max-Age/Path/Expires/HttpOnly/SameSite=Lax; a CONCURRENT second refresh with the same original token returns the same rotated token (race/grace branch, TokenManager.js:246); the sqlite session row references the rotated token exactly once; after logout with the current token the row is deleted and that token refreshes with 401 json {'error':'Invalid refresh token'}.",
-   "status": "verified",
-   "source": [
-    "server/auth/TokenManager.js:408-420",
-    "server/auth/TokenManager.js:531-547",
-    "server/Auth.js:331-358"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-rotation",
-    "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-rotation-grace-replay",
-    "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-logout-refresh-revoked",
-    "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-concurrent-grace"
-   ],
-   "exceptions": [
-    "Grace replay sampled immediately within the default 600s window; exact expiry boundary and non-grace replay remain unverified. Logout with a rotated/stale token does not revoke a live session upstream (observed characterization). Go's concurrency unit test pins the race branch but does not establish upstream equivalence."
-   ]
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/auth/service_test.go:160#TestRefreshRotationConvergesAndGraceTokenWorks",
+    "go-backend/internal/auth/service_test.go:199#TestRefreshFailsClosed",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/refresh-via-cookie-rotates-session",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/default-token-lifetimes-and-claims",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/refresh-via-header-returns-refresh-token",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/refresh-header-wins-over-cookie",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/rotated-token-replays-within-grace",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/two-generations-old-token-denied",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/grace-expiry-denies-rotated-token",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/missing-refresh-token-denied",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/invalid-refresh-tokens-denied",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/denied-refresh-leaves-sessions-unchanged",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/inactive-user-refresh-denied",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/session-expired-in-database-denied-and-removed",
+    "go-backend/tests/replacement/auth/run_test.go#TestReplacement/expired-refresh-token-denied-and-session-removed"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#refresh (differential pass)",
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-rotation (rotation)",
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-rotation-grace-replay (old token replay within 10-minute grace)",
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-logout-refresh-revoked (revoked token 401)",
+    "go-backend/contracts/parity/parity-f01-f07-closure-report.json#differential"
+  ],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: this requirement has no force, hard or override mode"
+  ],
+  "invariants": [
+    {
+      "id": "INV-R001-REFRESH-LIFECYCLE-001",
+      "class": "state_transition",
+      "contract": "Default lifetimes: access JWT (userId, username, type access) expires after 1 hour, refresh JWT (type refresh) after 30 days, sessions.expiresAt about 30 days, grace about 10 minutes. A successful refresh rotates the session: new refreshToken in the single sessions row, previous token in lastRefreshToken with lastRefreshTokenExpiresAt, and a rotated refresh cookie (HttpOnly, Path=/, SameSite=Lax, 30 day MaxAge, Secure per request) whose value equals the stored token; the new access token authorizes.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:331-358",
+        "server/auth/TokenManager.js:65-73",
+        "server/auth/TokenManager.js:205-268",
+        "server/auth/TokenManager.js:350-425",
+        "server/auth/TokenManager.js:15-23",
+        "server/auth/TokenManager.js:133-180",
+        "server/auth/TokenManager.js:182-205",
+        "server/auth/TokenManager.js:210-275"
+      ],
+      "tests": [
+        "go-backend/internal/auth/service_test.go:160#TestRefreshRotationConvergesAndGraceTokenWorks",
+        "go-backend/internal/auth/service_test.go:199#TestRefreshFailsClosed",
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/refresh-via-cookie-rotates-session",
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/default-token-lifetimes-and-claims"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-rotation",
+        "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-rotation-grace-replay",
+        "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-logout-refresh-revoked",
+        "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-concurrent-grace"
+      ],
+      "exceptions": [
+        "Grace replay sampled immediately within the default 600s window; exact expiry boundary and non-grace replay remain unverified. Logout with a rotated/stale token does not revoke a live session upstream (observed characterization). Go's concurrency unit test pins the race branch but does not establish upstream equivalence."
+      ]
+    },
+    {
+      "id": "INV-R001-SAMPLED",
+      "class": "shape",
+      "contract": "POST /auth/refresh takes the refresh token from the refresh_token cookie or, with precedence, from x-refresh-token; the header form returns the rotated refresh token in user.refreshToken (equal to the sessions row and to the new cookie), the cookie form returns refreshToken:null. The answer is the login payload with a new access token.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:331-358",
+        "server/auth/TokenManager.js:205-268",
+        "server/auth/TokenManager.js:350-425"
+      ],
+      "tests": [
+        "go-backend/internal/auth/service_test.go:160#TestRefreshRotationConvergesAndGraceTokenWorks",
+        "go-backend/internal/auth/service_test.go:199#TestRefreshFailsClosed",
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/refresh-via-header-returns-refresh-token",
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/refresh-header-wins-over-cookie"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/full-suite-report.json#refresh"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R001-REFRESH-GRACE-001",
+      "class": "repeat_operation",
+      "contract": "A just-rotated refresh token replays inside the grace period (default 10 minutes, REFRESH_TOKEN_GRACE_PERIOD) with 200, a fresh access token and the already rotated refresh token without a second rotation; after the grace period, and for tokens two generations old, it is denied with 401.",
+      "status": "unverified",
+      "source": [
+        "server/auth/TokenManager.js:15-23",
+        "server/auth/TokenManager.js:205-268",
+        "server/auth/TokenManager.js:350-425",
+        "server/Auth.js:349-358"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/rotated-token-replays-within-grace",
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/two-generations-old-token-denied",
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/grace-expiry-denies-rotated-token"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Source-derived obligation and scenario binding only. No live run or independent completeness review was performed in this reconciliation; the full requirement remains open."
+      ]
+    },
+    {
+      "id": "INV-R001-REFRESH-DENIAL-001",
+      "class": "error",
+      "contract": "Missing, malformed, wrongly signed, access-type, expired (REFRESH_TOKEN_EXPIRY), revoked, database-expired-session and inactive-user refresh tokens are denied with 401 and a JSON error message; denial changes no sessions row except removing an expired session.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:331-358",
+        "server/auth/TokenManager.js:350-455",
+        "server/auth/TokenManager.js:387-396"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/missing-refresh-token-denied",
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/invalid-refresh-tokens-denied",
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/denied-refresh-leaves-sessions-unchanged",
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/inactive-user-refresh-denied",
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/session-expired-in-database-denied-and-removed",
+        "go-backend/tests/replacement/auth/run_test.go#TestReplacement/expired-refresh-token-denied-and-session-removed"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Source-derived obligation and scenario binding only. No live run or independent completeness review was performed in this reconciliation; the full requirement remains open."
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
   }
- ]
 }

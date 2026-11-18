@@ -1,0 +1,68 @@
+{
+  "packet": "Q00",
+  "date": "2026-11-13",
+  "base": "8990c2e61a1637a69effc4ca26e2df1748301889",
+  "working_tree": "Current checkout including pre-existing accepted playback overlay; Q00 changes only mapping/docs/Python tooling. Not clean shipping-source acceptance.",
+  "mapping_counts": {
+    "requirements": 345,
+    "invariants": 425,
+    "route_sites": 226,
+    "socket_name_direction_records": 77,
+    "syntax_socket_sites": 165,
+    "model_files": 25
+  },
+  "checks": [
+    {
+      "command": "python3 go-backend/tools/replacement_contract_map.py --check",
+      "exit_code": 0,
+      "result": "current views; all source sites and named references reconciled"
+    },
+    {
+      "command": "python3 -m unittest discover -s go-backend/tools -p 'test_replacement_contract_map.py'",
+      "exit_code": 0,
+      "tests": 8
+    },
+    {
+      "command": "python3 -m unittest discover -s go-backend/tools -p 'test_source_inventory.py'",
+      "exit_code": 0,
+      "tests": 5
+    },
+    {
+      "command": "GOCACHE=/private/tmp/abs-contract-map-gocache GOTOOLCHAIN=local go run /Users/paul/.agents/skills/go-scope-ledger/scripts/check-ledger.go -tasks docs/agent-work/tasks -capabilities docs/agent-work/capabilities",
+      "exit_code": 0
+    },
+    {
+      "command": "gofmt -l . (go-backend)",
+      "exit_code": 0,
+      "result": "no Go file paths; harmless mise cache permission warning"
+    },
+    {
+      "command": "GOCACHE=/private/tmp/abs-contract-map-gocache GOTOOLCHAIN=local go vet ./... (go-backend)",
+      "exit_code": 0
+    },
+    {
+      "command": "GOCACHE=/private/tmp/abs-contract-map-gocache GOTOOLCHAIN=local GOLANGCI_LINT_CACHE=/private/tmp/abs-contract-map-lintcache golangci-lint run ./... (go-backend)",
+      "exit_code": 0,
+      "result": "0 issues"
+    },
+    {
+      "command": "PATH=/private/tmp/abs-cleanup-checkpoint-20261105/ffmpeg-9.0.2-webp/bin:$PATH FFMPEG_PATH=/private/tmp/abs-cleanup-checkpoint-20261105/ffmpeg-9.0.2-webp/bin/ffmpeg GOCACHE=/private/tmp/abs-contract-map-gocache GOTOOLCHAIN=local go test ./... -count=1 -json > /private/tmp/abs-contract-map-go-tests.jsonl (go-backend; loopback-authorized)",
+      "exit_code": 0,
+      "test_run_records": 1706,
+      "test_pass_records": 1706,
+      "individual_test_skips": 0,
+      "packages_passed": 34,
+      "packages_without_tests": 3,
+      "log_sha256": "ac9d83294390991d5f3011e2e54c6655657166b6d9cb1e1c5a903756fb738d8e"
+    }
+  ],
+  "not_run": [
+    "Strict all-verified ledger (requirements remain open by design)",
+    "Fresh differential/real-client/device/rollback/cross-build acceptance for this mapping invocation",
+    "New race suites: Q00 changed no Go concurrency code"
+  ],
+  "architect_contract_review": "accepted after P2 corrections",
+  "architect_craft_review": "accepted after status-projection test correction",
+  "product_claim_permitted": false,
+  "production_packet_dispatched": false
+}

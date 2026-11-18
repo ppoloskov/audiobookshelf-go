@@ -1,0 +1,49 @@
+{
+ "id": "route-r111",
+ "parent": "http/userapi",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "PATCH /me/progress/:libraryItemId/:episodeId? candidate recorded from server/routers/ApiRouter.js:185. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:185"
+ ],
+ "implementation": [
+  "go-backend/internal/userapi/userapi.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/userapi/userapi.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#progress-write-invalid (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#progress-write (differential pass)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R111-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled PATCH /me/progress/:libraryItemId/:episodeId? via differential case(s) progress-write-invalid, progress-write: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: errors, progress.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:185"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#progress-write-invalid",
+    "go-backend/contracts/parity/full-suite-report.json#progress-write"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  }
+ ]
+}

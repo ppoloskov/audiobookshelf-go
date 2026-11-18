@@ -1,0 +1,51 @@
+{
+  "id": "socket-outgoing-item-added",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing item_added: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: clients_with_library_item_access. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/controllers/PodcastController.js:181",
+    "server/managers/PodcastManager.js:723",
+    "server/scanner/LibraryScanner.js:631"
+  ],
+  "implementation": [
+    "go-backend/internal/scan/update.go",
+    "go-backend/internal/podcast/create.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-ITEM-ADDED",
+      "class": "repeat_operation",
+      "contract": "Socket.IO outgoing item_added: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: clients_with_library_item_access. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PodcastController.js:181",
+        "server/managers/PodcastManager.js:723",
+        "server/scanner/LibraryScanner.js:631"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

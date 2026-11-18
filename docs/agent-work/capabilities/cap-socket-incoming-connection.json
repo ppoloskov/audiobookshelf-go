@@ -1,0 +1,44 @@
+{
+  "id": "socket-incoming-connection",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Engine.IO/Socket.IO connection lifecycle: authenticate clients before protected events, register actions before client use, manage disconnect/reconnect/heartbeat and per-user sockets without leaking initialization data. connection is a transport hook, not an application event.",
+  "source": [
+    "server/SocketAuthority.js:177"
+  ],
+  "implementation": [],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-INCOMING-CONNECTION",
+      "class": "repeat_operation",
+      "contract": "Engine.IO/Socket.IO connection lifecycle: authenticate clients before protected events, register actions before client use, manage disconnect/reconnect/heartbeat and per-user sockets without leaking initialization data. connection is a transport hook, not an application event.",
+      "status": "unverified",
+      "source": [
+        "server/SocketAuthority.js:177"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

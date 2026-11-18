@@ -1,0 +1,49 @@
+{
+ "id": "route-r072",
+ "parent": "http/userapi",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /users candidate recorded from server/routers/ApiRouter.js:134. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:134"
+ ],
+ "implementation": [
+  "go-backend/internal/userapi/userapi.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/userapi/userapi.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#user-list (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#user-list-after-delete (differential pass)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R072-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled GET /users via differential case(s) user-list, user-list-after-delete: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: users.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:134"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#user-list",
+    "go-backend/contracts/parity/full-suite-report.json#user-list-after-delete"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  }
+ ]
+}

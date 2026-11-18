@@ -1,0 +1,25 @@
+{
+ "id": "route-r070",
+ "parent": "http/catalog",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "PATCH /items/:id/ebook/:fileid/status candidate recorded from server/routers/ApiRouter.js:128. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:128"
+ ],
+ "implementation": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

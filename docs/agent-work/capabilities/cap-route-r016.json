@@ -1,24 +1,50 @@
 {
- "id": "route-r016",
- "parent": "http/unassigned",
- "kind": "behaviour",
- "scope": "in",
- "status": "characterized",
- "contract": "GET /^\\/libraries/ candidate recorded from server/routers/ApiRouter.js:68. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:68"
- ],
- "implementation": [],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [],
- "evidence": [],
- "exceptions": [
-  "Synthetic candidate (regex_literal): not a single exact upstream route; requires runtime-path reconciliation during verification.",
-  "Behavioral decision (TASK-0005, go-backend internal equivalent): the middleware is an in-process LRU response cache keyed by user+URL with full invalidation on model writes. The Go server computes every response fresh, which is observably equivalent under the complete-invalidation contract; upstream cache staleness edges are not reproduced. Documented, not silently patched."
- ]
+  "id": "route-r016",
+  "parent": "http/server",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "GET /api/libraries* response-cache middleware from /^\\/libraries/ at server/routers/ApiRouter.js:68. Preserve user-isolated response values and post-write freshness for matching library reads; internal caching is optional. This is cache middleware, not authorization middleware or a standalone endpoint.",
+  "source": [
+    "server/routers/ApiRouter.js:68"
+  ],
+  "implementation": [
+    "go-backend/internal/server/handler.go",
+    "go-backend/internal/httpx/respond.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Synthetic candidate (regex_literal): not a single exact upstream route; requires runtime-path reconciliation during verification.",
+    "Behavioral decision (TASK-0005, go-backend internal equivalent): the middleware is an in-process LRU response cache keyed by user+URL with full invalidation on model writes. The Go server computes every response fresh, which is observably equivalent under the complete-invalidation contract; upstream cache staleness edges are not reproduced. Documented, not silently patched.",
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R016-CACHE",
+      "class": "precedence",
+      "contract": "Library GET responses remain isolated by authenticated user and reflect committed writes; conditional validators must not serve stale or unauthorized payloads. Recreating the upstream LRU algorithm is unnecessary.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:68",
+        "server/managers/ApiCacheManager.js"
+      ],
+      "tests": [
+        "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current conditional-GET journey covers selected reads only; complete user-isolation and mutation-invalidation paths remain unverified."
+      ]
+    }
+  ]
 }

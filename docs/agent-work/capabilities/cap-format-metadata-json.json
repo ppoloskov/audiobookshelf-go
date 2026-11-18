@@ -1,0 +1,56 @@
+{
+  "id": "format-metadata-json",
+  "parent": "scan",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "metadata.json written after changes remains readable by v2.37.2 and reconstructs book/podcast metadata, locked fields and identity; empty/null values and repeated write/rescan preserve meaning; write failure cannot leave a partially installed metadata file.",
+  "source": [
+    "server/utils/generators/abmetadataGenerator.js",
+    "server/scanner/",
+    "go-backend/ARCHITECTURE.md"
+  ],
+  "implementation": [
+    "go-backend/internal/scan/metadata.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/scan/scan_test.go:270#TestWriteMetadataIsReadableAndRoundTrips",
+    "go-backend/internal/scan/scan_test.go:249#TestMetadataJSONSeriesStringsAreRead"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-FORMAT-METADATA-JSON",
+      "class": "repeat_operation",
+      "contract": "metadata.json written after changes remains readable by v2.37.2 and reconstructs book/podcast metadata, locked fields and identity; empty/null values and repeated write/rescan preserve meaning; write failure cannot leave a partially installed metadata file.",
+      "status": "unverified",
+      "source": [
+        "server/utils/generators/abmetadataGenerator.js",
+        "server/scanner/",
+        "go-backend/ARCHITECTURE.md"
+      ],
+      "tests": [
+        "go-backend/internal/scan/scan_test.go:270#TestWriteMetadataIsReadableAndRoundTrips",
+        "go-backend/internal/scan/scan_test.go:249#TestMetadataJSONSeriesStringsAreRead"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "id": "cap-event-task-lifecycle",
+  "parent": "http/tools",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "task_started and task_finished broadcast to all users; task JSON carries id/action/title/titleKey/description/descriptionKey/substitutions/start and finish times and finished/failed/success booleans; completion reflects errors/cancellation in error/errorKey.",
+  "source": [
+    "server/objects/Task.js",
+    "server/SocketAuthority.js"
+  ],
+  "implementation": [
+    "go-backend/internal/events/events.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/events/events_test.go:8#TestEmitterAudiencesAndNilEmitter",
+    "go-backend/internal/events/events_test.go:32#TestTaskLifecycleJSON",
+    "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-CAP-EVENT-TASK-LIFECYCLE",
+      "class": "timeline",
+      "contract": "task_started and task_finished broadcast to all users; task JSON carries id/action/title/titleKey/description/descriptionKey/substitutions/start and finish times and finished/failed/success booleans; completion reflects errors/cancellation in error/errorKey.",
+      "status": "unverified",
+      "source": [
+        "server/objects/Task.js",
+        "server/SocketAuthority.js"
+      ],
+      "tests": [
+        "go-backend/internal/events/events_test.go:8#TestEmitterAudiencesAndNilEmitter",
+        "go-backend/internal/events/events_test.go:32#TestTaskLifecycleJSON",
+        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

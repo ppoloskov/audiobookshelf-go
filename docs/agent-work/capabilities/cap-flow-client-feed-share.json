@@ -1,0 +1,71 @@
+{
+  "id": "flow-client-feed-share",
+  "parent": "share",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Feed/share lifecycle across authenticated management routes and unauthenticated public consumers: open/close feeds, create/delete shares, public metadata/media/progress and expiry.",
+  "source": [
+    "server/routers/ApiRouter.js:310-326",
+    "server/controllers/RSSFeedController.js:18-190",
+    "server/controllers/ShareController.js:313-400"
+  ],
+  "implementation": [
+    "go-backend/internal/share/share.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-FLOW-CLIENT-FEED-SHARE-001",
+      "class": "state_transition",
+      "contract": "Journey covers invalid and valid feed/share creation, close/delete, public RSS XML and public share routes; direct tests assert public session progress/track/download and expiry/session closure.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/RSSFeedController.js",
+        "server/controllers/ShareController.js"
+      ],
+      "tests": [
+        "go-backend/internal/contracttest/journey_steps_feeds_test.go",
+        "go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh",
+        "go-backend/internal/share/share_test.go:159#TestShareSessionProgressTrackDownload",
+        "go-backend/internal/share/share_test.go:204#TestShareExpiryClosesOnceOnEveryRoute",
+        "go-backend/internal/share/share_test.go:223#TestShareDeleteClosesSessions"
+      ],
+      "evidence": [
+        "go-backend/internal/contracttest/journey_steps_feeds_test.go",
+        "go-backend/internal/share/share_test.go:TestFeedOpenListPublicRefresh",
+        "go-backend/internal/share/share_test.go:TestShareSessionProgressTrackDownload",
+        "go-backend/internal/share/share_test.go:TestShareExpiryClosesOnceOnEveryRoute",
+        "go-backend/internal/share/share_test.go:TestShareDeleteClosesSessions"
+      ],
+      "exceptions": [
+        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed."
+      ]
+    }
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/contracttest/journey_test.go:127#TestJourney",
+    "go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh",
+    "go-backend/internal/share/share_test.go:159#TestShareSessionProgressTrackDownload",
+    "go-backend/internal/share/share_test.go:204#TestShareExpiryClosesOnceOnEveryRoute",
+    "go-backend/internal/share/share_test.go:223#TestShareDeleteClosesSessions"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Client evidence: contracts/clients/official-app.md RSS/share rows; clients mark feed management and public sharing used. Complete exact event recipient/payload/timing and every public status/media variant are outside the current mapped tests.",
+    "State scenario force is not applicable for this client workflow because none of its mapped operations has a force/refresh mode; changed and repeat outcomes remain unverified unless an invariant explicitly states otherwise.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ]
+}

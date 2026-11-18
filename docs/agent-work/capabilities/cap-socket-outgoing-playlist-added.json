@@ -1,0 +1,66 @@
+{
+  "id": "socket-outgoing-playlist-added",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing playlist_added: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/controllers/PlaylistController.js:118",
+    "server/controllers/PlaylistController.js:560"
+  ],
+  "implementation": [
+    "go-backend/internal/list/playlist.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/list/list_ported_test.go:310#TestPortedCreatePlaylistFromCollection",
+    "go-backend/internal/list/list_test.go:383#TestPlaylistCreateAddAndReorder",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/event-added-on-create-reaches-owner-sockets-only",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/event-added-from-collection",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/event-added-repeat-and-late-socket",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/event-added-not-sent-for-rejected-create"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-PLAYLIST-ADDED",
+      "class": "repeat_operation",
+      "contract": "playlist_added carries the expanded playlist of a successful create (or create from collection) and goes to every socket of the owner only; never to other users, administrators or unauthenticated sockets, and is not sent for rejected requests.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PlaylistController.js:118",
+        "server/SocketAuthority.js:68-78",
+        "server/controllers/PlaylistController.js:560",
+        "server/controllers/PlaylistController.js:33-84",
+        "server/controllers/PlaylistController.js:538-540"
+      ],
+      "tests": [
+        "go-backend/internal/list/list_ported_test.go:310#TestPortedCreatePlaylistFromCollection",
+        "go-backend/internal/list/list_test.go:383#TestPlaylistCreateAddAndReorder",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/event-added-on-create-reaches-owner-sockets-only",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/event-added-from-collection",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/event-added-repeat-and-late-socket",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/event-added-not-sent-for-rejected-create"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

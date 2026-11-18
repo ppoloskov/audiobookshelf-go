@@ -1,0 +1,54 @@
+{
+  "id": "socket-outgoing-cover-search-error",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing cover_search_error: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/SocketAuthority.js:378",
+    "server/SocketAuthority.js:389",
+    "server/SocketAuthority.js:426"
+  ],
+  "implementation": [
+    "go-backend/internal/realtime/covers.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-COVER-SEARCH-ERROR",
+      "class": "repeat_operation",
+      "contract": "Socket.IO outgoing cover_search_error: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "status": "unverified",
+      "source": [
+        "server/SocketAuthority.js:378",
+        "server/SocketAuthority.js:389",
+        "server/SocketAuthority.js:426"
+      ],
+      "tests": [
+        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

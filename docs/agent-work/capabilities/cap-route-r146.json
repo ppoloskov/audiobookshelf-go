@@ -1,25 +1,68 @@
 {
- "id": "route-r146",
- "parent": "http/playback",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /session/:id candidate recorded from server/routers/ApiRouter.js:241. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:241"
- ],
- "implementation": [
-  "go-backend/internal/playback/playback.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/playback/playback.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r146",
+  "parent": "http/playback",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/session/:id. Read an open playback session only as owner/admin; preserve session/libraryItem/track/device fields and return 404 after close or for unknown session.",
+  "source": [
+    "server/routers/ApiRouter.js:241",
+    "server/controllers/SessionController.js:338",
+    "server/controllers/SessionController.js:152"
+  ],
+  "implementation": [
+    "go-backend/internal/playback/playback.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/playback/playback_test.go:227#TestDirectPlayRangeOwnershipAndProgress",
+    "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R146-CONTRACT-001",
+      "class": "shape",
+      "contract": "GET /api/session/:id. Read an open playback session only as owner/admin; preserve session/libraryItem/track/device fields and return 404 after close or for unknown session.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:241",
+        "server/controllers/SessionController.js:338",
+        "server/controllers/SessionController.js:152"
+      ],
+      "tests": [
+        "go-backend/internal/playback/playback_test.go:227#TestDirectPlayRangeOwnershipAndProgress",
+        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
+        "go-backend/tests/replacement/playback_sessions/run_test.go#TestReplacement/session-get-open-session",
+        "go-backend/tests/replacement/playback_sessions/run_test.go#TestReplacement/session-get-item-removed"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+      ]
+    },
+    {
+      "id": "INV-R146-AUTH-001",
+      "class": "error",
+      "contract": "GET /api/session/:id is 401 unauthenticated, 404 for an unknown, stored-only or closed session (before the owner check) and 403 for another non-admin user.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:241",
+        "server/controllers/SessionController.js:313-326"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/playback_sessions/run_test.go#TestReplacement/session-get-refusals"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

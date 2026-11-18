@@ -1,25 +1,57 @@
 {
- "id": "route-r223",
- "parent": "http/sharing",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /share/:slug/download candidate recorded from server/routers/PublicRouter.js:19. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/PublicRouter.js:19"
- ],
- "implementation": [
-  "go-backend/internal/sharing/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/sharing/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r223",
+  "parent": "http/share",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /public/share/:slug/download. Download shared media only with a valid cookie/session and allowDownload; disabled download returns 403 and invalid/expired sessions deny, preserving range/attachment behavior.",
+  "source": [
+    "server/routers/PublicRouter.js:19",
+    "server/controllers/ShareController.js:226"
+  ],
+  "implementation": [
+    "go-backend/internal/share/share.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/share/share_test.go:159#TestShareSessionProgressTrackDownload",
+    "go-backend/internal/share/share_test.go:204#TestShareExpiryClosesOnceOnEveryRoute"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-R223-CONTRACT-001",
+      "class": "state_transition",
+      "contract": "GET /public/share/:slug/download. Download shared media only with a valid cookie/session and allowDownload; disabled download returns 403 and invalid/expired sessions deny, preserving range/attachment behavior.",
+      "status": "unverified",
+      "source": [
+        "server/routers/PublicRouter.js:19",
+        "server/controllers/ShareController.js:226"
+      ],
+      "tests": [
+        "go-backend/internal/share/share_test.go:159#TestShareSessionProgressTrackDownload",
+        "go-backend/internal/share/share_test.go:204#TestShareExpiryClosesOnceOnEveryRoute"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+      ]
+    }
+  ]
 }

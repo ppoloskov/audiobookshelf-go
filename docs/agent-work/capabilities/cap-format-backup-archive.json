@@ -1,0 +1,54 @@
+{
+  "id": "format-backup-archive",
+  "parent": "backup",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Backups preserve pinned database/details/item/author metadata archive paths; upload/apply validates archive and migration version before swapping, retention respects settings, and TS can reopen the restored result.",
+  "source": [
+    "server/managers/BackupManager.js"
+  ],
+  "implementation": [
+    "go-backend/internal/backup/"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
+    "go-backend/internal/backup/backup_test.go:194#TestRetentionMaxSizeAndFailure",
+    "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-FORMAT-BACKUP-ARCHIVE",
+      "class": "repeat_operation",
+      "contract": "Backups preserve pinned database/details/item/author metadata archive paths; upload/apply validates archive and migration version before swapping, retention respects settings, and TS can reopen the restored result.",
+      "status": "unverified",
+      "source": [
+        "server/managers/BackupManager.js"
+      ],
+      "tests": [
+        "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
+        "go-backend/internal/backup/backup_test.go:194#TestRetentionMaxSizeAndFailure",
+        "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

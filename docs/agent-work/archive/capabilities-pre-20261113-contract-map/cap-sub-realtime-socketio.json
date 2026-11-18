@@ -1,0 +1,34 @@
+{
+ "id": "sub-realtime-socketio",
+ "parent": "realtime",
+ "kind": "subsystem",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "Socket.IO/Engine.IO engine-compatible endpoint on legacy and configured-prefixed paths: connect auth, per-user rooms, event payloads/order/recipients, log listeners, dispatch actions.",
+ "source": [
+  "server/SocketAuthority.js",
+  "server/Controller.js"
+ ],
+ "implementation": [
+  "go-backend/internal/realtime/hub.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "verified"
+ },
+ "tests": [
+  "go-backend/internal/realtime/hub_test.go",
+  "go-backend/internal/server/manager_test.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/core-flow-report.json#socket-connect-prefixed",
+  "go-backend/contracts/parity/core-flow-report.json#socket-connect-legacy",
+  "go-backend/contracts/parity/cascades-differential-report.json (fresh Node/Go Socket.IO client capture: cascade and restore event windows; backup_applied delivered on the existing authenticated connection)",
+  "go-backend/contracts/parity/scanner-flow-report.json (2026-10-30 isolated run: socket-connect-prefixed and socket-connect-legacy pass via the JS v4 client with auth/init handshake on both Engine.IO paths; earlier transient timeout under load noted in TASK ledger and kept under watch)"
+ ],
+ "exceptions": [
+  "Connect/auth handshake plus selected destructive-cascade and backup-restore event sequences verified; full per-event recipient/payload matrix remains unverified (source-inventory.json lists 165 Socket.IO event candidates).",
+  "One transient authentication timeout was observed in one full-suite run (2026-10-30) and not reproduced in the following run; suspected single-connection DB-pool contention under parallel probes — investigation packet recorded in the TASK ledger."
+ ]
+}

@@ -1,49 +1,81 @@
 {
- "id": "route-r082",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /collections/:id candidate recorded from server/routers/ApiRouter.js:148. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:148"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "verified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#collection-missing (differential pass)",
-  "go-backend/contracts/parity/full-suite-report.json#collection-read (differential pass)"
- ],
- "exceptions": [],
- "invariants": [
-  {
-   "id": "INV-R082-SAMPLED",
-   "class": "shape",
-   "contract": "Sampled GET /collections/:id via differential case(s) collection-missing, collection-read: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: collections, errors.",
-   "status": "verified",
-   "source": [
-    "server/routers/ApiRouter.js:148"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#collection-missing",
-    "go-backend/contracts/parity/full-suite-report.json#collection-read"
-   ],
-   "exceptions": [
-    "Sampled evidence; unsampled request-shape variants are separate behaviors."
-   ]
-  }
- ]
+  "id": "route-r082",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/collections/:id. Return one readable collection with ordered expanded books and timestamps; inaccessible/missing collections deny without leaking books.",
+  "source": [
+    "server/routers/ApiRouter.js:148",
+    "server/controllers/CollectionController.js:433",
+    "server/controllers/CollectionController.js:128",
+    "server/Server.js:354",
+    "server/Auth.js:61-63",
+    "server/controllers/CollectionController.js:433-444"
+  ],
+  "implementation": [
+    "go-backend/internal/list/list.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/get-fixture-collection",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/get-ordinary-users-and-rssfeed-include",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/get-rejections",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/get-hides-restricted-books",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/get-tag-restricted-user"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#collection-missing (differential pass)",
+    "go-backend/contracts/parity/full-suite-report.json#collection-read (differential pass)"
+  ],
+  "exceptions": [],
+  "invariants": [
+    {
+      "id": "INV-R082-SAMPLED",
+      "class": "shape",
+      "contract": "GET /api/collections/:id answers the expanded collection with books in link order and timestamps equal to the row; include=rssfeed adds rssFeed only while a feed is open.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:148"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/get-fixture-collection",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/get-ordinary-users-and-rssfeed-include"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/full-suite-report.json#collection-missing",
+        "go-backend/contracts/parity/full-suite-report.json#collection-read"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R082-ACCESS-001",
+      "class": "error",
+      "contract": "GET /api/collections/:id answers 401 without a token, 404 for an unknown collection or an inaccessible library (no books leaked) and 404 when all books are hidden by explicit/tag restrictions; hidden books are omitted otherwise.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:354",
+        "server/Auth.js:61-63",
+        "server/controllers/CollectionController.js:433-444",
+        "server/models/Collection.js:197-216",
+        "server/controllers/CollectionController.js:131-135",
+        "server/models/Collection.js:229-243",
+        "server/models/User.js:659-668"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/get-rejections",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/get-hides-restricted-books",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/get-tag-restricted-user"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Source-derived obligation and scenario binding only. No live run or independent completeness review was performed in this reconciliation; the full requirement remains open."
+      ]
+    }
+  ]
 }

@@ -1,0 +1,6 @@
+mise WARN  failed to write cache file: /Users/paul/Library/Caches/mise/neovim/0.12.5/exec_env_9664da8abc311adb-9305c.msgpack.z Operation not permitted (os error 1)
+go-backend/internal/playback/hls.go:294:5: S1005: unnecessary assignment to the blank identifier (staticcheck)
+				_ = <-finished // cancellation is intentional; reap and discard the stopped command error
+				^
+1 issues:
+* staticcheck: 1

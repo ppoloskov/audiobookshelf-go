@@ -1,0 +1,51 @@
+{
+  "id": "cap-event-track-finished",
+  "parent": "http/tools",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "On each successfully metadata-embedded track, emit admin-only {libraryItemId,ino}; do not emit for failed tracks.",
+  "source": [
+    "server/managers/AudioMetadataManager.js"
+  ],
+  "implementation": [
+    "go-backend/internal/tools/embed.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-CAP-EVENT-TRACK-FINISHED",
+      "class": "timeline",
+      "contract": "On each successfully metadata-embedded track, emit admin-only {libraryItemId,ino}; do not emit for failed tracks.",
+      "status": "unverified",
+      "source": [
+        "server/managers/AudioMetadataManager.js"
+      ],
+      "tests": [
+        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

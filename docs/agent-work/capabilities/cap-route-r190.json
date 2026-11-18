@@ -1,25 +1,54 @@
 {
- "id": "route-r190",
- "parent": "http/sharing",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /feeds/series/:seriesId/open candidate recorded from server/routers/ApiRouter.js:313. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:313"
- ],
- "implementation": [
-  "go-backend/internal/sharing/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/sharing/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r190",
+  "parent": "http/share",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/feeds/series/:seriesId/open. Admin opens a series feed with unique slug, ordered series books and stable feed/episode identities, emitting rss_feed_open after successful persistence.",
+  "source": [
+    "server/routers/ApiRouter.js:313",
+    "server/controllers/RSSFeedController.js:194",
+    "server/controllers/RSSFeedController.js:133"
+  ],
+  "implementation": [
+    "go-backend/internal/share/share.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [],
+  "evidence": [],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "No current named package test establishes the successful endpoint result; add explicit success and failure/state assertions in the owner packet."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-R190-CONTRACT-001",
+      "class": "state_transition",
+      "contract": "POST /api/feeds/series/:seriesId/open. Admin opens a series feed with unique slug, ordered series books and stable feed/episode identities, emitting rss_feed_open after successful persistence.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:313",
+        "server/controllers/RSSFeedController.js:194",
+        "server/controllers/RSSFeedController.js:133"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": [
+        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+      ]
+    }
+  ]
 }

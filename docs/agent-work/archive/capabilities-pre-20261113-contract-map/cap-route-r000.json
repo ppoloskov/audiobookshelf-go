@@ -1,0 +1,92 @@
+{
+ "id": "route-r000",
+ "parent": "http/identity",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /login candidate recorded from server/Auth.js:322. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/Auth.js:322"
+ ],
+ "implementation": [
+  "go-backend/internal/identity/identity.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/identity/identity.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#login (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#reader-login (differential pass)",
+  "go-backend/contracts/parity/parity-f05-local-session-differential.json#inactive-user-login-denied (login denial 401 passport-style, header-less)",
+  "go-backend/contracts/parity/parity-f01-f07-closure-report.json#differential"
+ ],
+ "exceptions": [
+  "Denial coverage is the inactive-user fixture plus the wrong-password wire regression; other malformed-login variants are not promoted."
+ ],
+ "invariants": [
+  {
+   "id": "INV-R000-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled POST /login via differential case(s) login, reader-login: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: authentication.",
+   "status": "verified",
+   "source": [
+    "server/Auth.js:322"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#login",
+    "go-backend/contracts/parity/full-suite-report.json#reader-login"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  },
+  {
+   "id": "INV-R000-LOCAL-DENIAL-001",
+   "class": "error",
+   "contract": "The sampled inactive-user and wrong-password denials match passport's default 401 response: exact Unauthorized bytes, Content-Length: 12, no Content-Type and no chunked transfer. net/http sniffing is suppressed with a present nil Content-Type header; no compatibility exception or header normalization is used.",
+   "status": "verified",
+   "source": [
+    "server/auth/LocalAuthStrategy.js:55",
+    "server/Auth.js:322"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs",
+    "go-backend/internal/identity/identity_test.go:TestDeniedLoginMatchesPassportWireHeaders"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#inactive-user-login-denied",
+    "go-backend/contracts/parity/parity-f01-f07-closure-report.json#differential"
+   ],
+   "exceptions": [
+    "Sampled the inactive-user creation-time path; the same Go writer and the same upstream passport default serve all local-login denials."
+   ]
+  },
+  {
+   "id": "INV-R000-LOGIN-EXPRESS-JSON-001",
+   "class": "shape",
+   "contract": "Successful login JSON response uses Express res.json semantics: Content-Type application/json; charset=utf-8, weak W/\"<hexlen>-<sha1>\" ETag whose length prefix equals the body bytes, non-HTML-escaped JSON, and issuance of a FRESH signed connect.sid session cookie (passport logIn regeneration) with Path=/ and HttpOnly in addition to (or instead of, for X-Return-Tokens) the refresh-token cookie.",
+   "status": "verified",
+   "source": [
+    "server/Auth.js:268"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-login"
+   ],
+   "exceptions": [
+    "etag digest/content-length normalize because the payload's backupPath embeds per-copy fixture root names; the W/\"<len>-\" prefix consistency is checked per side. JSON member order: Go emits alphabetically sorted object keys while upstream keeps insertion order; recorded member order is not a verified compatibility surface (candidate exception, owner approval pending)."
+   ]
+  }
+ ]
+}

@@ -1,0 +1,60 @@
+{
+  "id": "format-daily-logs",
+  "parent": "logging",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Pinned daily log records retain parseable timestamp/level/message/source shape and filenames; opening existing logs, retention/rollover and fatal crash log remain readable; subscribed sockets receive only allowed entries.",
+  "source": [
+    "server/Logger.js",
+    "server/managers/LogManager.js"
+  ],
+  "implementation": [
+    "go-backend/internal/logging/"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/logging/logging_test.go:221#TestDailyFileLineShapeWithoutHTMLEscaping",
+    "go-backend/internal/logging/logging_test.go:238#TestBufferedUntilOpenAndExistingFileLoaded",
+    "go-backend/internal/logging/logging_test.go:271#TestRetentionAtOpenAndRolloverAtMidnight",
+    "go-backend/internal/logging/logging_test.go:328#TestCrashLogReceivesFatalOnly",
+    "go-backend/internal/logging/logging_test.go:411#TestSocketListeners"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-FORMAT-DAILY-LOGS",
+      "class": "repeat_operation",
+      "contract": "Pinned daily log records retain parseable timestamp/level/message/source shape and filenames; opening existing logs, retention/rollover and fatal crash log remain readable; subscribed sockets receive only allowed entries.",
+      "status": "unverified",
+      "source": [
+        "server/Logger.js",
+        "server/managers/LogManager.js"
+      ],
+      "tests": [
+        "go-backend/internal/logging/logging_test.go:221#TestDailyFileLineShapeWithoutHTMLEscaping",
+        "go-backend/internal/logging/logging_test.go:238#TestBufferedUntilOpenAndExistingFileLoaded",
+        "go-backend/internal/logging/logging_test.go:271#TestRetentionAtOpenAndRolloverAtMidnight",
+        "go-backend/internal/logging/logging_test.go:328#TestCrashLogReceivesFatalOnly",
+        "go-backend/internal/logging/logging_test.go:411#TestSocketListeners"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

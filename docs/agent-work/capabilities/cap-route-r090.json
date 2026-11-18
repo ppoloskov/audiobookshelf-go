@@ -1,49 +1,61 @@
 {
- "id": "route-r090",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /playlists candidate recorded from server/routers/ApiRouter.js:160. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:160"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#playlist-list (differential pass)",
-  "go-backend/contracts/parity/full-suite-report.json#playlist-list-after-delete (differential pass)"
- ],
- "exceptions": [],
- "invariants": [
-  {
-   "id": "INV-R090-SAMPLED",
-   "class": "shape",
-   "contract": "Sampled GET /playlists via differential case(s) playlist-list, playlist-list-after-delete: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: playlists.",
-   "status": "verified",
-   "source": [
-    "server/routers/ApiRouter.js:160"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#playlist-list",
-    "go-backend/contracts/parity/full-suite-report.json#playlist-list-after-delete"
-   ],
-   "exceptions": [
-    "Sampled evidence; unsampled request-shape variants are separate behaviors."
-   ]
-  }
- ]
+  "id": "route-r090",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/playlists. List readable user playlists with their metadata and expanded ordered entries; preserve user/library filtering and client sorting semantics.",
+  "source": [
+    "server/routers/ApiRouter.js:160",
+    "server/controllers/PlaylistController.js:138"
+  ],
+  "implementation": [
+    "go-backend/internal/list/list.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/list/list_ported_test.go:197#TestPortedReadValuesAndPermissions",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/list-owner-sees-own-sorted-by-name",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/list-other-users-get-empty-array",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/list-requires-token",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/list-hides-inaccessible-library-playlists"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#playlist-list (differential pass)",
+    "go-backend/contracts/parity/full-suite-report.json#playlist-list-after-delete (differential pass)"
+  ],
+  "exceptions": [
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R090-SAMPLED",
+      "class": "shape",
+      "contract": "GET /api/playlists answers {playlists} with only the caller's playlists of libraries the caller can access, expanded and sorted by name; an empty array for a user without playlists; 401 without token.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PlaylistController.js:138-144",
+        "server/models/Playlist.js:27-70",
+        "server/routers/ApiRouter.js:160",
+        "server/controllers/PlaylistController.js:139-140"
+      ],
+      "tests": [
+        "go-backend/internal/list/list_ported_test.go:197#TestPortedReadValuesAndPermissions",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/list-owner-sees-own-sorted-by-name",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/list-other-users-get-empty-array",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/list-requires-token",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/list-hides-inaccessible-library-playlists"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/full-suite-report.json#playlist-list",
+        "go-backend/contracts/parity/full-suite-report.json#playlist-list-after-delete"
+      ],
+      "exceptions": []
+    }
+  ]
 }

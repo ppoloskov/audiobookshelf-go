@@ -1,5 +1,9 @@
 # Verification harness inventory (2026-11-13, HEAD c89429ed, frozen copy)
 
+Historical discovery evidence. The active authority is now the Go-first unified
+machine described in ../../VERIFICATION.md. Legacy scripts remain runnable while
+assertions migrate; their separate verdicts do not establish full coverage.
+
 All runs: Go binary built from `git archive HEAD`; Node 22.23.4 (mise); upstream oracle = dist-server rebuilt from the pinned source (oracle check `git diff --quiet edb1f7ef -- server ...` clean); FFmpeg 9.0.2 with WebP first on PATH. Logs: `*.log` and `*.result` in this directory.
 Last-touched = `git log -1 --format=%cs` of the path.
 

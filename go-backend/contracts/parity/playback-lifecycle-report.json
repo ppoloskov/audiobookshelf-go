@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 2,
+  "baseSHA": "8990c2e61a1637a69effc4ca26e2df1748301889",
+  "upstreamSHA": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "result": "P2_REVISIONS_READY_FOR_ARCHITECT_REVIEW",
+  "productionChanged": true,
+  "scenarioCount": 10,
+  "contractEquivalentScenarios": 9,
+  "sourceBehaviorDifferenceScenarios": 1,
+  "skipCount": 0,
+  "scope": "Playback stream lifecycle events, real FFmpeg start/completion/failure, owner and global recipients, seek reset, close/cancellation, AAC retry, and server shutdown cleanup.",
+  "fixture": {
+    "manifest": "/private/tmp/abs-playback-lifecycle/fixture-live/fixture-manifest.json",
+    "details": "Actual upstream-created fixture; independent config and metadata copies for each TS/Go scenario; generated real AAC media with matching SQLite paths and durations.",
+    "media": "/private/tmp/abs-cleanup-checkpoint-20261105/ffmpeg-9.0.2-webp/bin/ffmpeg"
+  },
+  "fixedBinary": {
+    "path": "/private/tmp/abs-playback-lifecycle/playback-fixed-final",
+    "sha256": "da7acf0776f84a677ff1487d70decf9df835eafd50b7047128427dabb0414168",
+    "environment": "macOS arm64, Go 1.27.0 local toolchain; GOCACHE=/private/tmp/abs-playback-lifecycle/go-cache",
+    "scope": "Historical pre-P2 ten-scenario binary; currentRevisionBinary is used for P2 live progress and rollback."
+  },
+  "observer": {
+    "path": "tools/parity/playback-lifecycle.cjs",
+    "sha256": "2117a5a88abecb9186edffc3dd46460b1b6ade2caee22bce8741217b77e1991e",
+    "normalization": "Only per-run stream UUIDs and installation-specific stream paths are normalized. Progress cadence is checked per event for valid chunks, unique-segment count, total, percentage, and ordering; scheduler-dependent snapshot counts are not compared. Full libraryItem DTOs are not compared.",
+    "supersededRecordedSHA256": "782ee0a06ce6ec07a8e43ae362799ed3b3bfb06375394d770856695a6eef9597",
+    "hashProvenance": "Current strengthened observer. Prior ten-scenario reports used the pre-P2 observer; fresh progress evidence exercises this hash. Full pre-P2 summary is preserved separately."
+  },
+  "finalRuns": [
+    {
+      "command": "FFMPEG_PATH=<verified-ffmpeg> GOCACHE=/private/tmp/abs-playback-lifecycle/go-cache GOTOOLCHAIN=local mise exec node@22 -- node go-backend/tools/parity/playback-lifecycle.cjs --fixture /private/tmp/abs-playback-lifecycle/fixture-live/fixture-manifest.json --go-bin /private/tmp/abs-playback-lifecycle/playback-fixed-final --out /private/tmp/abs-playback-lifecycle/final10 --modes complete,progress,runtime-error,start-error,aac-retry,fast-reset,seek-reset,seek-close,shutdown,midstream-error",
+      "exitCode": 1,
+      "meaning": "All ten scenarios ran. Nine client/lifecycle scenarios passed; the sole failure was the observer incorrectly requiring upstream TypeScript to reap FFmpeg on server shutdown. Preserve this original raw report as source-behavior evidence; corrected targeted shutdown and seek-reset reruns are below.",
+      "rawReport": "playback-lifecycle-evidence/final-live-observations.json"
+    },
+    {
+      "command": "Same observer, fixed binary, --out /private/tmp/abs-playback-lifecycle/final-seek-reset-2 --modes seek-reset",
+      "exitCode": 0,
+      "meaning": "Initial stream_open was observed on both sides before requesting missing segment 10; both then delivered exactly one stream_reset with startTime 60 to owner-1, owner-2, and unrelated-user, followed by progress, delayed ready, and close in matching per-recipient order.",
+      "rawReport": "playback-lifecycle-evidence/final-seek-reset-observations.json"
+    },
+    {
+      "command": "Same observer, fixed binary, --out /private/tmp/abs-playback-lifecycle/final-shutdown --modes shutdown",
+      "exitCode": 0,
+      "meaning": "Both servers exited 0 with an active real FFmpeg process. Go reaped its FFmpeg process and removed stream files. Upstream Server.js shutdown closes watcher, sockets, and HTTP only, leaving FFmpeg alive and stream files in place; the harness recorded this source behavior, sent SIGTERM to its own fixture process, and verified it was reaped.",
+      "rawReport": "playback-lifecycle-evidence/final-shutdown-observations.json"
+    }
+  ],
+  "confirmed": [
+    "Real-media complete and active-progress cases: play response fields and HLS track URLs match; initial progress, open-once, close-once delivery, two owner sockets, unrelated-user isolation, HLS playlist/segment access, close response, directory cleanup, and unlistened session row counts match. Normal completion does not emit ready.",
+    "Terminal corrupt-input, actual missing-interpreter ENOENT startup, and midstream SIGTERM after real FFmpeg output: both implementations emit one stream_error to each owner socket, no owner-only events reach the unrelated user, failed stream files are removed, and HLS returns 404. The midstream probe terminates the actual FFmpeg PID with SIGTERM; no event simulation is used.",
+    "AAC retry: an FFmpeg wrapper injects exit 1 only on the actual `-c:a copy` transcode command; capability probes pass through and the AAC retry executes native FFmpeg. Both finish real media, emit progress/open/close once per owner, and do not duplicate stream_open.",
+    "Fast reset from saved 120-second progress: both open with startTime 120 and segmentStartNumber 15, then emit delayed ready and close. Nonzero missing-segment reset reaches each of three sockets exactly once with startTime 60 and matching ordering.",
+    "Explicit close while active cancels work, returns 200/OK, removes files, makes HLS return 404, and leaves no playback-session row. Shutdown checks the actual FFmpeg PID and directory state."
+  ],
+  "behaviorDifferences": [
+    "Go stream_error.error is the fixed safe message `Failed to transcode stream`; upstream includes FFmpeg command, local paths, and diagnostic text. The event name, object shape, stream id, recipient audience, and nonempty string type match. This is an intentional error-redaction difference; exact internal error text is not a client decision value.",
+    "Go bounds AAC fallback retry to the supported copy-codec failure case and completes without the upstream ten-second cancellation wait. Injected copy-failure recovery with real AAC succeeded on both implementations; exact retry timing differs.",
+    "Go shutdown reaps its FFmpeg child and removes the ephemeral stream directory. Pinned upstream `server/Server.js:558-570` closes watcher, Socket.IO, and HTTP without closing playback streams; the live source left FFmpeg alive after exit 0. This is recorded as safer Go cleanup, not parity with the upstream leak."
+  ],
+  "sourceReferences": [
+    "server/objects/Stream.js:142-229 segment checks/open/progress/ready",
+    "server/objects/Stream.js:296-352 process start, AAC fallback, error, and completion",
+    "server/objects/Stream.js:359-430 close/cancel/reset/user emission",
+    "server/SocketAuthority.js:57-78 global versus per-user all-socket delivery",
+    "server/routers/HlsRouter.js:76-94 reset global broadcast and zero suppression",
+    "server/Server.js:558-570 shutdown sequence",
+    "client/components/app/MediaPlayerContainer.vue:419-465 progress, ready, closed/error and reset consumers"
+  ],
+  "classification": {
+    "productFailures": [],
+    "harnessDrift": [
+      "The first corrected observer run compared stream playlist paths without normalizing the random stream id.",
+      "The first AAC wrapper check raced asynchronous FFmpeg startup; the final observer waits for its marker.",
+      "The first seek-reset trace raced initial stream_open and the three-second delayed ready; final targeted evidence waits for both source-derived boundaries.",
+      "The first shutdown expectation incorrectly required pinned upstream to reap FFmpeg. Final evidence records the upstream process leak and requires Go cleanup."
+    ],
+    "environmentFailures": [
+      "An unprivileged baseline retry failed at loopback bind EPERM before scenarios started; the authorized local-loopback runs above succeeded."
+    ],
+    "approvedDifferences": []
+  },
+  "remainingUnverified": [
+    "Mobile-device acceptance and AAC recovery for naturally occurring copy failures. AAC retry was verified with a transparent process-boundary injected exit-1 wrapper and real native AAC retry.",
+    "Process descendants beyond the actual FFmpeg PID in arbitrary custom wrappers; the acceptance checks the process directly launched through the wrapper.",
+    "Full libraryItem DTO equality is intentionally outside this lifecycle contract; only lifecycle-owned ids, user/item references, episode null, stream fields, and URI/path suffix were checked.",
+    "The ten cases were collected across the retained full run and two targeted corrected-harness reruns, not one all-green execution of the final observer revision."
+  ],
+  "evidenceDirectory": "playback-lifecycle-evidence",
+  "rawReports": [
+    "final-live-observations.json",
+    "final-seek-reset-observations.json",
+    "final-shutdown-observations.json",
+    "architect-verification.json",
+    "base-red-final-tests.txt",
+    "fixed-package-tests.txt",
+    "fixed-race-tests.txt",
+    "lint-accepted.txt",
+    "rollback-fixed.txt"
+  ],
+  "skips": [],
+  "processCleanupAudit": "playback-lifecycle-evidence/process-cleanup-audit.json",
+  "machineChecks": "playback-lifecycle-evidence/p2-revision/verification.json",
+  "sourceInputVerification": "P2 revision hashes and binary are recorded in p2-revision/verification.json. Earlier architect-verification.json remains the pre-P2 source snapshot.",
+  "priorImplementationReport": "playback-lifecycle-report-before-p2.json",
+  "architectReview": "../../docs/verification/playback-lifecycle-architect-review.md",
+  "p2Findings": [
+    {
+      "finding": "Inherited output-pipe cancellation can block close",
+      "resolution": "Shared media execution sets cmd.WaitDelay to one second; original architect overlay passes; no playback supervisor abandoned."
+    },
+    {
+      "finding": "Live gate permits no incremental updates",
+      "resolution": "Each owner must have nonempty nonzero progress before close; mutation regression fails against pre-fix gate and 10/10 tests pass after; fresh TS/Go progress passes."
+    }
+  ],
+  "p2RevisionVerification": "playback-lifecycle-evidence/p2-revision/verification.json",
+  "scenarioEvidenceScope": "The ten-scenario matrix is retained pre-P2 evidence. P2 reruns the affected live progress mode with the strengthened gate, cancellation regressions including the original architect overlay, and machine/rollback gates; it does not claim a fresh ten-scenario rerun.",
+  "currentRevisionBinary": {
+    "path": "/private/tmp/abs-playback-p2/playback-fixed",
+    "sha256": "3a3ce24aa8029f7b1af3723e3f9a8cbbd825bba247037f0641092085fb8e9524"
+  },
+  "previousMachineChecks": "playback-lifecycle-evidence/architect-verification.json"
+}

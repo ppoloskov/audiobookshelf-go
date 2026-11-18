@@ -1,25 +1,88 @@
 {
- "id": "route-r184",
- "parent": "http/audiotools",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "DELETE /tools/item/:id/encode-m4b candidate recorded from server/routers/ApiRouter.js:303. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:303"
- ],
- "implementation": [
-  "go-backend/internal/audiotools/tools.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/audiotools/tools.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r184",
+  "parent": "http/tools",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "DELETE /tools/item/:id/encode-m4b at server/routers/ApiRouter.js:303. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "source": [
+    "server/routers/ApiRouter.js:303"
+  ],
+  "implementation": [
+    "go-backend/internal/tools/tools.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
+    "go-backend/internal/tools/tools_test.go:181#TestCancelEncode",
+    "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+    "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
+    "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
+    "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
+    "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R184-ROUTE",
+      "class": "shape",
+      "contract": "DELETE /tools/item/:id/encode-m4b at server/routers/ApiRouter.js:303. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:303"
+      ],
+      "tests": [
+        "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
+        "go-backend/internal/tools/tools_test.go:181#TestCancelEncode",
+        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+        "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
+        "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
+        "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
+        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R184-REPEAT",
+      "class": "repeat_operation",
+      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:303"
+      ],
+      "tests": [
+        "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
+        "go-backend/internal/tools/tools_test.go:181#TestCancelEncode",
+        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+        "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
+        "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
+        "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
+        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
+      ]
+    }
+  ]
 }

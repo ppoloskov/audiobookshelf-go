@@ -1,0 +1,72 @@
+{
+  "id": "socket-outgoing-items-updated",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing items_updated: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: clients_with_access_to_any_library_item. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/controllers/AuthorController.js:156",
+    "server/controllers/AuthorController.js:211",
+    "server/controllers/LibraryController.js:1189",
+    "server/controllers/LibraryController.js:1230",
+    "server/scanner/LibraryScanner.js:226",
+    "server/scanner/LibraryScanner.js:234"
+  ],
+  "implementation": [
+    "go-backend/internal/author/items.go",
+    "go-backend/internal/library/people.go",
+    "go-backend/internal/scan/scan.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/author/author_test.go:276#TestRenameWritesLastFirstAndNotifies",
+    "go-backend/internal/author/author_test.go:293#TestRenameOntoExistingAuthorMerges",
+    "go-backend/internal/scan/scan_test.go:166#TestMissingIsStampedOnceAndAFolderComesBack",
+    "go-backend/internal/scan/scan_test.go:202#TestScanEmitsItemsInChunksOfTen",
+    "go-backend/internal/scan/scan_test.go:228#TestRescanSweepsAuthorsAndSeriesTheBookLeft",
+    "go-backend/internal/contracttest/socketio_client_test.go:156#TestParseSocketIOEvent"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-ITEMS-UPDATED",
+      "class": "repeat_operation",
+      "contract": "Socket.IO outgoing items_updated: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: clients_with_access_to_any_library_item. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/AuthorController.js:156",
+        "server/controllers/AuthorController.js:211",
+        "server/controllers/LibraryController.js:1189",
+        "server/controllers/LibraryController.js:1230",
+        "server/scanner/LibraryScanner.js:226",
+        "server/scanner/LibraryScanner.js:234"
+      ],
+      "tests": [
+        "go-backend/internal/author/author_test.go:276#TestRenameWritesLastFirstAndNotifies",
+        "go-backend/internal/author/author_test.go:293#TestRenameOntoExistingAuthorMerges",
+        "go-backend/internal/scan/scan_test.go:166#TestMissingIsStampedOnceAndAFolderComesBack",
+        "go-backend/internal/scan/scan_test.go:202#TestScanEmitsItemsInChunksOfTen",
+        "go-backend/internal/scan/scan_test.go:228#TestRescanSweepsAuthorsAndSeriesTheBookLeft",
+        "go-backend/internal/contracttest/socketio_client_test.go:156#TestParseSocketIOEvent"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

@@ -1,25 +1,111 @@
 {
- "id": "route-r023",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "DELETE /libraries/:id/issues candidate recorded from server/routers/ApiRouter.js:76. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:76"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r023",
+  "parent": "http/library",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "DELETE /api/libraries/:id/issues dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:76, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"DELETE /api/libraries/{id}/issues\", inLibrary(h.removeIssues)). Current assertion anchor(s): TestJourneyLibrary. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:76",
+    "go-backend/internal/library/libraries.go",
+    "go-backend/internal/library/libraries.go:75",
+    "server/controllers/LibraryController.js:1475"
+  ],
+  "implementation": [
+    "go-backend/internal/library/libraries.go:75"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/contracttest/journey_library_test.go:47#TestJourneyLibrary",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/issues-remove-missing-and-invalid-items",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/issues-remove-twice-and-without-issues",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/issues-remove-missing-podcast",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/issues-remove-denied-changes-nothing"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: this route has no force, hard or override mode."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R023-CONTRACT",
+      "class": "shape",
+      "contract": "DELETE /api/libraries/:id/issues removes the items flagged missing or invalid with their media, progress, playlist entries, feeds, collection entries and metadata directories, keeps the healthy items and the media files, removes authors and series left without books (keeping the others), answers 200, emits item_removed per item, author_removed and series_removed to every authenticated socket, and resets numIssues to 0.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:76",
+        "server/controllers/LibraryController.js:650-735",
+        "server/routers/ApiRouter.js:373-407",
+        "server/routers/ApiRouter.js:414-523",
+        "server/Database.js:653-672"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/issues-remove-missing-and-invalid-items"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R023-REPEAT-001",
+      "class": "shape",
+      "contract": "DELETE issues on a library with no flagged item answers 200 and changes and emits nothing, also when repeated after a removal.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:76",
+        "server/controllers/LibraryController.js:677-680"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/issues-remove-twice-and-without-issues"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R023-PODCAST-001",
+      "class": "shape",
+      "contract": "In a podcast library DELETE issues removes the missing podcast with its episodes, their progress and playlist entries (a playlist left empty is deleted), keeps the book library, and resets numIssues.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:76",
+        "server/controllers/LibraryController.js:702-706",
+        "server/routers/ApiRouter.js:373-407",
+        "server/models/Playlist.js"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/issues-remove-missing-podcast"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R023-AUTH-001",
+      "class": "error",
+      "contract": "DELETE issues answers 401 without a token, 403 for a non-admin user (also one with update permission) and for a user without library access, 404 for an unknown library and 400 for an invalid limit before the admin check, and removes nothing while items with issues exist.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:76",
+        "server/controllers/LibraryController.js:650-657",
+        "server/controllers/LibraryController.js:1475-1497"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/issues-remove-denied-changes-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

@@ -1,67 +1,63 @@
 {
- "id": "route-r056",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "PATCH /items/:id/cover candidate recorded from server/routers/ApiRouter.js:114. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:114"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "verified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/tools/parity/differential.cjs",
-  "go-backend/internal/catalog/cover_test.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#cover-patch-success",
-  "go-backend/contracts/parity/full-suite-report.json#cover-patch-repeat",
-  "go-backend/contracts/parity/full-suite-report.json#cover-patch-invalid-image",
-  "go-backend/contracts/parity/full-suite-report.json#statefulChecks.coverPatch",
-  "go-backend/contracts/parity/full-suite-report.json#cover-patch-large-invalid-path"
- ],
- "exceptions": [
-  "Only one successful source-file copy and same-path repeat were exercised; switching to a different cover, storeCoverWithItem, permission branches, event recipients, updatedAt details, and 10,000,000-byte boundary and over-limit parser error shape remain unverified."
- ],
- "invariants": [
-  {
-   "id": "INV-R056-SAMPLED",
-   "class": "state_transition",
-   "contract": "A valid scanned library file whose bytes are a supported image is copied into the configured item cover directory; PATCH returns {success,cover} with Express JSON content type, Content-Length and weak ETag matching the exact response bytes. Repeating the same selection returns the same response without losing the selected cover. Invalid image bytes retain the upstream 500 text response. A 1.1 MB JSON request is parsed under the pinned 10 MB limit and reaches normal invalid-path validation.",
-   "status": "verified",
-   "source": [
+  "id": "route-r056",
+  "parent": "http/item",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "PATCH /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:114, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"PATCH /api/items/{id}/cover\", h.authed(h.chooseCover)). Current assertion anchor(s): TestChooseCoverCopiesALibraryImage. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
     "server/routers/ApiRouter.js:114",
-    "server/controllers/LibraryItemController.js:344-375",
-    "server/managers/CoverManager.js:132-180"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#cover-patch-success",
-    "go-backend/contracts/parity/full-suite-report.json#cover-patch-repeat",
-    "go-backend/contracts/parity/full-suite-report.json#cover-patch-invalid-image",
-    "go-backend/contracts/parity/full-suite-report.json#statefulChecks.coverPatch",
-    "go-backend/contracts/parity/full-suite-report.json#cover-patch-large-invalid-path"
-   ],
-   "exceptions": [
-    "One valid image/path and one repeat only; broader PATCH request and state variants remain separate obligations."
-   ]
+    "go-backend/internal/item/handler.go",
+    "go-backend/internal/item/handler.go:110",
+    "server/controllers/LibraryItemController.js:1220"
+  ],
+  "implementation": [
+    "go-backend/internal/item/handler.go:110"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/item/files_test.go:244#TestChooseCoverCopiesALibraryImage"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Only one successful source-file copy and same-path repeat were exercised; switching to a different cover, storeCoverWithItem, permission branches, event recipients, updatedAt details, and 10,000,000-byte boundary and over-limit parser error shape remain unverified.",
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Historical evidence leads retained for follow-up: go-backend/contracts/parity/full-suite-report.json#cover-patch-success; go-backend/contracts/parity/full-suite-report.json#cover-patch-repeat; go-backend/contracts/parity/full-suite-report.json#cover-patch-invalid-image; go-backend/contracts/parity/full-suite-report.json#statefulChecks.coverPatch; go-backend/contracts/parity/full-suite-report.json#cover-patch-large-invalid-path",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R056-SAMPLED",
+      "class": "shape",
+      "contract": "PATCH /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:114, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"PATCH /api/items/{id}/cover\", h.authed(h.chooseCover)). Current assertion anchor(s): TestChooseCoverCopiesALibraryImage. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:114",
+        "go-backend/internal/item/handler.go",
+        "go-backend/internal/item/handler.go:110",
+        "server/controllers/LibraryItemController.js:1220"
+      ],
+      "tests": [
+        "go-backend/internal/item/files_test.go:244#TestChooseCoverCopiesALibraryImage"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
+        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
+        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
   }
- ],
- "state_scenarios": {
-  "initial": "verified",
-  "repeat": "verified",
-  "changed": "unverified",
-  "force": "not_applicable",
-  "failure": "verified"
- }
 }

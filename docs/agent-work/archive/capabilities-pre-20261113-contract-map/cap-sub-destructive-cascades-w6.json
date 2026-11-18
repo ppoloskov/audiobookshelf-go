@@ -1,0 +1,69 @@
+{
+  "id": "sub-destructive-cascades-w6",
+  "parent": "adminops",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "W6 destructive-lifecycle subset: backup create/retention/upload/apply, collection and playlist batch operations, item repeat-delete, library-delete file/record cascades, persisted database snapshots, and selected live Socket.IO events.",
+  "source": [
+    "server/controllers/CollectionController.js:318-369",
+    "server/controllers/PlaylistController.js:394-454",
+    "server/controllers/LibraryItemController.js:103-149",
+    "server/controllers/LibraryController.js:525-595",
+    "server/managers/BackupManager.js:200-267"
+  ],
+  "implementation": [
+    "go-backend/internal/userapi/",
+    "go-backend/internal/catalog/",
+    "go-backend/internal/backup/",
+    "go-backend/internal/server/manager.go"
+  ],
+  "cases": {
+    "normal": "verified",
+    "error": "verified",
+    "edge": "verified"
+  },
+  "invariants": [
+    {
+      "id": "INV-W6-CASCADE-DB-001",
+      "class": "state_transition",
+      "contract": "Database snapshots remain compatible through item deletion, library deletion, and backup restore; repeat item deletion returns the upstream outcome and preserves the expected rows/files.",
+      "status": "verified",
+      "source": ["server/controllers/LibraryItemController.js:114-149", "server/controllers/LibraryController.js:525-595"],
+      "tests": ["go-backend/tools/parity/cascades-differential.cjs"],
+      "evidence": ["go-backend/contracts/parity/cascades-differential-report.json"],
+      "exceptions": []
+    },
+    {
+      "id": "INV-W6-RESTORE-SOCKET-001",
+      "class": "state_transition",
+      "contract": "Applying a backup preserves the authenticated live Socket.IO connection and emits backup_applied after restore; selected cascade event names are captured on real sockets.",
+      "status": "verified",
+      "source": ["server/managers/BackupManager.js:263-266"],
+      "tests": ["go-backend/tools/parity/cascades-differential.cjs", "go-backend/internal/server/manager_test.go"],
+      "evidence": ["go-backend/contracts/parity/cascades-differential-report.json"],
+      "exceptions": []
+    }
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "verified",
+    "repeat": "verified",
+    "changed": "verified",
+    "force": "not_applicable",
+    "failure": "verified"
+  },
+  "tests": [
+    "go-backend/tools/parity/cascades-differential.cjs",
+    "go-backend/internal/server/manager_test.go",
+    "go-backend/internal/userapi/userapi_test.go:TestCollectionDescriptionDBValueMatchesLegacyNullCoercion"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/cascades-differential-report.json (fresh independent fixture run: nine response scenarios and persisted snapshots, zero divergences)",
+    "go-backend/internal/server/manager_test.go (restore hub retention regression)"
+  ],
+  "exceptions": [
+    "Rapid backup filenames have minute granularity; this run compared cross-side counts/lifecycle, but distinct-file retention rolloff under a controlled clock is not established.",
+    "Socket evidence covers selected W6 lifecycle windows only; it is not a complete event recipient/payload inventory."
+  ]
+}

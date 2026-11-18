@@ -1,47 +1,91 @@
 {
- "id": "route-r115",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "DELETE /me/item/:id/bookmark/:time candidate recorded from server/routers/ApiRouter.js:189. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:189"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#bookmark-delete (differential pass)"
- ],
- "exceptions": [],
- "invariants": [
-  {
-   "id": "INV-R115-SAMPLED",
-   "class": "shape",
-   "contract": "Sampled DELETE /me/item/:id/bookmark/:time via differential case(s) bookmark-delete: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: progress.",
-   "status": "verified",
-   "source": [
-    "server/routers/ApiRouter.js:189"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#bookmark-delete"
-   ],
-   "exceptions": [
-    "Sampled evidence; unsampled request-shape variants are separate behaviors."
-   ]
+  "id": "route-r115",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "DELETE /api/me/item/:id/bookmark/:time. Delete the current-user bookmark at the specified time, retaining other bookmarks and media; malformed time denies and success emits user_updated.",
+  "source": [
+    "server/routers/ApiRouter.js:189",
+    "server/controllers/MeController.js:398"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/bookmark-remove",
+    "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/bookmark-remove-access-rules",
+    "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/bookmark-remove-rejections",
+    "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/bookmark-remove-seeded",
+    "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/bookmark-remove-numeric-forms"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#bookmark-delete (differential pass)"
+  ],
+  "exceptions": [
+    "force is not applicable: this route has no force, hard or override mode"
+  ],
+  "invariants": [
+    {
+      "id": "INV-R115-SAMPLED",
+      "class": "state_transition",
+      "contract": "DELETE /api/me/item/:id/bookmark/:time removes only the caller's bookmark of that item whose time equals Number(:time), answers 200 and emits user_updated to the caller only; a repeat answers 404.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:398-429",
+        "server/models/User.js:841-912"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/bookmark-remove",
+        "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/bookmark-remove-seeded",
+        "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/bookmark-remove-numeric-forms"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/full-suite-report.json#bookmark-delete"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R115-ACCESS-001",
+      "class": "state_transition",
+      "contract": "Library, item tag (allow and deny) and explicit-content rules answer 403 and remove nothing.",
+      "source": [
+        "server/controllers/MeController.js:398-411",
+        "server/models/User.js:646-683"
+      ],
+      "status": "unverified",
+      "tests": [
+        "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/bookmark-remove-access-rules"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R115-ERROR-001",
+      "class": "state_transition",
+      "contract": "Unauthenticated 401; unknown item 404 before the time check; a non-numeric time 400; no bookmark at that item and time 404; nothing changes and no event is sent.",
+      "source": [
+        "server/controllers/MeController.js:398-429"
+      ],
+      "status": "unverified",
+      "tests": [
+        "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/bookmark-remove-rejections"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
   }
- ]
 }

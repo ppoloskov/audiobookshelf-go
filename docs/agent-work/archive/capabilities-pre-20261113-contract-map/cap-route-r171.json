@@ -1,0 +1,49 @@
+{
+ "id": "route-r171",
+ "parent": "http/emailapi",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "PATCH /emails/settings candidate recorded from server/routers/ApiRouter.js:278. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:278"
+ ],
+ "implementation": [
+  "go-backend/internal/emailapi/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "unverified",
+  "edge": "verified"
+ },
+ "stateful": true,
+ "invariants": [
+  {
+   "id": "INV-R171-PATCH-COERCE-001",
+   "class": "state_transition",
+   "contract": "PATCH /emails/settings applies upstream JavaScript coercion to present values (including truthy non-empty strings and numeric strings), and persists a changed settings object even when the settings row did not previously exist.",
+   "status": "verified",
+   "source": ["server/controllers/EmailController.js:32-41", "server/objects/settings/EmailSettings.js:65-110", "server/models/Setting.js:36-39"],
+   "tests": ["go-backend/tools/parity/differential.cjs", "go-backend/internal/emailapi/handler_test.go"],
+   "evidence": ["go-backend/contracts/parity/full-suite-report.json#email-settings-patch-coercion", "go-backend/contracts/parity/full-suite-report.json#email-settings-read-after-coercion"],
+   "exceptions": []
+  }
+ ],
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "unverified",
+  "changed": "verified",
+  "force": "not_applicable",
+  "failure": "unverified"
+ },
+ "tests": [
+  "go-backend/internal/emailapi/handler.go",
+  "go-backend/internal/emailapi/handler_test.go",
+  "go-backend/tools/parity/differential.cjs"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#email-settings-patch-coercion",
+  "go-backend/contracts/parity/full-suite-report.json#email-settings-read-after-coercion"
+ ],
+ "exceptions": ["Malformed payloads, no-op/repeated updates, and email test/delivery routes remain unverified."]
+}

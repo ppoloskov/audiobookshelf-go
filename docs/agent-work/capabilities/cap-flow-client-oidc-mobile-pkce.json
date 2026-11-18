@@ -1,0 +1,67 @@
+{
+  "id": "flow-client-oidc-mobile-pkce",
+  "parent": "auth",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Native client OpenID Connect authorization, app redirect, PKCE callback token exchange, one-time state use and user/session creation. Only selected local-provider and S256 behaviors are asserted.",
+  "source": [
+    "server/auth/OidcAuthStrategy.js:256-281",
+    "server/auth/OidcAuthStrategy.js:301-368",
+    "server/Auth.js:383-445"
+  ],
+  "implementation": [
+    "go-backend/internal/auth/service.go",
+    "go-backend/internal/auth/oidc.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-FLOW-CLIENT-OIDC-MOBILE-PKCE-001",
+      "class": "state_transition",
+      "contract": "Mobile start validates allowlisted redirect URI and S256 challenge, redirects to provider with state/challenge, redirects once to app URI with code/state, and callback returns access/refresh tokens while creating linked user. Replay and invalid URI/challenge return 400.",
+      "status": "unverified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js:256-281",
+        "server/auth/OidcAuthStrategy.js:301-368",
+        "server/Auth.js:383-445"
+      ],
+      "tests": [
+        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow",
+        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce",
+        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens"
+      ],
+      "evidence": [
+        "go-backend/internal/auth/oidc_test.go:TestOIDCMobileFlow",
+        "go-backend/internal/auth/oidc_test.go:TestFlowsExpireAndAreTakenOnce",
+        "go-backend/internal/auth/oidc_test.go:TestOIDCRejectsBadIDTokens"
+      ],
+      "exceptions": [
+        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed."
+      ]
+    }
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow",
+    "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce",
+    "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Client evidence: contracts/clients/official-app.md OIDC rows and contracts/clients/audiobooth.md Authentication/OIDC. Provider interoperability, app-side token persistence and callback failure combinations remain gaps.",
+    "State scenario force is not applicable for this client workflow because none of its mapped operations has a force/refresh mode; changed and repeat outcomes remain unverified unless an invariant explicitly states otherwise.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ]
+}

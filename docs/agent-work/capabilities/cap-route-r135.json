@@ -1,25 +1,139 @@
 {
- "id": "route-r135",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /authors/:id/image candidate recorded from server/routers/ApiRouter.js:221. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:221"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r135",
+  "parent": "http/author",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/authors/:id/image dispatches to the pinned TS handler AuthorController.getImage (ApiRouter.js:221, server/controllers/AuthorController.js:391) and Go registration mux.Handle(\"GET /api/authors/{id}/image\", httpx.Handler(h.image)). Current assertion anchor(s): TestImageRead. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:221",
+    "go-backend/internal/author/handler.go",
+    "go-backend/internal/author/handler.go:62",
+    "server/controllers/AuthorController.js:391",
+    "server/controllers/AuthorController.js:391-419",
+    "server/managers/CacheManager.js:155-186",
+    "server/controllers/AuthorController.js:290-300",
+    "server/controllers/AuthorController.js:413-418",
+    "server/managers/CacheManager.js:97-112",
+    "server/managers/CacheManager.js:155-189",
+    "server/utils/index.js:62-65",
+    "server/utils/index.js:144-147",
+    "server/controllers/AuthorController.js:391-411",
+    "server/Auth.js:20-37",
+    "server/Auth.js:45-51",
+    "server/Server.js:354"
+  ],
+  "implementation": [
+    "go-backend/internal/author/handler.go:62"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-unavailable",
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-default-jpeg-400",
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-formats-and-sizes",
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-served-from-cache",
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-invalid-format-creates-no-cache",
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-raw-original",
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-is-public",
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-after-image-replaced",
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-file-missing-on-disk"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "force is not applicable: the image handler has no force or cache-refresh override; raw is an ordinary source-file response variant."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R135-ERRORS",
+      "class": "validation",
+      "contract": "404 for unknown author, author without image or missing file; 400 for unsupported formats or non-UUID ids (resized); no cache file is created by failures.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/AuthorController.js:398-408",
+        "server/managers/CacheManager.js:160-183"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-unavailable",
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-invalid-format-creates-no-cache",
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-file-missing-on-disk"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R135-CONTRACT",
+      "class": "shape",
+      "contract": "GET /api/authors/:id/image without parameters returns the image as JPEG of width 400 (aspect kept) and writes metadata/cache/images/<id>_400.jpeg.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:221",
+        "server/controllers/AuthorController.js:391-419",
+        "server/managers/CacheManager.js:155-190"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-default-jpeg-400"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R135-RESIZE",
+      "class": "response",
+      "contract": "format (webp, jpeg, png; webp default when Accept has image/webp or */*), width and height (clamped to 4096, invalid values mean default) select the output; the cache file <id>_<w>[x<h>].<format> is created, reused, and purged when the image changes.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/AuthorController.js:413-418",
+        "server/managers/CacheManager.js:155-190",
+        "server/utils/index.js:62-65"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-formats-and-sizes",
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-served-from-cache",
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-after-image-replaced"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R135-RAW",
+      "class": "response",
+      "contract": "raw returns the stored file with its image content type and does not touch the cache.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/AuthorController.js:398-411"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-raw-original"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R135-AUTH",
+      "class": "authorization",
+      "contract": "The route needs no authentication (ignore pattern) and does not check library access.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:21",
+        "server/Auth.js:35-37"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-get-is-public"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
 }

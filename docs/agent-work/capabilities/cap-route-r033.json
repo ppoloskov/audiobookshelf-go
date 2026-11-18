@@ -1,25 +1,118 @@
 {
- "id": "route-r033",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /libraries/:id/authors candidate recorded from server/routers/ApiRouter.js:86. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:86"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r033",
+  "parent": "http/library",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/libraries/:id/authors dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:86, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"GET /api/libraries/{id}/authors\", inLibrary(h.authors)). Current assertion anchor(s): TestJourney. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:86",
+    "go-backend/internal/library/libraries.go",
+    "go-backend/internal/library/libraries.go:74",
+    "server/controllers/LibraryController.js:1475"
+  ],
+  "implementation": [
+    "go-backend/internal/library/libraries.go:74"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/contracttest/journey_test.go:127#TestJourney",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/authors-unpaginated-fixture",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/authors-paginated-sorted-pages",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/authors-zero-book-author-only-for-admins",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/authors-explicit-and-tag-rules-per-user",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/authors-podcast-library-is-empty",
+    "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/authors-denied-unknown-and-bad-paging"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R033-CONTRACT",
+      "class": "shape",
+      "contract": "GET /api/libraries/:id/authors without limit and page answers {authors} with every fixture author: id, asin, name, description, imagePath, libraryId, addedAt, updatedAt, numBooks and lastFirst.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:86",
+        "server/controllers/LibraryController.js:1021-1105",
+        "server/models/Author.js:177-199"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/authors-unpaginated-fixture"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R033-PAGING-001",
+      "class": "shape",
+      "contract": "With limit and page the answer is {results, total, limit, page, sortBy, sortDesc, filterBy, minified, include}; two pages of two cover the three authors in the requested order and total stays 3.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:86",
+        "server/controllers/LibraryController.js:1021-1105"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/authors-paginated-sorted-pages"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R033-VISIBILITY-001",
+      "class": "shape",
+      "contract": "An author with a description and no books is listed with numBooks 0 for an admin and left out for a non-admin user. A user without explicit-content access does not count explicit books, a tag user in allow mode counts only books with a selected tag and one in deny mode only books without; authors left with no visible book are not listed, while an admin sees every count.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:86",
+        "server/controllers/LibraryController.js:1054-1073",
+        "server/controllers/AuthorController.js",
+        "server/utils/queries/libraryItemsBookFilters.js:17-43"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/authors-zero-book-author-only-for-admins",
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/authors-explicit-and-tag-rules-per-user"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R033-PODCAST-001",
+      "class": "shape",
+      "contract": "GET authors of a podcast library answers an empty authors list, and an empty page with total 0 when paginated.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:86",
+        "server/controllers/LibraryController.js:1021-1105"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/authors-podcast-library-is-empty"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R033-AUTH-001",
+      "class": "error",
+      "contract": "GET authors answers 401 without a token, 403 without library access (also for an unknown id), 404 for an unknown id, and 400 for a negative limit or a fractional page.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:86",
+        "server/controllers/LibraryController.js:1475-1497"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_data/run_test.go#TestReplacement/authors-denied-unknown-and-bad-paging"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

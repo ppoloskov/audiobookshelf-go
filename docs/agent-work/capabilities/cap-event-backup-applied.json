@@ -1,0 +1,53 @@
+{
+  "id": "cap-event-backup-applied",
+  "parent": "http/backup",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "After successful backup application emit backup_applied to all sockets with no explicit source argument (BackupManager.js:266); characterize decoded missing argument versus null for clients. Do not emit for failed validation or rollback.",
+  "source": [
+    "server/managers/BackupManager.js:263-266"
+  ],
+  "implementation": [
+    "go-backend/internal/backup/apply.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
+    "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-CAP-EVENT-BACKUP-APPLIED",
+      "class": "timeline",
+      "contract": "After successful backup application emit backup_applied to all sockets with no explicit source argument (BackupManager.js:266); characterize decoded missing argument versus null for clients. Do not emit for failed validation or rollback.",
+      "status": "unverified",
+      "source": [
+        "server/managers/BackupManager.js:263-266"
+      ],
+      "tests": [
+        "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
+        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

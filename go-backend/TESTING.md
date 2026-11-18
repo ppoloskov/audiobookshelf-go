@@ -1,5 +1,11 @@
 # Local acceptance environment
 
+Authoritative entrypoint: `make verify` (or `make check`) from repository root;
+see [VERIFICATION.md](VERIFICATION.md). Missing upstream requirement proof returns
+a nonzero result even when Go regressions and Node self-tests pass. The commands
+below configure prerequisites or diagnose individual components; they are not
+alternative whole-contract acceptance gates.
+
 Use the Go version declared by go.mod. On this host validation used installed
 Go 1.27.0 with GOTOOLCHAIN=local, without changing the suggested 1.27.3 toolchain.
 
@@ -95,3 +101,17 @@ make install
 This records the tested host recipe, not a global package upgrade. Build,
 install, signature, encode and test logs are retained beside the temporary
 source tree; source version/hash/flags above remain durable when logs expire.
+
+## Playback lifecycle gate regression
+
+From the repository root, with the existing upstream dependencies installed:
+
+```sh
+mise exec node@22 -- node --test go-backend/tools/parity/test-playback-lifecycle.cjs
+```
+
+This exercises the public live gate against recorded real TS/Go traces, then
+removes or misorders incremental updates to prove rejection. The live progress
+mode additionally requires real FFmpeg, disposable fixtures and loopback access;
+current commands/results are in
+[P2 verification](contracts/parity/playback-lifecycle-evidence/p2-revision/verification.json).

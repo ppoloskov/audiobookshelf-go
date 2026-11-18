@@ -1,0 +1,53 @@
+{
+  "id": "cap-event-notifications-updated",
+  "parent": "http/notify",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Admitted notification triggers deliver enabled matching subscriptions, persist delivery outcomes, then emit notifications_updated with the ENTIRE settings object (appriseApiUrl,maxNotificationQueue,maxFailedAttempts,notifications). Characterize no-active-subscription and failed-delivery admission separately; no Go-derived no-change suppression is assumed.",
+  "source": [
+    "server/managers/NotificationManager.js"
+  ],
+  "implementation": [
+    "go-backend/internal/notify/delivery.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
+    "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-CAP-EVENT-NOTIFICATIONS-UPDATED",
+      "class": "state_transition",
+      "contract": "Admitted notification triggers deliver enabled matching subscriptions, persist delivery outcomes, then emit notifications_updated with the ENTIRE settings object (appriseApiUrl,maxNotificationQueue,maxFailedAttempts,notifications). Characterize no-active-subscription and failed-delivery admission separately; no Go-derived no-change suppression is assumed.",
+      "status": "unverified",
+      "source": [
+        "server/managers/NotificationManager.js"
+      ],
+      "tests": [
+        "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
+        "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

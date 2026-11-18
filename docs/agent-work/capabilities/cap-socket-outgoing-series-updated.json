@@ -1,0 +1,61 @@
+{
+  "id": "socket-outgoing-series-updated",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing series_updated: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/controllers/SeriesController.js:84",
+    "server/SocketAuthority.js:57-65",
+    "server/controllers/SeriesController.js:95-120"
+  ],
+  "implementation": [
+    "go-backend/internal/browse/series.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-updated-event-payload-and-audience",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-updated-event-not-repeated",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-updated-event-after-further-change",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-updated-event-not-sent-on-rejection"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: the requirement has no force, hard or override mode; every request is a plain request."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-SERIES-UPDATED",
+      "class": "repeat_operation",
+      "contract": "series_updated carries the full series object to every authenticated socket when PATCH /api/series/:id changes it; not for unchanged or rejected requests.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/SeriesController.js:84",
+        "server/SocketAuthority.js:57-65",
+        "server/controllers/SeriesController.js:95-120"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-updated-event-payload-and-audience",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-updated-event-not-repeated",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-updated-event-after-further-change",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-updated-event-not-sent-on-rejection"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

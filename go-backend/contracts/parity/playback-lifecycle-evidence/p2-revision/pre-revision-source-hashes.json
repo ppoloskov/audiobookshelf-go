@@ -1,0 +1,9 @@
+{
+  "provenance": "The pre-P2 Go hashes are from architect-verification.json, independently matched by the recorded architect review. The observer hash is from playback-lifecycle-report-before-p2.json. The separate in-progress snapshot was captured after workers started and is not asserted as baseline.",
+  "sourceSHA256": {
+    "go-backend/internal/media/probe.go": "c27686272cf72e03d3115417df515e76f551c707382faff6ae878007e1eabb4f",
+    "go-backend/internal/media/probe_test.go": "62a908fe967d984289818251c22d5c0c8fc831a13c1d9c7d616ad798937ffced",
+    "go-backend/internal/playback/hls_lifecycle_test.go": "542c2165afd32aeccc5daf466280dc7222fc83ca3d99beb7ba879d42466e86ad",
+    "go-backend/tools/parity/playback-lifecycle.cjs": "75c082894bee83fc724d9f0e61ea374534afb44627dab6af5050d19f94272247"
+  }
+}

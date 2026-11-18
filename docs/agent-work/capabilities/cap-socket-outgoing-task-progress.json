@@ -1,0 +1,49 @@
+{
+  "id": "socket-outgoing-task-progress",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing task_progress: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/managers/AbMergeManager.js:148",
+    "server/managers/AbMergeManager.js:182",
+    "server/managers/AudioMetadataManager.js:232"
+  ],
+  "implementation": [],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "Source-confirmed missing producer candidate in tools: literal search alone does not prove absence; characterize source/client lifecycle before implementation."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-TASK-PROGRESS",
+      "class": "repeat_operation",
+      "contract": "Socket.IO outgoing task_progress: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "status": "unverified",
+      "source": [
+        "server/managers/AbMergeManager.js:148",
+        "server/managers/AbMergeManager.js:182",
+        "server/managers/AudioMetadataManager.js:232"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

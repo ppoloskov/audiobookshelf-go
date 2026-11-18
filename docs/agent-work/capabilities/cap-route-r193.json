@@ -1,25 +1,61 @@
 {
- "id": "route-r193",
- "parent": "http/providers",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /custom-metadata-providers candidate recorded from server/routers/ApiRouter.js:320. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:320"
- ],
- "implementation": [
-  "go-backend/internal/providers/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/providers/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r193",
+  "parent": "http/metadata",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/custom-metadata-providers dispatches to the pinned TS handler CustomMetadataProviderController.middleware (ApiRouter.js:320, server/controllers/CustomMetadataProviderController.js:108) and Go registration mux.Handle(\"POST /api/custom-metadata-providers\", auth.Admin(httpx.Handler(h.createCustom))). Current assertion anchor(s): TestCustomProviderCRUDPermissionsAndFallback. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:320",
+    "go-backend/internal/metadata/metadata.go",
+    "go-backend/internal/metadata/metadata.go:112",
+    "server/controllers/CustomMetadataProviderController.js:108"
+  ],
+  "implementation": [
+    "go-backend/internal/metadata/metadata.go:112"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/metadata/metadata_test.go:149#TestCustomProviderCRUDPermissionsAndFallback"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R193-CONTRACT",
+      "class": "shape",
+      "contract": "POST /api/custom-metadata-providers dispatches to the pinned TS handler CustomMetadataProviderController.middleware (ApiRouter.js:320, server/controllers/CustomMetadataProviderController.js:108) and Go registration mux.Handle(\"POST /api/custom-metadata-providers\", auth.Admin(httpx.Handler(h.createCustom))). Current assertion anchor(s): TestCustomProviderCRUDPermissionsAndFallback. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:320",
+        "go-backend/internal/metadata/metadata.go",
+        "go-backend/internal/metadata/metadata.go:112",
+        "server/controllers/CustomMetadataProviderController.js:108"
+      ],
+      "tests": [
+        "go-backend/internal/metadata/metadata_test.go:149#TestCustomProviderCRUDPermissionsAndFallback"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
+        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
+        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+      ]
+    }
+  ]
 }

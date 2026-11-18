@@ -1,0 +1,49 @@
+{
+ "id": "route-r219",
+ "parent": "http/playback",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /:stream/:file candidate recorded from server/routers/HlsRouter.js:21. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/HlsRouter.js:21"
+ ],
+ "implementation": [
+  "go-backend/internal/playback/playback.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/playback/playback.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#hls-playlist (differential pass)",
+  "go-backend/contracts/parity/f09-forced-transcode-browser-report.json#results.playback.hlsResponses (six playlist/segment responses; selected headers, lengths and body hashes match)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R219-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled GET /:stream/:file via differential case(s) hls-playlist: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: playback.",
+   "status": "verified",
+   "source": [
+    "server/routers/HlsRouter.js:21"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#hls-playlist",
+    "go-backend/contracts/parity/f09-forced-transcode-browser-report.json#results.playback.hlsResponses (six playlist/segment responses; selected headers, lengths and body hashes match)"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  }
+ ]
+}

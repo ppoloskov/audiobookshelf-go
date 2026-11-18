@@ -1,0 +1,60 @@
+{
+  "id": "runtime-configuration",
+  "parent": "config",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Existing config/metadata paths, environment/CLI overrides, router prefix, token expiry and tool resolution select the intended installation without persisting process-only overrides or revealing secrets; invalid startup input fails clearly.",
+  "source": [
+    "index.js",
+    "server/Server.js",
+    "go-backend/README.md"
+  ],
+  "implementation": [
+    "go-backend/internal/config/config.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/config/config_test.go:8#TestLoadRouterBasePathAndPort",
+    "go-backend/internal/config/config_test.go:65#TestLoadArgsOverridesEnvironment",
+    "go-backend/internal/settings/settings_test.go:200#TestEnvOverridesAreNotPersisted",
+    "go-backend/internal/settings/settings_test.go:152#TestSecretsAbsentFromViewsAndFormatting"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-RUNTIME-CONFIGURATION",
+      "class": "repeat_operation",
+      "contract": "Existing config/metadata paths, environment/CLI overrides, router prefix, token expiry and tool resolution select the intended installation without persisting process-only overrides or revealing secrets; invalid startup input fails clearly.",
+      "status": "unverified",
+      "source": [
+        "index.js",
+        "server/Server.js",
+        "go-backend/README.md"
+      ],
+      "tests": [
+        "go-backend/internal/config/config_test.go:8#TestLoadRouterBasePathAndPort",
+        "go-backend/internal/config/config_test.go:65#TestLoadArgsOverridesEnvironment",
+        "go-backend/internal/settings/settings_test.go:200#TestEnvOverridesAreNotPersisted",
+        "go-backend/internal/settings/settings_test.go:152#TestSecretsAbsentFromViewsAndFormatting"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

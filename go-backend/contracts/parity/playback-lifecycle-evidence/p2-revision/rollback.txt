@@ -1,0 +1,131 @@
+work dir: /private/tmp/abs-playback-p2/rollback
+(node:39221) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+{
+  "rollback": {
+    "booted": true,
+    "progressMatches": true,
+    "bookmarksMatch": true,
+    "sessionCount": 8,
+    "goView": [
+      {
+        "id": "545eb4c9-8281-4a3a-a7fb-4fe003664ce4",
+        "ep": "2a64bf48-57da-4483-a0f6-25d4805aa0c2",
+        "t": 10.5,
+        "f": false,
+        "e": null,
+        "h": false
+      },
+      {
+        "id": "545eb4c9-8281-4a3a-a7fb-4fe003664ce4",
+        "ep": "73d3fb7b-5634-4062-b11c-142a380908a6",
+        "t": 6,
+        "f": false,
+        "e": null,
+        "h": false
+      },
+      {
+        "id": "545eb4c9-8281-4a3a-a7fb-4fe003664ce4",
+        "ep": "ba75ec2e-27d5-478c-858f-d5215e41681c",
+        "t": 0,
+        "f": true,
+        "e": null,
+        "h": false
+      },
+      {
+        "id": "60189ba7-88ca-416f-b571-77c199687107",
+        "ep": "",
+        "t": 10,
+        "f": false,
+        "e": null,
+        "h": false
+      },
+      {
+        "id": "76aab259-7107-442a-a985-f340e273663e",
+        "ep": "",
+        "t": 0,
+        "f": true,
+        "e": null,
+        "h": false
+      },
+      {
+        "id": "ba92ae1c-169d-42b3-9ff2-ecf31f6e78c7",
+        "ep": "",
+        "t": 15,
+        "f": false,
+        "e": null,
+        "h": false
+      },
+      {
+        "id": "c3d76d39-bc08-4d10-b205-d219d2ef94ba",
+        "ep": "",
+        "t": 0,
+        "f": false,
+        "e": "epubcfi(/6/2!/4/2/1:0)",
+        "h": false
+      }
+    ],
+    "upView": [
+      {
+        "id": "545eb4c9-8281-4a3a-a7fb-4fe003664ce4",
+        "ep": "2a64bf48-57da-4483-a0f6-25d4805aa0c2",
+        "t": 10.5,
+        "f": false,
+        "e": null,
+        "h": false
+      },
+      {
+        "id": "545eb4c9-8281-4a3a-a7fb-4fe003664ce4",
+        "ep": "73d3fb7b-5634-4062-b11c-142a380908a6",
+        "t": 6,
+        "f": false,
+        "e": null,
+        "h": false
+      },
+      {
+        "id": "545eb4c9-8281-4a3a-a7fb-4fe003664ce4",
+        "ep": "ba75ec2e-27d5-478c-858f-d5215e41681c",
+        "t": 0,
+        "f": true,
+        "e": null,
+        "h": false
+      },
+      {
+        "id": "60189ba7-88ca-416f-b571-77c199687107",
+        "ep": "",
+        "t": 10,
+        "f": false,
+        "e": null,
+        "h": false
+      },
+      {
+        "id": "76aab259-7107-442a-a985-f340e273663e",
+        "ep": "",
+        "t": 0,
+        "f": true,
+        "e": null,
+        "h": false
+      },
+      {
+        "id": "ba92ae1c-169d-42b3-9ff2-ecf31f6e78c7",
+        "ep": "",
+        "t": 15,
+        "f": false,
+        "e": null,
+        "h": false
+      },
+      {
+        "id": "c3d76d39-bc08-4d10-b205-d219d2ef94ba",
+        "ep": "",
+        "t": 0,
+        "f": false,
+        "e": "epubcfi(/6/2!/4/2/1:0)",
+        "h": false
+      }
+    ]
+  },
+  "goSessionTotal": 8,
+  "sessionsMatch": true
+}
+
+rollback-only: upstream booted; progress ok; bookmarks ok; sessions ok (8 rows); rollback ok

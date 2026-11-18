@@ -1,0 +1,62 @@
+{
+  "id": "socket-outgoing-metadata-embed-queue-update",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "On metadata_embed_queue_update, admins see each waiting admission with the item ID and queued true. Every authenticated socket sees the dequeued item ID and queued false, after the previous task finishes and before that item starts. The bundled client reads libraryItemId and queued to add or remove a waiting item.",
+  "source": [
+    "server/managers/AudioMetadataManager.js:119",
+    "server/managers/AudioMetadataManager.js:277",
+    "server/managers/TaskManager.js:22-35",
+    "client/layouts/default.vue:263-268",
+    "client/store/tasks.js"
+  ],
+  "implementation": [
+    "go-backend/internal/tools/embed.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/tests/replacement/tools/run_test.go#TestReplacement/waiting-embed-admission-and-fifo-dequeue-audiences"
+  ],
+  "evidence": [
+    "go-backend/docs/verification/q01-embed-queue-review.md"
+  ],
+  "exceptions": [
+    "Successful admissions and dequeues have scoped upstream evidence. Error, recovery and remaining required state variants are open."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-METADATA-EMBED-QUEUE-UPDATE",
+      "class": "repeat_operation",
+      "contract": "On metadata_embed_queue_update, admins see each waiting admission with the item ID and queued true. Every authenticated socket sees the dequeued item ID and queued false, after the previous task finishes and before that item starts. The bundled client reads libraryItemId and queued to add or remove a waiting item.",
+      "status": "unverified",
+      "source": [
+        "server/managers/AudioMetadataManager.js:119",
+        "server/managers/AudioMetadataManager.js:277",
+        "server/managers/TaskManager.js:22-35",
+        "client/layouts/default.vue:263-268",
+        "client/store/tasks.js"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/tools/run_test.go#TestReplacement/waiting-embed-admission-and-fifo-dequeue-audiences"
+      ],
+      "evidence": [
+        "go-backend/docs/verification/q01-embed-queue-review.md"
+      ],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "id": "flow-client-mobile-protocol",
+  "parent": "user",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Lissen mobile conditional JSON reads and image URL options: ETag may be absent on a fresh 200; when present, a matching If-None-Match returns empty 304 with the same validator; auth failures must not be hidden by a cached 304. Cover width/raw/format parameters remain client-visible inputs.",
+  "source": [
+    "server/Server.js:173-192",
+    "server/routers/ApiRouter.js:35-43"
+  ],
+  "implementation": [
+    "go-backend/internal/httpx/respond.go",
+    "go-backend/internal/item/cover.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-FLOW-CLIENT-MOBILE-ETAG-001",
+      "class": "repeat_operation",
+      "contract": "For Lissen conditional reads, each listed endpoint returns a valid JSON 200; if that response has ETag then a subsequent matching If-None-Match returns 304 with no body and the same ETag, while a response without ETag remains a valid fresh 200. The test also checks failed-auth reads are not turned into cached 304 responses.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:173-192"
+      ],
+      "tests": [
+        "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET"
+      ],
+      "evidence": [
+        "go-backend/internal/contracttest/mobile_protocol_test.go:TestMobileConditionalGET"
+      ],
+      "exceptions": [
+        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed."
+      ]
+    },
+    {
+      "id": "INV-FLOW-CLIENT-MOBILE-COVER-001",
+      "class": "shape",
+      "contract": "Cover query options used by Lissen (width, raw, format) select the requested dimensions/encoding/response behavior in the mobile cover integration assertions.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:41-43"
+      ],
+      "tests": [
+        "go-backend/internal/contracttest/mobile_protocol_test.go:214#TestMobileCoverParameters"
+      ],
+      "evidence": [
+        "go-backend/internal/contracttest/mobile_protocol_test.go:TestMobileCoverParameters"
+      ],
+      "exceptions": [
+        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed."
+      ]
+    }
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET",
+    "go-backend/internal/contracttest/mobile_protocol_test.go:214#TestMobileCoverParameters"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Lissen client evidence: go-backend/contracts/clients/lissen.md; this test protects only the listed routes/parameters and is not device acceptance. `force` is not a mobile HTTP cache operation; changed entity validator behavior and mobile playback/download acceptance remain unverified.",
+    "State scenario force is not applicable for this client workflow because none of its mapped operations has a force/refresh mode; changed and repeat outcomes remain unverified unless an invariant explicitly states otherwise.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ]
+}

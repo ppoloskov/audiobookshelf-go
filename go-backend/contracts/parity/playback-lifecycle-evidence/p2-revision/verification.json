@@ -1,0 +1,345 @@
+{
+  "baseSHA": "8990c2e61a1637a69effc4ca26e2df1748301889",
+  "result": "P2_REVISIONS_READY_FOR_ARCHITECT_REVIEW",
+  "review": "go-backend/docs/verification/playback-lifecycle-architect-review.md",
+  "environment": {
+    "GOCACHE": "/private/tmp/abs-playback-lifecycle/go-cache",
+    "GOTOOLCHAIN": "local",
+    "FFMPEG_PATH": "/private/tmp/abs-cleanup-checkpoint-20261105/ffmpeg-9.0.2-webp/bin/ffmpeg",
+    "PATHPrefix": "/private/tmp/abs-cleanup-checkpoint-20261105/ffmpeg-9.0.2-webp/bin",
+    "node": "mise node@22",
+    "network": "authorized loopback only for live/required HTTP tests/rollback"
+  },
+  "checks": [
+    {
+      "command": "go test -overlay /private/tmp/abs-playback-p2/red-overlay.json ./internal/playback -run TestStreamLifecycleHandlerCloseBoundsInheritedPipeDrain -count=1",
+      "exitCode": 1,
+      "evidence": "media-red-final.txt; expected failure without WaitDelay"
+    },
+    {
+      "command": "go test ./internal/media ./internal/playback -count=1",
+      "exitCode": 0,
+      "evidence": "media-green.txt"
+    },
+    {
+      "command": "CGO_ENABLED=1 go test -race ./internal/media ./internal/playback -count=1",
+      "exitCode": 0,
+      "evidence": "media-race.txt"
+    },
+    {
+      "command": "CGO_ENABLED=1 go test -race -overlay /private/tmp/abs-playback-architect-review.AYJ8Pz/overlay.json ./internal/playback -run TestArchitectCloseWithInheritedPipe -count=1",
+      "exitCode": 0,
+      "evidence": "architect-overlay-green.txt; original architect probe"
+    },
+    {
+      "command": "mise exec node@22 -- node --require /private/tmp/abs-playback-p2/preload-pre-gate.cjs --test go-backend/tools/parity/test-playback-lifecycle.cjs",
+      "exitCode": 1,
+      "evidence": "harness-regression-red.txt; current regression tests against pre-fix gate, 6 fail"
+    },
+    {
+      "command": "mise exec node@22 -- node --test go-backend/tools/parity/test-playback-lifecycle.cjs",
+      "exitCode": 0,
+      "evidence": "harness-regression-green.txt; 10 pass, 0 skip"
+    },
+    {
+      "command": "mise exec node@22 -- node go-backend/tools/parity/playback-lifecycle.cjs --fixture /private/tmp/abs-playback-lifecycle/fixture-live/fixture-manifest.json --go-bin /private/tmp/abs-playback-p2/playback-fixed --out /private/tmp/abs-playback-p2/live-progress --modes progress",
+      "exitCode": 0,
+      "evidence": "live-progress.json; strengthened TS/Go progress gate"
+    },
+    {
+      "command": "go test -json ./... -count=1",
+      "exitCode": 0,
+      "evidence": "full-suite action/package counts below; raw /private/tmp/abs-playback-p2/full-tests.jsonl"
+    },
+    {
+      "command": "go vet ./...",
+      "exitCode": 0,
+      "evidence": "vet.txt"
+    },
+    {
+      "command": "golangci-lint run --config=../.golangci.yml --timeout=5m ./...",
+      "exitCode": 0,
+      "evidence": "lint.txt"
+    },
+    {
+      "command": "CGO_ENABLED=0 go build -o /private/tmp/abs-playback-p2/playback-fixed ./cmd/audiobookshelf-go",
+      "exitCode": 0,
+      "evidence": "native binary"
+    },
+    {
+      "command": "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o /private/tmp/abs-playback-p2/playback-linux-amd64 ./cmd/audiobookshelf-go",
+      "exitCode": 0,
+      "evidence": "cross-build"
+    },
+    {
+      "command": "GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /private/tmp/abs-playback-p2/playback-linux-arm64 ./cmd/audiobookshelf-go",
+      "exitCode": 0,
+      "evidence": "cross-build"
+    },
+    {
+      "command": "SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 mise exec node@22 -- node go-backend/tools/parity/replacement-trial.cjs --rollback-only --go-bin /private/tmp/abs-playback-p2/playback-fixed --work /private/tmp/abs-playback-p2/rollback",
+      "exitCode": 0,
+      "evidence": "rollback.txt; boot/progress/bookmarks/8 session rows pass"
+    },
+    {
+      "command": "gofmt -l .",
+      "exitCode": 0,
+      "evidence": "no filenames"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0,
+      "evidence": "clean"
+    }
+  ],
+  "testActions": {
+    "start": 37,
+    "output": 5743,
+    "skip": 3,
+    "run": 1706,
+    "pass": 1740
+  },
+  "skipRecords": [
+    {
+      "Package": "audiobookshelf-compat/cmd/audiobookshelf-go"
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/db/dbtest"
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/version"
+    }
+  ],
+  "individualTestsSkipped": 0,
+  "packageResults": [
+    {
+      "Package": "audiobookshelf-compat/cmd/audiobookshelf-go",
+      "Action": "skip",
+      "Elapsed": 0
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/config",
+      "Action": "pass",
+      "Elapsed": 0.28
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/admin",
+      "Action": "pass",
+      "Elapsed": 0.658
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/backup",
+      "Action": "pass",
+      "Elapsed": 0.673
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/author",
+      "Action": "pass",
+      "Elapsed": 0.722
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/db/dbtest",
+      "Action": "skip",
+      "Elapsed": 0
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/cronspec",
+      "Action": "pass",
+      "Elapsed": 0.292
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/contracttest/shape",
+      "Action": "pass",
+      "Elapsed": 0.321
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/deviceinfo",
+      "Action": "pass",
+      "Elapsed": 0.288
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/events",
+      "Action": "pass",
+      "Elapsed": 0.272
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/ids",
+      "Action": "pass",
+      "Elapsed": 0.269
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/httpx",
+      "Action": "pass",
+      "Elapsed": 0.332
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/library",
+      "Action": "pass",
+      "Elapsed": 0.493
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/logging",
+      "Action": "pass",
+      "Elapsed": 0.438
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/mail",
+      "Action": "pass",
+      "Elapsed": 0.506
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/filterdata",
+      "Action": "pass",
+      "Elapsed": 1.476
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/auth",
+      "Action": "pass",
+      "Elapsed": 3.541
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/media",
+      "Action": "pass",
+      "Elapsed": 1.486
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/db",
+      "Action": "pass",
+      "Elapsed": 2.816
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/notify",
+      "Action": "pass",
+      "Elapsed": 2.534
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/podcast",
+      "Action": "pass",
+      "Elapsed": 1.8399999999999999
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/settings",
+      "Action": "pass",
+      "Elapsed": 0.967
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/list",
+      "Action": "pass",
+      "Elapsed": 4.569
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/metadata",
+      "Action": "pass",
+      "Elapsed": 4.093
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/share",
+      "Action": "pass",
+      "Elapsed": 0.499
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/text",
+      "Action": "pass",
+      "Elapsed": 0.33
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/version",
+      "Action": "skip",
+      "Elapsed": 0
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/user",
+      "Action": "pass",
+      "Elapsed": 0.601
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/server",
+      "Action": "pass",
+      "Elapsed": 2.461
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/browse",
+      "Action": "pass",
+      "Elapsed": 8.344
+    },
+    {
+      "Package": "audiobookshelf-compat/tools/clientusage",
+      "Action": "pass",
+      "Elapsed": 1.518
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/realtime",
+      "Action": "pass",
+      "Elapsed": 4.884
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/scan",
+      "Action": "pass",
+      "Elapsed": 4.567
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/tools",
+      "Action": "pass",
+      "Elapsed": 2.627
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/item",
+      "Action": "pass",
+      "Elapsed": 10.643
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/playback",
+      "Action": "pass",
+      "Elapsed": 9.848
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/contracttest",
+      "Action": "pass",
+      "Elapsed": 27.167
+    }
+  ],
+  "nonzeroProgressByOwner": {
+    "node": {
+      "owner-1": 12,
+      "owner-2": 12
+    },
+    "go": {
+      "owner-1": 12,
+      "owner-2": 12
+    }
+  },
+  "sourceSHA256": {
+    "go-backend/internal/media/probe.go": "767b68a430cae5a9553f6a08d1cd5f9191ee7564aabf7144128d35875d83f513",
+    "go-backend/internal/media/probe_test.go": "900dd2c566d13bdabb5a83d5187408a966e4de10613219bc4afe2451366839c3",
+    "go-backend/internal/playback/hls_lifecycle_test.go": "dded2dadf4c5c463c5c42656c3c10a9e455432d1a8d6e0b1c7bb33ea206f41b3",
+    "go-backend/tools/parity/playback-lifecycle.cjs": "2117a5a88abecb9186edffc3dd46460b1b6ade2caee22bce8741217b77e1991e",
+    "go-backend/tools/parity/test-playback-lifecycle.cjs": "d3146932d20a307f0f87a533b8248b1db077cfa4e6b2d27e9a79d5a0137c22bd"
+  },
+  "binarySHA256": "3a3ce24aa8029f7b1af3723e3f9a8cbbd825bba247037f0641092085fb8e9524",
+  "scopeNotes": [
+    "Only standard exec.Cmd.WaitDelay (one second) added to shared media execution; no whole-session runtime cap and no playback timeout escape hatch.",
+    "WaitDelay reaps the direct child and bounds owned pipe-copy goroutines; it is not a descendant process-group termination mechanism. Fixture descendants are explicitly killed in cleanup.",
+    "All deletion mutation tests call public assertEvents; no exact progress count required.",
+    "Initial temporary observer proof failed to resolve relative dependencies. The final preloading proof evaluates the real pre-gate logic with proper module resolution; its regression suite exits 1.",
+    "Prior whole-lifecycle evidence remains historical; this revision reruns the affected live progress mode and original architect cancellation overlay, plus all required machine gates and rollback.",
+    "No new owner, dependencies, upstream/client changes, commits, push or deployment."
+  ],
+  "changedGoFilesSinceReviewedSnapshot": [
+    "go-backend/internal/media/probe.go",
+    "go-backend/internal/media/probe_test.go",
+    "go-backend/internal/playback/hls_lifecycle_test.go"
+  ],
+  "unchangedPlaybackProductionSinceReviewedSnapshot": [
+    "go-backend/internal/playback/hls.go",
+    "go-backend/internal/playback/lifecycle.go",
+    "go-backend/internal/playback/media.go",
+    "go-backend/internal/playback/session.go"
+  ],
+  "finalChecks": {
+    "ledgerStructureExitCode": 0,
+    "diffCheckExitCode": 0,
+    "observerSyntaxExitCode": 0,
+    "processAudit": "process-cleanup-audit.json",
+    "preexistingOverlayHashesUnchanged": true
+  }
+}

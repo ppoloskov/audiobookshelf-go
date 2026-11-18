@@ -1,25 +1,63 @@
 {
- "id": "route-r126",
- "parent": "http/backup",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /backups/:id/apply candidate recorded from server/routers/ApiRouter.js:204. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:204"
- ],
- "implementation": [
-  "go-backend/internal/backup/backup.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/backup/backup.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r126",
+  "parent": "http/backup",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "GET /backups/:id/apply at server/routers/ApiRouter.js:204. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "source": [
+    "server/routers/ApiRouter.js:204"
+  ],
+  "implementation": [
+    "go-backend/internal/backup/backup.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/backup/backup_test.go:236#TestRoutesAdminOnlyAndMissingBackup",
+    "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
+    "go-backend/internal/backup/backup_test.go:252#TestUploadRejections",
+    "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
+    "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
+    "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
+    "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
+    "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
+    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R126-ROUTE",
+      "class": "shape",
+      "contract": "GET /backups/:id/apply at server/routers/ApiRouter.js:204. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:204"
+      ],
+      "tests": [
+        "go-backend/internal/backup/backup_test.go:236#TestRoutesAdminOnlyAndMissingBackup",
+        "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
+        "go-backend/internal/backup/backup_test.go:252#TestUploadRejections",
+        "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
+        "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
+        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
+        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
+        "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
+        "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    }
+  ]
 }

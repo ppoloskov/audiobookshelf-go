@@ -1,0 +1,50 @@
+{
+ "id": "route-r163",
+ "parent": "http/notifications",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "PATCH /notifications candidate recorded from server/routers/ApiRouter.js:266. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:266"
+ ],
+ "implementation": [
+  "go-backend/internal/notifications/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "unverified",
+  "edge": "verified"
+ },
+ "stateful": true,
+ "invariants": [
+  {
+   "id": "INV-R163-PATCH-DEFAULTS-001",
+   "class": "state_transition",
+   "contract": "PATCH /notifications returns Express sendStatus(200) and applies upstream defaults to omitted fields: a missing appriseApiUrl becomes null, maxFailedAttempts becomes 5, and maxNotificationQueue becomes 20; resulting settings persist.",
+   "status": "verified",
+   "source": ["server/controllers/NotificationController.js:38-44", "server/objects/settings/NotificationSettings.js:73-100", "server/models/Setting.js:36-39"],
+   "tests": ["go-backend/tools/parity/differential.cjs", "go-backend/internal/notifications/handler_test.go"],
+   "evidence": ["go-backend/contracts/parity/full-suite-report.json#notifications-settings-patch-defaults", "go-backend/contracts/parity/full-suite-report.json#notifications-settings-read-after-defaults"],
+   "exceptions": []
+  }
+ ],
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "unverified",
+  "changed": "verified",
+  "force": "not_applicable",
+  "failure": "unverified"
+ },
+ "tests": [
+  "go-backend/internal/notifications/handler.go",
+  "go-backend/internal/notifications/handler_test.go",
+  "go-backend/tools/parity/differential.cjs"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#notifications-settings-patch-custom",
+  "go-backend/contracts/parity/full-suite-report.json#notifications-settings-patch-defaults",
+  "go-backend/contracts/parity/full-suite-report.json#notifications-settings-read-after-defaults"
+ ],
+ "exceptions": ["Malformed-body failure behavior and repeated/no-op persistence semantics remain unverified."]
+}

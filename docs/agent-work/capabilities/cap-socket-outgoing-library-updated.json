@@ -1,0 +1,66 @@
+{
+  "id": "socket-outgoing-library-updated",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing library_updated: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/controllers/LibraryController.js:511"
+  ],
+  "implementation": [
+    "go-backend/internal/library/write.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/library/libraries_test.go:117#TestFolderRemovalOnlyDeletesAndRefreshesOnce",
+    "go-backend/internal/library/libraries_test.go:132#TestFolderRemovalFailureKeepsFolder",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/event-updated-audience-and-payload",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/event-updated-for-folder-change-and-granted-user",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/event-updated-only-when-something-changed",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/event-updated-not-sent-for-rejected-patch"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: library_updated has no force or override mode."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-LIBRARY-UPDATED",
+      "class": "repeat_operation",
+      "contract": "A PATCH that changed the library or its folders emits library_updated once with the answered document to authenticated sockets whose user can access the library only; unchanged, rejected and reorder requests emit nothing.",
+      "status": "unverified",
+      "source": [
+        "server/SocketAuthority.js:57-65",
+        "server/controllers/LibraryController.js:239-366",
+        "server/controllers/LibraryController.js:470-490",
+        "server/controllers/LibraryController.js:482-490",
+        "server/controllers/LibraryController.js:913-949",
+        "server/models/User.js:646-650"
+      ],
+      "tests": [
+        "go-backend/internal/library/libraries_test.go:117#TestFolderRemovalOnlyDeletesAndRefreshesOnce",
+        "go-backend/internal/library/libraries_test.go:132#TestFolderRemovalFailureKeepsFolder",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/event-updated-audience-and-payload",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/event-updated-for-folder-change-and-granted-user",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/event-updated-only-when-something-changed",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/event-updated-not-sent-for-rejected-patch"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

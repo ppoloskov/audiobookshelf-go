@@ -1,0 +1,25 @@
+{
+ "id": "route-r225",
+ "parent": "http/playback",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /session/:id/track/:index candidate recorded from server/routers/PublicRouter.js:21. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/PublicRouter.js:21"
+ ],
+ "implementation": [
+  "go-backend/internal/playback/playback.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/playback/playback.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

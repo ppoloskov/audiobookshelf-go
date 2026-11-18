@@ -1,25 +1,65 @@
 {
- "id": "route-r085",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /collections/:id/book candidate recorded from server/routers/ApiRouter.js:151. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:151"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r085",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/collections/:id/book. Add an accessible book to an authorized collection, preserving identity/order and response projection; reject unknown/forbidden media and avoid duplicate links.",
+  "source": [
+    "server/routers/ApiRouter.js:151",
+    "server/controllers/CollectionController.js:433",
+    "server/controllers/CollectionController.js:234"
+  ],
+  "implementation": [
+    "go-backend/internal/list/list.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/add-book-appends-link",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/add-book-duplicate-rejected",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/add-book-after-remove-goes-last",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/add-book-rejected-unchanged"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-R085-CONTRACT-001",
+      "class": "state_transition",
+      "contract": "POST /api/collections/:id/book {id} appends the library item as the last link and answers 200 with the expanded collection; 404 for a missing/unknown item, 400 for an item of another library or one already in the collection, 401/403/404 by authorisation, changing nothing when rejected.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/CollectionController.js:234-260",
+        "server/controllers/CollectionController.js:245-249",
+        "server/controllers/CollectionController.js:251-256",
+        "server/controllers/CollectionController.js:271-308",
+        "server/controllers/CollectionController.js:235-243",
+        "server/controllers/CollectionController.js:433-453"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/add-book-appends-link",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/add-book-duplicate-rejected",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/add-book-after-remove-goes-last",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/add-book-rejected-unchanged"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+      ]
+    }
+  ]
 }

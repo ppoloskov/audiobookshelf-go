@@ -1,28 +1,53 @@
 {
- "id": "sub-podcast-download-queue",
- "parent": "podcasts",
- "kind": "job",
- "scope": "in",
- "status": "implemented",
- "contract": "Podcast RSS feed ingestion, episode download queue/lifecycle matching upstream PodcastManager episode download task states and files.",
- "source": [
-  "server/managers/PodcastManager.js"
- ],
- "implementation": [
-  "go-backend/internal/podcasts/podcasts.go",
-  "go-backend/internal/podcasts/downloads.go",
-  "go-backend/internal/podcasts/rss.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "tests": [
-  "go-backend/internal/podcasts/rss_test.go"
- ],
- "evidence": [],
- "exceptions": [
-  "Test TestCreatePodcastValidatesFolderAndPersistsSourceShape currently fails at episode download completion (investigation open)."
- ]
+  "id": "sub-podcast-download-queue",
+  "parent": "http/podcast",
+  "kind": "job",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Podcast RSS feed ingestion, episode download queue/lifecycle matching upstream PodcastManager episode download task states and files.",
+  "source": [
+    "server/managers/PodcastManager.js"
+  ],
+  "implementation": [
+    "go-backend/internal/podcast/queue.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/podcast/podcast_test.go"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Test TestCreatePodcastValidatesFolderAndPersistsSourceShape currently fails at episode download completion (investigation open).",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-SUB-PODCAST-DOWNLOAD-QUEUE",
+      "class": "repeat_operation",
+      "contract": "Podcast RSS feed ingestion, episode download queue/lifecycle matching upstream PodcastManager episode download task states and files.",
+      "status": "unverified",
+      "source": [
+        "server/managers/PodcastManager.js"
+      ],
+      "tests": [
+        "go-backend/internal/podcast/podcast_test.go"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Required detailed state/recipient/failure assertions are not yet characterized."
+      ]
+    }
+  ]
 }

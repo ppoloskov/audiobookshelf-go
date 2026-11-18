@@ -1,0 +1,25 @@
+--- FAIL: TestStreamLifecycleRealCompletion (2.36s)
+    hls_lifecycle_test.go:33: stream_open = 0, want 1
+    hls_lifecycle_test.go:36: initial progress count = 0, want 1
+    hls_lifecycle_test.go:63: open payload = null
+    hls_lifecycle_test.go:75: initial progress = null
+    hls_lifecycle_test.go:86: stream_closed = 0, want 1
+    hls_lifecycle_test.go:92: closed payload = "", want "632e65af-9019-4569-a91b-dbe8a1a051c7"
+    hls_lifecycle_test.go:96: duplicate stream_closed = 0
+2026/11/13 10:03:47 ERROR ffmpeg transcode failed dir=/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/TestStreamLifecycleRealFailure1449780100/005/streams/4ae5b12c-d70f-468e-86db-711926200228 error="exit status 183: [in#0 @ 0x7986c1c000] Impossible to open '/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/TestStreamLifecycleRealFailure1449780100/002/a.bin'\n[in#0 @ 0x7986c14000] Error opening input: Invalid data found when processing input\nError opening input file /var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/TestStreamLifecycleRealFailure1449780100/005/streams/4ae5b12c-d70f-468e-86db-711926200228/files.txt.\nError opening input files: Invalid data found when processing input"
+--- FAIL: TestStreamLifecycleRealFailure (3.03s)
+    hls_lifecycle_test.go:118: error payload = null
+    hls_lifecycle_test.go:120: stream_error = 0, want 1
+    hls_lifecycle_test.go:126: failed stream directory survived: <nil>
+    hls_lifecycle_test.go:129: failed stream HLS status = 200, want 404
+--- FAIL: TestStreamLifecycleIncrementalFiles (6.03s)
+    hls_lifecycle_test.go:167: incremental progress = null
+    hls_lifecycle_test.go:182: opened with seven segments = 0, want 1
+2026/11/13 10:03:56 ERROR ffmpeg transcode failed dir=/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/TestStreamLifecycleExecStartupFailure3443020824/005/streams/e6e013d7-7888-4809-bb65-29af111211c0 error="fork/exec /var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/TestStreamLifecycleExecStartupFailure3443020824/006/ffmpeg: no such file or directory"
+--- FAIL: TestStreamLifecycleExecStartupFailure (3.03s)
+    hls_lifecycle_test.go:195: error payload = null
+    hls_lifecycle_test.go:197: stream_error = 0, want 1
+    hls_lifecycle_test.go:203: failed exec directory survived: <nil>
+FAIL
+FAIL	audiobookshelf-compat/internal/playback	14.879s
+FAIL

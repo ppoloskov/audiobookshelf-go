@@ -1,0 +1,51 @@
+{
+  "id": "cap-flow-mail-smtp-mime",
+  "parent": "http/mail",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Construct SMTP envelope from configured sender and requested recipient; validate preconditions before connect; serialize message headers/body and streamed ebook attachment into MIME, and report SMTP failure without claiming send success.",
+  "source": [
+    "server/managers/EmailManager.js"
+  ],
+  "implementation": [
+    "go-backend/internal/mail/transport.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+    "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+    "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",
+    "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+    "State scenarios are not applicable to this stateless event-shape/audience requirement.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ],
+  "invariants": [
+    {
+      "id": "INV-CAP-FLOW-MAIL-SMTP-MIME",
+      "class": "shape",
+      "contract": "Construct SMTP envelope from configured sender and requested recipient; validate preconditions before connect; serialize message headers/body and streamed ebook attachment into MIME, and report SMTP failure without claiming send success.",
+      "status": "unverified",
+      "source": [
+        "server/managers/EmailManager.js"
+      ],
+      "tests": [
+        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",
+        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

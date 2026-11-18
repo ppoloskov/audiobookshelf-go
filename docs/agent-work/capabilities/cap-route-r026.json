@@ -1,25 +1,58 @@
 {
- "id": "route-r026",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /libraries/:id/series/:seriesId candidate recorded from server/routers/ApiRouter.js:79. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:79"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r026",
+  "parent": "http/browse",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/libraries/:id/series/:seriesId dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:79, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"GET /api/libraries/{id}/series/{seriesId}\", library.InLibrary(h.db, h.seriesInLibrary)). Current assertion anchor(s): TestSeriesDetailProgressAndFeed. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:79",
+    "go-backend/internal/browse/browse.go",
+    "go-backend/internal/browse/browse.go:43",
+    "server/controllers/LibraryController.js:1475",
+    "server/controllers/LibraryController.js:778-806",
+    "server/managers/RssFeedManager.js",
+    "server/controllers/LibraryController.js:1475-1498"
+  ],
+  "implementation": [
+    "go-backend/internal/browse/browse.go:43"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/library-series-detail-and-progress",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/library-series-detail-rssfeed",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/library-series-detail-errors",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/library-series-detail-without-accessible-books"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R026-CONTRACT",
+      "class": "shape",
+      "contract": "GET /api/libraries/:id/series/:seriesId returns the series object (no books); include=progress adds accessible item ids, finished ids and isFinished (>=); include=rssfeed adds rssFeed or null; 401/403/404 for missing token, library access, unknown series or series of another library.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:778-806",
+        "server/managers/RssFeedManager.js",
+        "server/controllers/LibraryController.js:1475-1498"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/library-series-detail-and-progress",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/library-series-detail-rssfeed",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/library-series-detail-errors",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/library-series-detail-without-accessible-books"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

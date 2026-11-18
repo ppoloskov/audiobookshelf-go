@@ -1,25 +1,55 @@
 {
- "id": "route-r118",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /me/series/:id/remove-from-continue-listening candidate recorded from server/routers/ApiRouter.js:192. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:192"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r118",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/me/series/:id/remove-from-continue-listening. Hide a series from current-user continue listening without duplicate entries or events on repeated requests; preserve the user_updated projection.",
+  "source": [
+    "server/routers/ApiRouter.js:192",
+    "server/controllers/MeController.js:532"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/user/user_test.go:269#TestSeriesVisibility"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-R118-CONTRACT-001",
+      "class": "state_transition",
+      "contract": "GET /api/me/series/:id/remove-from-continue-listening. Hide a series from current-user continue listening without duplicate entries or events on repeated requests; preserve the user_updated projection.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:192",
+        "server/controllers/MeController.js:532"
+      ],
+      "tests": [
+        "go-backend/internal/user/user_test.go:269#TestSeriesVisibility"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+      ]
+    }
+  ]
 }

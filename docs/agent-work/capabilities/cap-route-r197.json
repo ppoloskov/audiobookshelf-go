@@ -1,25 +1,47 @@
 {
- "id": "route-r197",
- "parent": "http/adminops",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /stats/year/:year candidate recorded from server/routers/ApiRouter.js:332. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:332"
- ],
- "implementation": [
-  "go-backend/internal/adminops/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/adminops/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r197",
+  "parent": "http/admin",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "GET /stats/year/:year at server/routers/ApiRouter.js:332. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "source": [
+    "server/routers/ApiRouter.js:332"
+  ],
+  "implementation": [
+    "go-backend/internal/admin/admin.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/admin/admin_test.go"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R197-ROUTE",
+      "class": "shape",
+      "contract": "GET /stats/year/:year at server/routers/ApiRouter.js:332. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:332"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    }
+  ]
 }

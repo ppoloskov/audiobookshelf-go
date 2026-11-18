@@ -1,0 +1,47 @@
+{
+ "id": "route-r020",
+ "parent": "http/catalog",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "PATCH /libraries/:id candidate recorded from server/routers/ApiRouter.js:72. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:72"
+ ],
+ "implementation": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#library-update (differential pass)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R020-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled PATCH /libraries/:id via differential case(s) library-update: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: library-crud.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:72"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#library-update"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  }
+ ]
+}

@@ -1,73 +1,108 @@
 {
   "id": "route-r173",
-  "parent": "http/emailapi",
+  "parent": "http/mail",
   "kind": "operation",
   "scope": "in",
-  "status": "implemented",
-  "contract": "POST /emails/ereader-devices candidate recorded from server/routers/ApiRouter.js:280. This evidence covers successful admin update normalization, persisted readback, update/no-op realtime event behavior, and selected absent/null/empty users shapes. Authentication denials, malformed payloads, delivery routes, and other edge cases remain unverified.",
+  "status": "unverified",
+  "contract": "POST /emails/ereader-devices at server/routers/ApiRouter.js:280. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
   "source": [
     "server/routers/ApiRouter.js:280",
     "server/controllers/EmailController.js:62-82",
     "server/objects/settings/EmailSettings.js:75-101"
   ],
   "implementation": [
-    "go-backend/internal/emailapi/handler.go"
+    "go-backend/internal/mail/mail.go"
   ],
   "cases": {
-    "normal": "verified",
+    "normal": "unverified",
     "error": "unverified",
-    "edge": "verified"
+    "edge": "unverified"
   },
   "invariants": [
     {
-      "id": "INV-EMAIL-EREADER-DEVICE-NORMALIZE-001",
+      "id": "INV-ROUTE-R173-ROUTE",
       "class": "shape",
-      "contract": "Invalid availability options and specificUsers with an empty users list normalize availabilityOption to adminOrUp; non-specific options clear users only when users has a truthy length, preserving omitted, null, and empty fields otherwise.",
-      "status": "verified",
-      "source": ["server/objects/settings/EmailSettings.js:75-101"],
-      "tests": ["go-backend/internal/emailapi/handler_test.go:TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape"],
-      "evidence": ["go-backend/contracts/parity/email-devices-differential-report.json#email-devices-normalization-update"],
-      "exceptions": []
+      "contract": "POST /emails/ereader-devices at server/routers/ApiRouter.js:280. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:280",
+        "server/controllers/EmailController.js:62-82",
+        "server/objects/settings/EmailSettings.js:75-101"
+      ],
+      "tests": [
+        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
     },
     {
-      "id": "INV-EMAIL-EREADER-DEVICE-NOOP-001",
+      "id": "INV-ROUTE-R173-REPEAT",
       "class": "repeat_operation",
-      "contract": "An identical normalized device update returns the same response without changing the persisted updatedAt value or emitting another ereader-devices-updated event.",
-      "status": "verified",
-      "source": ["server/controllers/EmailController.js:75-82", "server/objects/settings/EmailSettings.js:99-111"],
-      "tests": ["go-backend/internal/emailapi/handler_test.go:TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape"],
-      "evidence": ["go-backend/contracts/parity/email-devices-differential-report.json#emailDevices.statefulCheck"],
-      "exceptions": []
-    },
-    {
-      "id": "INV-EMAIL-EREADER-DEVICE-CHANGE-001",
-      "class": "state_transition",
-      "contract": "A changed normalized device payload persists the new device state and emits one admin-scoped ereader-devices-updated event.",
-      "status": "verified",
-      "source": ["server/controllers/EmailController.js:75-82", "server/objects/settings/EmailSettings.js:99-111"],
-      "tests": ["go-backend/internal/emailapi/handler_test.go:TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape"],
-      "evidence": ["go-backend/contracts/parity/email-devices-differential-report.json#email-devices-changed-persisted-state", "go-backend/contracts/parity/email-devices-differential-report.json#emailDevices.statefulCheck"],
-      "exceptions": []
+      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:280",
+        "server/controllers/EmailController.js:62-82",
+        "server/objects/settings/EmailSettings.js:75-101"
+      ],
+      "tests": [
+        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
+      ]
     }
   ],
   "stateful": true,
   "state_scenarios": {
-    "initial": "verified",
-    "repeat": "verified",
-    "changed": "verified",
-    "force": "not_applicable",
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
     "failure": "unverified"
   },
   "tests": [
-    "go-backend/tools/parity/differential.cjs",
-    "go-backend/internal/emailapi/handler_test.go:TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape"
+    "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+    "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+    "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+    "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+    "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+    "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+    "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+    "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+    "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+    "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+    "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
   ],
-  "evidence": [
-    "go-backend/contracts/parity/email-devices-differential-report.json: fresh pinned v2.37.2 differential, nine route/readback/event/state cases matched; seven normalized devices persisted identically, including string/object users.length cases; changed updates persisted and emitted one admin event; identical repeat emitted none and left updatedAt unchanged.",
-    "Go unit regression verifies normalization and repeat no-op timestamp/event behavior."
-  ],
+  "evidence": [],
   "exceptions": [
     "Evidence is limited to the named successful admin update and selected normalization/repeat cases; request denial, malformed payload, SMTP test/delivery, and broader authorization behavior are not covered.",
-    "The enclosing differential run used EXP_PROXY_SUPPORT=1 for its local cover fixture and skipped the private-address SSRF case; that skip is unrelated to this email route and is recorded separately in the report."
+    "The enclosing differential run used EXP_PROXY_SUPPORT=1 for its local cover fixture and skipped the private-address SSRF case; that skip is unrelated to this email route and is recorded separately in the report.",
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
   ]
 }

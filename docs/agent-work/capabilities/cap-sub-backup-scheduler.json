@@ -1,40 +1,101 @@
 {
- "id": "sub-backup-scheduler",
- "parent": "jobs",
- "kind": "job",
- "scope": "in",
- "status": "implemented",
- "contract": "Scheduled and manual backups, restore via graph replacement, backupsToKeep/maxBackupSize/backupSchedule semantics matching upstream DailyBackupManager.",
- "source": [
-  "server/managers/BackupManager.js"
- ],
- "implementation": [
-  "go-backend/internal/backup/backup.go",
-  "go-backend/internal/server/manager.go"
- ],
+  "id": "sub-backup-scheduler",
+  "parent": "http/backup",
+  "kind": "job",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Scheduled and manual backups, restore via graph replacement, backupsToKeep/maxBackupSize/backupSchedule semantics matching upstream DailyBackupManager.",
+  "source": [
+    "server/managers/BackupManager.js"
+  ],
+  "implementation": [
+    "go-backend/internal/backup/backup.go",
+    "go-backend/internal/server/manager.go"
+  ],
   "cases": {
-   "normal": "verified",
-   "error": "verified",
-   "edge": "verified"
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
   },
   "stateful": true,
   "state_scenarios": {
-   "initial": "verified",
-   "repeat": "verified",
-   "changed": "unverified",
-   "force": "verified",
-   "failure": "verified"
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
   },
   "tests": [
-   "go-backend/internal/backup/backup_test.go",
-   "go-backend/internal/server/manager_test.go"
+    "go-backend/internal/backup/backup_test.go:236#TestRoutesAdminOnlyAndMissingBackup",
+    "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
+    "go-backend/internal/backup/backup_test.go:252#TestUploadRejections",
+    "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
+    "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
+    "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
+    "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
+    "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
+    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
   ],
-  "evidence": [
-   "go-backend/contracts/parity/cascades-differential-report.json (fresh isolated create/retention, malformed upload, apply/restore state, existing socket backup_applied; response and database comparisons, zero divergences)",
-   "go-backend/internal/server/manager_test.go (restore retains hub and rebinds database)"
+  "evidence": [],
+  "exceptions": [
+    "Three rapid backup creates produced one date-minute-named file per side in this run; cross-side count parity is verified, but distinct-file rolloff under a controlled clock is not.",
+    "Scheduled backup timing remains outside the W6 differential.",
+    "Historical differential report and manager assertions remain archived provenance, not current verified evidence. Scheduled timing, changed schedule restart, retention under deterministic clock, and failed-run recovery are not fully asserted by the named current tests.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
   ],
- "exceptions": [
-   "Three rapid backup creates produced one date-minute-named file per side in this run; cross-side count parity is verified, but distinct-file rolloff under a controlled clock is not.",
-   "Scheduled backup timing remains outside the W6 differential."
- ]
+  "invariants": [
+    {
+      "id": "INV-BACKUP-SCHEDULE-CREATE",
+      "class": "state_transition",
+      "contract": "A configured backup schedule creates archives in the configured folder, applies maxBackupSize and backupsToKeep retention, and writes the pinned archive contents.",
+      "status": "unverified",
+      "source": [
+        "server/managers/BackupManager.js",
+        "server/managers/BackupManager.js"
+      ],
+      "tests": [
+        "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
+        "go-backend/internal/backup/backup_test.go:194#TestRetentionMaxSizeAndFailure"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Tests exercise create/retention but do not currently prove wall-clock schedule firing."
+      ]
+    },
+    {
+      "id": "INV-BACKUP-SCHEDULE-REPEAT",
+      "class": "repeat_operation",
+      "contract": "Changing backup path/schedule replaces the active configuration; invalid cron leaves scheduled backups disabled and repeated configuration does not leave duplicate active schedules.",
+      "status": "unverified",
+      "source": [
+        "server/managers/BackupManager.js"
+      ],
+      "tests": [
+        "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current assertions check schedule starts and invalid schedule is off, but do not count duplicate schedulers after repeated valid updates."
+      ]
+    },
+    {
+      "id": "INV-BACKUP-RESTORE-ROLLBACK",
+      "class": "transaction",
+      "contract": "Restore failure leaves the running database and metadata roots usable, removes swap artifacts, and does not emit backup_applied; successful restore swaps the runtime database and metadata and emits backup_applied after success.",
+      "status": "unverified",
+      "source": [
+        "server/managers/BackupManager.js",
+        "server/Server.js"
+      ],
+      "tests": [
+        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
+        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
+        "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Tests are source-linked but have not been freshly rerun in this inventory task."
+      ]
+    }
+  ]
 }

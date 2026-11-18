@@ -1,0 +1,6 @@
+{
+  "go-backend/internal/media/probe.go": "50dad387c0beebe4bf3f910c2372350149037efc768566ed7c10ddd84b4df369",
+  "go-backend/internal/media/probe_test.go": "900dd2c566d13bdabb5a83d5187408a966e4de10613219bc4afe2451366839c3",
+  "go-backend/internal/playback/hls_lifecycle_test.go": "2df225d987472cfeeb877e19aeea7692b5c3e08453e634456419091fc3addfc7",
+  "go-backend/tools/parity/playback-lifecycle.cjs": "2e4678e0deb1ff8040577571bcdc045027a8cfdc811ad9dd6f2be88a069b0eb0"
+}

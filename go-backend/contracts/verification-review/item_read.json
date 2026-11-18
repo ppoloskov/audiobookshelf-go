@@ -1,0 +1,1312 @@
+{
+  "packet": "item_read",
+  "reviewer": "independent review, 2026-11-15, claude-sonnet-5-5",
+  "scenario_digest": "de79d880bf46cacdd435069b64a709aac9ace345286329edac03a97e36d680bd",
+  "requirements_digest": "f15192f88e0951d4ce6ae95ea836994eb3b24c7a2a89cf8430db9e64206ceb57",
+  "required_tuples": [
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-SAMPLED",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "plain-multifile-book-document",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/LibraryItem.js:965-1040",
+        "server/models/Book.js:550-570,612-632"
+      ],
+      "rationale": "GET /api/items/:id of the multi-file book returns the old-format item with media metadata, series, audioFiles, chapters and libraryFiles, all equal to the stored values."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-SAMPLED",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "plain-podcast-document",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/LibraryItem.js:965-1040",
+        "server/models/Podcast.js:402-452",
+        "server/models/PodcastEpisode.js:193-228"
+      ],
+      "rationale": "GET /api/items/:id of the podcast returns the item with media.episodes (each with audioFile, no audioTrack) equal to the stored values."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-EXPANDED-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "expanded-multifile-book-document",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/LibraryItem.js:965-1040",
+        "server/models/Book.js:293-302,550-687"
+      ],
+      "rationale": "GET /api/items/:id?expanded=1 of the three-file book returns every field of the expanded document: ids, paths, sizes, durations, tracks with offsets and content URLs, chapters, metadata, series, timestamps as numbers."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-EXPANDED-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "expanded-single-file-book-document",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/LibraryItem.js:965-1040",
+        "server/models/Book.js:293-302,550-687"
+      ],
+      "rationale": "GET /api/items/:id?expanded=1 of the single-file book with cover and three chapters returns the stored chapters, cover path, genres, publishedYear and one track."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-EXPANDED-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "expanded-flac-book-document",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/LibraryItem.js:965-1040",
+        "server/models/Book.js:550-687",
+        "server/objects/files/LibraryFile.js:26-47"
+      ],
+      "rationale": "GET /api/items/:id?expanded=1 of the flac book with sidecar text files returns narrators, description, series sequence and text libraryFiles with fileType text."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-EXPANDED-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "expanded-ebook-only-document",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/LibraryItem.js:965-1040",
+        "server/models/Book.js:260-269,640-687"
+      ],
+      "rationale": "GET /api/items/:id?expanded=1 of the ebook-only book returns ebookFile and ebookFormat, no tracks and a size equal to the ebook size."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-EXPANDED-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "expanded-podcast-document",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/LibraryItem.js:965-1040",
+        "server/models/Podcast.js:459-494",
+        "server/models/PodcastEpisode.js:193-240"
+      ],
+      "rationale": "GET /api/items/:id?expanded=1 of the podcast returns numEpisodes, size, and every episode with audioFile, audioTrack, size and duration equal to the stored values."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-EXPANDED-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "expanded-literal-facts-multifile-book",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/Book.js:293-305,640-690"
+      ],
+      "rationale": "The expanded document of the three-file book carries the literal fixture facts: ids, relative path, sizes, duration, track order with offsets and content URLs, chapter titles and bounds, series and files."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-EXPANDED-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "expanded-literal-facts-single-file-book",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/Book.js:293-305,640-690"
+      ],
+      "rationale": "The expanded document of the single-file book carries the literal fixture facts: ids, path, size, duration 45, one m4b track, three titled chapters with bounds, year, genre and cover path."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-INCLUDE-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "include-progress-book",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/User.js:716-722",
+        "server/models/MediaProgress.js:155-176"
+      ],
+      "rationale": "include=progress adds userMediaProgress with the caller's stored progress of the book (id, currentTime, progress, isFinished, ebook fields, timestamps as numbers)."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-INCLUDE-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "include-progress-episode",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/User.js:716-722",
+        "server/models/MediaProgress.js:155-176"
+      ],
+      "rationale": "include=progress&episode=<id> on the podcast adds the caller's progress of exactly that episode, with episodeId set and finishedAt a number for a finished episode."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-INCLUDE-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "include-progress-none",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/User.js:716-722",
+        "server/models/MediaProgress.js:155-176"
+      ],
+      "rationale": "include=progress gives userMediaProgress null when the caller has no progress for the item, when the episode id does not match, and for a book with an episode id."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-INCLUDE-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "include-progress-podcast-without-episode",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/User.js:716-722",
+        "server/models/MediaProgress.js:155-176"
+      ],
+      "rationale": "include=progress on a podcast without episode returns one of the caller's episode progress records of that podcast."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-INCLUDE-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "include-rssfeed",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/User.js:716-722",
+        "server/models/MediaProgress.js:155-176"
+      ],
+      "rationale": "include=rssfeed adds the item's open feed as {id, entityType, entityId, feedUrl, meta{title, description, preventIndexing, ownerName, ownerEmail}} for any user, and rssFeed null when there is no feed."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-INCLUDE-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "include-share-admin",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/User.js:716-722",
+        "server/models/MediaProgress.js:155-176"
+      ],
+      "rationale": "include=share adds mediaItemShare of a book for an admin (id, mediaItemId, mediaItemType, slug, expiresAt, isDownloadable, createdAt, updatedAt) without pash, userId or extraData."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-INCLUDE-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "include-share-restricted",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/User.js:716-722",
+        "server/models/MediaProgress.js:155-176"
+      ],
+      "rationale": "An administrator gets mediaItemShare:null for an unshared book. Non-admins and podcasts omit it, and books omit download queue fields."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-INCLUDE-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "include-downloads-podcast",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/User.js:716-722",
+        "server/models/MediaProgress.js:155-176"
+      ],
+      "rationale": "include=downloads on an idle podcast adds episodeDownloadsQueued as an empty array and no episodesDownloading."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-INCLUDE-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "include-combined-and-unknown",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/User.js:716-722",
+        "server/models/MediaProgress.js:155-176"
+      ],
+      "rationale": "include accepts a comma list in any order, ignores unknown names, and every requested part appears alongside the unchanged expanded document."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-INCLUDE-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "include-ignored-without-expanded",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/models/User.js:716-722",
+        "server/models/MediaProgress.js:155-176"
+      ],
+      "rationale": "include and episode are ignored unless expanded=1: the plain document is returned without userMediaProgress, rssFeed or mediaItemShare, and expanded=0 gives the plain document."
+    },
+    {
+      "requirement": "route-r063",
+      "invariant": "INV-ROUTE-R063-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "metadata-object-missing-item",
+      "sources": [
+        "server/controllers/LibraryItemController.js:884-896"
+      ],
+      "rationale": "A book flagged missing answers 400 on the metadata-object route, while the same user reads its item document, which shows isMissing true."
+    },
+    {
+      "requirement": "route-r063",
+      "invariant": "INV-ROUTE-R063-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "metadata-object-excluded-audio-files",
+      "sources": [
+        "server/controllers/LibraryItemController.js:884-896",
+        "server/utils/ffmpegHelpers.js:407-431",
+        "server/models/Book.js:260-262",
+        "server/controllers/LibraryItemController.js:481-518"
+      ],
+      "rationale": "TRACKTOTAL counts only included audio files (2 of 3 after one is excluded) and a book whose audio files are all excluded answers 400."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-INCLUDE-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "include-downloads-with-active-download",
+      "sources": [
+        "server/controllers/LibraryItemController.js:70-100",
+        "server/objects/PodcastEpisodeDownload.js:30-51",
+        "server/managers/PodcastManager.js:73-95"
+      ],
+      "rationale": "While one episode download is in progress and another is queued, include=downloads lists the active one in episodesDownloading and the waiting one in episodeDownloadsQueued, with their url, title, item, library and podcast fields."
+    },
+    {
+      "requirement": "route-r052",
+      "invariant": "INV-R052-SINGLE-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "download-item-files-gone-from-disk",
+      "sources": [
+        "server/controllers/LibraryItemController.js:169-198",
+        "server/controllers/LibraryItemController.js:152-160"
+      ],
+      "rationale": "When the file of a single-file item is gone from disk its download answers 404, and when the folder of a folder item is gone the download is either refused or an empty zip; the stored rows are not changed by either request."
+    },
+    {
+      "requirement": "route-r052",
+      "invariant": "INV-R052-SAMPLED",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "download-unknown-item-before-permission",
+      "sources": [
+        "server/controllers/LibraryItemController.js:169-198",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/controllers/LibraryItemController.js:163-173"
+      ],
+      "rationale": "For a user without download permission an unknown item is 404 and an existing one is 403, on the item download, file download and stream routes (the stream route needs no permission, so it is 404 for the unknown item and 200 for a real one)."
+    },
+    {
+      "requirement": "route-r066",
+      "invariant": "INV-R066-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "file-stream-apple-m4b-keeps-audio-mp4",
+      "sources": [
+        "server/controllers/LibraryItemController.js:989-1006"
+      ],
+      "rationale": "The stream route does not apply the iPhone m4b workaround of the download route: an iPhone WebKit agent still receives audio/mp4 for an m4b file."
+    },
+    {
+      "requirement": "route-r069",
+      "invariant": "INV-ROUTE-R069-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "ebook-supplementary-by-file-id",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1121-1155",
+        "server/controllers/LibraryItemController.js:1165-1212"
+      ],
+      "rationale": "A second ebook file added to the item folder is served by its inode with its own media type while the id-less request still returns the primary epub; making the primary supplementary leaves the id-less request at 404 while both files stay available by id."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "item-unauthenticated",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:70-100"
+      ],
+      "rationale": "Without a valid token the route answers 401."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "item-unknown-item",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:70-100"
+      ],
+      "rationale": "An item id that does not exist, well formed or not, answers 404."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "item-item-access-denied",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:70-100"
+      ],
+      "rationale": "A user refused by library access, item tags or the explicit-content restriction gets 403, while the same user can open an item outside the restriction."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-ACCESS-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "item-allowed-sides-of-restrictions",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683"
+      ],
+      "rationale": "The restricted users still read what their restriction allows (podcast library, tagged item, untagged item under a deny list, non-explicit item) and the document is the same as the root user's."
+    },
+    {
+      "requirement": "route-r050",
+      "invariant": "INV-R050-ACCESS-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "item-explicit-user-and-token-query",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/Auth.js:126"
+      ],
+      "rationale": "A user with explicit access reads the explicit item, and the access token is also accepted as the token query parameter."
+    },
+    {
+      "requirement": "route-r047",
+      "invariant": "INV-ROUTE-R047-CONTRACT",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "batch-get-expanded-documents",
+      "sources": [
+        "server/controllers/LibraryItemController.js:740-754",
+        "server/controllers/LibraryItemController.js:48-56",
+        "server/routers/ApiRouter.js:104"
+      ],
+      "rationale": "POST /api/items/batch/get with item ids returns {libraryItems} holding the full expanded document of each book and the podcast."
+    },
+    {
+      "requirement": "route-r047",
+      "invariant": "INV-ROUTE-R047-CONTRACT",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "batch-get-repeat-same-documents",
+      "sources": [
+        "server/controllers/LibraryItemController.js:740-754",
+        "server/controllers/LibraryItemController.js:48-56",
+        "server/routers/ApiRouter.js:104"
+      ],
+      "rationale": "Repeating the same batch request returns the same documents and changes nothing."
+    },
+    {
+      "requirement": "route-r047",
+      "invariant": "INV-ROUTE-R047-CONTRACT",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "batch-get-unknown-and-duplicate-ids",
+      "sources": [
+        "server/controllers/LibraryItemController.js:740-754",
+        "server/controllers/LibraryItemController.js:48-56",
+        "server/routers/ApiRouter.js:104"
+      ],
+      "rationale": "Unknown ids are ignored and a repeated id is returned once; all-unknown ids give an empty list with 200."
+    },
+    {
+      "requirement": "route-r047",
+      "invariant": "INV-ROUTE-R047-CONTRACT",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "batch-get-needs-no-update-permission",
+      "sources": [
+        "server/controllers/LibraryItemController.js:740-754",
+        "server/controllers/LibraryItemController.js:48-56",
+        "server/routers/ApiRouter.js:104"
+      ],
+      "rationale": "A user without update, delete or download permission can batch get items,."
+    },
+    {
+      "requirement": "route-r047",
+      "invariant": "INV-ROUTE-R047-CONTRACT",
+      "case": "error",
+      "state": "initial",
+      "assertion": "batch-get-unauthenticated",
+      "sources": [
+        "server/controllers/LibraryItemController.js:740-754",
+        "server/controllers/LibraryItemController.js:48-56",
+        "server/routers/ApiRouter.js:104"
+      ],
+      "rationale": "Without a valid token batch get answers 401."
+    },
+    {
+      "requirement": "route-r047",
+      "invariant": "INV-ROUTE-R047-CONTRACT",
+      "case": "error",
+      "state": "failure",
+      "assertion": "batch-get-invalid-payload-failure",
+      "sources": [
+        "server/controllers/LibraryItemController.js:740-754",
+        "server/controllers/LibraryItemController.js:48-56",
+        "server/routers/ApiRouter.js:104"
+      ],
+      "rationale": "A body without ids, with an empty list or with no JSON is rejected with 403 and nothing is read or changed."
+    },
+    {
+      "requirement": "route-r047",
+      "invariant": "INV-ROUTE-R047-CONTRACT",
+      "case": "error",
+      "state": "failure",
+      "assertion": "batch-get-one-forbidden-item-failure",
+      "sources": [
+        "server/controllers/LibraryItemController.js:740-754",
+        "server/controllers/LibraryItemController.js:48-56",
+        "server/routers/ApiRouter.js:104"
+      ],
+      "rationale": "If the user may not access one of the items the whole request is refused with 403 and no document is returned; without that item it succeeds."
+    },
+    {
+      "requirement": "route-r047",
+      "invariant": "INV-ROUTE-R047-CONTRACT",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "batch-get-reflects-changes",
+      "sources": [
+        "server/controllers/LibraryItemController.js:740-754",
+        "server/controllers/LibraryItemController.js:48-56",
+        "server/routers/ApiRouter.js:104"
+      ],
+      "rationale": "After an item is edited the batch document shows the new tags, and a user restricted by tag loses access to the same request."
+    },
+    {
+      "requirement": "route-r063",
+      "invariant": "INV-ROUTE-R063-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "metadata-object-books",
+      "sources": [
+        "server/controllers/LibraryItemController.js:884-896",
+        "server/utils/ffmpegHelpers.js:407-431",
+        "server/managers/AudioMetadataManager.js:42-44"
+      ],
+      "rationale": "An admin gets the ffmpeg metadata object of each book with audio: title, artist, album, composer, grouping, TRACKTOTAL and the other tags, with empty values omitted."
+    },
+    {
+      "requirement": "route-r063",
+      "invariant": "INV-ROUTE-R063-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "metadata-object-non-root-admin",
+      "sources": [
+        "server/controllers/LibraryItemController.js:884-896",
+        "server/utils/ffmpegHelpers.js:407-431",
+        "server/managers/AudioMetadataManager.js:42-44"
+      ],
+      "rationale": "An admin-type user (not root) may read the metadata object too."
+    },
+    {
+      "requirement": "route-r063",
+      "invariant": "INV-ROUTE-R063-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "metadata-object-non-admin-forbidden",
+      "sources": [
+        "server/controllers/LibraryItemController.js:884-896",
+        "server/utils/ffmpegHelpers.js:407-431",
+        "server/managers/AudioMetadataManager.js:42-44"
+      ],
+      "rationale": "A non-admin user gets 403 before the item-state check (also for the ebook-only book and the podcast), after the item lookup: an unknown item is 404 for them."
+    },
+    {
+      "requirement": "route-r063",
+      "invariant": "INV-ROUTE-R063-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "metadata-object-invalid-items",
+      "sources": [
+        "server/controllers/LibraryItemController.js:884-896",
+        "server/utils/ffmpegHelpers.js:407-431",
+        "server/managers/AudioMetadataManager.js:42-44"
+      ],
+      "rationale": "An item that is not a book with included audio files (the ebook-only book, a podcast) answers 400."
+    },
+    {
+      "requirement": "route-r063",
+      "invariant": "INV-ROUTE-R063-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "metadata-object-unauthenticated",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:884-896"
+      ],
+      "rationale": "Without a valid token the route answers 401."
+    },
+    {
+      "requirement": "route-r063",
+      "invariant": "INV-ROUTE-R063-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "metadata-object-unknown-item",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:884-896"
+      ],
+      "rationale": "An item id that does not exist, well formed or not, answers 404."
+    },
+    {
+      "requirement": "route-r063",
+      "invariant": "INV-ROUTE-R063-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "metadata-object-item-access-denied",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:884-896"
+      ],
+      "rationale": "A user refused by library access, item tags or the explicit-content restriction gets 403, while the same user can open an item outside the restriction."
+    },
+    {
+      "requirement": "route-r065",
+      "invariant": "INV-ROUTE-R065-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "ffprobe-audio-files",
+      "sources": [
+        "server/controllers/LibraryItemController.js:967-980",
+        "server/scanner/AudioFileScanner.js:208-211",
+        "server/utils/prober.js:327-340"
+      ],
+      "rationale": "An admin gets the raw ffprobe JSON of an audio file (book track, m4b, flac, podcast episode): filename, size, duration, stream codec and channels match the stored audio file and the file on disk."
+    },
+    {
+      "requirement": "route-r065",
+      "invariant": "INV-ROUTE-R065-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "ffprobe-chapters-of-m4b",
+      "sources": [
+        "server/controllers/LibraryItemController.js:967-980",
+        "server/scanner/AudioFileScanner.js:208-211",
+        "server/utils/prober.js:327-340"
+      ],
+      "rationale": "The ffprobe output of the single-file m4b lists the same number of chapters as the item stores for its file."
+    },
+    {
+      "requirement": "route-r065",
+      "invariant": "INV-ROUTE-R065-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "ffprobe-non-admin-forbidden",
+      "sources": [
+        "server/controllers/LibraryItemController.js:967-980",
+        "server/scanner/AudioFileScanner.js:208-211",
+        "server/utils/prober.js:327-340"
+      ],
+      "rationale": "A non-admin user gets 403 for a real audio file and for a real non-audio file (admin check before the audio lookup), while an unknown file id or item is 404 for them (the lookup comes first)."
+    },
+    {
+      "requirement": "route-r065",
+      "invariant": "INV-ROUTE-R065-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "ffprobe-unknown-and-non-audio-file",
+      "sources": [
+        "server/controllers/LibraryItemController.js:967-980",
+        "server/scanner/AudioFileScanner.js:208-211",
+        "server/utils/prober.js:327-340"
+      ],
+      "rationale": "An admin asking for a file id that is not a library file, or a library file that is not an audio file (cover, text, ebook), gets 404."
+    },
+    {
+      "requirement": "route-r065",
+      "invariant": "INV-ROUTE-R065-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "ffprobe-unauthenticated",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:967-980"
+      ],
+      "rationale": "Without a valid token the route answers 401."
+    },
+    {
+      "requirement": "route-r065",
+      "invariant": "INV-ROUTE-R065-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "ffprobe-unknown-item",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:967-980"
+      ],
+      "rationale": "An item id that does not exist, well formed or not, answers 404."
+    },
+    {
+      "requirement": "route-r065",
+      "invariant": "INV-ROUTE-R065-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "ffprobe-item-access-denied",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:967-980"
+      ],
+      "rationale": "A user refused by library access, item tags or the explicit-content restriction gets 403, while the same user can open an item outside the restriction."
+    },
+    {
+      "requirement": "route-r066",
+      "invariant": "INV-R066-SAMPLED",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "file-bytes-and-media-types",
+      "sources": [
+        "server/controllers/LibraryItemController.js:989-1006",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/fileUtils.js:424-429",
+        "server/utils/constants.js:36-58"
+      ],
+      "rationale": "A library file is streamed byte for byte with the media type of its extension: audio from the server's table (mp3, m4b as audio/mp4, flac), then image, text and ebook types."
+    },
+    {
+      "requirement": "route-r066",
+      "invariant": "INV-R066-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "file-byte-ranges",
+      "sources": [
+        "server/controllers/LibraryItemController.js:989-1006",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/fileUtils.js:424-429",
+        "server/utils/constants.js:36-58"
+      ],
+      "rationale": "Range requests are honoured: first bytes, a middle slice, an open end, a suffix answer 206 with the exact Content-Range and bytes; on the stream route a start beyond the end answers 416 with bytes */size."
+    },
+    {
+      "requirement": "route-r066",
+      "invariant": "INV-R066-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "file-conditional-requests",
+      "sources": [
+        "server/controllers/LibraryItemController.js:989-1006",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/fileUtils.js:424-429",
+        "server/utils/constants.js:36-58"
+      ],
+      "rationale": "A repeated request with the ETag in If-None-Match, or Last-Modified in If-Modified-Since, answers 304 without a body; an If-Range with another validator gives the whole file."
+    },
+    {
+      "requirement": "route-r066",
+      "invariant": "INV-R066-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "file-streams-without-download-permission",
+      "sources": [
+        "server/controllers/LibraryItemController.js:989-1006",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/fileUtils.js:424-429",
+        "server/utils/constants.js:36-58"
+      ],
+      "rationale": "Streaming a library file needs no download permission, and the access token may be sent as the token query parameter instead of the header."
+    },
+    {
+      "requirement": "route-r066",
+      "invariant": "INV-R066-SAMPLED",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "file-unknown-file-id",
+      "sources": [
+        "server/controllers/LibraryItemController.js:989-1006",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/fileUtils.js:424-429",
+        "server/utils/constants.js:36-58"
+      ],
+      "rationale": "A file id that is not a library file of the item (unknown, or of another item) answers 404, and an inaccessible item answers 403 before the file lookup."
+    },
+    {
+      "requirement": "route-r066",
+      "invariant": "INV-R066-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "file-unauthenticated",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:989-1006"
+      ],
+      "rationale": "Without a valid token the route answers 401."
+    },
+    {
+      "requirement": "route-r066",
+      "invariant": "INV-R066-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "file-unknown-item",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:989-1006"
+      ],
+      "rationale": "An item id that does not exist, well formed or not, answers 404."
+    },
+    {
+      "requirement": "route-r066",
+      "invariant": "INV-R066-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "file-item-access-denied",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:989-1006"
+      ],
+      "rationale": "A user refused by library access, item tags or the explicit-content restriction gets 403, while the same user can open an item outside the restriction."
+    },
+    {
+      "requirement": "route-r068",
+      "invariant": "INV-R068-HEADERS-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "file-download-attachment-and-bytes",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1073-1110",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/fileUtils.js:424-429"
+      ],
+      "rationale": "The file download sends the file byte for byte as an attachment named after the file, with the media type of its extension."
+    },
+    {
+      "requirement": "route-r068",
+      "invariant": "INV-R068-HEADERS-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "file-download-apple-mobile-m4b",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1073-1110",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/fileUtils.js:424-429"
+      ],
+      "rationale": "For an iPhone WebKit user agent the m4b download is sent as audio/m4b, other audio types and desktop agents keep audio/mp4 and audio/mpeg."
+    },
+    {
+      "requirement": "route-r068",
+      "invariant": "INV-R068-HEADERS-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "file-download-byte-ranges",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1073-1110",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/fileUtils.js:424-429"
+      ],
+      "rationale": "The file download honours satisfiable Range requests with 206, the exact Content-Range and bytes (the status of an unsatisfiable range is an upstream accident and not asserted)."
+    },
+    {
+      "requirement": "route-r068",
+      "invariant": "INV-R068-FILE-LOOKUP-ORDER-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "file-download-lookup-before-permission",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1073-1110",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/fileUtils.js:424-429"
+      ],
+      "rationale": "For a user without download permission an unknown file id (or item) is 404 while a real file is 403, and no file bytes are sent."
+    },
+    {
+      "requirement": "route-r068",
+      "invariant": "INV-R068-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "file-download-unauthenticated",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:1073-1110"
+      ],
+      "rationale": "Without a valid token the route answers 401."
+    },
+    {
+      "requirement": "route-r068",
+      "invariant": "INV-R068-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "file-download-unknown-item",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:1073-1110"
+      ],
+      "rationale": "An item id that does not exist, well formed or not, answers 404."
+    },
+    {
+      "requirement": "route-r068",
+      "invariant": "INV-R068-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "file-download-item-access-denied",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:1073-1110"
+      ],
+      "rationale": "A user refused by library access, item tags or the explicit-content restriction gets 403, while the same user can open an item outside the restriction."
+    },
+    {
+      "requirement": "route-r069",
+      "invariant": "INV-ROUTE-R069-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "ebook-primary-file",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1121-1155",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "Without a file id the primary ebook file is served byte for byte as application/epub+zip, also with a trailing slash and to a user without download permission."
+    },
+    {
+      "requirement": "route-r069",
+      "invariant": "INV-ROUTE-R069-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "ebook-by-file-id",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1121-1155",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "With the inode of an ebook library file the same file is served."
+    },
+    {
+      "requirement": "route-r069",
+      "invariant": "INV-ROUTE-R069-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "ebook-byte-ranges",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1121-1155",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "The ebook honours Range requests with 206, the exact Content-Range and bytes."
+    },
+    {
+      "requirement": "route-r069",
+      "invariant": "INV-ROUTE-R069-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "ebook-missing-or-invalid",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1121-1155",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "An item without an ebook answers 404; a file id of a non-ebook file (audio, cover) answers 400; an unknown file id answers 404."
+    },
+    {
+      "requirement": "route-r069",
+      "invariant": "INV-ROUTE-R069-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "ebook-unauthenticated",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:1121-1155"
+      ],
+      "rationale": "Without a valid token the route answers 401."
+    },
+    {
+      "requirement": "route-r069",
+      "invariant": "INV-ROUTE-R069-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "ebook-unknown-item",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:1121-1155"
+      ],
+      "rationale": "An item id that does not exist, well formed or not, answers 404."
+    },
+    {
+      "requirement": "route-r069",
+      "invariant": "INV-ROUTE-R069-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "ebook-item-access-denied",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:1121-1155"
+      ],
+      "rationale": "A user refused by library access, item tags or the explicit-content restriction gets 403, while the same user can open an item outside the restriction."
+    },
+    {
+      "requirement": "route-r052",
+      "invariant": "INV-R052-ZIP-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "download-zip-of-multifile-item",
+      "sources": [
+        "server/controllers/LibraryItemController.js:169-198",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/zipHelpers.js:6-55"
+      ],
+      "rationale": "The download of a multi-file item is a readable zip, named after the item title, whose entries are exactly the files of the item folder with unchanged bytes."
+    },
+    {
+      "requirement": "route-r052",
+      "invariant": "INV-R052-ZIP-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "download-zip-of-other-folders",
+      "sources": [
+        "server/controllers/LibraryItemController.js:169-198",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/zipHelpers.js:6-55"
+      ],
+      "rationale": "A folder item with one audio file, one with sidecar text files, the ebook item and the podcast (cover and episodes) are also zipped completely."
+    },
+    {
+      "requirement": "route-r052",
+      "invariant": "INV-R052-ZIP-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "download-zip-without-update-permission",
+      "sources": [
+        "server/controllers/LibraryItemController.js:169-198",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/zipHelpers.js:6-55"
+      ],
+      "rationale": "The download needs only the download permission: a user without update and delete rights and a token query parameter both succeed."
+    },
+    {
+      "requirement": "route-r052",
+      "invariant": "INV-R052-SAMPLED",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "download-without-permission",
+      "sources": [
+        "server/controllers/LibraryItemController.js:169-198",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/utils/zipHelpers.js:6-55"
+      ],
+      "rationale": "A user without the download permission gets 403 and no zip; the request changes nothing."
+    },
+    {
+      "requirement": "route-r052",
+      "invariant": "INV-R052-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "download-unauthenticated",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:169-198"
+      ],
+      "rationale": "Without a valid token the route answers 401."
+    },
+    {
+      "requirement": "route-r052",
+      "invariant": "INV-R052-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "download-unknown-item",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:169-198"
+      ],
+      "rationale": "An item id that does not exist, well formed or not, answers 404."
+    },
+    {
+      "requirement": "route-r052",
+      "invariant": "INV-R052-ACCESS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "download-item-access-denied",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/models/User.js:646-683",
+        "server/controllers/LibraryItemController.js:169-198"
+      ],
+      "rationale": "A user refused by library access, item tags or the explicit-content restriction gets 403, while the same user can open an item outside the restriction."
+    },
+    {
+      "requirement": "route-r066",
+      "invariant": "INV-R066-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "file-x-accel-redirect",
+      "sources": [
+        "server/Server.js:86",
+        "server/utils/fileUtils.js:442-448",
+        "server/controllers/LibraryItemController.js:989-1006"
+      ],
+      "rationale": "With USE_X_ACCEL set, the stream route answers 204 with an X-Accel-Redirect of the prefix and the encoded file path instead of the bytes."
+    },
+    {
+      "requirement": "route-r068",
+      "invariant": "INV-R068-HEADERS-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "file-download-x-accel-redirect",
+      "sources": [
+        "server/Server.js:86",
+        "server/utils/fileUtils.js:442-448",
+        "server/controllers/LibraryItemController.js:1073-1110"
+      ],
+      "rationale": "With USE_X_ACCEL set, the file download answers 204 with the X-Accel-Redirect header."
+    },
+    {
+      "requirement": "route-r069",
+      "invariant": "INV-ROUTE-R069-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "ebook-x-accel-redirect",
+      "sources": [
+        "server/Server.js:86",
+        "server/utils/fileUtils.js:442-448",
+        "server/controllers/LibraryItemController.js:1121-1155"
+      ],
+      "rationale": "With USE_X_ACCEL set, the ebook route answers 204 with the X-Accel-Redirect header."
+    },
+    {
+      "requirement": "route-r063",
+      "invariant": "INV-ROUTE-R063-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "metadata-object-after-edit-with-subtitle",
+      "sources": [
+        "server/controllers/LibraryItemController.js:884-896",
+        "server/utils/ffmpegHelpers.js:407-431"
+      ],
+      "rationale": "After the book is edited to have a subtitle, publisher and description, the object gains TIT3, a subtitled album, copyright, publisher, comment and description."
+    },
+    {
+      "requirement": "sub-downloads",
+      "invariant": "INV-DL-ZIP-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "sub-zip-first-download",
+      "sources": [
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "The first download of a multi-file item is a zip named after the title with the item's files as entries and unchanged bytes."
+    },
+    {
+      "requirement": "sub-downloads",
+      "invariant": "INV-DL-ZIP-001",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "sub-zip-repeat",
+      "sources": [
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "Downloading the same item again gives a zip with the same entries and bytes, and no stored row changes."
+    },
+    {
+      "requirement": "sub-downloads",
+      "invariant": "INV-DL-ZIP-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "sub-zip-follows-folder-changes",
+      "sources": [
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "The zip is built from the folder at request time: a file added to the item folder is an entry of the next download and gone from the one after it is removed."
+    },
+    {
+      "requirement": "sub-downloads",
+      "invariant": "INV-DL-GATE-001",
+      "case": "error",
+      "state": "initial",
+      "assertion": "sub-gate-refuses-without-permission",
+      "sources": [
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "A user without the download permission gets 403 from the item download and the file download."
+    },
+    {
+      "requirement": "sub-downloads",
+      "invariant": "INV-DL-GATE-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "sub-gate-failure-changes-nothing",
+      "sources": [
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "A refused download changes no stored row and no file in the item folder."
+    },
+    {
+      "requirement": "sub-downloads",
+      "invariant": "INV-DL-GATE-001",
+      "case": "error",
+      "state": "changed",
+      "assertion": "sub-gate-follows-permission-changes",
+      "sources": [
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "Revoking a user's download permission takes effect on the next request with the same token, and granting it back restores the download."
+    },
+    {
+      "requirement": "sub-downloads",
+      "invariant": "INV-DL-GATE-001",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "sub-gate-api-key-user",
+      "sources": [
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "An API key resolves to its user: a key of a user without download permission is refused with 403, a key of a user with it receives the zip."
+    },
+    {
+      "requirement": "sub-downloads",
+      "invariant": "INV-DL-FILE-ORDER-001",
+      "case": "error",
+      "state": "initial",
+      "assertion": "sub-file-lookup-before-gate",
+      "sources": [
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "For a user without download permission, a file id that is not in the item is 404 and a real file id is 403."
+    },
+    {
+      "requirement": "sub-downloads",
+      "invariant": "INV-DL-FILE-ORDER-001",
+      "case": "error",
+      "state": "repeat",
+      "assertion": "sub-file-lookup-repeat",
+      "sources": [
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "Repeating the refused and the missing-file requests gives the same statuses every time."
+    },
+    {
+      "requirement": "route-r052",
+      "invariant": "INV-R052-SINGLE-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "download-single-file-item-without-zip",
+      "sources": [
+        "server/controllers/LibraryItemController.js:179-186",
+        "server/utils/fileUtils.js:424-429"
+      ],
+      "rationale": "An item that is one file in the library root is downloaded as that file, not zipped: attachment named after its relative path, the audio media type and the exact bytes."
+    },
+    {
+      "requirement": "sub-downloads",
+      "invariant": "INV-DL-ZIP-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "sub-single-file-item-is-not-zipped",
+      "sources": [
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "After a scan adds a single file to the library root, its item downloads as the plain file with its own media type, and its stream and file-download routes serve the same bytes."
+    },
+    {
+      "requirement": "route-r066",
+      "invariant": "INV-R066-SAMPLED",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "file-missing-on-disk",
+      "sources": [
+        "server/controllers/LibraryItemController.js:989-1006"
+      ],
+      "rationale": "A library file that is recorded but gone from disk answers 404."
+    },
+    {
+      "requirement": "route-r068",
+      "invariant": "INV-R068-HEADERS-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "file-download-missing-on-disk",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1073-1110",
+        "server/controllers/LibraryItemController.js:152-160"
+      ],
+      "rationale": "A library file that is recorded but gone from disk answers 404 on the download route."
+    },
+    {
+      "requirement": "route-r069",
+      "invariant": "INV-ROUTE-R069-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "ebook-missing-on-disk",
+      "sources": [
+        "server/controllers/LibraryItemController.js:1121-1155",
+        "server/controllers/LibraryItemController.js:152-160"
+      ],
+      "rationale": "An ebook that is recorded but gone from disk answers 404, with and without file id."
+    },
+    {
+      "requirement": "sub-downloads",
+      "invariant": "INV-DL-FILE-DISK-ERROR-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "sub-disk-file-missing",
+      "sources": [
+        "server/controllers/LibraryItemController.js:163-197",
+        "server/utils/zipHelpers.js:6-55",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "A recorded file whose disk file is gone answers 404 on the stream and download routes, without internal path details, and the stored rows stay unchanged."
+    }
+  ],
+  "not_applicable": [],
+  "open_findings": []
+}

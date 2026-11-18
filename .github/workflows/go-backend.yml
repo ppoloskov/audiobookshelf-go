@@ -1,114 +1,46 @@
-name: Go backend compatibility checks
+name: Unified replacement verification
 
 on:
-  pull_request:
-  push:
+  workflow_call:
 
 jobs:
-  source-and-contracts:
+  verify:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: '0'
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - uses: actions/setup-go@v5
         with:
           go-version-file: go-backend/go.mod
-      # The source oracles (book-item, library) require upstream server modules.
-      - name: Install pinned upstream dependencies
-        run: npm ci
+      - name: Fetch pinned upstream commit
+        run: git fetch --no-tags --depth=1 origin edb1f7efc92ecacdef51aafb4d9d5054ce10604f
+      - name: Install existing upstream dependencies and build retained client
+        run: |
+          npm ci
+          npm ci --prefix client
+          npm run generate --prefix client
       - name: Install FFmpeg
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-      - name: Check source inventory
-        run: python3 -m unittest -v go-backend/tools/test_source_inventory.py
-      - name: Check source-executed library golden
-        run: node go-backend/tools/test-library-oracle.cjs
-      - name: Check source-executed book/item serializer golden
-        run: node go-backend/tools/test-book-item-oracle.cjs
-      - name: Check report and status integrity
-        run: node --test go-backend/tools/parity/test-compare-reports.cjs go-backend/tools/parity/test-status.cjs
-      - name: Check semantic PATCH comparison
-        run: node --test go-backend/tools/parity/test-cover-patch-contract.cjs
-      - name: Build, test, and vet without CGO
-        working-directory: go-backend
-        env:
-          CGO_ENABLED: '0'
-        run: |
-          go build ./...
-          go test ./...
-          go vet ./...
-      - name: Lint
+      - name: Install the configured Go linter for the verifier
         uses: golangci/golangci-lint-action@v9.3.0
         with:
           version: v2.15.0
+          install-only: true
           working-directory: go-backend
-          args: --config=../.golangci.yml --timeout=5m ./...
-
-  cross-build:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [amd64, arm64]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go-backend/go.mod
-      - name: Build server command
-        working-directory: go-backend
-        env:
-          CGO_ENABLED: '0'
-          GOOS: linux
-          GOARCH: ${{ matrix.arch }}
-        run: go build -trimpath -o /tmp/audiobookshelf-go-${{ matrix.arch }} ./cmd/audiobookshelf-go
-
-  upstream-parity:
-    name: Upstream differential diagnostics (advisory)
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go-backend/go.mod
-      - name: Install FFmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-      # lib/oracle.cjs diffs the oracle source against the pinned upstream
-      # commit, which a depth-1 checkout lacks.
-      - name: Fetch pinned upstream commit
-        run: git fetch --no-tags --depth=1 origin edb1f7efc92ecacdef51aafb4d9d5054ce10604f
-      - name: Install pinned upstream dependencies
-        run: npm ci
-      - name: Build upstream Node server
-        run: npm run build:server
-      - name: Install JavaScript Socket.IO v4 probe client
-        run: npm install --prefix /tmp/abs-parity-node-deps --no-save socket.io-client@4.8.1
-      - name: Check differential harness integrity
-        run: node --test go-backend/tools/parity/test-differential-selftest.cjs
-      - name: Run independent fresh-fixture core equivalence
-        env:
-          ABS_PARITY_REQUIRE_SOCKETIO: '1'
-          NODE_PATH: /tmp/abs-parity-node-deps/node_modules
-        run: make PARITY_NODE=node parity-equivalence
-      - name: Upload differential report
+      - name: Unified machine health, upstream proof and gated Go verification
+        run: make VERIFY_NODE=node VERIFY_ARGS="-out $RUNNER_TEMP/replacement-verification/report.json" verify
+      - name: Upload the single verification report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: upstream-parity-report
-          path: /tmp/abs-parity-*/core-fixture/core-report.json
-          if-no-files-found: warn
+          name: replacement-verification
+          path: |
+            ${{ runner.temp }}/replacement-verification
+            /tmp/abs-verify-*
+          if-no-files-found: error

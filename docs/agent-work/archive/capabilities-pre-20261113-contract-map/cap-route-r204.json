@@ -1,0 +1,25 @@
+{
+ "id": "route-r204",
+ "parent": "http/audiotools",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /tasks candidate recorded from server/routers/ApiRouter.js:347. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:347"
+ ],
+ "implementation": [
+  "go-backend/internal/audiotools/tools.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/audiotools/tools.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

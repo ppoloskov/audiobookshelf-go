@@ -1,0 +1,102 @@
+{
+  "tools_upstream_diagnostic": {
+    "exit_status": 0,
+    "source_pin": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+    "started_at": "2026-11-14T15:41:12.916757+10:00",
+    "finished_at": "2026-11-14T15:41:15.953091+10:00",
+    "go_test_jsonl_sha256": "d344cd1ec1cbb867e99346232e03a34aebe0dc96a74fba07d41949a7bee891cd",
+    "scenario_digest": "058eaee87e837a1fe224f5c41f60ed15a9a8af7466f84da68bb36e831f7e9cd9",
+    "requirements_digest": "8cae5f6b0df096cb83d428ac82fe571dba270a33be4d28c0bb85e3e3d02718cc",
+    "assertions": [
+      {
+        "test": "TestReplacement/immediate-embed-has-no-queued-transition",
+        "proof": {
+          "packet": "tools",
+          "requirement": "cap-event-metadata-embed-queue",
+          "invariant": "INV-CAP-EVENT-METADATA-EMBED-QUEUE",
+          "case": "normal",
+          "state": "initial",
+          "assertion": "immediate-embed-has-no-queued-transition"
+        },
+        "go_test_result": "pass"
+      },
+      {
+        "test": "TestReplacement/waiting-embed-admission-and-fifo-dequeue-audiences",
+        "proof": {
+          "packet": "tools",
+          "requirement": "socket-outgoing-metadata-embed-queue-update",
+          "invariant": "INV-SOCKET-OUTGOING-METADATA-EMBED-QUEUE-UPDATE",
+          "case": "normal",
+          "state": "changed",
+          "assertion": "waiting-embed-admission-and-fifo-dequeue-audiences"
+        },
+        "go_test_result": "pass"
+      },
+      {
+        "test": "TestReplacement/idle-queue-repeat-keeps-immediate-and-waiting-distinct",
+        "proof": {
+          "packet": "tools",
+          "requirement": "cap-event-metadata-embed-queue",
+          "invariant": "INV-CAP-EVENT-METADATA-EMBED-QUEUE",
+          "case": "edge",
+          "state": "repeat",
+          "assertion": "idle-queue-repeat-keeps-immediate-and-waiting-distinct"
+        },
+        "go_test_result": "pass"
+      }
+    ]
+  },
+  "make_verify_exit_status": 2,
+  "full_verifier_report": {
+    "schema_version": 2,
+    "source_pin": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+    "started_at": "2026-11-14T05:41:11Z",
+    "inputs": {
+      "source_and_assets": "d590ab979d12ee7db2984e357f0b35857b7f322a9e389378b354e5d22f5a7095",
+      "requirements": "8d7a9ef51b53bd04cd1d1dcbfe28232506837ee320cbd0189c490d6cbe00a224",
+      "scenarios": "6770c51a7e57be347e21464e273d3830eb044355ca06fa70fe194b32bff0829b",
+      "starting_fixture": "ec3800cd4ab2981cecebe98f7a5e816f6da537a2972a37da84a60a7ede8bc247",
+      "machine": "3ef8bbf8a71ce0ee412c52f92f6eb5a257d57f89840c9f7b67fb1184d69dc32f",
+      "go_source_and_modules": "eb39e3565c196aac5f61cc04eb47b511f311857f470acd103d898838b0a1e06d",
+      "node_executable": "6b578a54dd408920516c7893bbc3a81d704bdcbccdd4261fdb4cf18c8671e3b4",
+      "installed_node_dependencies": "94e7a43f3e5ddab9eb02273316c29d5a7d0f9c093ba1660cc3ac1dfaa08bd51c"
+    },
+    "inputs_after": {
+      "source_and_assets": "",
+      "requirements": "",
+      "scenarios": "",
+      "starting_fixture": "",
+      "machine": "",
+      "go_source_and_modules": "",
+      "node_executable": "",
+      "installed_node_dependencies": ""
+    },
+    "machine_health": "not_run",
+    "requirements": 345,
+    "invariants": 503,
+    "upstream": {
+      "status": "failed",
+      "error": "plan discovery: package audiobookshelf-compat/tests/replacement/playlists failed or incomplete during plan discovery:  # audiobookshelf-compat/tests/replacement/playlists [audiobookshelf-compat/tests/replacement/playlists.test] | tests/replacement/playlists/packet.go:13:62: undefined: createScenarios | tests/replacement/playlists/packet.go:13:81: undefined: updateScenarios | tests/replacement/playlists/packet.go:13:100: undefined: itemScenarios | tests/replacement/playlists/packet.go:13:117: undefined: batchScenarios | tests/replacement/playlists/packet.go:13:135: undefined: eventScenarios | tests/replacement/playlists/packet.go:13:153: undefined: flowScenarios | FAIL\taudiobookshelf-compat/tests/replacement/playlists [build failed]; unexpected go test output: {\"ImportPath\":\"audiobookshelf-compat/tests/replacement/playlists [audiobookshelf-compat/tests/replacement/playlists.test]\",\"Action\":\"build-fail\"}",
+      "assertions": [],
+      "packets": null,
+      "verified": false
+    },
+    "go": {
+      "status": "blocked",
+      "error": "upstream coverage is not certified",
+      "assertions": [],
+      "packets": null,
+      "verified": false
+    },
+    "coverage_gaps": null,
+    "independent_inventory_review": "",
+    "rollback": "blocked",
+    "source_execution": {
+      "status": "",
+      "raw_v8_files": 0,
+      "line_branch_percent": null,
+      "note": ""
+    },
+    "replacement_verified": false
+  }
+}

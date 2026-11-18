@@ -1,0 +1,47 @@
+{
+ "id": "route-r062",
+ "parent": "http/scanner",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /items/:id/scan candidate recorded from server/routers/ApiRouter.js:120. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:120"
+ ],
+ "implementation": [
+  "go-backend/internal/scanner/scanner.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/scanner/scanner.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#book-item-scan-rerun (differential pass)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R062-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled POST /items/:id/scan via differential case(s) book-item-scan-rerun: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: scanner.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:120"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#book-item-scan-rerun"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  }
+ ]
+}

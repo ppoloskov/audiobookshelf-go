@@ -1,0 +1,62 @@
+{
+ "id": "route-r167",
+ "parent": "http/notifications",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "DELETE /notifications/:id candidate recorded from server/routers/ApiRouter.js:270. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:270"
+ ],
+ "implementation": [
+  "go-backend/internal/notifications/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/notifications/handler.go",
+  "go-backend/internal/notifications/handler_test.go",
+  "go-backend/tools/parity/differential.cjs"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#notification-delete",
+  "go-backend/contracts/parity/full-suite-report.json#notification-read-after-delete",
+  "go-backend/contracts/parity/full-suite-report.json#notification-delete-missing"
+ ],
+ "exceptions": [
+  "force is not applicable to this HTTP CRUD operation; no force or refresh parameter exists."
+ ],
+ "invariants": [
+  {
+   "id": "INV-R167-DELETE-STATE-001",
+   "class": "state_transition",
+   "contract": "DELETE /notifications/:id removes an existing notification and returns the persisted settings; a missing notification is rejected by route middleware with Express sendStatus(404).",
+   "status": "verified",
+   "source": [
+    "server/controllers/NotificationController.js:82-89",
+    "server/controllers/NotificationController.js:92-100"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs",
+    "go-backend/internal/notifications/handler_test.go"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#notification-delete",
+    "go-backend/contracts/parity/full-suite-report.json#notification-read-after-delete",
+    "go-backend/contracts/parity/full-suite-report.json#notification-delete-missing"
+   ],
+   "exceptions": []
+  }
+ ],
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "unverified",
+  "changed": "verified",
+  "force": "not_applicable",
+  "failure": "verified"
+ }
+}

@@ -1,0 +1,53 @@
+{
+  "id": "socket-outgoing-ereader-devices-updated",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing ereader-devices-updated: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients; specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/controllers/EmailController.js:79",
+    "server/controllers/MeController.js:632"
+  ],
+  "implementation": [
+    "go-backend/internal/mail/mail.go",
+    "go-backend/internal/user/me.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/user/user_test.go:330#TestEreaderDevices"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-EREADER-DEVICES-UPDATED",
+      "class": "repeat_operation",
+      "contract": "Socket.IO outgoing ereader-devices-updated: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients; specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/EmailController.js:79",
+        "server/controllers/MeController.js:632"
+      ],
+      "tests": [
+        "go-backend/internal/user/user_test.go:330#TestEreaderDevices"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

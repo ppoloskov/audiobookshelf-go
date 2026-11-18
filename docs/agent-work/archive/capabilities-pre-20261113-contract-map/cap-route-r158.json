@@ -1,0 +1,25 @@
+{
+ "id": "route-r158",
+ "parent": "http/podcasts",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /podcasts/:id/match-episodes candidate recorded from server/routers/ApiRouter.js:257. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:257"
+ ],
+ "implementation": [
+  "go-backend/internal/podcasts/podcasts.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/podcasts/podcasts.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

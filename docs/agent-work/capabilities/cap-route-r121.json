@@ -1,25 +1,55 @@
 {
- "id": "route-r121",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /me/ereader-devices candidate recorded from server/routers/ApiRouter.js:195. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:195"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r121",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/me/ereader-devices. Persist the current-user ereader device settings with valid unique names/emails and user availability restrictions, preserving response/event projection and unrelated users devices.",
+  "source": [
+    "server/routers/ApiRouter.js:195",
+    "server/controllers/MeController.js:595"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/user/user_test.go:330#TestEreaderDevices"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-R121-CONTRACT-001",
+      "class": "state_transition",
+      "contract": "POST /api/me/ereader-devices. Persist the current-user ereader device settings with valid unique names/emails and user availability restrictions, preserving response/event projection and unrelated users devices.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:195",
+        "server/controllers/MeController.js:595"
+      ],
+      "tests": [
+        "go-backend/internal/user/user_test.go:330#TestEreaderDevices"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+      ]
+    }
+  ]
 }

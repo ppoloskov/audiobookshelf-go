@@ -1,0 +1,68 @@
+{
+ "id": "route-r002",
+ "parent": "http/identity",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /auth/openid candidate recorded from server/Auth.js:362. Method, query variants, cookie/session effects, provider redirect, errors, and state transitions must match upstream v2.37.2.",
+ "source": [
+  "server/Auth.js:218-248",
+  "server/Auth.js:362-378",
+  "server/auth/OidcAuthStrategy.js:256-368",
+  "server/Server.js:301-317"
+ ],
+ "implementation": [
+  "go-backend/internal/identity/identity.go",
+  "go-backend/internal/identity/oidc.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/identity/identity_test.go",
+  "go-backend/tools/parity/oidc-differential.cjs"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-start",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-invalid-redirect",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-missing-pkce-challenge",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-unsupported-pkce-method"
+ ],
+ "invariants": [
+  {
+   "id": "INV-R002-OIDC-START-COOKIE-001",
+   "class": "shape",
+   "contract": "Selected web and mobile starts match upstream redirect parameters and Set-Cookie names, stable values, Max-Age, Path, Expires, HttpOnly, and the signed connect.sid cookie.",
+   "status": "verified",
+   "source": [
+    "server/Auth.js:218-248",
+    "server/Auth.js:362-378",
+    "server/Server.js:301-317"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-start"
+   ],
+   "exceptions": [
+    "Selected callbacks, PKCE inputs, and cookie attributes only; other callback URL, state, headers, proxy, and middleware variants remain unverified."
+   ]
+  }
+ ],
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "unverified",
+  "changed": "unverified",
+  "force": "not_applicable",
+  "failure": "verified"
+ },
+ "exceptions": [
+  "The force scenario is not applicable because GET /auth/openid has no force or refresh operation."
+ ]
+}

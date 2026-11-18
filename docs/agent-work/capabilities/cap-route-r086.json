@@ -1,25 +1,87 @@
 {
- "id": "route-r086",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "DELETE /collections/:id/book/:bookId candidate recorded from server/routers/ApiRouter.js:152. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:152"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r086",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "DELETE /api/collections/:id/book/:bookId. Remove the selected book link from an authorized collection while keeping the book; preserve resulting order and collection_updated payload.",
+  "source": [
+    "server/routers/ApiRouter.js:152",
+    "server/controllers/CollectionController.js:433",
+    "server/controllers/CollectionController.js:271",
+    "server/Server.js:354",
+    "server/Auth.js:61-63",
+    "server/controllers/CollectionController.js:271-277",
+    "server/controllers/CollectionController.js:433-453"
+  ],
+  "implementation": [
+    "go-backend/internal/list/list.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/remove-book-renumbers",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/remove-book-not-member-is-noop",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/remove-book-by-user-with-delete-permission",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/remove-book-rejected-unchanged"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-R086-CONTRACT-001",
+      "class": "state_transition",
+      "contract": "DELETE /api/collections/:id/book/:itemId removes the link, renumbers the rest 1..n, keeps the item and answers 200 with the collection (unchanged when the item is not a member); 404 for an unknown item.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:152",
+        "server/controllers/CollectionController.js:433",
+        "server/controllers/CollectionController.js:271"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/remove-book-renumbers",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/remove-book-not-member-is-noop"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+      ]
+    },
+    {
+      "id": "INV-R086-ACCESS-001",
+      "class": "error",
+      "contract": "DELETE of a book link needs a valid token and an accessible collection (401/404); a user with delete permission but no update permission (the users the web client offers the remove button to) may remove. Whether users without any permission may remove is an upstream gap and not asserted.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/CollectionController.js:271-308",
+        "server/controllers/CollectionController.js:433-453",
+        "client/components/tables/collection/BookTableRow.vue:45",
+        "client/components/tables/collection/BookTableRow.vue:202",
+        "server/Server.js:354",
+        "server/Auth.js:61-63",
+        "server/controllers/CollectionController.js:271-277"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/remove-book-by-user-with-delete-permission",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/remove-book-rejected-unchanged"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Source-derived obligation and scenario binding only. No live run or independent completeness review was performed in this reconciliation; the full requirement remains open."
+      ]
+    }
+  ]
 }

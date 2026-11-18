@@ -1,25 +1,77 @@
 {
- "id": "route-r105",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /me/listening-sessions candidate recorded from server/routers/ApiRouter.js:179. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:179"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r105",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/me/listening-sessions. List current-user listening sessions using page/itemsPerPage pagination, preserving counts, nullable historical metadata, timestamps and time units.",
+  "source": [
+    "server/controllers/MeController.js:157",
+    "server/routers/ApiRouter.js:179"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/tests/replacement/user_me/run_test.go#TestReplacement/listening-sessions-listener",
+    "go-backend/tests/replacement/user_me/run_test.go#TestReplacement/listening-sessions-requires-authentication",
+    "go-backend/tests/replacement/user_me/run_test.go#TestReplacement/listening-sessions-paging",
+    "go-backend/tests/replacement/user_me/run_test.go#TestReplacement/listening-sessions-show-new-session"
+  ],
+  "evidence": [],
+  "exceptions": [],
+  "invariants": [
+    {
+      "id": "INV-R105-CONTRACT-001",
+      "class": "shape",
+      "contract": "GET /api/me/listening-sessions answers {total,numPages,page,itemsPerPage,sessions} with the caller playback sessions ordered by updatedAt descending in the old session shape (ids, mediaType, titles, duration, playMethod, mediaPlayer, deviceInfo, date, dayOfWeek, timeListening, startTime, currentTime, startedAt, updatedAt; date/dayOfWeek derived from updatedAt when the row has none); 401 without a valid token.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:179",
+        "server/controllers/MeController.js:157-176",
+        "server/models/PlaybackSession.js:79-108",
+        "server/objects/PlaybackSession.js:163-167"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_me/run_test.go#TestReplacement/listening-sessions-listener",
+        "go-backend/tests/replacement/user_me/run_test.go#TestReplacement/listening-sessions-requires-authentication"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R105-PAGING-001",
+      "class": "shape",
+      "contract": "GET /api/me/listening-sessions slices by page and itemsPerPage (itemsPerPage 0 or non-numeric falls back to 10), returns an empty slice past the end with the full total, and an empty list for a user without sessions.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:158-172"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_me/run_test.go#TestReplacement/listening-sessions-paging"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R105-CHANGED-001",
+      "class": "shape",
+      "contract": "A playback session closed after listening appears first in GET /api/me/listening-sessions and in the item list with listened seconds, date and weekday of today.",
+      "status": "unverified",
+      "source": [
+        "server/managers/PlaybackSessionManager.js:421-442"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_me/run_test.go#TestReplacement/listening-sessions-show-new-session"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

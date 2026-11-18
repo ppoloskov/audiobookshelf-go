@@ -1,0 +1,64 @@
+{
+  "id": "scan-precedence-timeline",
+  "parent": "scan",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Scanning applies configured metadata/sidecar/tag/folder precedence including absent/empty/locked values, orders all audio files, offsets multi-file chapters in seconds, retains item identity through moves and inode collisions, reconciles removed files/authors/series, and preserves durable state through repeated/forced/failed scans.",
+  "source": [
+    "server/scanner/",
+    "server/objects/metadata/"
+  ],
+  "implementation": [
+    "go-backend/internal/scan/"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/scan/rules_test.go:114#TestBuildChapters",
+    "go-backend/internal/scan/rules_test.go:271#TestReadSidecarsSources",
+    "go-backend/internal/scan/rules_test.go:364#TestApplyTags",
+    "go-backend/internal/scan/scan_test.go:140#TestScanImportsBooksAndKeepsIdentityOnRename",
+    "go-backend/internal/scan/scan_test.go:522#TestFilesDiffKeepsStoredEntryOrderAndAddedAt",
+    "go-backend/internal/scan/scan_test.go:545#TestPairPrefersPathThenFirstFreeInode",
+    "go-backend/internal/scan/scan_test.go:228#TestRescanSweepsAuthorsAndSeriesTheBookLeft"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SCAN-PRECEDENCE-TIMELINE",
+      "class": "repeat_operation",
+      "contract": "Scanning applies configured metadata/sidecar/tag/folder precedence including absent/empty/locked values, orders all audio files, offsets multi-file chapters in seconds, retains item identity through moves and inode collisions, reconciles removed files/authors/series, and preserves durable state through repeated/forced/failed scans.",
+      "status": "unverified",
+      "source": [
+        "server/scanner/",
+        "server/objects/metadata/"
+      ],
+      "tests": [
+        "go-backend/internal/scan/rules_test.go:114#TestBuildChapters",
+        "go-backend/internal/scan/rules_test.go:271#TestReadSidecarsSources",
+        "go-backend/internal/scan/rules_test.go:364#TestApplyTags",
+        "go-backend/internal/scan/scan_test.go:140#TestScanImportsBooksAndKeepsIdentityOnRename",
+        "go-backend/internal/scan/scan_test.go:522#TestFilesDiffKeepsStoredEntryOrderAndAddedAt",
+        "go-backend/internal/scan/scan_test.go:545#TestPairPrefersPathThenFirstFreeInode",
+        "go-backend/internal/scan/scan_test.go:228#TestRescanSweepsAuthorsAndSeriesTheBookLeft"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

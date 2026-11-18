@@ -1,25 +1,87 @@
 {
- "id": "route-r051",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "DELETE /items/:id candidate recorded from server/routers/ApiRouter.js:109. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:109"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r051",
+  "parent": "http/item",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "DELETE /api/items/:id dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:109, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"DELETE /api/items/{id}\", h.authed(h.delete)). Current assertion anchor(s): TestDeleteItemCascadesToEverythingReferencingIt; TestDeleteItemRollsBackOnFailure. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:109",
+    "go-backend/internal/item/handler.go",
+    "go-backend/internal/item/handler.go:98",
+    "server/controllers/LibraryItemController.js:1220"
+  ],
+  "implementation": [
+    "go-backend/internal/item/handler.go:98"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/item/delete_test.go:45#TestDeleteItemCascadesToEverythingReferencingIt",
+    "go-backend/internal/item/delete_test.go:150#TestDeleteItemRollsBackOnFailure"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R051-CONTRACT",
+      "class": "shape",
+      "contract": "DELETE /api/items/:id dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:109, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"DELETE /api/items/{id}\", h.authed(h.delete)). Current assertion anchor(s): TestDeleteItemCascadesToEverythingReferencingIt; TestDeleteItemRollsBackOnFailure. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:109",
+        "go-backend/internal/item/handler.go",
+        "go-backend/internal/item/handler.go:98",
+        "server/controllers/LibraryItemController.js:1220"
+      ],
+      "tests": [
+        "go-backend/internal/item/delete_test.go:45#TestDeleteItemCascadesToEverythingReferencingIt",
+        "go-backend/internal/item/delete_test.go:150#TestDeleteItemRollsBackOnFailure",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/delete-authorisation"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
+        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
+        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+      ]
+    },
+    {
+      "id": "INV-R051-DELETE-001",
+      "class": "state_transition",
+      "contract": "A soft delete by a user with only delete permission answers 200 and removes the item, book, progress of every user, playlist entries (emptied playlist removed, other playlist renumbered), collection entries, the RSS feed and the metadata folder, while the media files stay. DELETE ?hard=1 additionally removes the item folder with its media files from disk (the parent folder stays) and answers 200. Deleting an already deleted item answers 404 and changes no row, file or event. Deleting a book whose author and series have other books keeps them (no author_removed or series_removed), removes the fixture progress of two users, the collection entry and the open feed, and renumbers nothing else. Deleting a podcast removes its episodes, their progress and playlist entries (the emptied playlist is removed), the open feed and the metadata folder.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:103-149",
+        "server/routers/ApiRouter.js:373-407",
+        "server/routers/ApiRouter.js:414-470",
+        "server/routers/ApiRouter.js:472-525",
+        "client/components/modals/item/tabs/Details.vue",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/delete-soft-cascade",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/delete-hard-removes-files",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/delete-repeat-is-404",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/delete-keeps-shared-author-series-and-closes-fixture-feed",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/delete-podcast-cascade"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

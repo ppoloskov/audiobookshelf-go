@@ -1,0 +1,1021 @@
+{
+  "packet": "playlists",
+  "reviewer": "independent review, 2026-11-17, Codex",
+  "scenario_digest": "cf25800e23b06921a5c8f55a065b678a6bf0854b02770954315c2be1efcb6679",
+  "requirements_digest": "53b4914cc835997cd408f9c0e7a8f27ef128f75f339826873bd99fba65a9a711",
+  "required_tuples": [
+    {
+      "requirement": "route-r091",
+      "invariant": "INV-R091-SAMPLED",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "get-owner-reads-book-playlist",
+      "sources": [
+        "server/controllers/PlaylistController.js:152-155",
+        "server/models/Playlist.js:297-319"
+      ],
+      "rationale": "The owner reads a book playlist: id, name, null description, owner, library, timestamps equal to the row, and items in persisted order each with libraryItemId and the expanded library item."
+    },
+    {
+      "requirement": "route-r091",
+      "invariant": "INV-R091-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "get-podcast-playlist-episode-items",
+      "sources": [
+        "server/models/Playlist.js:297-319",
+        "server/controllers/PlaylistController.js:152-155"
+      ],
+      "rationale": "A podcast playlist is read with one item per episode carrying episodeId, the expanded episode and the podcast's library item, in persisted order."
+    },
+    {
+      "requirement": "route-r091",
+      "invariant": "INV-R091-ACCESS",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "get-rejects-unknown-foreign-and-anonymous",
+      "sources": [
+        "server/controllers/PlaylistController.js:575-593",
+        "server/routers/ApiRouter.js:161"
+      ],
+      "rationale": "GET /api/playlists/:id answers 401 without a token, 404 for an unknown id, and 403 for a user who does not own the playlist, administrators included."
+    },
+    {
+      "requirement": "route-r091",
+      "invariant": "INV-R091-ACCESS",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "get-hidden-when-library-access-revoked",
+      "sources": [
+        "server/controllers/PlaylistController.js:585-588"
+      ],
+      "rationale": "After the owner loses access to the playlist's library, GET answers 404 for that playlist while a playlist in a library the owner still sees is readable."
+    },
+    {
+      "requirement": "route-r090",
+      "invariant": "INV-R090-SAMPLED",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "list-owner-sees-own-sorted-by-name",
+      "sources": [
+        "server/controllers/PlaylistController.js:138-144",
+        "server/models/Playlist.js:27-70"
+      ],
+      "rationale": "GET /api/playlists returns {playlists} with the caller's playlists of all accessible libraries, expanded, sorted by name."
+    },
+    {
+      "requirement": "route-r090",
+      "invariant": "INV-R090-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "list-other-users-get-empty-array",
+      "sources": [
+        "server/controllers/PlaylistController.js:138-144"
+      ],
+      "rationale": "A user without playlists, administrators included, gets {playlists: []} (an empty array, not null) and never sees another user's playlists."
+    },
+    {
+      "requirement": "route-r090",
+      "invariant": "INV-R090-SAMPLED",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "list-requires-token",
+      "sources": [
+        "server/routers/ApiRouter.js:160"
+      ],
+      "rationale": "GET /api/playlists without a token answers 401."
+    },
+    {
+      "requirement": "route-r090",
+      "invariant": "INV-R090-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "list-hides-inaccessible-library-playlists",
+      "sources": [
+        "server/controllers/PlaylistController.js:139-140"
+      ],
+      "rationale": "GET /api/playlists omits the playlists of libraries the user can no longer access and keeps the others."
+    },
+    {
+      "requirement": "route-r028",
+      "invariant": "INV-ROUTE-R028-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "library-list-fixture-owner",
+      "sources": [
+        "server/controllers/LibraryController.js:853-870",
+        "server/models/Playlist.js:27-70"
+      ],
+      "rationale": "GET /api/libraries/:id/playlists returns {results,total,limit,page} with only the caller's playlists of that library, expanded; limit and page default to 0."
+    },
+    {
+      "requirement": "route-r028",
+      "invariant": "INV-ROUTE-R028-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "library-list-empty-and-paginated",
+      "sources": [
+        "server/controllers/LibraryController.js:853-870",
+        "server/controllers/LibraryController.js:1487-1495"
+      ],
+      "rationale": "A user without playlists gets total 0 and an empty results array; limit and page slice the name-sorted results while total stays the full count."
+    },
+    {
+      "requirement": "route-r028",
+      "invariant": "INV-ROUTE-R028-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "library-list-rejections",
+      "sources": [
+        "server/controllers/LibraryController.js:1475-1498",
+        "server/routers/ApiRouter.js:81"
+      ],
+      "rationale": "The library playlist list answers 401 without a token, 404 for an unknown library, 403 for a library the user may not access, and 400 for a negative or fractional limit or page."
+    },
+    {
+      "requirement": "route-r089",
+      "invariant": "INV-R089-SAMPLED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "create-book-playlist-keeps-order",
+      "sources": [
+        "server/controllers/PlaylistController.js:29-125",
+        "server/models/Playlist.js:297-319"
+      ],
+      "rationale": "POST /api/playlists creates a playlist owned by the caller with the items in request order; the row, the links (type book, order 1..n) and the response agree."
+    },
+    {
+      "requirement": "route-r089",
+      "invariant": "INV-R089-SAMPLED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "create-podcast-playlist-episodes",
+      "sources": [
+        "server/controllers/PlaylistController.js:44-84",
+        "server/controllers/PlaylistController.js:101-109"
+      ],
+      "rationale": "A playlist whose items carry episodeId is a podcast playlist: links are of type podcastEpisode, hold the episode ids in order, and the response items carry the episodes."
+    },
+    {
+      "requirement": "route-r089",
+      "invariant": "INV-R089-SAMPLED",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "create-without-items-strips-tags",
+      "sources": [
+        "server/controllers/PlaylistController.js:33-35",
+        "server/controllers/PlaylistController.js:44",
+        "server/utils/htmlSanitizer.js:27-40"
+      ],
+      "rationale": "A playlist may be created with no items (empty or absent) and its name is stripped of HTML tags; a missing description is stored as null."
+    },
+    {
+      "requirement": "route-r089",
+      "invariant": "INV-R089-SAMPLED",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "create-repeat-makes-distinct-playlists",
+      "sources": [
+        "server/controllers/PlaylistController.js:89-97"
+      ],
+      "rationale": "Posting the same body twice creates two playlists with different ids and identical content."
+    },
+    {
+      "requirement": "route-r089",
+      "invariant": "INV-R089-SAMPLED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "create-visible-in-lists-of-owner-only",
+      "sources": [
+        "server/controllers/PlaylistController.js:138-144",
+        "server/controllers/LibraryController.js:853-870"
+      ],
+      "rationale": "A created playlist appears in the owner's GET /api/playlists and library list, and in nobody else's."
+    },
+    {
+      "requirement": "route-r089",
+      "invariant": "INV-R089-VALIDATE",
+      "case": "error",
+      "state": "failure",
+      "assertion": "create-rejects-invalid-bodies",
+      "sources": [
+        "server/controllers/PlaylistController.js:33-84"
+      ],
+      "rationale": "Create answers 400 for a missing, empty or tag-only name, a missing libraryId, a non-string description, an item without libraryItemId, an episodeId on a book, a podcast item without episodeId, unknown items or episodes and items of another library, and changes nothing."
+    },
+    {
+      "requirement": "route-r089",
+      "invariant": "INV-R089-ACCESS",
+      "case": "error",
+      "state": "failure",
+      "assertion": "create-rejects-anonymous-and-inaccessible-library",
+      "sources": [
+        "server/controllers/PlaylistController.js:40-43",
+        "server/routers/ApiRouter.js:159"
+      ],
+      "rationale": "Create answers 401 without a token and 403 in a library the user cannot access, and changes nothing."
+    },
+    {
+      "requirement": "route-r098",
+      "invariant": "INV-R098-CONTRACT-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "from-collection-copies-name-and-books",
+      "sources": [
+        "server/controllers/PlaylistController.js:511-567"
+      ],
+      "rationale": "POST /api/playlists/collection/:id creates a playlist owned by the caller with the collection's name, library, description and books in collection order."
+    },
+    {
+      "requirement": "route-r098",
+      "invariant": "INV-R098-CONTRACT-001",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "from-collection-repeat-and-null-description",
+      "sources": [
+        "server/controllers/PlaylistController.js:534-541"
+      ],
+      "rationale": "Creating from the same collection twice makes two separate playlists; a collection without description gives a playlist with null description."
+    },
+    {
+      "requirement": "route-r098",
+      "invariant": "INV-R098-CONTRACT-001",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "from-collection-uses-current-books",
+      "sources": [
+        "server/controllers/PlaylistController.js:521-552"
+      ],
+      "rationale": "A playlist made after the collection changed holds the collection's current books, and later collection changes do not touch the playlist."
+    },
+    {
+      "requirement": "route-r098",
+      "invariant": "INV-R098-REJECT",
+      "case": "error",
+      "state": "failure",
+      "assertion": "from-collection-rejections",
+      "sources": [
+        "server/controllers/PlaylistController.js:512-530",
+        "server/routers/ApiRouter.js:168"
+      ],
+      "rationale": "Creating from a collection answers 401 without a token, 404 for an unknown collection or one in a library the user cannot access, and 400 for an empty collection, and changes nothing."
+    },
+    {
+      "requirement": "route-r092",
+      "invariant": "INV-R092-SAMPLED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "patch-renames-and-sets-description",
+      "sources": [
+        "server/controllers/PlaylistController.js:166-256"
+      ],
+      "rationale": "PATCH by the owner changes name (tags stripped) and description, answers the expanded playlist and persists both in the row."
+    },
+    {
+      "requirement": "route-r092",
+      "invariant": "INV-R092-ORDER",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "patch-reorders-book-items",
+      "sources": [
+        "server/controllers/PlaylistController.js:203-247"
+      ],
+      "rationale": "PATCH with items in a new order renumbers the persisted links 1..n in that order and the response and later reads list them in it."
+    },
+    {
+      "requirement": "route-r092",
+      "invariant": "INV-R092-ORDER",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "patch-reorders-episode-items",
+      "sources": [
+        "server/controllers/PlaylistController.js:223-247"
+      ],
+      "rationale": "PATCH reorders the episodes of a podcast playlist, identified by episode id, and persists the new order."
+    },
+    {
+      "requirement": "route-r092",
+      "invariant": "INV-R092-SAMPLED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "patch-same-values-and-empty-body-change-nothing",
+      "sources": [
+        "server/controllers/PlaylistController.js:183-201",
+        "server/controllers/PlaylistController.js:252-255"
+      ],
+      "rationale": "PATCH with the current values, an empty body, an empty name or an empty description answers 200 with the playlist unchanged (an empty description cannot clear it)."
+    },
+    {
+      "requirement": "route-r092",
+      "invariant": "INV-R092-VALIDATE",
+      "case": "error",
+      "state": "failure",
+      "assertion": "patch-rejects-invalid-bodies",
+      "sources": [
+        "server/controllers/PlaylistController.js:168-181",
+        "server/controllers/PlaylistController.js:206-221"
+      ],
+      "rationale": "PATCH answers 400 for libraryId or userId in the body, a non-string name or description, items that are not an array or lack libraryItemId, unknown items and a changed item count, and changes nothing."
+    },
+    {
+      "requirement": "route-r092",
+      "invariant": "INV-R092-ACCESS",
+      "case": "error",
+      "state": "failure",
+      "assertion": "patch-rejects-foreign-unknown-and-anonymous",
+      "sources": [
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "PATCH answers 401 without a token, 404 for an unknown id, 403 for another user (an administrator included) and 404 after the owner lost library access, changing nothing."
+    },
+    {
+      "requirement": "route-r093",
+      "invariant": "INV-R093-SAMPLED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "delete-removes-playlist-and-links",
+      "sources": [
+        "server/controllers/PlaylistController.js:265-272"
+      ],
+      "rationale": "DELETE by the owner answers 200 and removes the playlist row and its links, leaving the library items; the playlist then reads 404 and leaves the lists."
+    },
+    {
+      "requirement": "route-r093",
+      "invariant": "INV-R093-SAMPLED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "delete-twice-second-is-404",
+      "sources": [
+        "server/controllers/PlaylistController.js:575-580"
+      ],
+      "rationale": "Deleting a playlist that is already gone answers 404 and changes nothing; an empty playlist can be deleted too."
+    },
+    {
+      "requirement": "route-r093",
+      "invariant": "INV-R093-SAMPLED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "delete-after-edits-removes-all-links",
+      "sources": [
+        "server/controllers/PlaylistController.js:265-272"
+      ],
+      "rationale": "A playlist that gained items after creation is deleted with all its links, and other playlists of the owner stay."
+    },
+    {
+      "requirement": "route-r093",
+      "invariant": "INV-R093-ACCESS",
+      "case": "error",
+      "state": "failure",
+      "assertion": "delete-rejects-foreign-unknown-and-anonymous",
+      "sources": [
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "DELETE answers 401 without a token, 404 for an unknown id, 403 for another user or an administrator and 404 after the owner lost library access; nothing is deleted."
+    },
+    {
+      "requirement": "route-r094",
+      "invariant": "INV-R094-CONTRACT-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "add-item-appends-book",
+      "sources": [
+        "server/controllers/PlaylistController.js:283-338"
+      ],
+      "rationale": "POST /item appends a book as the last item: the response lists it last with its expanded library item, and the link is persisted with order n+1."
+    },
+    {
+      "requirement": "route-r094",
+      "invariant": "INV-R094-CONTRACT-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "add-item-appends-episode",
+      "sources": [
+        "server/controllers/PlaylistController.js:297-336"
+      ],
+      "rationale": "POST /item with libraryItemId and episodeId appends an episode to a podcast playlist, with the expanded episode in the response and a podcastEpisode link persisted."
+    },
+    {
+      "requirement": "route-r094",
+      "invariant": "INV-R094-VALIDATE",
+      "case": "error",
+      "state": "repeat",
+      "assertion": "add-item-duplicate-is-400",
+      "sources": [
+        "server/controllers/PlaylistController.js:304-308"
+      ],
+      "rationale": "Adding a book or episode that is already in the playlist answers 400 and changes nothing."
+    },
+    {
+      "requirement": "route-r094",
+      "invariant": "INV-R094-VALIDATE",
+      "case": "error",
+      "state": "failure",
+      "assertion": "add-item-rejects-invalid-items",
+      "sources": [
+        "server/controllers/PlaylistController.js:286-302"
+      ],
+      "rationale": "POST /item answers 400 without libraryItemId, for an unknown item, an item of another library, an episodeId on a book, a podcast without episodeId and an unknown episode, and changes nothing."
+    },
+    {
+      "requirement": "route-r094",
+      "invariant": "INV-R094-ACCESS",
+      "case": "error",
+      "state": "failure",
+      "assertion": "add-item-rejects-foreign-unknown-and-anonymous",
+      "sources": [
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "POST /item answers 401 without a token, 404 for an unknown playlist, 403 for another user or an administrator, and changes nothing."
+    },
+    {
+      "requirement": "route-r095",
+      "invariant": "INV-R095-CONTRACT-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "remove-item-renumbers-the-rest",
+      "sources": [
+        "server/controllers/PlaylistController.js:347-385"
+      ],
+      "rationale": "DELETE /item/:libraryItemId removes a book from the middle: the response and the persisted links keep the others in order, renumbered 1..n."
+    },
+    {
+      "requirement": "route-r095",
+      "invariant": "INV-R095-CONTRACT-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "remove-episode-by-episode-id",
+      "sources": [
+        "server/controllers/PlaylistController.js:351-355"
+      ],
+      "rationale": "DELETE /item/:libraryItemId/:episodeId removes that episode, renumbers the rest, and without the episode id the podcast item is not found (404)."
+    },
+    {
+      "requirement": "route-r095",
+      "invariant": "INV-R095-EMPTY",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "remove-last-item-deletes-playlist",
+      "sources": [
+        "server/controllers/PlaylistController.js:373-384"
+      ],
+      "rationale": "Removing the last item answers 200 with the now item-less playlist and deletes the playlist and its links."
+    },
+    {
+      "requirement": "route-r095",
+      "invariant": "INV-R095-CONTRACT-001",
+      "case": "error",
+      "state": "repeat",
+      "assertion": "remove-item-twice-second-is-404",
+      "sources": [
+        "server/controllers/PlaylistController.js:356-358"
+      ],
+      "rationale": "Removing an item that is not (or no longer) in the playlist answers 404 and changes nothing."
+    },
+    {
+      "requirement": "route-r095",
+      "invariant": "INV-R095-ACCESS",
+      "case": "error",
+      "state": "failure",
+      "assertion": "remove-item-rejects-foreign-unknown-and-anonymous",
+      "sources": [
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "DELETE /item answers 401 without a token, 404 for an unknown playlist, 403 for another user or an administrator, and removes nothing."
+    },
+    {
+      "requirement": "route-r096",
+      "invariant": "INV-R096-SAMPLED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "batch-add-appends-in-request-order",
+      "sources": [
+        "server/controllers/PlaylistController.js:394-454"
+      ],
+      "rationale": "POST /batch/add appends the new books in request order after the existing ones, persisting orders n+1.., and answers the expanded playlist."
+    },
+    {
+      "requirement": "route-r096",
+      "invariant": "INV-R096-SAMPLED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "batch-add-skips-existing-items",
+      "sources": [
+        "server/controllers/PlaylistController.js:414-421",
+        "server/controllers/PlaylistController.js:447-453"
+      ],
+      "rationale": "Items already in the playlist are skipped without error: a request of only existing items answers 200 and changes nothing, a mixed request adds just the new ones."
+    },
+    {
+      "requirement": "route-r096",
+      "invariant": "INV-R096-SAMPLED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "batch-add-episodes",
+      "sources": [
+        "server/controllers/PlaylistController.js:417-443"
+      ],
+      "rationale": "POST /batch/add with episodeId entries appends episodes of a podcast playlist with their expanded episodes and podcastEpisode links."
+    },
+    {
+      "requirement": "route-r096",
+      "invariant": "INV-R096-VALIDATE",
+      "case": "error",
+      "state": "failure",
+      "assertion": "batch-add-rejects-invalid-bodies",
+      "sources": [
+        "server/controllers/PlaylistController.js:395-405"
+      ],
+      "rationale": "POST /batch/add answers 400 for missing, empty or non-array items, an entry without a string libraryItemId, a non-string episodeId and unknown library items, and changes nothing."
+    },
+    {
+      "requirement": "route-r096",
+      "invariant": "INV-R096-ACCESS",
+      "case": "error",
+      "state": "failure",
+      "assertion": "batch-add-rejects-foreign-unknown-and-anonymous",
+      "sources": [
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "POST /batch/add answers 401 without a token, 404 for an unknown playlist, 403 for another user or an administrator, and changes nothing."
+    },
+    {
+      "requirement": "route-r097",
+      "invariant": "INV-R097-SAMPLED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "batch-remove-keeps-remaining-order",
+      "sources": [
+        "server/controllers/PlaylistController.js:463-502"
+      ],
+      "rationale": "POST /batch/remove deletes the listed books; the response and later reads list the remaining ones in their original order."
+    },
+    {
+      "requirement": "route-r097",
+      "invariant": "INV-R097-SAMPLED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "batch-remove-ignores-missing-items",
+      "sources": [
+        "server/controllers/PlaylistController.js:479-482",
+        "server/controllers/PlaylistController.js:491-501"
+      ],
+      "rationale": "Entries that are not in the playlist are ignored: removing only absent items answers 200 with the playlist unchanged, and removing an episode needs its episodeId."
+    },
+    {
+      "requirement": "route-r097",
+      "invariant": "INV-R097-EMPTY",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "batch-remove-everything-deletes-playlist",
+      "sources": [
+        "server/controllers/PlaylistController.js:491-500"
+      ],
+      "rationale": "Removing every item answers 200 with an item-less playlist and deletes the playlist and its links."
+    },
+    {
+      "requirement": "route-r097",
+      "invariant": "INV-R097-VALIDATE",
+      "case": "error",
+      "state": "failure",
+      "assertion": "batch-remove-rejects-invalid-bodies-and-foreign-callers",
+      "sources": [
+        "server/controllers/PlaylistController.js:464-466",
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "POST /batch/remove answers 400 for missing, empty or malformed items, 401 without a token, 404 for an unknown playlist and 403 for another user or an administrator, and removes nothing."
+    },
+    {
+      "requirement": "route-r098",
+      "invariant": "INV-R098-CONTRACT-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "from-collection-hides-restricted-books",
+      "sources": [
+        "server/controllers/PlaylistController.js:521-530",
+        "server/models/Collection.js:222-244"
+      ],
+      "rationale": "For users restricted by allowed tags, denied tags or explicit content, a playlist from a collection holds only the books they may see, in collection order."
+    },
+    {
+      "requirement": "route-r098",
+      "invariant": "INV-R098-REJECT",
+      "case": "error",
+      "state": "failure",
+      "assertion": "from-collection-404-when-every-book-hidden",
+      "sources": [
+        "server/controllers/PlaylistController.js:521-525",
+        "server/models/Collection.js:236-239"
+      ],
+      "rationale": "When the caller's tag or explicit-content restrictions hide every book of a collection, creating a playlist from it answers 404 and creates nothing."
+    },
+    {
+      "requirement": "route-r091",
+      "invariant": "INV-R091-ACCESS",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "get-foreign-in-inaccessible-library-is-403",
+      "sources": [
+        "server/routers/ApiRouter.js:161",
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "A caller without access to the playlist's library asking for another user's playlist gets 403 (owner check first), not 404, and nothing changes."
+    },
+    {
+      "requirement": "route-r092",
+      "invariant": "INV-R092-ACCESS",
+      "case": "edge",
+      "state": "failure",
+      "assertion": "patch-foreign-in-inaccessible-library-is-403",
+      "sources": [
+        "server/routers/ApiRouter.js:162",
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "A caller without access to the playlist's library asking for another user's playlist gets 403 (owner check first), not 404, and nothing changes."
+    },
+    {
+      "requirement": "route-r093",
+      "invariant": "INV-R093-ACCESS",
+      "case": "edge",
+      "state": "failure",
+      "assertion": "delete-foreign-in-inaccessible-library-is-403",
+      "sources": [
+        "server/routers/ApiRouter.js:163",
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "A caller without access to the playlist's library asking for another user's playlist gets 403 (owner check first), not 404, and nothing changes."
+    },
+    {
+      "requirement": "route-r094",
+      "invariant": "INV-R094-ACCESS",
+      "case": "edge",
+      "state": "failure",
+      "assertion": "add-item-foreign-in-inaccessible-library-is-403",
+      "sources": [
+        "server/routers/ApiRouter.js:164",
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "A caller without access to the playlist's library asking for another user's playlist gets 403 (owner check first), not 404, and nothing changes."
+    },
+    {
+      "requirement": "route-r095",
+      "invariant": "INV-R095-ACCESS",
+      "case": "edge",
+      "state": "failure",
+      "assertion": "remove-item-foreign-in-inaccessible-library-is-403",
+      "sources": [
+        "server/routers/ApiRouter.js:165",
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "A caller without access to the playlist's library asking for another user's playlist gets 403 (owner check first), not 404, and nothing changes."
+    },
+    {
+      "requirement": "route-r096",
+      "invariant": "INV-R096-ACCESS",
+      "case": "edge",
+      "state": "failure",
+      "assertion": "batch-add-foreign-in-inaccessible-library-is-403",
+      "sources": [
+        "server/routers/ApiRouter.js:166",
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "A caller without access to the playlist's library asking for another user's playlist gets 403 (owner check first), not 404, and nothing changes."
+    },
+    {
+      "requirement": "route-r097",
+      "invariant": "INV-R097-VALIDATE",
+      "case": "edge",
+      "state": "failure",
+      "assertion": "batch-remove-foreign-in-inaccessible-library-is-403",
+      "sources": [
+        "server/routers/ApiRouter.js:167",
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "A caller without access to the playlist's library asking for another user's playlist gets 403 (owner check first), not 404, and nothing changes."
+    },
+    {
+      "requirement": "route-r028",
+      "invariant": "INV-ROUTE-R028-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "library-list-restricted-caller-unknown-library-is-403",
+      "sources": [
+        "server/controllers/LibraryController.js:1475-1484"
+      ],
+      "rationale": "A library-restricted user asking for the playlists of an unknown library gets 403 (access check before the lookup), while an unrestricted user gets 404."
+    },
+    {
+      "requirement": "route-r097",
+      "invariant": "INV-R097-SAMPLED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "batch-remove-then-add-puts-new-item-last",
+      "sources": [
+        "server/controllers/PlaylistController.js:413-416",
+        "server/controllers/PlaylistController.js:484-488"
+      ],
+      "rationale": "After a batch remove from the middle, a batch add of a new book lists it last in the response and in later reads (only relative order is asserted)."
+    },
+    {
+      "requirement": "route-r095",
+      "invariant": "INV-R095-CONTRACT-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "remove-then-add-puts-new-item-last",
+      "sources": [
+        "server/controllers/PlaylistController.js:364-371",
+        "server/controllers/PlaylistController.js:312-318"
+      ],
+      "rationale": "After removing an item from the middle, adding a new book (single or batch) lists it last in the response and in later reads."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-added",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-ADDED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "event-added-on-create-reaches-owner-sockets-only",
+      "sources": [
+        "server/controllers/PlaylistController.js:118",
+        "server/SocketAuthority.js:68-78"
+      ],
+      "rationale": "Create emits playlist_added with the expanded playlist to every socket of the owner and to no other user, administrator or unauthenticated socket."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-added",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-ADDED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "event-added-from-collection",
+      "sources": [
+        "server/controllers/PlaylistController.js:560"
+      ],
+      "rationale": "Creating a playlist from a collection emits playlist_added to the caller's sockets only, with the playlist the route returned."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-added",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-ADDED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "event-added-repeat-and-late-socket",
+      "sources": [
+        "server/controllers/PlaylistController.js:118",
+        "server/SocketAuthority.js:68-78"
+      ],
+      "rationale": "Two creates emit two playlist_added events in order, and a socket that connects afterwards gets no replay."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-added",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-ADDED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "event-added-not-sent-for-rejected-create",
+      "sources": [
+        "server/controllers/PlaylistController.js:33-84",
+        "server/controllers/PlaylistController.js:538-540"
+      ],
+      "rationale": "Rejected creates with an invalid body, unknown item, missing token or unknown collection emit no playlist_added to watched sockets."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-updated",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-UPDATED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "event-updated-on-patch-add-remove",
+      "sources": [
+        "server/controllers/PlaylistController.js:253",
+        "server/controllers/PlaylistController.js:336",
+        "server/controllers/PlaylistController.js:381"
+      ],
+      "rationale": "PATCH, add item and remove item each emit playlist_updated with the route's playlist to the owner's sockets only."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-updated",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-UPDATED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "event-updated-on-reorder-and-batches",
+      "sources": [
+        "server/controllers/PlaylistController.js:252-254",
+        "server/controllers/PlaylistController.js:450",
+        "server/controllers/PlaylistController.js:498"
+      ],
+      "rationale": "Reorder, batch add and batch remove each emit playlist_updated to the owner with the resulting order."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-updated",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-UPDATED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "event-updated-not-sent-when-nothing-changed",
+      "sources": [
+        "server/controllers/PlaylistController.js:192-201",
+        "server/controllers/PlaylistController.js:252-254",
+        "server/controllers/PlaylistController.js:447-451",
+        "server/controllers/PlaylistController.js:491"
+      ],
+      "rationale": "A PATCH with the current values, a batch add of existing items and a batch remove of absent items answer 200 and emit no playlist_updated."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-updated",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-UPDATED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "event-updated-not-sent-for-rejected-requests",
+      "sources": [
+        "server/controllers/PlaylistController.js:575-593",
+        "server/controllers/PlaylistController.js:286-308"
+      ],
+      "rationale": "Rejected edits (another user, invalid body, duplicate item, unknown item) emit no playlist_updated to anyone, including the owner."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-updated",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-UPDATED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "event-updated-when-library-item-deleted",
+      "sources": [
+        "server/routers/ApiRouter.js:383-384",
+        "server/models/Playlist.js:121-158"
+      ],
+      "rationale": "Deleting a library item that is in a playlist with other items removes it from the playlist and emits playlist_updated, without that item, to the owner only."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-removed",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-REMOVED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "event-removed-on-delete",
+      "sources": [
+        "server/controllers/PlaylistController.js:270"
+      ],
+      "rationale": "DELETE emits playlist_removed with the playlist as it was, items included, to the owner's sockets only."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-removed",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-REMOVED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "event-removed-when-last-item-removed",
+      "sources": [
+        "server/controllers/PlaylistController.js:376-380",
+        "server/controllers/PlaylistController.js:493-497"
+      ],
+      "rationale": "Removing the last item (single or batch) emits playlist_removed, and no playlist_updated, to the owner."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-removed",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-REMOVED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "event-removed-when-library-item-deleted",
+      "sources": [
+        "server/routers/ApiRouter.js:383-384",
+        "server/models/Playlist.js:121-158"
+      ],
+      "rationale": "Deleting the only library item of a playlist deletes the playlist and emits playlist_removed to its owner only."
+    },
+    {
+      "requirement": "socket-outgoing-playlist-removed",
+      "invariant": "INV-SOCKET-OUTGOING-PLAYLIST-REMOVED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "event-removed-not-sent-for-rejected-delete",
+      "sources": [
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "A delete by another user, an administrator or without a token, and a delete of an unknown playlist, emit no playlist_removed."
+    },
+    {
+      "requirement": "flow-client-list-ownership",
+      "invariant": "INV-FLOW-CLIENT-LIST-OWNERSHIP-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "flow-owner-lifecycle-from-collection",
+      "sources": [
+        "server/controllers/PlaylistController.js:511-567",
+        "server/controllers/PlaylistController.js:394-454",
+        "server/controllers/PlaylistController.js:166-256",
+        "server/controllers/PlaylistController.js:347-385",
+        "server/controllers/PlaylistController.js:265-272"
+      ],
+      "rationale": "The collection-to-playlist journey adds, reorders and removes books, checks the resulting database and both lists, then deletes the playlist."
+    },
+    {
+      "requirement": "flow-client-list-ownership",
+      "invariant": "INV-FLOW-CLIENT-LIST-OWNERSHIP-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "flow-other-users-cannot-touch-a-playlist",
+      "sources": [
+        "server/controllers/PlaylistController.js:575-593"
+      ],
+      "rationale": "Another user and an administrator are refused (403) on every playlist route for the listener's fixture playlist, nothing changes, and the owner still reads it unchanged."
+    },
+    {
+      "requirement": "flow-client-list-ownership",
+      "invariant": "INV-FLOW-CLIENT-LIST-OWNERSHIP-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "flow-lists-are-per-user",
+      "sources": [
+        "server/controllers/PlaylistController.js:138-144",
+        "server/controllers/LibraryController.js:853-870"
+      ],
+      "rationale": "Two users with same-named playlists each see only their own in both lists, an administrator sees neither, and deleting one user's playlist leaves the other's."
+    },
+    {
+      "requirement": "flow-client-list-ownership",
+      "invariant": "INV-FLOW-CLIENT-LIST-OWNERSHIP-001",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "flow-repeated-batch-operations-do-not-duplicate",
+      "sources": [
+        "server/controllers/PlaylistController.js:414-421",
+        "server/controllers/PlaylistController.js:472-488"
+      ],
+      "rationale": "Repeating a batch add adds nothing the second time and repeating a batch remove removes nothing more, so clients can retry safely."
+    },
+    {
+      "requirement": "flow-client-list-ownership",
+      "invariant": "INV-FLOW-CLIENT-LIST-OWNERSHIP-001",
+      "case": "error",
+      "state": "changed",
+      "assertion": "flow-collection-writes-denied-playlists-allowed",
+      "sources": [
+        "server/controllers/CollectionController.js:38-64",
+        "server/routers/ApiRouter.js:159-168"
+      ],
+      "rationale": "A user without update permission cannot create, change or delete collections, but can still make playlists, also from a collection, and the collection is unchanged."
+    },
+    {
+      "requirement": "route-r089",
+      "invariant": "INV-R089-SAMPLED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "create-rolls-back-link-write",
+      "sources": [
+        "server/controllers/PlaylistController.js:86-125"
+      ],
+      "rationale": "A second-link storage failure rolls back the playlist and links; a retry after recovery succeeds. The owner receives no playlist event on failure."
+    },
+    {
+      "requirement": "route-r098",
+      "invariant": "INV-R098-CONTRACT-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "collection-copy-rolls-back-link-write",
+      "sources": [
+        "server/controllers/PlaylistController.js:532-566"
+      ],
+      "rationale": "A second-link storage failure rolls back the collection copy; retry creates the ordered playlist. The owner receives no playlist event on failure."
+    },
+    {
+      "requirement": "flow-client-list-ownership",
+      "invariant": "INV-FLOW-CLIENT-LIST-OWNERSHIP-001",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "reopen-reordered-playlist",
+      "sources": [
+        "server/controllers/PlaylistController.js:152-155",
+        "server/controllers/PlaylistController.js:206-263",
+        "server/models/Playlist.js:297-319"
+      ],
+      "rationale": "Reordered links and playlist row survive restart, remain readable by the owner, and reject another user."
+    },
+    {
+      "requirement": "route-r091",
+      "invariant": "INV-R091-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "get-playlist-preserves-unplayable-item-flags",
+      "sources": [
+        "server/models/Playlist.js:297-319",
+        "server/models/LibraryItem.js:1019-1020",
+        "server/controllers/PlaylistController.js:252-255"
+      ],
+      "rationale": "Playlist GET and playlist_updated preserve seeded missing and invalid flags and the non-null cover path."
+    }
+  ],
+  "not_applicable": [
+    {
+      "requirement": "flow-client-list-ownership",
+      "facet": "force",
+      "reason": "confirmed: none of the mapped playlist or collection routes has a force/refresh/override mode (PlaylistController.js, ApiRouter.js:159-168)"
+    },
+    {
+      "requirement": "socket-outgoing-playlist-added",
+      "facet": "force",
+      "reason": "confirmed: events are emitted by routes that have no force/hard mode (PlaylistController.js emit sites)"
+    },
+    {
+      "requirement": "socket-outgoing-playlist-updated",
+      "facet": "force",
+      "reason": "confirmed: events are emitted by routes that have no force/hard mode (PlaylistController.js emit sites)"
+    },
+    {
+      "requirement": "socket-outgoing-playlist-removed",
+      "facet": "force",
+      "reason": "confirmed: events are emitted by routes that have no force/hard mode (PlaylistController.js emit sites)"
+    }
+  ],
+  "open_findings": []
+}

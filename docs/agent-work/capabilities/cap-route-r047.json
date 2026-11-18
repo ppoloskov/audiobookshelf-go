@@ -1,25 +1,79 @@
 {
- "id": "route-r047",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /items/batch/get candidate recorded from server/routers/ApiRouter.js:104. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:104"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r047",
+  "parent": "http/item",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/items/batch/get dispatches to the pinned TS handler LibraryItemController.batchGet (ApiRouter.js:104, server/controllers/LibraryItemController.js:740) and Go registration mux.Handle(\"POST /api/items/batch/get\", h.authed(h.batchGet)). Current assertion anchor(s): TestBatchGet. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "go-backend/internal/item/handler.go",
+    "go-backend/internal/item/handler.go:101",
+    "server/controllers/LibraryItemController.js:48-56",
+    "server/controllers/LibraryItemController.js:740",
+    "server/controllers/LibraryItemController.js:740-754",
+    "server/routers/ApiRouter.js:104"
+  ],
+  "implementation": [
+    "go-backend/internal/item/handler.go:101"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/item/patch_test.go:216#TestBatchGet",
+    "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-expanded-documents",
+    "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-repeat-same-documents",
+    "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-unknown-and-duplicate-ids",
+    "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-needs-no-update-permission",
+    "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-unauthenticated",
+    "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-invalid-payload-failure",
+    "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-one-forbidden-item-failure",
+    "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-reflects-changes"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: reading and downloading have no force, hard or override mode"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R047-CONTRACT",
+      "class": "shape",
+      "contract": "POST /api/items/batch/get with libraryItemIds returns {libraryItems} holding the expanded document of every existing, accessible item (unknown ids ignored, duplicates once); an empty or missing id list is refused with 403; if any found item is not accessible to the user the whole request is 403; no update permission is needed; nothing is written.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:48-56",
+        "server/controllers/LibraryItemController.js:740-754",
+        "server/routers/ApiRouter.js:104"
+      ],
+      "tests": [
+        "go-backend/internal/item/patch_test.go:216#TestBatchGet",
+        "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-expanded-documents",
+        "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-repeat-same-documents",
+        "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-unknown-and-duplicate-ids",
+        "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-needs-no-update-permission",
+        "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-unauthenticated",
+        "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-invalid-payload-failure",
+        "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-one-forbidden-item-failure",
+        "go-backend/tests/replacement/item_read/run_test.go#TestReplacement/batch-get-reflects-changes"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
+        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
+        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+      ]
+    }
+  ]
 }

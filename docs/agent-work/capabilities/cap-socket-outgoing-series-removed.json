@@ -1,0 +1,79 @@
+{
+  "id": "socket-outgoing-series-removed",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing series_removed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/routers/ApiRouter.js:453",
+    "server/scanner/BookScanner.js:1006",
+    "server/controllers/LibraryItemController.js:238",
+    "server/routers/ApiRouter.js:425-428",
+    "server/scanner/Scanner.js:328-342",
+    "server/controllers/LibraryItemController.js:1220-1250",
+    "server/scanner/BookScanner.js:290-296",
+    "server/scanner/LibraryItemScanner.js:90",
+    "server/controllers/LibraryItemController.js:145"
+  ],
+  "implementation": [
+    "go-backend/internal/item/sweep.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-when-media-update-empties-series",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-not-repeated",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-only-when-last-book-leaves",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-from-quick-match-replacement",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-not-sent-on-rejection",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-from-item-scan",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-from-item-delete"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: the requirement has no force, hard or override mode; every request is a plain request."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-SERIES-REMOVED",
+      "class": "repeat_operation",
+      "contract": "series_removed {id,libraryId} is emitted to every authenticated socket when a book update, quick match, item scan or item delete leaves a series without books; not while books remain or on rejection.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:453",
+        "server/controllers/LibraryItemController.js:238",
+        "server/routers/ApiRouter.js:425-428",
+        "server/scanner/Scanner.js:328-342",
+        "server/controllers/LibraryItemController.js:1220-1250",
+        "server/scanner/BookScanner.js:1006",
+        "server/scanner/BookScanner.js:290-296",
+        "server/scanner/LibraryItemScanner.js:90",
+        "server/controllers/LibraryItemController.js:145"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-when-media-update-empties-series",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-not-repeated",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-only-when-last-book-leaves",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-from-quick-match-replacement",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-not-sent-on-rejection",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-from-item-scan",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-removed-event-from-item-delete"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

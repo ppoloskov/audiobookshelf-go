@@ -1,0 +1,24 @@
+{
+ "id": "route-r016",
+ "parent": "http/unassigned",
+ "kind": "behaviour",
+ "scope": "in",
+ "status": "characterized",
+ "contract": "GET /^\\/libraries/ candidate recorded from server/routers/ApiRouter.js:68. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:68"
+ ],
+ "implementation": [],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [],
+ "evidence": [],
+ "exceptions": [
+  "Synthetic candidate (regex_literal): not a single exact upstream route; requires runtime-path reconciliation during verification.",
+  "Behavioral decision (TASK-0005, go-backend internal equivalent): the middleware is an in-process LRU response cache keyed by user+URL with full invalidation on model writes. The Go server computes every response fresh, which is observably equivalent under the complete-invalidation contract; upstream cache staleness edges are not reproduced. Documented, not silently patched."
+ ]
+}

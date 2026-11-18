@@ -1,25 +1,88 @@
 {
- "id": "route-r137",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "DELETE /authors/:id/image candidate recorded from server/routers/ApiRouter.js:223. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:223"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r137",
+  "parent": "http/author",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "DELETE /api/authors/:id/image dispatches to the pinned TS handler AuthorController.middleware (ApiRouter.js:223, server/controllers/AuthorController.js:427) and Go registration mux.Handle(\"DELETE /api/authors/{id}/image\", h.authed(h.deleteImage)). Current assertion anchor(s): TestImageUploadAndDelete. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:223",
+    "go-backend/internal/author/handler.go",
+    "go-backend/internal/author/handler.go:64",
+    "server/controllers/AuthorController.js:427"
+  ],
+  "implementation": [
+    "go-backend/internal/author/handler.go:64"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-delete-denied-changes-nothing",
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-delete-removes-file-and-cache",
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-delete-without-image-is-400",
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-delete-file-already-missing",
+    "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-delete-by-delete-only-user"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R137-AUTH",
+      "class": "authorization",
+      "contract": "401 without token; 404 before 403; delete permission is needed (update is not enough).",
+      "status": "unverified",
+      "source": [
+        "server/controllers/AuthorController.js:427-434"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-delete-denied-changes-nothing",
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-delete-by-delete-only-user"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R137-CONTRACT",
+      "class": "shape",
+      "contract": "DELETE /api/authors/:id/image answers {author} with imagePath null, deletes the file and cache, emits author_updated with numBooks.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:223",
+        "server/controllers/AuthorController.js:313-329"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-delete-removes-file-and-cache"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R137-REMOVE",
+      "class": "persistence",
+      "contract": "An author without image is 400 (also on repeat); a missing file on disk does not prevent clearing imagePath.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/AuthorController.js:314-322"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-delete-without-image-is-400",
+        "go-backend/tests/replacement/author/run_test.go#TestReplacement/image-delete-file-already-missing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

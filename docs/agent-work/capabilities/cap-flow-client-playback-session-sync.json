@@ -1,0 +1,70 @@
+{
+  "id": "flow-client-playback-session-sync",
+  "parent": "playback",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Native playback session lifecycle across play, local/offline session reconciliation, progress sync and close; distinct from the accepted real-media stream lifecycle packet.",
+  "source": [
+    "server/routers/ApiRouter.js:238-240",
+    "server/controllers/SessionController.js:153-200",
+    "server/controllers/SessionController.js:247-267",
+    "server/controllers/LibraryItemController.js:437-472"
+  ],
+  "implementation": [
+    "go-backend/internal/playback/playback.go",
+    "go-backend/internal/playback/session.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-FLOW-CLIENT-PLAYBACK-SESSION-SYNC-001",
+      "class": "state_transition",
+      "contract": "The client creates authenticated server/local sessions, submits listened time/duration/currentTime, receives per-session sync results for local-all and closes owned sessions.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/SessionController.js",
+        "server/models/PlaybackSession.js"
+      ],
+      "tests": [
+        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
+        "go-backend/internal/playback/playback_test.go:485#TestLocalSyncStoresOnceAndRespectsNewerProgress",
+        "go-backend/internal/playback/playback_test.go:530#TestLocalAllReportsEachSessionAndAcceptsStringTimestamps",
+        "go-backend/internal/contracttest/journey_test.go:127#TestJourney"
+      ],
+      "evidence": [
+        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
+        "go-backend/internal/playback/playback_test.go:485#TestLocalSyncStoresOnceAndRespectsNewerProgress",
+        "go-backend/internal/playback/playback_test.go:530#TestLocalAllReportsEachSessionAndAcceptsStringTimestamps",
+        "go-backend/internal/contracttest/journey_test.go:127#TestJourney"
+      ],
+      "exceptions": [
+        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed."
+      ]
+    }
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
+    "go-backend/internal/playback/playback_test.go:485#TestLocalSyncStoresOnceAndRespectsNewerProgress",
+    "go-backend/internal/playback/playback_test.go:530#TestLocalAllReportsEachSessionAndAcceptsStringTimestamps",
+    "go-backend/internal/contracttest/journey_test.go:127#TestJourney"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Client evidence: contracts/clients/official-app.md playback table and contracts/clients/audiobooth.md playback and offline sync sections. These references are discovery leads; assertions for request defaults, repeat sync, changed sync, partial failure and rollback are not fully mapped here.",
+    "State scenario force is not applicable for this client workflow because none of its mapped operations has a force/refresh mode; changed and repeat outcomes remain unverified unless an invariant explicitly states otherwise.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ]
+}

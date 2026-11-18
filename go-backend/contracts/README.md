@@ -17,13 +17,13 @@ provenance and useful value/type/nullability assertions.
 `source-inventory.json` is a reproducible, machine-readable index of syntax found in the upstream Node backend. Regenerate it from the repository root with:
 
 ```sh
-python3 go-backend/tools/source_inventory.py --output go-backend/contracts/source-inventory.json
+node go-backend/tools/source-inventory.mjs --output go-backend/contracts/source-inventory.json
 ```
 
 Run the extractor's fixture tests with:
 
 ```sh
-python3 -m unittest -v go-backend/tools/test_source_inventory.py
+node --test go-backend/tools/source-inventory.test.mjs
 ```
 
 The checked inventory was generated from git revision `edb1f7efc92ecacdef51aafb4d9d5054ce10604f` (Audiobookshelf v2.37.2). It records source SHA-256 values and source locations to make each extracted item auditable.

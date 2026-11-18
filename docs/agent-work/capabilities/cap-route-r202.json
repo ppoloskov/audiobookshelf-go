@@ -1,47 +1,59 @@
 {
- "id": "route-r202",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "DELETE /api-keys/:id candidate recorded from server/routers/ApiRouter.js:341. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:341"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#api-key-delete (differential pass)"
- ],
- "exceptions": [],
- "invariants": [
-  {
-   "id": "INV-R202-SAMPLED",
-   "class": "shape",
-   "contract": "Sampled DELETE /api-keys/:id via differential case(s) api-key-delete: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: api-keys.",
-   "status": "verified",
-   "source": [
-    "server/routers/ApiRouter.js:341"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#api-key-delete"
-   ],
-   "exceptions": [
-    "Sampled evidence; unsampled request-shape variants are separate behaviors."
-   ]
+  "id": "route-r202",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "DELETE /api/api-keys/:id. Admin deletes the selected API key and invalidates authentication; repeat deletion returns 404, retaining the user and other keys.",
+  "source": [
+    "server/routers/ApiRouter.js:341",
+    "server/controllers/ApiKeyController.js:197",
+    "server/controllers/ApiKeyController.js:179"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/user/user_test.go:215#TestAPIKeys"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#api-key-delete (differential pass)"
+  ],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R202-SAMPLED",
+      "class": "shape",
+      "contract": "Sampled DELETE /api-keys/:id via differential case(s) api-key-delete: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: api-keys.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:341"
+      ],
+      "tests": [
+        "go-backend/internal/user/user_test.go:215#TestAPIKeys"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/full-suite-report.json#api-key-delete"
+      ],
+      "exceptions": [
+        "Sampled evidence; unsampled request-shape variants are separate behaviors."
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
   }
- ]
 }

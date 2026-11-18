@@ -1,25 +1,78 @@
 {
- "id": "route-r110",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "PATCH /me/progress/batch/update candidate recorded from server/routers/ApiRouter.js:184. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:184"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r110",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "PATCH /api/me/progress/batch/update. Apply each accepted current-user progress update in a batch using playback completion/progress rules, report permitted outcomes and emit progress updates only for accepted writes.",
+  "source": [
+    "server/routers/ApiRouter.js:184",
+    "server/controllers/MeController.js:297"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/batch-mixed-entries",
+    "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/batch-mark-finished-as-clients-send-it",
+    "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/batch-repeat-changes-nothing-but-still-emits",
+    "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/batch-entries-apply-in-order",
+    "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/batch-rejections-change-nothing",
+    "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/batch-requires-authentication",
+    "go-backend/internal/user/user_test.go:241#TestProgressAndBookmarkEvents"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "force is not applicable: this route has no force, hard or override mode"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-R110-CONTRACT-001",
+      "class": "state_transition",
+      "contract": "PATCH /api/me/progress/batch/update with a non-empty array applies each entry like a single progress update in order (create or update, finished rules, lastUpdate), skips entries that fail (unknown item or episode, podcast item without episode) without failing the request, answers 200 and emits user_updated once, only when at least one entry was accepted, to the caller only.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MeController.js:297-320",
+        "server/models/User.js:730-831"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/batch-mixed-entries",
+        "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/batch-mark-finished-as-clients-send-it",
+        "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/batch-repeat-changes-nothing-but-still-emits",
+        "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/batch-entries-apply-in-order",
+        "go-backend/internal/user/user_test.go:241#TestProgressAndBookmarkEvents"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R110-ERROR-001",
+      "class": "state_transition",
+      "contract": "An empty array, an object or a missing body answers 400, an unauthenticated request 401; a batch of only invalid entries answers 200; none stores a row or emits an event.",
+      "source": [
+        "server/controllers/MeController.js:297-304",
+        "server/Server.js:160"
+      ],
+      "status": "unverified",
+      "tests": [
+        "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/batch-rejections-change-nothing",
+        "go-backend/tests/replacement/user_progress/run_test.go#TestReplacement/batch-requires-authentication"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

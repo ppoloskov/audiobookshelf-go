@@ -1,0 +1,44 @@
+{
+ "id": "route-r170",
+ "parent": "http/emailapi",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /emails/settings candidate recorded from server/routers/ApiRouter.js:277. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:277"
+ ],
+ "implementation": [
+  "go-backend/internal/emailapi/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "invariants": [
+  {
+   "id": "INV-R170-FRESH-DEFAULTS-001",
+   "class": "shape",
+   "contract": "GET /emails/settings returns EmailSettings constructor defaults when the settings row has not yet been persisted in a fresh v2.37.2 database.",
+   "status": "verified",
+   "source": ["server/models/Setting.js:21-35", "server/objects/settings/EmailSettings.js:14-39"],
+   "tests": ["go-backend/tools/parity/differential.cjs", "go-backend/internal/emailapi/handler_test.go"],
+   "evidence": ["go-backend/contracts/parity/full-suite-report.json#email-settings-read-defaults-initial"],
+   "exceptions": []
+  }
+ ],
+ "tests": [
+  "go-backend/internal/emailapi/handler.go",
+  "go-backend/internal/emailapi/handler_test.go",
+  "go-backend/tools/parity/differential.cjs"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#email-settings-reader-admin-gate",
+  "go-backend/contracts/parity/full-suite-report.json#email-settings-read-defaults-initial"
+ ],
+ "exceptions": [
+  "PATCH behavior and other email routes remain unverified by the GET route record."
+ ]
+}

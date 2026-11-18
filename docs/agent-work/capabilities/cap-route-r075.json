@@ -1,47 +1,164 @@
 {
- "id": "route-r075",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "PATCH /users/:id candidate recorded from server/routers/ApiRouter.js:137. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:137"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "verified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#user-update (differential pass)"
- ],
- "exceptions": [],
- "invariants": [
-  {
-   "id": "INV-R075-SAMPLED",
-   "class": "shape",
-   "contract": "Sampled PATCH /users/:id via differential case(s) user-update: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: permissions.",
-   "status": "verified",
-   "source": [
-    "server/routers/ApiRouter.js:137"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#user-update"
-   ],
-   "exceptions": [
-    "Sampled evidence; unsampled request-shape variants are separate behaviors."
-   ]
+  "id": "route-r075",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "PATCH /api/users/:id. Admin PATCH preserves omitted fields and specified null semantics, rejects read-only keys/duplicate usernames/invalid account changes, persists permitted changes and refreshes sockets before emitting the acting-admin user_updated view.",
+  "source": [
+    "server/routers/ApiRouter.js:137",
+    "server/controllers/UserController.js:501",
+    "server/controllers/UserController.js:205"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/user/user_test.go:146#TestUserAdministration",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-fields-and-row",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-lists-only-inside-permissions",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-ignores-invalid-values",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-repeat-changes-nothing",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-password-replaces-login",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-own-password-keeps-current-session",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-username-rotates-token",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-deactivate-blocks-access",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-root-rules",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-flag-matrix",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-username-case-variant-and-with-password",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-rejections-change-nothing"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#user-update (differential pass)"
+  ],
+  "exceptions": [
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: updating a user has no force or override mode"
+  ],
+  "invariants": [
+    {
+      "id": "INV-R075-SAMPLED",
+      "class": "shape",
+      "contract": "PATCH /api/users/:id answers {success:true, user} and stores email, type, isActive and permission changes in the users row, preserving username, pash, token and createdAt.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/UserController.js:205-354"
+      ],
+      "tests": [
+        "go-backend/internal/user/user_test.go:146#TestUserAdministration",
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-fields-and-row"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/full-suite-report.json#user-update"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R075-PERMISSIONS-001",
+      "class": "state_transition",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "Each of the nine permission flags moves both ways (away from the type default and back) for user, admin and guest in the modal-shaped body; flags apply only for known keys with boolean values; librariesAccessible and itemTagsSelected apply only when a permissions object is sent (top level value or inside it), malformed lists are ignored, empty arrays clear; empty email, empty password and an unchanged type are ignored.",
+      "source": [
+        "server/controllers/UserController.js:260-310"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-lists-only-inside-permissions",
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-ignores-invalid-values",
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-flag-matrix"
+      ]
+    },
+    {
+      "id": "INV-R075-NOOP-001",
+      "class": "repeat_operation",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "A PATCH that changes nothing (repeat or empty body) answers success with the same user, does not write the row (updatedAt unchanged) and emits no user_updated.",
+      "source": [
+        "server/controllers/UserController.js:238-348"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-repeat-changes-nothing"
+      ]
+    },
+    {
+      "id": "INV-R075-CREDENTIALS-001",
+      "class": "state_transition",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "Changing the password stores a new bcrypt hash; changing the username rotates the stored api token; both delete the user auth sessions (the presenting session of the same user is rotated and kept); the old password or name stops working and the new one logs in; the same username changes nothing and a taken one answers 400; a case-variant rename applies; username and password in one PATCH give one new token and one event.",
+      "source": [
+        "server/controllers/UserController.js:242-258,329-346",
+        "server/auth/TokenManager.js:467-504"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-password-replaces-login",
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-own-password-keeps-current-session",
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-username-rotates-token",
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-username-case-variant-and-with-password"
+      ]
+    },
+    {
+      "id": "INV-R075-ACTIVE-001",
+      "class": "state_transition",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "isActive false makes login, existing access tokens and socket authentication fail; true restores them.",
+      "source": [
+        "server/controllers/UserController.js:320-323",
+        "server/auth/LocalAuthStrategy.js:55",
+        "server/auth/TokenManager.js:299-322",
+        "server/SocketAuthority.js:231-234"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-deactivate-blocks-access"
+      ]
+    },
+    {
+      "id": "INV-R075-ROOT-001",
+      "class": "authorization",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "A non-root admin editing root gets 403; root editing itself cannot change its type; an admin may edit other users and promote users to admin.",
+      "source": [
+        "server/controllers/UserController.js:208-214"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-root-rules"
+      ]
+    },
+    {
+      "id": "INV-R075-VALIDATE-001",
+      "class": "error",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "PATCH /api/users/:id answers 401 unauthenticated, 403 to non-admins (also for their own id), 404 for an unknown id, 400 for id, pash, token, extraData or bookmarks keys, a non-string email or username, an unknown or root type and non-object permissions; a rejected request changes no row.",
+      "source": [
+        "server/controllers/UserController.js:219-236",
+        "server/controllers/UserController.js:501-516"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/update-user-rejections-change-nothing"
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
   }
- ]
 }

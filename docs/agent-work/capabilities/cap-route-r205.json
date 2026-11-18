@@ -1,25 +1,177 @@
 {
- "id": "route-r205",
- "parent": "http/adminops",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "PATCH /settings candidate recorded from server/routers/ApiRouter.js:348. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:348"
- ],
- "implementation": [
-  "go-backend/internal/adminops/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/adminops/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r205",
+  "parent": "http/admin",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "PATCH /settings at server/routers/ApiRouter.js:348. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "source": [
+    "server/routers/ApiRouter.js:348"
+  ],
+  "implementation": [
+    "go-backend/internal/admin/admin.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/admin/admin_test.go",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-patch-admin-only",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-patch-invalid-body-rejected",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-patch-ignores-unpatchable-keys",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-env-allow-iframe-cannot-be-disabled",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-patch-every-client-key",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-patch-booleans-round-trip",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-change-visible-to-other-users",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-patch-repeat-no-change",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-allowed-origins-drive-cors",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-allow-iframe-drives-frame-ancestors",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-sorting-ignore-prefix-orders-library",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-backup-schedule-starts-and-stops-backups",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-response-never-includes-secrets",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-persist-across-restart"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: the route has no force, hard or override mode"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R205-ROUTE",
+      "class": "shape",
+      "contract": "PATCH /api/settings stores every key the settings pages write, returns them in serverSettings with timeZone and no secrets, and leaves other keys alone. Every boolean setting the pages toggle can be switched off and on again: response and row follow each write. After PATCH /api/settings, another user's POST /api/authorize and the public GET /status show the new values.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:139-175",
+        "server/objects/settings/ServerSettings.js:8-29",
+        "server/objects/settings/ServerSettings.js:299-308",
+        "server/models/Setting.js:36-41",
+        "server/Auth.js:95-104",
+        "server/Server.js:384-399"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-patch-every-client-key",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-patch-booleans-round-trip",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-change-visible-to-other-users"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R205-REPEAT",
+      "class": "repeat_operation",
+      "contract": "Repeating the same PATCH /api/settings returns the same serverSettings and leaves the row as it was.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:139-175",
+        "server/objects/settings/ServerSettings.js:365-378"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-patch-repeat-no-change"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R205-AUTH-001",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "class": "authorization",
+      "contract": "PATCH /api/settings answers 401 without a token and 403 for a non-admin and changes nothing.",
+      "source": [
+        "server/controllers/MiscController.js:139-175"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-patch-admin-only"
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R205-VALIDATION-001",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "class": "validation",
+      "contract": "PATCH /api/settings with a non-object body or non-array allowedOrigins answers 400 and applies none of the keys. Keys outside the patchable list (tokenSecret, version, rate limits, backupPath, sortingPrefixes, auth settings, unknown keys) are ignored while a patchable key in the same body is applied. With ALLOW_IFRAME=1 the server starts with allowIframe true and no frame-ancestors policy, PATCH allowIframe:false answers 400 and changes nothing, and allowIframe:true is accepted.",
+      "source": [
+        "server/controllers/MiscController.js:139-175",
+        "server/Server.js:349-352",
+        "server/objects/settings/ServerSettings.js:8-29",
+        "server/controllers/MiscController.js:148-151",
+        "server/objects/settings/ServerSettings.js:224-227"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-patch-invalid-body-rejected",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-patch-ignores-unpatchable-keys",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-env-allow-iframe-cannot-be-disabled"
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R205-SIDEEFFECT-001",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "class": "side_effect",
+      "contract": "allowedOrigins controls Access-Control-Allow-Origin: a listed origin is echoed with an OPTIONS 200, another origin and an emptied list get no CORS headers. allowIframe false makes every response carry Content-Security-Policy frame-ancestors 'self'; true removes it. sortingIgnorePrefix switches the library title sort between title and titleIgnorePrefix. Setting backupSchedule starts the scheduler (backups appear and are recreated after deletion) and setting it to false stops it.",
+      "source": [
+        "server/controllers/MiscController.js:139-175",
+        "server/Server.js:283-294",
+        "server/Server.js:262-266",
+        "server/utils/queries/libraryItemsBookFilters.js:254-262",
+        "server/managers/BackupManager.js:73-95"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-allowed-origins-drive-cors",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-allow-iframe-drives-frame-ancestors",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-sorting-ignore-prefix-orders-library",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-backup-schedule-starts-and-stops-backups"
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R205-SECRETS-001",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "class": "secret_exposure",
+      "contract": "Once OpenID secrets and the token secret are stored, no PATCH /api/settings, authorize, login, status or socket init payload contains them.",
+      "source": [
+        "server/controllers/MiscController.js:139-175",
+        "server/objects/settings/ServerSettings.js:299-308",
+        "server/Auth.js:95-104"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-response-never-includes-secrets"
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R205-PERSIST-001",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "class": "persistence",
+      "contract": "Settings written with PATCH /api/settings are served unchanged after the server restarts.",
+      "source": [
+        "server/controllers/MiscController.js:139-175",
+        "server/objects/settings/ServerSettings.js:100-140"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/settings-persist-across-restart"
+      ]
+    }
+  ]
 }

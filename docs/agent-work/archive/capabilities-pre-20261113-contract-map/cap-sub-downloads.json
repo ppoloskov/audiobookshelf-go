@@ -1,0 +1,111 @@
+{
+ "id": "sub-downloads",
+ "parent": "downloads",
+ "kind": "subsystem",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /api/items/:id/download: canDownload gate (sendStatus 403), single-file items stream with configured audio mime and attachment disposition, directory items stream STORE-mode zip named '<media title>.zip' (upstream zips with zlib level 0), disk errors 404 'File not found' / 500 'Download failed' until headers sent",
+ "source": [
+  "server/controllers/LibraryItemController.js:163-197,152-160",
+  "server/utils/zipHelpers.js",
+  "server/utils/constants.js"
+ ],
+ "implementation": [
+  "go-backend/internal/catalog/download.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "invariants": [
+  {
+   "id": "INV-DL-ZIP-001",
+   "class": "shape",
+   "contract": "Directory download produces a zip whose entries (name/size/CRC32) match upstream exactly; both zippers use STORE mode so CRC equality proves byte-equal content; response streams chunked without Content-Length.",
+   "status": "verified",
+   "source": [
+    "server/utils/zipHelpers.js:6-55"
+   ],
+   "tests": [
+    "go-backend/internal/catalog/handler_test.go"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/scanner-flow-report.json#item-download (zip canonicalization via unzip -lv)"
+   ],
+   "exceptions": []
+  },
+  {
+   "id": "INV-DL-GATE-001",
+   "class": "error",
+   "contract": "canDownload=false \u2192 sendStatus(403) with the express 'Forbidden' text body; api keys resolve to their user (TokenManager.js:277-305) and do NOT merge key permissions into the runtime user.",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js:170-173",
+    "server/auth/TokenManager.js"
+   ],
+   "tests": [
+    "go-backend/internal/userapi/userapi_test.go"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/scanner-flow-report.json#api-key-denied-download"
+   ],
+   "exceptions": []
+  },
+  {
+   "id": "INV-DL-FILE-ORDER-001",
+   "class": "error",
+   "contract": "For GET /api/items/:id/file/:fileid/download, upstream middleware resolves the library file before downloadLibraryFile checks canDownload: a missing file ID returns sendStatus(404), while a valid file ID with download permission disabled returns sendStatus(403).",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js:1073-1080,1220-1235"
+   ],
+   "tests": [
+    "go-backend/internal/catalog/handler_test.go",
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#item-file-download-denied-missing-file",
+    "go-backend/contracts/parity/full-suite-report.json#item-file-download-denied"
+   ],
+   "exceptions": []
+  },
+  {
+   "id": "INV-DL-FILE-DISK-ERROR-001",
+   "class": "error",
+   "contract": "If the requested library-file record exists but its disk path is missing with ENOENT, upstream returns 404 'File not found'; a previously selected audio MIME type is preserved with Express string charset, Content-Length, and weak ETag headers.",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js:1073-1108"
+   ],
+   "tests": [
+    "go-backend/internal/catalog/handler_test.go",
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#item-file-download-disk-missing"
+   ],
+   "exceptions": []
+  }
+ ],
+ "stateful": true,
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "verified",
+  "changed": "unverified",
+  "force": "not_applicable",
+  "failure": "verified"
+ },
+ "tests": [
+  "go-backend/internal/catalog/handler_test.go",
+  "go-backend/internal/userapi/userapi_test.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/scanner-flow-report.json (2026-10-30: item-download, api-key-denied-download pass)",
+  "go-backend/contracts/parity/full-suite-report.json (2026-10-30: seven item-file-download response/range/permission/disk-error cases pass)"
+ ],
+ "exceptions": [
+  "Single-file item download (isFile=1 items at library root) is implemented per source (mime + res.download semantics) but has no differential case yet.",
+  "Download-after-media-change state variant recorded for the next expansion wave."
+ ]
+}

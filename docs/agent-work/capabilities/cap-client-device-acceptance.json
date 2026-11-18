@@ -1,0 +1,54 @@
+{
+  "id": "client-device-acceptance",
+  "parent": "client",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Pinned official iOS/Android and documented third-party client workflows preserve login/refresh, local-all offline replay, playback seek/progress, revocation/reconnect, collections/playlists and conditional image/media reads; source-audit confirmation alone does not verify a protocol or device workflow.",
+  "source": [
+    "go-backend/contracts/clients/",
+    "go-backend/contracts/mobile-client-audit.md"
+  ],
+  "implementation": [
+    "go-backend/internal/contracttest/"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/contracttest/mobile_protocol_test.go",
+    "go-backend/internal/contracttest/socketio_client_test.go"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-CLIENT-DEVICE-ACCEPTANCE",
+      "class": "repeat_operation",
+      "contract": "Pinned official iOS/Android and documented third-party client workflows preserve login/refresh, local-all offline replay, playback seek/progress, revocation/reconnect, collections/playlists and conditional image/media reads; source-audit confirmation alone does not verify a protocol or device workflow.",
+      "status": "unverified",
+      "source": [
+        "go-backend/contracts/clients/",
+        "go-backend/contracts/mobile-client-audit.md"
+      ],
+      "tests": [
+        "go-backend/internal/contracttest/mobile_protocol_test.go",
+        "go-backend/internal/contracttest/socketio_client_test.go"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

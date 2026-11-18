@@ -1,0 +1,677 @@
+{
+  "packet": "user_me",
+  "reviewer": "independent review, 2026-11-14, claude-sonnet-5-5",
+  "scenario_digest": "43d29add11a053a1ee526b24dea687ea0732969c8514fbec3d4ee9470057c51e",
+  "requirements_digest": "fcd8635c870e6e813c24e40f744900b356a3112118d0ef549213611b324f9e97",
+  "required_tuples": [
+    {
+      "requirement": "route-r099",
+      "invariant": "INV-R099-CONTRACT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "me-browser-view-of-listener",
+      "sources": [
+        "server/controllers/MeController.js:27",
+        "server/models/User.js:603"
+      ],
+      "rationale": "/api/me returns the caller's toOldJSONForBrowser view (identity, stored token, flags, permissions without the two lists, bookmarks, progress) and no password hash."
+    },
+    {
+      "requirement": "route-r099",
+      "invariant": "INV-R099-CONTRACT-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "me-is-per-caller",
+      "sources": [
+        "server/controllers/MeController.js:27",
+        "server/models/User.js:603"
+      ],
+      "rationale": "/api/me is the authenticated caller's own view: root empty progress/bookmarks, finisher only its own progress."
+    },
+    {
+      "requirement": "route-r099",
+      "invariant": "INV-R099-CONTRACT-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "me-requires-authentication",
+      "sources": [
+        "server/Server.js:354",
+        "server/routers/ApiRouter.js:173"
+      ],
+      "rationale": "/api/me answers 401 without a valid token."
+    },
+    {
+      "requirement": "route-r102",
+      "invariant": "INV-R102-CONTRACT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "progress-list-listener",
+      "sources": [
+        "server/controllers/MeController.js:112",
+        "server/models/MediaProgress.js:155",
+        "server/routers/ApiRouter.js:176"
+      ],
+      "rationale": "/api/me/progress returns every old-progress projection of the caller."
+    },
+    {
+      "requirement": "route-r102",
+      "invariant": "INV-R102-CONTRACT-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "progress-list-empty-and-isolated",
+      "sources": [
+        "server/controllers/MeController.js:113"
+      ],
+      "rationale": "/api/me/progress returns an empty array for no progress and only the caller's rows."
+    },
+    {
+      "requirement": "route-r102",
+      "invariant": "INV-R102-CONTRACT-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "progress-list-requires-authentication",
+      "sources": [
+        "server/Server.js:354",
+        "server/routers/ApiRouter.js:176"
+      ],
+      "rationale": "/api/me/progress is 401 without a token."
+    },
+    {
+      "requirement": "route-r103",
+      "invariant": "INV-R103-CONTRACT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "bookmarks-list-listener",
+      "sources": [
+        "server/controllers/MeController.js:123",
+        "server/routers/ApiRouter.js:177"
+      ],
+      "rationale": "/api/me/bookmarks returns the caller's bookmarks in stored order."
+    },
+    {
+      "requirement": "route-r103",
+      "invariant": "INV-R103-CONTRACT-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "bookmarks-list-empty",
+      "sources": [
+        "server/controllers/MeController.js:124"
+      ],
+      "rationale": "/api/me/bookmarks returns an empty array, not null."
+    },
+    {
+      "requirement": "route-r103",
+      "invariant": "INV-R103-CONTRACT-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "bookmarks-list-requires-authentication",
+      "sources": [
+        "server/Server.js:354",
+        "server/routers/ApiRouter.js:177"
+      ],
+      "rationale": "/api/me/bookmarks is 401 without a token."
+    },
+    {
+      "requirement": "route-r104",
+      "invariant": "INV-R104-SAMPLED",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "item-bookmarks-listener",
+      "sources": [
+        "server/controllers/MeController.js:134",
+        "server/routers/ApiRouter.js:178"
+      ],
+      "rationale": "/api/me/bookmarks/:id returns only the caller's bookmarks of that item."
+    },
+    {
+      "requirement": "route-r104",
+      "invariant": "INV-R104-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "item-bookmarks-empty-and-other-user",
+      "sources": [
+        "server/controllers/MeController.js:145"
+      ],
+      "rationale": "/api/me/bookmarks/:id returns an empty array and never another user's bookmarks."
+    },
+    {
+      "requirement": "route-r104",
+      "invariant": "INV-R104-SAMPLED",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "item-bookmarks-errors",
+      "sources": [
+        "server/controllers/MeController.js:135",
+        "server/controllers/MeController.js:140",
+        "server/controllers/MeController.js:141"
+      ],
+      "rationale": "/api/me/bookmarks/:id is 401 unauthenticated, 404 unknown item, 403 for an inaccessible library."
+    },
+    {
+      "requirement": "route-r100",
+      "invariant": "INV-R100-SAMPLED",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "sessions-list-fields-and-current",
+      "sources": [
+        "server/controllers/MeController.js:37",
+        "server/controllers/MeController.js:61-70",
+        "server/utils/parsers/parseUserAgent.js:9"
+      ],
+      "rationale": "/api/me/sessions lists own unexpired sessions newest first with fields, deviceInfo and current for the presented refresh-token header."
+    },
+    {
+      "requirement": "route-r100",
+      "invariant": "INV-R100-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "sessions-list-paging-parameters",
+      "sources": [
+        "server/controllers/MeController.js:38",
+        "server/controllers/MeController.js:39",
+        "server/controllers/MeController.js:51-53"
+      ],
+      "rationale": "/api/me/sessions paging defaults, clamps and total/numPages."
+    },
+    {
+      "requirement": "route-r100",
+      "invariant": "INV-R100-GUEST-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "sessions-list-guest-is-empty",
+      "sources": [
+        "server/controllers/MeController.js:41"
+      ],
+      "rationale": "/api/me/sessions for a guest answers an empty envelope with the requested paging."
+    },
+    {
+      "requirement": "route-r100",
+      "invariant": "INV-R100-SAMPLED",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "sessions-list-requires-authentication",
+      "sources": [
+        "server/Server.js:354",
+        "server/routers/ApiRouter.js:174"
+      ],
+      "rationale": "/api/me/sessions is 401 without a token."
+    },
+    {
+      "requirement": "route-r101",
+      "invariant": "INV-R101-SAMPLED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "session-delete-own",
+      "sources": [
+        "server/controllers/MeController.js:80",
+        "server/controllers/MeController.js:100",
+        "server/routers/ApiRouter.js:175"
+      ],
+      "rationale": "DELETE /api/me/sessions/:id removes exactly the caller's session row."
+    },
+    {
+      "requirement": "route-r101",
+      "invariant": "INV-R101-SAMPLED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "session-delete-invalidates-refresh-and-list",
+      "sources": [
+        "server/controllers/MeController.js:100",
+        "server/Auth.js:331"
+      ],
+      "rationale": "A deleted session disappears from the list and its refresh token stops working."
+    },
+    {
+      "requirement": "route-r101",
+      "invariant": "INV-R101-SAMPLED",
+      "case": "error",
+      "state": "repeat",
+      "assertion": "session-delete-repeat-not-found",
+      "sources": [
+        "server/controllers/MeController.js:96"
+      ],
+      "rationale": "A repeated delete is 404 and changes nothing."
+    },
+    {
+      "requirement": "route-r101",
+      "invariant": "INV-R101-SAMPLED",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "session-delete-current-session",
+      "sources": [
+        "server/controllers/MeController.js:100"
+      ],
+      "rationale": "The session in use may be deleted: 200 and row gone."
+    },
+    {
+      "requirement": "route-r101",
+      "invariant": "INV-R101-SAMPLED",
+      "case": "error",
+      "state": "initial",
+      "assertion": "session-delete-rejections",
+      "sources": [
+        "server/controllers/MeController.js:81",
+        "server/controllers/MeController.js:85",
+        "server/controllers/MeController.js:96",
+        "server/utils/index.js:249"
+      ],
+      "rationale": "401 unauthenticated, 403 guest first, 400 non-UUID, 404 unknown or other user's session."
+    },
+    {
+      "requirement": "route-r101",
+      "invariant": "INV-R101-SAMPLED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "session-delete-rejections-change-nothing",
+      "sources": [
+        "server/controllers/MeController.js:96"
+      ],
+      "rationale": "Rejected deletes leave the sessions table unchanged."
+    },
+    {
+      "requirement": "route-r105",
+      "invariant": "INV-R105-CONTRACT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "listening-sessions-listener",
+      "sources": [
+        "server/controllers/MeController.js:157",
+        "server/routers/ApiRouter.js:525",
+        "server/models/PlaybackSession.js:79"
+      ],
+      "rationale": "/api/me/listening-sessions returns the caller's old-format sessions newest first with paging envelope."
+    },
+    {
+      "requirement": "route-r105",
+      "invariant": "INV-R105-PAGING-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "listening-sessions-paging",
+      "sources": [
+        "server/controllers/MeController.js:160-172"
+      ],
+      "rationale": "Paging slice, itemsPerPage fallback 10, empty past the end, per-user isolation."
+    },
+    {
+      "requirement": "route-r105",
+      "invariant": "INV-R105-CONTRACT-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "listening-sessions-requires-authentication",
+      "sources": [
+        "server/Server.js:354",
+        "server/routers/ApiRouter.js:179"
+      ],
+      "rationale": "/api/me/listening-sessions is 401 without a token."
+    },
+    {
+      "requirement": "route-r106",
+      "invariant": "INV-R106-CONTRACT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "item-listening-sessions-book-and-episode",
+      "sources": [
+        "server/controllers/MeController.js:185",
+        "server/controllers/MeController.js:200",
+        "server/routers/ApiRouter.js:530"
+      ],
+      "rationale": "Item route lists only that book's or episode's sessions newest first."
+    },
+    {
+      "requirement": "route-r106",
+      "invariant": "INV-R106-PAGING-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "item-listening-sessions-paging-and-empty",
+      "sources": [
+        "server/controllers/MeController.js:203-217"
+      ],
+      "rationale": "Item route pages like the full list, is empty for unplayed items and other users."
+    },
+    {
+      "requirement": "route-r106",
+      "invariant": "INV-R106-CONTRACT-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "item-listening-sessions-errors",
+      "sources": [
+        "server/controllers/MeController.js:186-198"
+      ],
+      "rationale": "401, 404 for unknown item or podcast without/unknown episode, 403 for inaccessible library."
+    },
+    {
+      "requirement": "route-r107",
+      "invariant": "INV-R107-CONTRACT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "listening-stats-listener",
+      "sources": [
+        "server/controllers/MeController.js:228",
+        "server/routers/ApiRouter.js:535"
+      ],
+      "rationale": "Stats sum totalTime, items, days, dayOfWeek, today and 10 recent sessions from the caller's sessions."
+    },
+    {
+      "requirement": "route-r107",
+      "invariant": "INV-R107-CONTRACT-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "listening-stats-without-sessions",
+      "sources": [
+        "server/routers/ApiRouter.js:535"
+      ],
+      "rationale": "Stats for a user without sessions are zero with empty containers."
+    },
+    {
+      "requirement": "route-r107",
+      "invariant": "INV-R107-CONTRACT-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "listening-stats-requires-authentication",
+      "sources": [
+        "server/Server.js:354",
+        "server/routers/ApiRouter.js:181"
+      ],
+      "rationale": "/api/me/listening-stats is 401 without a token."
+    },
+    {
+      "requirement": "route-r108",
+      "invariant": "INV-R108-CONTRACT-001",
+      "case": "error",
+      "state": "initial",
+      "assertion": "remove-continue-rejections",
+      "sources": [
+        "server/controllers/MeController.js:571",
+        "server/controllers/MeController.js:572"
+      ],
+      "rationale": "remove-from-continue-listening is 401, and 404 for unknown or another user's progress id, hiding nothing."
+    },
+    {
+      "requirement": "route-r108",
+      "invariant": "INV-R108-CONTRACT-001",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "remove-continue-needs-progress-id-not-item-id",
+      "sources": [
+        "server/controllers/MeController.js:571"
+      ],
+      "rationale": "The id is the progress id, an item id is 404."
+    },
+    {
+      "requirement": "route-r108",
+      "invariant": "INV-R108-CONTRACT-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "remove-continue-rejected-no-event",
+      "sources": [
+        "server/controllers/MeController.js:572"
+      ],
+      "rationale": "A rejected request emits no user_updated and leaves the row."
+    },
+    {
+      "requirement": "route-r108",
+      "invariant": "INV-R108-CONTRACT-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "remove-continue-hides-and-emits",
+      "sources": [
+        "server/controllers/MeController.js:581-586",
+        "server/SocketAuthority.js:168"
+      ],
+      "rationale": "Hides the row, returns the caller's view, emits user_updated to the caller only."
+    },
+    {
+      "requirement": "route-r108",
+      "invariant": "INV-R108-CONTRACT-001",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "remove-continue-repeat-is-quiet",
+      "sources": [
+        "server/controllers/MeController.js:577"
+      ],
+      "rationale": "Already hidden: 200 with same view, no save, no event."
+    },
+    {
+      "requirement": "route-r108",
+      "invariant": "INV-R108-CONTRACT-001",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "remove-continue-visible-in-reads",
+      "sources": [
+        "server/controllers/MeController.js:581",
+        "server/models/MediaProgress.js:155"
+      ],
+      "rationale": "The hidden flag is visible in /me, the list and the item progress, per user."
+    },
+    {
+      "requirement": "route-r109",
+      "invariant": "INV-R109-SAMPLED",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "progress-of-item-and-episode",
+      "sources": [
+        "server/controllers/MeController.js:239",
+        "server/models/User.js:716",
+        "server/models/MediaProgress.js:155"
+      ],
+      "rationale": "GET progress returns the caller's row for a book or an episode with the full projection."
+    },
+    {
+      "requirement": "route-r109",
+      "invariant": "INV-R109-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "progress-of-item-is-per-user",
+      "sources": [
+        "server/controllers/MeController.js:240",
+        "server/models/User.js:716"
+      ],
+      "rationale": "Progress lookup is scoped to the caller."
+    },
+    {
+      "requirement": "route-r109",
+      "invariant": "INV-R109-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "progress-reflects-write",
+      "sources": [
+        "server/controllers/MeController.js:239",
+        "server/models/MediaProgress.js:155"
+      ],
+      "rationale": "A created progress is read back by id and in the list."
+    },
+    {
+      "requirement": "route-r109",
+      "invariant": "INV-R109-SAMPLED",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "progress-of-item-not-found",
+      "sources": [
+        "server/Server.js:354",
+        "server/controllers/MeController.js:241"
+      ],
+      "rationale": "401 unauthenticated, 404 unknown/no progress/mismatching episode."
+    },
+    {
+      "requirement": "route-r105",
+      "invariant": "INV-R105-CHANGED-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "listening-sessions-show-new-session",
+      "sources": [
+        "server/controllers/MeController.js:157",
+        "server/managers/PlaybackSessionManager.js:421"
+      ],
+      "rationale": "A closed playback session appears first in both listening-sessions routes with its fields."
+    },
+    {
+      "requirement": "route-r107",
+      "invariant": "INV-R107-CHANGED-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "listening-stats-count-today",
+      "sources": [
+        "server/routers/ApiRouter.js:535",
+        "server/managers/PlaybackSessionManager.js:421"
+      ],
+      "rationale": "Stats grow by the listened seconds in totals, today, item, day and weekday."
+    },
+    {
+      "requirement": "route-r100",
+      "invariant": "INV-R100-SAMPLED",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "sessions-list-excludes-expired",
+      "sources": [
+        "server/controllers/MeController.js:47-50"
+      ],
+      "rationale": "Sessions with expiresAt in the past are absent from the list and total while the row stays."
+    },
+    {
+      "requirement": "route-r100",
+      "invariant": "INV-R100-SAMPLED",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "sessions-current-by-cookie-and-last-refresh-token",
+      "sources": [
+        "server/controllers/MeController.js:45",
+        "server/controllers/MeController.js:69",
+        "server/Auth.js:331"
+      ],
+      "rationale": "current is set by the refresh_token cookie against refreshToken or lastRefreshToken."
+    },
+    {
+      "requirement": "route-r099",
+      "invariant": "INV-R099-CONTRACT-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "me-lists-flags-and-links-filled",
+      "sources": [
+        "server/models/User.js:603"
+      ],
+      "rationale": "Non-empty librariesAccessible, itemTagsSelected, seriesHide list and isLocked/hasOpenIDLink are served and lists are moved out of permissions."
+    },
+    {
+      "requirement": "route-r104",
+      "invariant": "INV-R104-SAMPLED",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "item-bookmarks-tag-and-explicit-rules",
+      "sources": [
+        "server/controllers/MeController.js:140",
+        "server/models/User.js:658-683"
+      ],
+      "rationale": "403 by tag rules and explicit-content rule, 200 otherwise."
+    },
+    {
+      "requirement": "route-r106",
+      "invariant": "INV-R106-CONTRACT-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "item-listening-sessions-tag-and-explicit-rules",
+      "sources": [
+        "server/controllers/MeController.js:195",
+        "server/models/User.js:658-683"
+      ],
+      "rationale": "403 by tag rules and explicit-content rule, 200 otherwise."
+    }
+  ],
+  "not_applicable": [
+    {
+      "requirement": "route-r099",
+      "facet": "force",
+      "reason": "confirmed: the handler has no force/override parameter or conditional bypass"
+    },
+    {
+      "requirement": "route-r100",
+      "facet": "force",
+      "reason": "confirmed: the handler has no force/override parameter or conditional bypass"
+    },
+    {
+      "requirement": "route-r101",
+      "facet": "force",
+      "reason": "confirmed: the handler has no force/override parameter or conditional bypass"
+    },
+    {
+      "requirement": "route-r102",
+      "facet": "force",
+      "reason": "confirmed: the handler has no force/override parameter or conditional bypass"
+    },
+    {
+      "requirement": "route-r103",
+      "facet": "force",
+      "reason": "confirmed: the handler has no force/override parameter or conditional bypass"
+    },
+    {
+      "requirement": "route-r104",
+      "facet": "force",
+      "reason": "confirmed: the handler has no force/override parameter or conditional bypass"
+    },
+    {
+      "requirement": "route-r105",
+      "facet": "force",
+      "reason": "confirmed: the handler has no force/override parameter or conditional bypass"
+    },
+    {
+      "requirement": "route-r106",
+      "facet": "force",
+      "reason": "confirmed: the handler has no force/override parameter or conditional bypass"
+    },
+    {
+      "requirement": "route-r107",
+      "facet": "force",
+      "reason": "confirmed: the handler has no force/override parameter or conditional bypass"
+    },
+    {
+      "requirement": "route-r108",
+      "facet": "force",
+      "reason": "confirmed: the handler has no force/override parameter or conditional bypass"
+    },
+    {
+      "requirement": "route-r109",
+      "facet": "force",
+      "reason": "confirmed: the handler has no force/override parameter or conditional bypass"
+    },
+    {
+      "requirement": "route-r099",
+      "facet": "repeat",
+      "reason": "confirmed: read-only GET with no persisted effect (MeController.js handlers only res.json); repeats equal the first call"
+    },
+    {
+      "requirement": "route-r102",
+      "facet": "repeat",
+      "reason": "confirmed: read-only GET with no persisted effect (MeController.js handlers only res.json); repeats equal the first call"
+    },
+    {
+      "requirement": "route-r103",
+      "facet": "repeat",
+      "reason": "confirmed: read-only GET with no persisted effect (MeController.js handlers only res.json); repeats equal the first call"
+    },
+    {
+      "requirement": "route-r104",
+      "facet": "repeat",
+      "reason": "confirmed: read-only GET with no persisted effect (MeController.js handlers only res.json); repeats equal the first call"
+    },
+    {
+      "requirement": "route-r105",
+      "facet": "repeat",
+      "reason": "confirmed: read-only GET with no persisted effect (MeController.js handlers only res.json); repeats equal the first call"
+    },
+    {
+      "requirement": "route-r106",
+      "facet": "repeat",
+      "reason": "confirmed: read-only GET with no persisted effect (MeController.js handlers only res.json); repeats equal the first call"
+    },
+    {
+      "requirement": "route-r107",
+      "facet": "repeat",
+      "reason": "confirmed: read-only GET with no persisted effect (MeController.js handlers only res.json); repeats equal the first call"
+    },
+    {
+      "requirement": "route-r109",
+      "facet": "repeat",
+      "reason": "confirmed: read-only GET with no persisted effect (MeController.js handlers only res.json); repeats equal the first call"
+    }
+  ],
+  "open_findings": []
+}

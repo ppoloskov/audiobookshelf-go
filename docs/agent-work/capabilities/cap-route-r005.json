@@ -1,25 +1,46 @@
 {
- "id": "route-r005",
- "parent": "http/identity",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /auth/openid/config candidate recorded from server/Auth.js:464. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/Auth.js:464"
- ],
- "implementation": [
-  "go-backend/internal/identity/identity.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/identity/identity.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r005",
+  "parent": "http/auth",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /auth/openid/config. Authenticated admin discovery requires issuer and returns the provider discovery document or a client-visible failure; anonymous users receive 401 and non-admins 403.",
+  "source": [
+    "server/Auth.js:464"
+  ],
+  "implementation": [
+    "go-backend/internal/auth/service.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "Mapped tests cover selected denial or lower-level behavior only; successful endpoint payload/state and complete source/client variants need explicit owner-packet assertions."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R005-CONTRACT-001",
+      "class": "shape",
+      "contract": "GET /auth/openid/config. Authenticated admin discovery requires issuer and returns the provider discovery document or a client-visible failure; anonymous users receive 401 and non-admins 403.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:464"
+      ],
+      "tests": [
+        "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+      ]
+    }
+  ]
 }

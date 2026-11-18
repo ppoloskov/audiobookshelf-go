@@ -1,47 +1,84 @@
 {
- "id": "route-r074",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /users/:id candidate recorded from server/routers/ApiRouter.js:136. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:136"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#user-read (differential pass)"
- ],
- "exceptions": [],
- "invariants": [
-  {
-   "id": "INV-R074-SAMPLED",
-   "class": "shape",
-   "contract": "Sampled GET /users/:id via differential case(s) user-read: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: users.",
-   "status": "verified",
-   "source": [
-    "server/routers/ApiRouter.js:136"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#user-read"
-   ],
-   "exceptions": [
-    "Sampled evidence; unsampled request-shape variants are separate behaviors."
-   ]
-  }
- ]
+  "id": "route-r074",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/users/:id. Admin single-user lookup returns its browser view enriched with mediaProgress display fields, preserving nulls and hidden credentials; unknown user returns 404 and non-admin returns 403.",
+  "source": [
+    "server/routers/ApiRouter.js:136",
+    "server/controllers/UserController.js:501",
+    "server/controllers/UserController.js:59"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/user/user_test.go:95#TestStatuses",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/get-user-full-view",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/get-user-root-token-and-empty-lists",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/get-user-errors"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#user-read (differential pass)"
+  ],
+  "exceptions": [
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "Mapped tests cover selected denial or lower-level behavior only; successful endpoint payload/state and complete source/client variants need explicit owner-packet assertions."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R074-SAMPLED",
+      "class": "shape",
+      "contract": "GET /api/users/:id as an admin returns the full browser view with all mediaProgress entries (old progress shape plus displayTitle, displaySubtitle for episodes, coverPath and mediaUpdatedAt as an ISO date string) and the bookmarks.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/UserController.js:59-105"
+      ],
+      "tests": [
+        "go-backend/internal/user/user_test.go:95#TestStatuses",
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/get-user-full-view"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/full-suite-report.json#user-read"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R074-ROOT-TOKEN-001",
+      "class": "shape",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "The root user token is shown to root and hidden (empty string) from a non-root admin; users without progress or bookmarks get empty arrays.",
+      "source": [
+        "server/controllers/UserController.js:100",
+        "server/models/User.js:353"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/get-user-root-token-and-empty-lists"
+      ]
+    },
+    {
+      "id": "INV-R074-AUTH-001",
+      "class": "authorization",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "GET /api/users/:id answers 401 unauthenticated, 403 to a non-admin for any id including its own, and 404 for an unknown id to an admin.",
+      "source": [
+        "server/controllers/UserController.js:60-63",
+        "server/controllers/UserController.js:501-516"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/get-user-errors"
+      ]
+    }
+  ]
 }

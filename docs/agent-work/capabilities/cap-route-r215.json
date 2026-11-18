@@ -1,25 +1,52 @@
 {
- "id": "route-r215",
- "parent": "http/adminops",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /auth-settings candidate recorded from server/routers/ApiRouter.js:358. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:358"
- ],
- "implementation": [
-  "go-backend/internal/adminops/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/adminops/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r215",
+  "parent": "http/admin",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "GET /auth-settings at server/routers/ApiRouter.js:358. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "source": [
+    "server/routers/ApiRouter.js:358"
+  ],
+  "implementation": [
+    "go-backend/internal/admin/admin.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/admin/admin_test.go",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-settings-initial-document",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-settings-admin-only",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-settings-get-returns-secrets-to-admin"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R215-ROUTE",
+      "class": "shape",
+      "contract": "GET /api/auth-settings returns the authentication settings of the fixture (local only, OpenID defaults, null secrets, sample permissions text) without authOpenIDSubfolderForRedirectURLs. GET /api/auth-settings answers 401 without a token and 403 for a non-admin user. GET /api/auth-settings returns the OpenID client id, client secret, mobile redirect URIs and claims verbatim to an admin.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:635-640",
+        "server/objects/settings/ServerSettings.js:312-340"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-settings-initial-document",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-settings-admin-only",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-settings-get-returns-secrets-to-admin"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

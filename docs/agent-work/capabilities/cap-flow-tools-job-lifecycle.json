@@ -1,0 +1,59 @@
+{
+  "id": "cap-flow-tools-job-lifecycle",
+  "parent": "http/tools",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Task records use stable id/action/start time; queued embed jobs preserve order; cancellation marks the task failed with cancellation message, kills work and installs no output; one failed embed does not prevent following queue entries; task_started/task_finished snapshots expose lifecycle fields to clients.",
+  "source": [
+    "server/managers/AudioMetadataManager.js"
+  ],
+  "implementation": [
+    "go-backend/internal/tools/jobs.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/tools/tools_test.go:181#TestCancelEncode",
+    "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+    "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
+    "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
+    "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-CAP-FLOW-TOOLS-JOB-LIFECYCLE",
+      "class": "timeline",
+      "contract": "Task records use stable id/action/start time; queued embed jobs preserve order; cancellation marks the task failed with cancellation message, kills work and installs no output; one failed embed does not prevent following queue entries; task_started/task_finished snapshots expose lifecycle fields to clients.",
+      "status": "unverified",
+      "source": [
+        "server/managers/AudioMetadataManager.js"
+      ],
+      "tests": [
+        "go-backend/internal/tools/tools_test.go:181#TestCancelEncode",
+        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+        "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
+        "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
+        "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

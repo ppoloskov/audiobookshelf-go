@@ -1,25 +1,90 @@
 {
- "id": "route-r046",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /items/batch/update candidate recorded from server/routers/ApiRouter.js:103. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:103"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r046",
+  "parent": "http/item",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/items/batch/update dispatches to the pinned TS handler LibraryItemController.batchUpdate (ApiRouter.js:103, server/controllers/LibraryItemController.js:630) and Go registration mux.Handle(\"POST /api/items/batch/update\", h.authed(h.batchUpdate)). Current assertion anchor(s): TestBatchUpdateValidation; TestBatchUpdateCountsOnlyRealChanges. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:103",
+    "go-backend/internal/item/handler.go",
+    "go-backend/internal/item/handler.go:103",
+    "server/controllers/LibraryItemController.js:630"
+  ],
+  "implementation": [
+    "go-backend/internal/item/handler.go:103"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/item/patch_test.go:130#TestBatchUpdateValidation",
+    "go-backend/internal/item/patch_test.go:158#TestBatchUpdateCountsOnlyRealChanges"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R046-CONTRACT",
+      "class": "shape",
+      "contract": "POST /api/items/batch/update dispatches to the pinned TS handler LibraryItemController.batchUpdate (ApiRouter.js:103, server/controllers/LibraryItemController.js:630) and Go registration mux.Handle(\"POST /api/items/batch/update\", h.authed(h.batchUpdate)). Current assertion anchor(s): TestBatchUpdateValidation; TestBatchUpdateCountsOnlyRealChanges. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:103",
+        "go-backend/internal/item/handler.go",
+        "go-backend/internal/item/handler.go:103",
+        "server/controllers/LibraryItemController.js:630"
+      ],
+      "tests": [
+        "go-backend/internal/item/patch_test.go:130#TestBatchUpdateValidation",
+        "go-backend/internal/item/patch_test.go:158#TestBatchUpdateCountsOnlyRealChanges",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/batch-update-permission-before-validation",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/batch-update-invalid-payloads-are-400",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/batch-update-unknown-and-inaccessible-items"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
+        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
+        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+      ]
+    },
+    {
+      "id": "INV-R046-BATCH-001",
+      "class": "state_transition",
+      "contract": "A batch of a book, a second book and a podcast answers {success:true, updates:3}, stores each payload, moves each updatedAt, rewrites each metadata.json and emits one item_updated per item. Repeating the batch answers updates:0 and changes nothing; a batch with one unchanged and one changed item answers updates:1 and emits item_updated for the changed item only. A batch that creates an author and a series and a second batch that removes them applies both, deletes the emptied author and series after the loop and emits author_added, series_removed and author_removed. A podcast entry with an invalid auto download cron is skipped without failing the batch: the other entries are applied and the count excludes it.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:611-725",
+        "server/models/Book.js:370-431",
+        "server/models/Podcast.js:211-300",
+        "client/pages/batch/index.vue:430-452",
+        "server/models/Book.js:440-485",
+        "server/models/Book.js:495-545",
+        "server/routers/ApiRouter.js:414-470",
+        "server/routers/ApiRouter.js:472-525"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/batch-update-several-items",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/batch-update-counts-only-changed-items",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/batch-update-authors-and-series-cleanup",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/batch-update-skips-invalid-podcast-cron"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

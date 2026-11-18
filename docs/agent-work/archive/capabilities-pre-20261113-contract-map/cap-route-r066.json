@@ -1,0 +1,66 @@
+{
+ "id": "route-r066",
+ "parent": "http/catalog",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /items/:id/file/:fileid candidate recorded from server/routers/ApiRouter.js:124. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:124"
+ ],
+ "implementation": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "verified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/f08-direct-stream-report.json#cases (four GET/HEAD valid/invalid range cases; exact selected headers and bytes; no normalization)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R066-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled GET /items/:id/file/:fileid via differential case(s) direct-file-range: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: playback.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:124"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/f08-direct-stream-report.json#cases"
+   ],
+   "exceptions": [
+    "The four recorded F08 GET/HEAD valid/invalid range variants are verified. Other file request shapes, permissions, storage failures and download routes remain separate behaviors."
+   ]
+  },
+  {
+   "id": "INV-R066-DIRECT-RANGE-HEAD-001",
+   "class": "shape",
+   "contract": "For the named valid and unsatisfiable byte ranges, GET returns matching bytes/status/selected headers and HEAD returns matching status/headers without a body, including Express-compatible 416 HTML and validator headers.",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js:getLibraryFile"
+   ],
+   "tests": [
+    "go-backend/internal/catalog/handler_test.go",
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/f08-direct-stream-report.json#cases"
+   ],
+   "exceptions": [
+    "Only the four explicitly listed range variants are covered; this does not verify route-wide file behavior."
+   ]
+  }
+ ]
+}

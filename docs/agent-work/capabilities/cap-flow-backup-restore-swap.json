@@ -1,0 +1,55 @@
+{
+  "id": "cap-flow-backup-restore-swap",
+  "parent": "http/backup",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "On successful apply, stage database plus item/author metadata and replace the active runtime graph; on any failed swap restore old paths/database, clean staging artifacts, and emit backup_applied only after success.",
+  "source": [
+    "server/managers/BackupManager.js"
+  ],
+  "implementation": [
+    "go-backend/internal/server/manager.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
+    "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
+    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-CAP-FLOW-BACKUP-RESTORE-SWAP",
+      "class": "transaction",
+      "contract": "On successful apply, stage database plus item/author metadata and replace the active runtime graph; on any failed swap restore old paths/database, clean staging artifacts, and emit backup_applied only after success.",
+      "status": "unverified",
+      "source": [
+        "server/managers/BackupManager.js"
+      ],
+      "tests": [
+        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
+        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
+        "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

@@ -1,12 +1,21 @@
 # Node 22 runner for the parity harness: mise when installed, else plain node
 # (must then be Node 22.x). Override with `make PARITY_NODE=... <target>`.
 PARITY_NODE ?= $(shell command -v mise >/dev/null 2>&1 && echo "mise exec node@22 -- node" || echo node)
+VERIFY_NODE ?= $(shell command -v mise >/dev/null 2>&1 && mise exec node@22 -- node -p 'process.execPath' || command -v node)
+VERIFY_ARGS ?=
 
-.PHONY: parity parity-equivalence parity-full parity-replacement parity-scan route-probe browser-check bench client-usage status check
+.PHONY: verify-packet parity parity-equivalence parity-full parity-replacement parity-scan route-probe browser-check bench client-usage status check verify
 
-# gofmt must print nothing; then vet and test.
-check:
-	cd go-backend && test -z "$$(gofmt -l .)" && go vet ./... && go test ./...
+# One authoritative verdict: machine health, upstream proof, then the same Go
+# assertions. Missing upstream proof is a nonzero result, not advisory success.
+check: verify
+
+verify:
+	cd go-backend && go run ./tools/verify -node "$(VERIFY_NODE)" $(VERIFY_ARGS)
+
+# Develop one owner packet against pinned upstream: make verify-packet PACKET=auth [RUN=regex]
+verify-packet:
+	cd go-backend && REPLACEMENT_TARGET=upstream REPLACEMENT_NODE="$(VERIFY_NODE)" go test -tags=replacement ./tests/replacement/$(PACKET) -count=1 -timeout 30m -v $(if $(RUN),-run 'TestReplacement/$(RUN)',)
 
 parity:
 	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/tools/parity/suite-runner.cjs core

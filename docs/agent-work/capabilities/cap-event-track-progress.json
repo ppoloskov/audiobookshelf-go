@@ -1,0 +1,53 @@
+{
+  "id": "cap-event-track-progress",
+  "parent": "http/tools",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Upstream emits admin-only track_started {libraryItemId,ino}; track_progress {libraryItemId,ino,progress}; task_progress {libraryItemId,progress}. Per-track progress comes from ffmpeg progress observation; aggregate AudioMetadataManager progress is cumulative track-duration weighting, while AbMergeManager combines encode and metadata phases by encodeFraction/embedFraction. Go currently emits none of these three events; required coverage includes payloads, admin recipient, per-track progress, weighted task progress, transition to next track, errors/cancellation, and zero-duration edge behavior.",
+  "source": [
+    "server/managers/AudioMetadataManager.js:206-233",
+    "server/managers/AbMergeManager.js:145-182",
+    "client/layouts/default.vue:463-466"
+  ],
+  "implementation": [
+    "go-backend/internal/tools/embed.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [],
+  "evidence": [],
+  "exceptions": [
+    "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-CAP-EVENT-TRACK-PROGRESS",
+      "class": "timeline",
+      "contract": "Upstream emits admin-only track_started {libraryItemId,ino}; track_progress {libraryItemId,ino,progress}; task_progress {libraryItemId,progress}. Per-track progress comes from ffmpeg progress observation; aggregate AudioMetadataManager progress is cumulative track-duration weighting, while AbMergeManager combines encode and metadata phases by encodeFraction/embedFraction. Go currently emits none of these three events; required coverage includes payloads, admin recipient, per-track progress, weighted task progress, transition to next track, errors/cancellation, and zero-duration edge behavior.",
+      "status": "unverified",
+      "source": [
+        "server/managers/AudioMetadataManager.js:206-233",
+        "server/managers/AbMergeManager.js:145-182",
+        "client/layouts/default.vue:463-466"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": [
+        "Go internal/tools has no track_started, track_progress or task_progress emissions. The smallest owner likely needs tools progress plumbing plus a media progress callback/observer; inspect media API before dispatch. Aggregation is duration-weighted in AudioMetadataManager and phase-weighted in AbMergeManager."
+      ]
+    }
+  ]
+}

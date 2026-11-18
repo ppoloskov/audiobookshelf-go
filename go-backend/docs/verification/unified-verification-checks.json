@@ -1,0 +1,79 @@
+{
+  "date": "2026-11-13",
+  "packet": "verification tooling foundation",
+  "source_pin": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "base": "8990c2e61a1637a69effc4ca26e2df1748301889",
+  "scope": "Current checkout including accepted pre-existing playback and harness overlays; no application edits by this packet.",
+  "checks": [
+    {
+      "command": "make VERIFY_NODE=/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node VERIFY_ARGS=\"-out .../unified-verification-report.json\" verify",
+      "exit_code": 2,
+      "result": "Expected incomplete-coverage verdict; machine health passed, upstream partial, Go blocked",
+      "environment": "TMPDIR=/private/tmp; existing WebP FFmpeg first on PATH and FFMPEG_PATH; GOCACHE=/private/tmp/abs-unified-gocache; GOTOOLCHAIN=local; local servers/process groups authorized"
+    },
+    {
+      "command": "go test -race ./tools/verify ./tests/replacement",
+      "exit_code": 0,
+      "environment": "CGO_ENABLED=1 GOTOOLCHAIN=local; owned test-process signaling authorized"
+    },
+    {
+      "command": "go test ./tools/verify -run 'TestServerStopSignalsDescendantGroup|TestCleanupDoesNotIgnoreLiveGroupMembers' -count=10",
+      "exit_code": 0
+    },
+    {
+      "command": "golangci-lint run ./tools/verify/... ./tests/replacement/...",
+      "exit_code": 0,
+      "result": "0 issues"
+    },
+    {
+      "command": "node --test go-backend/tools/source-inventory.test.mjs go-backend/tools/replacement-contract-map.test.mjs",
+      "exit_code": 0,
+      "tests": 15
+    },
+    {
+      "command": "go test -overlay /private/tmp/abs-verify-facet-overlay.json ./tools/verify -run TestVerifiedFlagsCannotHideMissingCaseStateBindings -count=1",
+      "exit_code": 1,
+      "result": "Expected red: verified flags hid missing facets without the fix"
+    },
+    {
+      "command": "go test -overlay /private/tmp/abs-verify-login-overlay.json ./tests/replacement -run TestLoginAssertionRejectsMissingNullAndWrongIdentity -count=1",
+      "exit_code": 1,
+      "result": "Expected red: omitted-refresh and wrong-user accepted without the fix"
+    },
+    {
+      "command": "make -n check; make -n verify",
+      "exit_code": 0,
+      "result": "Both resolve the same coordinator and existing Node 22 automatically"
+    }
+  ],
+  "machine_health": {
+    "go_packages_passed": 36,
+    "node_selftests_passed": 65,
+    "node_selftests_skipped": 0,
+    "existing_upstream_unit_tests_passed": 363,
+    "formatting": "passed",
+    "vet": "passed",
+    "native_build": "passed",
+    "linux_amd64_build": "passed",
+    "linux_arm64_build": "passed"
+  },
+  "upstream_assertions": 8,
+  "coverage_gaps": 5618,
+  "input_digests_equal": true,
+  "source_execution": {
+    "status": "raw_v8_only",
+    "raw_v8_files": 1,
+    "line_branch_percent": null,
+    "note": "No whole-source line/branch denominator has been established; raw execution is not behavioral proof."
+  },
+  "report_sha256": "504397aff1033c32357aa748a4cb7909d6c5c9df43b8d2e66e6419fadd42f016",
+  "not_run": [
+    "Go replacement phase and in-machine rollback: correctly blocked by missing upstream completeness",
+    "Full source line/branch coverage: denominator/source mapping not established",
+    "Full upstream contract certificate: required tuple specification and executable bindings remain incomplete"
+  ],
+  "port_identity": "Before the user-directed queue and source-cookie corrections, the native .mjs scanner data matched Python completely and generated JSON/CSV/queue outputs were byte-identical; mapping Markdown changed only its generator command. Later intentional contract/binding changes are reflected in current generated outputs.",
+  "architect_contract_review": "foundation accepted",
+  "architect_craft_review": "foundation accepted",
+  "whole_replacement_verified": false
+}

@@ -1,25 +1,134 @@
 {
- "id": "route-r216",
- "parent": "http/adminops",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "PATCH /auth-settings candidate recorded from server/routers/ApiRouter.js:359. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:359"
- ],
- "implementation": [
-  "go-backend/internal/adminops/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/adminops/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r216",
+  "parent": "http/admin",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "PATCH /auth-settings at server/routers/ApiRouter.js:359. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "source": [
+    "server/routers/ApiRouter.js:359"
+  ],
+  "implementation": [
+    "go-backend/internal/admin/admin.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/admin/admin_test.go",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-admin-only",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-openid-settings-persist",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-enable-openid-visible-in-status",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-invalid-values-ignored",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-message-sanitized-and-empty-strings-cleared",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-mobile-redirect-uri-rules",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-repeat-reports-no-update",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-disabling-local-stops-password-login",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-settings-survive-restart",
+    "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-incomplete-openid-dropped-at-restart"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: the route has no force, hard or override mode"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R216-ROUTE",
+      "class": "shape",
+      "contract": "PATCH /api/auth-settings answers 401 without a token and 403 for a non-admin user and changes nothing. PATCH /api/auth-settings stores a complete OpenID configuration and answers {updated:true, serverSettings} without the secret fields. Enabling openid next to local (unknown methods dropped, list sorted) is stored and GET /status then shows authMethods, the sanitized message and the OpenID button settings.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:650-735",
+        "server/objects/settings/ServerSettings.js:299-308",
+        "client/pages/config/authentication.vue:325-362",
+        "server/Server.js:384-399",
+        "server/objects/settings/ServerSettings.js:348-357"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-admin-only",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-openid-settings-persist",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-enable-openid-visible-in-status"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R216-REPEAT",
+      "class": "repeat_operation",
+      "contract": "Sending the same authentication settings again answers updated:false and leaves the row unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:650-735"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-repeat-reports-no-update"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R216-VALIDATION-001",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "class": "validation",
+      "contract": "PATCH /api/auth-settings ignores empty or unknown auth methods, bad redirect URIs and wrong value types with updated:false, rejects malformed JSON with 400, and stores nothing. authLoginCustomMessage is HTML-sanitized, an empty string stores null (authOpenIDSubfolderForRedirectURLs keeps the empty string), and null clears a value. authOpenIDMobileRedirectURIs accepts a lone * and well-formed scheme://host/path URIs and ignores * mixed with others.",
+      "source": [
+        "server/controllers/MiscController.js:650-735",
+        "server/utils/htmlSanitizer.js:9-25"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-invalid-values-ignored",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-message-sanitized-and-empty-strings-cleared",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-mobile-redirect-uri-rules"
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R216-SIDEEFFECT-001",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "class": "side_effect",
+      "contract": "Removing local from the active methods makes POST /login fail without a token (existing tokens keep working); restoring local makes it succeed again.",
+      "source": [
+        "server/controllers/MiscController.js:650-735",
+        "server/Auth.js:169-177"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-patch-disabling-local-stops-password-login"
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R216-PERSIST-001",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "class": "persistence",
+      "contract": "A complete OpenID configuration with openid enabled survives a restart, including the secret fields and the advertised auth methods. Enabling openid without a complete OpenID configuration is accepted and stored, but the server drops it from the active methods when it loads the settings again.",
+      "source": [
+        "server/controllers/MiscController.js:650-735",
+        "server/objects/settings/ServerSettings.js:136-153",
+        "server/objects/settings/ServerSettings.js:155-168"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-settings-survive-restart",
+        "go-backend/tests/replacement/admin_settings/run_test.go#TestReplacement/auth-incomplete-openid-dropped-at-restart"
+      ]
+    }
+  ]
 }

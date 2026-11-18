@@ -1,0 +1,73 @@
+{
+  "id": "route-r173",
+  "parent": "http/emailapi",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /emails/ereader-devices candidate recorded from server/routers/ApiRouter.js:280. This evidence covers successful admin update normalization, persisted readback, update/no-op realtime event behavior, and selected absent/null/empty users shapes. Authentication denials, malformed payloads, delivery routes, and other edge cases remain unverified.",
+  "source": [
+    "server/routers/ApiRouter.js:280",
+    "server/controllers/EmailController.js:62-82",
+    "server/objects/settings/EmailSettings.js:75-101"
+  ],
+  "implementation": [
+    "go-backend/internal/emailapi/handler.go"
+  ],
+  "cases": {
+    "normal": "verified",
+    "error": "unverified",
+    "edge": "verified"
+  },
+  "invariants": [
+    {
+      "id": "INV-EMAIL-EREADER-DEVICE-NORMALIZE-001",
+      "class": "shape",
+      "contract": "Invalid availability options and specificUsers with an empty users list normalize availabilityOption to adminOrUp; non-specific options clear users only when users has a truthy length, preserving omitted, null, and empty fields otherwise.",
+      "status": "verified",
+      "source": ["server/objects/settings/EmailSettings.js:75-101"],
+      "tests": ["go-backend/internal/emailapi/handler_test.go:TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape"],
+      "evidence": ["go-backend/contracts/parity/email-devices-differential-report.json#email-devices-normalization-update"],
+      "exceptions": []
+    },
+    {
+      "id": "INV-EMAIL-EREADER-DEVICE-NOOP-001",
+      "class": "repeat_operation",
+      "contract": "An identical normalized device update returns the same response without changing the persisted updatedAt value or emitting another ereader-devices-updated event.",
+      "status": "verified",
+      "source": ["server/controllers/EmailController.js:75-82", "server/objects/settings/EmailSettings.js:99-111"],
+      "tests": ["go-backend/internal/emailapi/handler_test.go:TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape"],
+      "evidence": ["go-backend/contracts/parity/email-devices-differential-report.json#emailDevices.statefulCheck"],
+      "exceptions": []
+    },
+    {
+      "id": "INV-EMAIL-EREADER-DEVICE-CHANGE-001",
+      "class": "state_transition",
+      "contract": "A changed normalized device payload persists the new device state and emits one admin-scoped ereader-devices-updated event.",
+      "status": "verified",
+      "source": ["server/controllers/EmailController.js:75-82", "server/objects/settings/EmailSettings.js:99-111"],
+      "tests": ["go-backend/internal/emailapi/handler_test.go:TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape"],
+      "evidence": ["go-backend/contracts/parity/email-devices-differential-report.json#email-devices-changed-persisted-state", "go-backend/contracts/parity/email-devices-differential-report.json#emailDevices.statefulCheck"],
+      "exceptions": []
+    }
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "verified",
+    "repeat": "verified",
+    "changed": "verified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "tests": [
+    "go-backend/tools/parity/differential.cjs",
+    "go-backend/internal/emailapi/handler_test.go:TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/email-devices-differential-report.json: fresh pinned v2.37.2 differential, nine route/readback/event/state cases matched; seven normalized devices persisted identically, including string/object users.length cases; changed updates persisted and emitted one admin event; identical repeat emitted none and left updatedAt unchanged.",
+    "Go unit regression verifies normalization and repeat no-op timestamp/event behavior."
+  ],
+  "exceptions": [
+    "Evidence is limited to the named successful admin update and selected normalization/repeat cases; request denial, malformed payload, SMTP test/delivery, and broader authorization behavior are not covered.",
+    "The enclosing differential run used EXP_PROXY_SUPPORT=1 for its local cover fixture and skipped the private-address SSRF case; that skip is unrelated to this email route and is recorded separately in the report."
+  ]
+}

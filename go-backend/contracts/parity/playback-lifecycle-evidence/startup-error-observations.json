@@ -1,0 +1,128 @@
+{
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "fixture": "/private/tmp/abs-playback-lifecycle/fixture-live/fixture-manifest.json",
+  "scenarios": [
+    {
+      "mode": "startup-error",
+      "node": {
+        "side": "node",
+        "mode": "startup-error",
+        "directory": "/private/tmp/abs-playback-lifecycle/startup-retry/node-startup-error",
+        "fixtureEncodeExitCode": 0,
+        "duration": 12,
+        "events": [
+          {
+            "recipient": "owner-1",
+            "name": "stream_error",
+            "args": [
+              {
+                "id": "1f173228-9f12-4c86-a2f0-4d6a3145a326",
+                "error": "ffmpeg exited with code 1"
+              }
+            ],
+            "at": 1794528382742
+          },
+          {
+            "recipient": "owner-2",
+            "name": "stream_error",
+            "args": [
+              {
+                "id": "1f173228-9f12-4c86-a2f0-4d6a3145a326",
+                "error": "ffmpeg exited with code 1"
+              }
+            ],
+            "at": 1794528382742
+          }
+        ],
+        "play": {
+          "status": 200,
+          "id": "1f173228-9f12-4c86-a2f0-4d6a3145a326",
+          "playMethod": 2,
+          "duration": 12,
+          "startTime": 0,
+          "currentTime": 0,
+          "tracks": [
+            {
+              "index": 1,
+              "startOffset": 0,
+              "duration": 12,
+              "title": "Deterministic Book",
+              "contentUrl": "/hls/1f173228-9f12-4c86-a2f0-4d6a3145a326/output.m3u8",
+              "mimeType": "application/vnd.apple.mpegurl",
+              "codec": null,
+              "metadata": null
+            }
+          ]
+        },
+        "errorObserved": true,
+        "directoryAfterError": false,
+        "hlsAfterError": 404,
+        "close": {
+          "status": 200,
+          "body": "OK",
+          "directoryExists": false,
+          "hlsStatus": 404
+        },
+        "persistence": {
+          "sessions": {
+            "count": 0
+          },
+          "progress": {
+            "count": 0
+          }
+        },
+        "serverExitCode": 0,
+        "serverSignal": null
+      },
+      "go": {
+        "side": "go",
+        "mode": "startup-error",
+        "directory": "/private/tmp/abs-playback-lifecycle/startup-retry/go-startup-error",
+        "fixtureEncodeExitCode": 0,
+        "duration": 12,
+        "events": [],
+        "play": {
+          "status": 200,
+          "id": "b1eddca9-2384-4e33-b940-b69d720c565e",
+          "playMethod": 2,
+          "duration": 12,
+          "startTime": 0,
+          "currentTime": 0,
+          "tracks": [
+            {
+              "index": 1,
+              "startOffset": 0,
+              "duration": 12,
+              "title": "Deterministic Book",
+              "contentUrl": "/hls/b1eddca9-2384-4e33-b940-b69d720c565e/output.m3u8",
+              "mimeType": "application/vnd.apple.mpegurl",
+              "codec": null,
+              "metadata": null
+            }
+          ]
+        },
+        "errorObserved": false,
+        "directoryAfterError": true,
+        "hlsAfterError": 200,
+        "close": {
+          "status": 200,
+          "body": "OK",
+          "directoryExists": false,
+          "hlsStatus": 404
+        },
+        "persistence": {
+          "sessions": {
+            "count": 0
+          },
+          "progress": {
+            "count": 0
+          }
+        },
+        "serverExitCode": 0,
+        "serverSignal": null
+      }
+    }
+  ],
+  "skips": [],
+  "result": "OBSERVED_NOT_ACCEPTED"
+}

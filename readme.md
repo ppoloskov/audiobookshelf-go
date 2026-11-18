@@ -22,6 +22,8 @@ All credit for Audiobookshelf's product, interface, and original functionality b
 
 AI-generated code is not treated as correct merely because it compiles or looks plausible. The project is built around a reference implementation, explicit compatibility contracts, reproducible tests, and rollback checks. These provide evidence, not a guarantee that every bug has been found.
 
+Use `make verify VERIFY_ARGS="-target upstream"` to certify the shared test suite against v2.37.2. The default `make verify` command then gates the Go comparison on independently reviewed coverage of the replacement contract. [Verification procedure](go-backend/VERIFICATION.md)
+
 ### The upstream server is the oracle
 
 Audiobookshelf **v2.37.2**, pinned to upstream commit [`edb1f7e`](https://github.com/advplyr/audiobookshelf/commit/edb1f7efc92ecacdef51aafb4d9d5054ce10604f), is the behavioral reference. When an API response, database value, or lifecycle transition is unclear, we inspect the original source and, where useful, run the original TypeScript server against disposable fixtures to find out what actually happens.
@@ -144,7 +146,7 @@ A standalone Go binary must be pointed at a generated web-client `dist` director
 
 ## Status and limitations
 
-The project preserves the v2.37.2 persistence contract and supports rollback to that version. Automated verification includes Go tests, static checks, and an upstream database rollback check. Differential testing against the TypeScript server is advisory rather than a publication gate.
+The replacement contract requires the pinned upstream server to reopen data written by Go. The unified verifier gates the shared Go scenarios and rollback check on complete upstream coverage. The latest November 18 upstream run passed 974 of 975 declared scenarios, including all seven store checks. An intermittent scan setup failure, coverage gaps, independent reviews and tagged lint still block certification. [Current handover](go-backend/handover.md)
 
 **Not all clients and behaviors are fully certified.** Remaining work includes mobile-client and Socket.IO acceptance, some lifecycle edge cases, and compatibility audits. Before using this as your primary audiobook server, check the [current roadmap](https://github.com/ppoloskov/audiobookshelf-go/blob/master/go-backend/ROADMAP.md) and test your own critical flows.
 

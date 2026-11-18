@@ -1,80 +1,95 @@
 {
- "id": "route-r166",
- "parent": "http/notifications",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /notifications candidate recorded from server/routers/ApiRouter.js:269. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:269"
- ],
- "implementation": [
-  "go-backend/internal/notifications/handler.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/notifications/handler.go",
-  "go-backend/internal/notifications/handler_test.go",
-  "go-backend/tools/parity/differential.cjs"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#notification-create",
-  "go-backend/contracts/parity/full-suite-report.json#notification-create-empty-urls",
-  "go-backend/contracts/parity/notification-malformed-payload-report.json"
- ],
- "exceptions": [
-  "force is not applicable to this HTTP CRUD operation; no force or refresh parameter exists."
- ],
- "invariants": [
-  {
-   "id": "INV-R166-CREATE-STATE-001",
-   "class": "state_transition",
-   "contract": "POST /notifications creates and persists a notification with upstream defaults, coercions, and the returned settings shape; an empty urls array is a no-op.",
-   "status": "verified",
-   "source": [
-    "server/objects/settings/NotificationSettings.js:97-104",
-    "server/objects/Notification.js:42-56",
-    "server/models/Setting.js:36-39"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs",
-    "go-backend/internal/notifications/handler_test.go"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#notification-create",
-    "go-backend/contracts/parity/full-suite-report.json#notification-create-minimal",
-    "go-backend/contracts/parity/full-suite-report.json#notification-create-empty-urls"
-   ],
-   "exceptions": []
+  "id": "route-r166",
+  "parent": "http/notify",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "POST /notifications at server/routers/ApiRouter.js:269. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "source": [
+    "server/routers/ApiRouter.js:269"
+  ],
+  "implementation": [
+    "go-backend/internal/notify/handlers.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
   },
-  {
-   "id": "INV-R166-MISSING-URL-FAILURE-001",
-   "class": "error",
-   "contract": "When eventName is present and urls is omitted, upstream dereferences payload.urls.length and its unhandled-rejection listener logs FATAL and calls process.exit(1); Go currently returns 200 with the settings object. This source-backed failure-behavior divergence remains unresolved.",
-   "status": "unverified",
-   "source": [
-    "server/objects/settings/NotificationSettings.js:97-104",
-    "server/Server.js:248-250"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/notification-malformed-payload-report.json"
-   ],
-   "exceptions": []
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
+    "go-backend/internal/notify/notify_test.go:148#TestCreateUpdateDelete",
+    "go-backend/internal/notify/notify_test.go:199#TestRoutesRejectNonAdmin",
+    "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
+    "go-backend/internal/notify/notify_test.go:228#TestTriggerEventOnlyEnabledMatching",
+    "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
+    "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
+    "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
+    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "force is not applicable to this HTTP CRUD operation; no force or refresh parameter exists.",
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R166-ROUTE",
+      "class": "shape",
+      "contract": "POST /notifications at server/routers/ApiRouter.js:269. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:269"
+      ],
+      "tests": [
+        "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/notify/notify_test.go:148#TestCreateUpdateDelete",
+        "go-backend/internal/notify/notify_test.go:199#TestRoutesRejectNonAdmin",
+        "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
+        "go-backend/internal/notify/notify_test.go:228#TestTriggerEventOnlyEnabledMatching",
+        "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
+        "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
+        "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R166-REPEAT",
+      "class": "repeat_operation",
+      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:269"
+      ],
+      "tests": [
+        "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/notify/notify_test.go:148#TestCreateUpdateDelete",
+        "go-backend/internal/notify/notify_test.go:199#TestRoutesRejectNonAdmin",
+        "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
+        "go-backend/internal/notify/notify_test.go:228#TestTriggerEventOnlyEnabledMatching",
+        "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
+        "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
+        "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
   }
- ],
- "state_scenarios": {
-  "initial": "verified",
-  "repeat": "unverified",
-  "changed": "verified",
-  "force": "not_applicable",
-  "failure": "unverified"
- }
 }

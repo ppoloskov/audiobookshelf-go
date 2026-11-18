@@ -1,90 +1,144 @@
 {
- "id": "sub-database-schema",
- "parent": "database",
- "kind": "data",
- "scope": "in",
- "status": "implemented",
- "contract": "SQLite file absdatabase.sqlite is byte-shape-compatible at the table/row level with the pinned upstream fresh-init schema; existing databases are verified, never migrated or recreated.",
- "source": [
-  "server/Database.js",
-  "server/models/",
-  "server/migrations/"
- ],
- "implementation": [
-  "go-backend/internal/store/store.go",
-  "go-backend/internal/bootstrap/bootstrap.go",
-  "go-backend/internal/server/manager.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "tests": [
-  "go-backend/internal/store/store_test.go",
-  "go-backend/internal/store/open_write_test.go",
-  "go-backend/internal/bootstrap/bootstrap_test.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/schema.sql",
-  "go-backend/contracts/library-golden.json",
-  "go-backend/tools/parity/existing-db-matrix.cjs (F04 boot matrix: 2026-10-30 run 12/12 PASS \u2014 baseline boot, stale/newer/in-flight-partial-state refusals, missing migrationsMeta refusal, refused-boot byte/tree unchanged, booted existing database identical before/after)",
-  "go-backend/contracts/parity/parity-f01-f07-closure-report.json#startupMatrix",
-  "go-backend/contracts/parity/parity-f01-f07-closure-report.json#snapshotReopen"
- ],
- "exceptions": [
-  "Historical schema upgrade/migrations are deferred by user instruction: unverified schema versions must fail clearly.",
-  "In-flight partial upgrade state (version 2.37.1 < maxVersion 2.37.2) refuses with the same clear bootstrap error because the Go replacement never runs migrations; force scenario is not_applicable because boot verification has no force/refresh operation."
- ],
- "stateful": true,
- "state_scenarios": {
-  "initial": "verified",
-  "repeat": "verified",
-  "changed": "verified",
-  "force": "not_applicable",
-  "failure": "verified"
- },
- "invariants": [
-  {
-   "id": "INV-SUB-DB-BOOT-001",
-   "class": "repeat_operation",
-   "contract": "Initial and repeat Go boots each answer /audiobookshelf/ping and stop before comparison; both preserve the existing pinned database and config/metadata trees byte/row-identically. A never-serving process fails the same readiness gate. Stale, newer, partial and missing migration states refuse clearly; snapshot comparisons establish no mutation for the stale and partial refusal variants.",
-   "status": "verified",
-   "source": [
-    "server/Database.js:173-200",
-    "server/migrations/"
-   ],
-   "tests": [
-    "go-backend/tools/parity/existing-db-matrix.cjs",
-    "go-backend/internal/bootstrap/bootstrap_test.go"
-   ],
-   "evidence": [
-    "go-backend/tools/parity/existing-db-matrix.cjs (2026-10-30 run: 12/12 PASS on fresh create-fixture manifest)",
-    "go-backend/contracts/parity/parity-f01-f07-closure-report.json#startupMatrix"
-   ],
-   "exceptions": [
-    "Covers boot-time behavior only; serving mutations after boot verify elsewhere. Upstream equivalence limited to the pinned-release matrix scenarios."
-   ]
-  },
-  {
-   "id": "INV-F07-REOPEN-STATE-001",
-   "class": "state_transition",
-   "contract": "Independent Node and Go copies reopen the self-contained preserved Go-written snapshot, authenticate root and reader, expose the same allowed catalog, deny forbidden library/item reads without protected data, and retain equal persistent tables and metadata/media files after the selected requests.",
-   "status": "verified",
-   "source": [
+  "id": "sub-database-schema",
+  "parent": "database",
+  "kind": "data",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Open the pinned SQLite schema unchanged, reject unsupported migration states without mutation, create the pinned schema on fresh init, and preserve table/column/value semantics when TS reopens Go-written data.",
+  "source": [
     "server/Database.js",
-    "server/Auth.js",
-    "server/routers/ApiRouter.js"
-   ],
-   "tests": [
-    "go-backend/tools/parity/f07-rollin-check.cjs"
-   ],
-   "evidence": [
+    "server/models/",
+    "server/migrations/"
+  ],
+  "implementation": [
+    "go-backend/internal/db/open.go",
+    "go-backend/internal/db/models.go",
+    "go-backend/internal/db/types.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/db/open_test.go:24#TestCreateMakesThePinnedFreshDatabase",
+    "go-backend/internal/db/open_test.go:140#TestOpenRefusesOtherMigrationState",
+    "go-backend/internal/db/open_test.go:181#TestOpenAcceptsTheUpstreamFixture",
+    "go-backend/internal/db/open_test.go:220#TestOpenOrCreateLeavesAnExistingDatabaseAlone",
+    "go-backend/internal/db/models_test.go:70#TestStructsMatchSchemaColumns",
+    "go-backend/internal/db/models_test.go:153#TestRowsRoundTripThroughInsert",
+    "go-backend/internal/db/models_test.go:329#TestFixtureRewriteChangesNothing"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/schema.sql",
+    "go-backend/contracts/library-golden.json",
+    "go-backend/tools/parity/existing-db-matrix.cjs (F04 boot matrix: 2026-10-30 run 12/12 PASS — baseline boot, stale/newer/in-flight-partial-state refusals, missing migrationsMeta refusal, refused-boot byte/tree unchanged, booted existing database identical before/after)",
+    "go-backend/contracts/parity/parity-f01-f07-closure-report.json#startupMatrix",
     "go-backend/contracts/parity/parity-f01-f07-closure-report.json#snapshotReopen"
-   ],
-   "exceptions": [
-    "Post-login sessions and users.lastSeen/updatedAt are excluded from table equality; metadata logs are excluded from file hashes. Only fixture-root paths normalize. This is selected snapshot evidence, not complete mutation/restart parity."
-   ]
-  }
- ]
+  ],
+  "exceptions": [
+    "Historical schema upgrade/migrations are deferred by user instruction: unverified schema versions must fail clearly.",
+    "In-flight partial upgrade state (version 2.37.1 < maxVersion 2.37.2) refuses with the same clear bootstrap error because the Go replacement never runs migrations; force scenario is not_applicable because boot verification has no force/refresh operation.",
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+    "Mapping correction: historical exact-byte/Express-header observations are provenance, not new requirements beyond persisted data meaning and real client behavior.",
+    "force is not applicable: production boot exposes no force action; Database.init(force) is an internal test-only create/drop switch."
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-SUB-DB-BOOT-001",
+      "class": "repeat_operation",
+      "contract": "Pinned fresh/existing installs start and remain readable; unsupported/missing/in-flight migration states refuse without migration, recreation or destructive mutation. Initial/repeat boots preserve schema and row/file meaning. Classify ordinary boot settings timestamps/default updates against actual persisted/client contracts instead of requiring SQLite byte identity.",
+      "status": "unverified",
+      "source": [
+        "server/Database.js:173-200",
+        "server/migrations/"
+      ],
+      "tests": [
+        "go-backend/internal/db/open_test.go:24#TestCreateMakesThePinnedFreshDatabase",
+        "go-backend/internal/db/open_test.go:140#TestOpenRefusesOtherMigrationState",
+        "go-backend/internal/db/open_test.go:181#TestOpenAcceptsTheUpstreamFixture",
+        "go-backend/internal/db/open_test.go:220#TestOpenOrCreateLeavesAnExistingDatabaseAlone",
+        "go-backend/internal/db/models_test.go:70#TestStructsMatchSchemaColumns",
+        "go-backend/internal/db/models_test.go:153#TestRowsRoundTripThroughInsert",
+        "go-backend/internal/db/models_test.go:329#TestFixtureRewriteChangesNothing",
+        "go-backend/tools/parity/existing-db-matrix.cjs",
+        "go-backend/tests/replacement/store/run_test.go#TestReplacement/existing-install-repeat-boot"
+      ],
+      "evidence": [
+        "go-backend/tools/parity/existing-db-matrix.cjs (2026-10-30 run: 12/12 PASS on fresh create-fixture manifest)",
+        "go-backend/contracts/parity/parity-f01-f07-closure-report.json#startupMatrix"
+      ],
+      "exceptions": [
+        "Covers boot-time behavior only; serving mutations after boot verify elsewhere. Upstream equivalence limited to the pinned-release matrix scenarios.",
+        "The store scenario is partial evidence only; its claim does not cover every obligation of this invariant."
+      ]
+    },
+    {
+      "id": "INV-F07-REOPEN-STATE-001",
+      "class": "state_transition",
+      "contract": "After Go writes representative progress, bookmarks, sessions, settings and catalog changes, pinned TS reopens the database/config/metadata and preserves their meanings, identities, access decisions and value formats. Equality normalization must be field-specific and justified; no blanket timestamp/session exclusion proves full mutation compatibility.",
+      "status": "unverified",
+      "source": [
+        "server/Database.js",
+        "server/Auth.js",
+        "server/routers/ApiRouter.js"
+      ],
+      "tests": [
+        "go-backend/internal/db/open_test.go:24#TestCreateMakesThePinnedFreshDatabase",
+        "go-backend/internal/db/open_test.go:140#TestOpenRefusesOtherMigrationState",
+        "go-backend/internal/db/open_test.go:181#TestOpenAcceptsTheUpstreamFixture",
+        "go-backend/internal/db/open_test.go:220#TestOpenOrCreateLeavesAnExistingDatabaseAlone",
+        "go-backend/internal/db/models_test.go:70#TestStructsMatchSchemaColumns",
+        "go-backend/internal/db/models_test.go:153#TestRowsRoundTripThroughInsert",
+        "go-backend/internal/db/models_test.go:329#TestFixtureRewriteChangesNothing",
+        "go-backend/tools/parity/f07-rollin-check.cjs",
+        "go-backend/tests/replacement/store/run_test.go#TestReplacement/bookmark-upstream-reopen"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/parity-f01-f07-closure-report.json#snapshotReopen"
+      ],
+      "exceptions": [
+        "Post-login sessions and users.lastSeen/updatedAt are excluded from table equality; metadata logs are excluded from file hashes. Only fixture-root paths normalize. This is selected snapshot evidence, not complete mutation/restart parity.",
+        "The store scenario is partial evidence only; its claim does not cover every obligation of this invariant."
+      ]
+    },
+    {
+      "id": "INV-SUB-DB-FRESH-ROOT-001",
+      "class": "state_transition",
+      "contract": "Fresh current-schema initialization creates an active root and preserves its identity and schema on upstream reopen.",
+      "status": "unverified",
+      "source": [
+        "server/Database.js:176-200",
+        "server/Server.js:377-405"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/store/run_test.go#TestReplacement/fresh-root-upstream-reopen"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SUB-DB-LOCAL-SESSION-001",
+      "class": "state_transition",
+      "contract": "A mobile local session survives upstream reopen with its storage and listening history; older session updates do not overwrite newer progress.",
+      "status": "unverified",
+      "source": [
+        "server/managers/PlaybackSessionManager.js:127-250",
+        "server/controllers/MeController.js:150-175"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/store/run_test.go#TestReplacement/local-session-upstream-reopen"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

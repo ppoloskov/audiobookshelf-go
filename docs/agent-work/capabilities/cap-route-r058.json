@@ -1,25 +1,61 @@
 {
- "id": "route-r058",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /items/:id/match candidate recorded from server/routers/ApiRouter.js:116. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:116"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r058",
+  "parent": "http/item",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/items/:id/match dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:116, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"POST /api/items/{id}/match\", h.authed(h.match)). Current assertion anchor(s): TestMatchAppliesDetails. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:116",
+    "go-backend/internal/item/handler.go",
+    "go-backend/internal/item/handler.go:100",
+    "server/controllers/LibraryItemController.js:1220"
+  ],
+  "implementation": [
+    "go-backend/internal/item/handler.go:100"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/item/match_test.go:72#TestMatchAppliesDetails"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R058-CONTRACT",
+      "class": "shape",
+      "contract": "POST /api/items/:id/match dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:116, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"POST /api/items/{id}/match\", h.authed(h.match)). Current assertion anchor(s): TestMatchAppliesDetails. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:116",
+        "go-backend/internal/item/handler.go",
+        "go-backend/internal/item/handler.go:100",
+        "server/controllers/LibraryItemController.js:1220"
+      ],
+      "tests": [
+        "go-backend/internal/item/match_test.go:72#TestMatchAppliesDetails"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
+        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
+        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+      ]
+    }
+  ]
 }

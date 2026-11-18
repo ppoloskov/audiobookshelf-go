@@ -1,0 +1,6 @@
+mise WARN  failed to write cache file: /Users/paul/Library/Caches/mise/neovim/0.12.5/exec_env_9664da8abc311adb-9305c.msgpack.z Operation not permitted (os error 1)
+go-backend/internal/playback/hls.go:297:5: Error return value is not checked (errcheck)
+				<-finished
+				^
+1 issues:
+* errcheck: 1

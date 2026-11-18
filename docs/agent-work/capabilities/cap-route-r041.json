@@ -1,25 +1,96 @@
 {
- "id": "route-r041",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /libraries/order candidate recorded from server/routers/ApiRouter.js:94. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:94"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r041",
+  "parent": "http/library",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/libraries/order dispatches to the pinned TS handler LibraryController.reorder (ApiRouter.js:94, server/controllers/LibraryController.js:913) and Go registration mux.Handle(\"POST /api/libraries/order\", auth.Admin(httpx.Handler(h.reorder))). Current assertion anchor(s): TestOrderIsAllOrNothing. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:94",
+    "go-backend/internal/library/libraries.go",
+    "go-backend/internal/library/libraries.go:62",
+    "server/controllers/LibraryController.js:913"
+  ],
+  "implementation": [
+    "go-backend/internal/library/libraries.go:62"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/library/libraries_test.go:166#TestOrderIsAllOrNothing",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/order-swaps-libraries-and-answers-sorted-list",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/order-repeat-leaves-rows-untouched",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/order-partial-and-empty-lists",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/order-requires-admin",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/order-invalid-bodies-rejected-without-effects",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/order-admin-check-precedes-validation"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "force is not applicable: POST /api/libraries/order has no force or override mode."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R041-CONTRACT",
+      "class": "shape",
+      "contract": "POST /api/libraries/order sets displayOrder for each listed library (partial and empty lists allowed, repeat is a no-op that does not rewrite rows), answers {libraries} of all libraries sorted by displayOrder, and emits no library_updated.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:913-949",
+        "server/models/Library.js:92-97",
+        "server/routers/ApiRouter.js:94"
+      ],
+      "tests": [
+        "go-backend/internal/library/libraries_test.go:166#TestOrderIsAllOrNothing",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/order-swaps-libraries-and-answers-sorted-list",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/order-repeat-leaves-rows-untouched",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/order-partial-and-empty-lists"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R041-AUTH-001",
+      "class": "error",
+      "contract": "POST /api/libraries/order answers 401 without a token and 403 for a non-admin user and changes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:322",
+        "server/controllers/LibraryController.js:914-917",
+        "server/routers/ApiRouter.js:94"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/order-requires-admin",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/order-admin-check-precedes-validation"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R041-VALIDATION-001",
+      "class": "error",
+      "contract": "A body that is not an array, an entry without a string id and numeric newOrder, or an unknown library id answers 400 and changes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:919-932",
+        "server/routers/ApiRouter.js:94"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/order-invalid-bodies-rejected-without-effects"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

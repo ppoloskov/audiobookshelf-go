@@ -50,6 +50,18 @@ rewrite (`git log 7051b3e5..HEAD`).
 ## Playback
 
 - Local-sync timestamps are numbers or numeric strings; other types read as 0.
+- HLS playback now sends owner-user stream lifecycle events and incremental
+  segment progress. Nonzero seek resets remain globally broadcast.
+- Failed transcodes remove output and detach HLS instead of remaining silently
+  available. Missing input files fail asynchronously after the play response.
+- Eligible copy failures retry AAC once; close and shutdown reap the process and
+  emit one close event. Existing segments remain available across seeks.
+- Stream errors retain the upstream `id`/`error` fields but use fixed safe text.
+  Exited processes are reaped promptly, without upstream's ten-second retry wait;
+  retry uses numeric exit code 1 rather than a JavaScript error-string prefix.
+- Cancellation and post-exit output-pipe draining are bounded to one second,
+  including wrappers whose descendants retain stdout/stderr. Healthy uncancelled
+  commands have no new runtime deadline.
 
 ## Sessions
 

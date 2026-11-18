@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "baseSHA": "8990c2e61a1637a69effc4ca26e2df1748301889",
+  "upstreamSHA": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "result": "PARTIAL_CHECKPOINT_PRODUCT_DEFECTS_CONFIRMED",
+  "productionChanged": false,
+  "scope": "Playback stream lifecycle characterization only; blocked before implementation by media process-start ownership decision.",
+  "environment": {
+    "upstream": "mise exec node@22; pinned source inputs checked and dist-server rebuilt with existing prepareOracle()",
+    "media": "/private/tmp/abs-cleanup-checkpoint-20261105/ffmpeg-9.0.2-webp/bin/ffmpeg",
+    "goBinary": "/private/tmp/abs-playback-lifecycle/go-before",
+    "fixture": "New disposable actual-upstream-created fixture; independently copied config/metadata for every side/scenario, same item/user IDs; per-scenario generated sine AAC media and matching SQLite duration/path fields.",
+    "progressThrottle": "Shell forwards real FFmpeg capability probes unchanged and adds -readrate 20 only to actual concat transcode; no simulated events or FFmpeg output. Both long transcodes still active at 25-second observation limit."
+  },
+  "liveCommands": [
+    {
+      "command": "node -e 'require(\"./go-backend/tools/parity/lib/oracle.cjs\").prepareOracle()'",
+      "exitCode": 0
+    },
+    {
+      "command": "node go-backend/tools/parity/create-fixture.cjs /private/tmp/abs-playback-lifecycle/fixture",
+      "exitCode": 1,
+      "category": "environment",
+      "reason": "Sandbox loopback listen EPERM; no acceptance inferred."
+    },
+    {
+      "command": "mise exec node@22 -- node go-backend/tools/parity/create-fixture.cjs /private/tmp/abs-playback-lifecycle/fixture-live",
+      "exitCode": 0
+    },
+    {
+      "command": "cd go-backend && GOCACHE=/private/tmp/abs-playback-lifecycle/go-cache GOTOOLCHAIN=local go build -o /private/tmp/abs-playback-lifecycle/go-before ./cmd/audiobookshelf-go",
+      "exitCode": 0
+    },
+    {
+      "command": "FFMPEG_PATH=<media> mise exec node@22 -- node go-backend/tools/parity/playback-lifecycle.cjs --fixture <fixture>/fixture-manifest.json --go-bin <goBinary> --out /private/tmp/abs-playback-lifecycle/baseline --modes complete,progress,runtime-error,startup-error,seek-close",
+      "exitCode": 0,
+      "meaning": "Observation collection succeeded; NOT parity acceptance. First failure observations were too short and superseded below."
+    },
+    {
+      "command": "Same harness/fixture/binary/media, --out /private/tmp/abs-playback-lifecycle/fast-reset --modes fast-reset",
+      "exitCode": 0
+    },
+    {
+      "command": "Same harness/fixture/binary/media, --out /private/tmp/abs-playback-lifecycle/runtime-retry --modes runtime-error (18-second failure observation)",
+      "exitCode": 0
+    },
+    {
+      "command": "Same harness/fixture/binary/media, --out /private/tmp/abs-playback-lifecycle/startup-retry --modes startup-error (18-second failure observation)",
+      "exitCode": 0
+    },
+    {
+      "command": "node --check go-backend/tools/parity/playback-lifecycle.cjs",
+      "exitCode": 0
+    }
+  ],
+  "confirmed": [
+    "Initial successful real 12-second AAC transcode: upstream sends initial stream_progress, stream_open with isTranscodeComplete false, and explicit stream_closed to each of two owner sockets; unrelated-user socket receives none. Go emits none. Both serve playlist200, nonempty segment200, and finish real FFmpeg output.",
+    "Active 240-second transcode: upstream sends incremental percent/chunks/numSegments and stream_open once per owner socket; Go emits none. Both streams remain active at25s, then close200 removes directory and HLS becomes404. This is incremental-progress/active-close evidence, not long successful completion.",
+    "Fast completed restart from saved120s to missing segment0: upstream emits delayed initial stream_progress then stream_ready to both owner sockets. Go emits none. Both missing-segment requests404 and close200 removes directory/HLS404. Segment-zero restart correctly emits no stream_reset because upstream tests the returned zero value.",
+    "Corrupt real AAC input: upstream attempts copy, retries AAC after10s cancellation wait, then emits stream_error with id and nonempty error to both owner sockets, removes directory and detaches HLS404. Go logs FFmpeg error but emits no error, retains directory/HLS200 until explicit close. Neither persisted a playback session or media progress for this unlistened session.",
+    "Executable /usr/bin/false configured as FFmpeg: upstream capability/start preparation failure triggers AAC retry then stream_error to owner sockets without initial progress; directory removed/HLS404. Go returns session200 then retains directory/HLS200 without error. This is a failing executable/preparation scenario, not proof of ENOENT spawn behavior.",
+    "All six distinct live variants preserve explicit close response200 OK and final directory removal/HLS404. Two-owner delivery is per socket, not duplicate emission to a single recipient. No lifecycle traffic reached the unrelated user."
+  ],
+  "sourceReferences": [
+    "server/objects/Stream.js:142-229 segment checks/open/progress/ready",
+    "server/objects/Stream.js:296-352 start, AAC fallback, error and completion",
+    "server/objects/Stream.js:359-430 close/cancel/reset/user emission",
+    "server/SocketAuthority.js:57-78 global versus per-user all-socket delivery",
+    "server/routers/HlsRouter.js:76-94 reset global broadcast and zero suppression",
+    "client/components/app/MediaPlayerContainer.vue:419-465 progress, ready, closed/error and reset consumers",
+    "client/layouts/default.vue:156-173 and419-424 event forwarding; stream_error consumer destructures errorMessage though emitter sends error"
+  ],
+  "classification": {
+    "productDefects": "Missing lifecycle events and terminal-error directory/HLS cleanup confirmed by source and live observation; unchanged production.",
+    "harnessDrift": "Initial baseline error windows6s were too short for upstream10s fallback cancellation wait; those raw observations preserved but superseded by18s reruns. Harness emits OBSERVED_NOT_ACCEPTED and does not equate exit0 to parity.",
+    "environmentFailures": "First sandbox fixture attempt denied loopback; successful loopback-authorized rerun used.",
+    "approvedDifferences": []
+  },
+  "remainingUnverified": [
+    "Successful AAC fallback from an actual broken-copy-but-reencodable file; current corrupt file proves terminal fallback failure only.",
+    "Nonzero stream_reset global-recipient delivery live; source and existing Go tests establish intent, current live seek targets segment0 and suppresses event.",
+    "Actual executable ENOENT/start syscall failure over live HTTP, midstream process death after valid output, and process/goroutine leak instrumentation.",
+    "Exact comprehensive stream_open libraryItem and episode projection differential; raw payloads retained, lifecycle fields inspected but full item metadata equivalence belongs to existing item shape evidence.",
+    "Long transcode successful completion, repeat-close duplicate suppression, server shutdown while active and mobile-device acceptance."
+  ],
+  "skips": [],
+  "evidenceDirectory": "playback-lifecycle-evidence",
+  "rawReports": [
+    "baseline-observations.json",
+    "fast-reset-observations.json",
+    "runtime-error-observations.json",
+    "startup-error-observations.json"
+  ],
+  "verificationLogs": [
+    "red.txt",
+    "red-race.txt",
+    "repository-tests-final.txt",
+    "vet-final.txt",
+    "lint-final.txt"
+  ],
+  "repositorySkipAudit": {
+    "command": "cd go-backend && PATH=<media-prefix>/bin:$PATH FFMPEG_PATH=<media> GOCACHE=/private/tmp/abs-playback-lifecycle/go-cache GOTOOLCHAIN=local go test -json ./... -count=1",
+    "exitCode": 1,
+    "testsRun": 1699,
+    "testsFailed": 4,
+    "testsSkipped": 0,
+    "packagesWithoutTests": [
+      "cmd/audiobookshelf-go",
+      "internal/db/dbtest",
+      "internal/media",
+      "internal/version"
+    ],
+    "rawLog": "/private/tmp/abs-playback-lifecycle/repository-tests-json.log",
+    "meaning": "Only four newly added playback regressions fail; no individual tests skipped. Four package skip records mean no test files."
+  }
+}

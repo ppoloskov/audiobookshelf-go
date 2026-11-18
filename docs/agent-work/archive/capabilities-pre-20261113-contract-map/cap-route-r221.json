@@ -1,0 +1,25 @@
+{
+ "id": "route-r221",
+ "parent": "http/sharing",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /share/:slug/track/:index candidate recorded from server/routers/PublicRouter.js:17. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/PublicRouter.js:17"
+ ],
+ "implementation": [
+  "go-backend/internal/sharing/handler.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/sharing/handler.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

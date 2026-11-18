@@ -1,0 +1,59 @@
+{
+  "id": "protocol-cors-basepath",
+  "parent": "server",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Mobile ebook/cover origins and configured allowed origins receive usable CORS/preflight responses; base-prefixed and legacy capability/auth routes remain reachable, unknown API paths retain client fallback statuses, and public image exceptions do not expose protected file content.",
+  "source": [
+    "server/Server.js:270-295",
+    "go-backend/contracts/clients/"
+  ],
+  "implementation": [
+    "go-backend/internal/server/middleware.go",
+    "go-backend/internal/server/handler.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/server/pipeline_test.go:214#TestCORSAllowed",
+    "go-backend/internal/server/pipeline_test.go:250#TestCORSHeadersAndPreflight",
+    "go-backend/internal/server/pipeline_test.go:280#TestMiddlewareOrder",
+    "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-PROTOCOL-CORS-BASEPATH",
+      "class": "repeat_operation",
+      "contract": "Mobile ebook/cover origins and configured allowed origins receive usable CORS/preflight responses; base-prefixed and legacy capability/auth routes remain reachable, unknown API paths retain client fallback statuses, and public image exceptions do not expose protected file content.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:270-295",
+        "go-backend/contracts/clients/"
+      ],
+      "tests": [
+        "go-backend/internal/server/pipeline_test.go:214#TestCORSAllowed",
+        "go-backend/internal/server/pipeline_test.go:250#TestCORSHeadersAndPreflight",
+        "go-backend/internal/server/pipeline_test.go:280#TestMiddlewareOrder",
+        "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

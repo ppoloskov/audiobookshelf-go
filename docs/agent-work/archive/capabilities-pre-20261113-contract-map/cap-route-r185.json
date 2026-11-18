@@ -1,0 +1,25 @@
+{
+ "id": "route-r185",
+ "parent": "http/audiotools",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /tools/item/:id/embed-metadata candidate recorded from server/routers/ApiRouter.js:304. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:304"
+ ],
+ "implementation": [
+  "go-backend/internal/audiotools/tools.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/audiotools/tools.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

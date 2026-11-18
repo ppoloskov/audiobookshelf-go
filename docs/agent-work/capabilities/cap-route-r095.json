@@ -1,25 +1,99 @@
 {
- "id": "route-r095",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "DELETE /playlists/:id/item/:libraryItemId/:episodeId? candidate recorded from server/routers/ApiRouter.js:165. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:165"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r095",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "DELETE /api/playlists/:id/item/:libraryItemId/:episodeId?. Remove the selected book/episode entry from an owned playlist and delete the playlist when emptied; preserve underlying media and lifecycle events.",
+  "source": [
+    "server/routers/ApiRouter.js:165",
+    "server/controllers/PlaylistController.js:575",
+    "server/controllers/PlaylistController.js:347"
+  ],
+  "implementation": [
+    "go-backend/internal/list/list.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/list/list_ported_test.go:115#TestPortedWritesPersistAndEmit",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-item-renumbers-the-rest",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-episode-by-episode-id",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-item-twice-second-is-404",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-then-add-puts-new-item-last",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-last-item-deletes-playlist",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-item-rejects-foreign-unknown-and-anonymous",
+    "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-item-foreign-in-inaccessible-library-is-403"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-R095-CONTRACT-001",
+      "class": "state_transition",
+      "contract": "DELETE /api/playlists/:id/item/:libraryItemId/:episodeId? removes the book (or the episode when episodeId is given), renumbers the remaining links 1..n and answers the expanded playlist; an item not in the playlist, or a podcast item without episodeId, answers 404.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PlaylistController.js:347-385",
+        "server/controllers/PlaylistController.js:351-355",
+        "server/controllers/PlaylistController.js:356-358",
+        "server/controllers/PlaylistController.js:364-371",
+        "server/controllers/PlaylistController.js:312-318"
+      ],
+      "tests": [
+        "go-backend/internal/list/list_ported_test.go:115#TestPortedWritesPersistAndEmit",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-item-renumbers-the-rest",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-episode-by-episode-id",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-item-twice-second-is-404",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-then-add-puts-new-item-last"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R095-EMPTY",
+      "class": "state_transition",
+      "contract": "Removing the last item answers 200 with an item-less playlist and deletes the playlist and its links.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PlaylistController.js:373-384"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-last-item-deletes-playlist"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R095-ACCESS",
+      "class": "precedence",
+      "contract": "DELETE /api/playlists/:id/item/... answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators, and removes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PlaylistController.js:575-593",
+        "server/routers/ApiRouter.js:165"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-item-rejects-foreign-unknown-and-anonymous",
+        "go-backend/tests/replacement/playlists/run_test.go#TestReplacement/remove-item-foreign-in-inaccessible-library-is-403"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

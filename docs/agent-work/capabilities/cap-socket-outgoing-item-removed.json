@@ -1,0 +1,57 @@
+{
+  "id": "socket-outgoing-item-removed",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing item_removed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/routers/ApiRouter.js:403"
+  ],
+  "implementation": [
+    "go-backend/internal/item/delete.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/library/libraries_test.go:117#TestFolderRemovalOnlyDeletesAndRefreshesOnce",
+    "go-backend/internal/library/libraries_test.go:145#TestDeleteLibraryIsOneTransactionWithEffectsAfter",
+    "go-backend/internal/item/delete_test.go:45#TestDeleteItemCascadesToEverythingReferencingIt"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-ITEM-REMOVED",
+      "class": "repeat_operation",
+      "contract": "Socket.IO outgoing item_removed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:403"
+      ],
+      "tests": [
+        "go-backend/internal/library/libraries_test.go:117#TestFolderRemovalOnlyDeletesAndRefreshesOnce",
+        "go-backend/internal/library/libraries_test.go:145#TestDeleteLibraryIsOneTransactionWithEffectsAfter",
+        "go-backend/internal/item/delete_test.go:45#TestDeleteItemCascadesToEverythingReferencingIt",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/item-removed-not-emitted-for-rejected-delete",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/item-removed-audience-and-cascade-events",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/item-removed-once-per-batch-item"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

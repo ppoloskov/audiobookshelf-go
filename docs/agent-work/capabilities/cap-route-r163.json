@@ -1,50 +1,95 @@
 {
- "id": "route-r163",
- "parent": "http/notifications",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "PATCH /notifications candidate recorded from server/routers/ApiRouter.js:266. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:266"
- ],
- "implementation": [
-  "go-backend/internal/notifications/handler.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "unverified",
-  "edge": "verified"
- },
- "stateful": true,
- "invariants": [
-  {
-   "id": "INV-R163-PATCH-DEFAULTS-001",
-   "class": "state_transition",
-   "contract": "PATCH /notifications returns Express sendStatus(200) and applies upstream defaults to omitted fields: a missing appriseApiUrl becomes null, maxFailedAttempts becomes 5, and maxNotificationQueue becomes 20; resulting settings persist.",
-   "status": "verified",
-   "source": ["server/controllers/NotificationController.js:38-44", "server/objects/settings/NotificationSettings.js:73-100", "server/models/Setting.js:36-39"],
-   "tests": ["go-backend/tools/parity/differential.cjs", "go-backend/internal/notifications/handler_test.go"],
-   "evidence": ["go-backend/contracts/parity/full-suite-report.json#notifications-settings-patch-defaults", "go-backend/contracts/parity/full-suite-report.json#notifications-settings-read-after-defaults"],
-   "exceptions": []
-  }
- ],
- "state_scenarios": {
-  "initial": "verified",
-  "repeat": "unverified",
-  "changed": "verified",
-  "force": "not_applicable",
-  "failure": "unverified"
- },
- "tests": [
-  "go-backend/internal/notifications/handler.go",
-  "go-backend/internal/notifications/handler_test.go",
-  "go-backend/tools/parity/differential.cjs"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#notifications-settings-patch-custom",
-  "go-backend/contracts/parity/full-suite-report.json#notifications-settings-patch-defaults",
-  "go-backend/contracts/parity/full-suite-report.json#notifications-settings-read-after-defaults"
- ],
- "exceptions": ["Malformed-body failure behavior and repeated/no-op persistence semantics remain unverified."]
+  "id": "route-r163",
+  "parent": "http/notify",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "PATCH /notifications at server/routers/ApiRouter.js:266. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "source": [
+    "server/routers/ApiRouter.js:266"
+  ],
+  "implementation": [
+    "go-backend/internal/notify/handlers.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R163-ROUTE",
+      "class": "shape",
+      "contract": "PATCH /notifications at server/routers/ApiRouter.js:266. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:266"
+      ],
+      "tests": [
+        "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/notify/notify_test.go:148#TestCreateUpdateDelete",
+        "go-backend/internal/notify/notify_test.go:199#TestRoutesRejectNonAdmin",
+        "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
+        "go-backend/internal/notify/notify_test.go:228#TestTriggerEventOnlyEnabledMatching",
+        "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
+        "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
+        "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R163-REPEAT",
+      "class": "repeat_operation",
+      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:266"
+      ],
+      "tests": [
+        "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/notify/notify_test.go:148#TestCreateUpdateDelete",
+        "go-backend/internal/notify/notify_test.go:199#TestRoutesRejectNonAdmin",
+        "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
+        "go-backend/internal/notify/notify_test.go:228#TestTriggerEventOnlyEnabledMatching",
+        "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
+        "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
+        "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
+    "go-backend/internal/notify/notify_test.go:148#TestCreateUpdateDelete",
+    "go-backend/internal/notify/notify_test.go:199#TestRoutesRejectNonAdmin",
+    "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
+    "go-backend/internal/notify/notify_test.go:228#TestTriggerEventOnlyEnabledMatching",
+    "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
+    "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
+    "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
+    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Malformed-body failure behavior and repeated/no-op persistence semantics remain unverified.",
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ]
 }

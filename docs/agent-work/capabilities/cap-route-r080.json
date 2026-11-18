@@ -1,49 +1,108 @@
 {
- "id": "route-r080",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /collections candidate recorded from server/routers/ApiRouter.js:146. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:146"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "verified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#collection-empty-name (differential pass)",
-  "go-backend/contracts/parity/full-suite-report.json#collection-create (differential pass)"
- ],
- "exceptions": [],
- "invariants": [
-  {
-   "id": "INV-R080-SAMPLED",
-   "class": "shape",
-   "contract": "Sampled POST /collections via differential case(s) collection-empty-name, collection-create: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: collections, errors.",
-   "status": "verified",
-   "source": [
-    "server/routers/ApiRouter.js:146"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#collection-empty-name",
-    "go-backend/contracts/parity/full-suite-report.json#collection-create"
-   ],
-   "exceptions": [
-    "Sampled evidence; unsampled request-shape variants are separate behaviors."
-   ]
+  "id": "route-r080",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/collections. Create a collection for an authorized user/library, retaining metadata, ordered book links, timestamps and expanded books view; reject inaccessible/missing items and emit collection_added only on success.",
+  "source": [
+    "server/routers/ApiRouter.js:146",
+    "server/controllers/CollectionController.js:433",
+    "server/controllers/CollectionController.js:32",
+    "server/controllers/CollectionController.js:32-64",
+    "server/Server.js:354",
+    "server/Auth.js:61-63",
+    "server/controllers/CollectionController.js:44-47",
+    "server/controllers/CollectionController.js:450-453"
+  ],
+  "implementation": [
+    "go-backend/internal/list/list.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/list/list_test.go:339#TestCollectionCreateReorderAndBatch",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/create-persists-and-returns-expanded",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/create-repeat-makes-second-collection",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/create-optional-description-and-falsy-books",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/create-visible-to-every-read-and-user",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/create-invalid-bodies-rejected-unchanged",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/create-denied-without-token-or-permission"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#collection-empty-name (differential pass)",
+    "go-backend/contracts/parity/full-suite-report.json#collection-create (differential pass)"
+  ],
+  "exceptions": [
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "invariants": [
+    {
+      "id": "INV-R080-SAMPLED",
+      "class": "shape",
+      "contract": "POST /api/collections with libraryId, name (tags stripped), optional description and book library item ids creates the collection and numbered links in request order, and answers 200 with the expanded collection (books as expanded library items, lastUpdate/createdAt equal to the row).",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:146"
+      ],
+      "tests": [
+        "go-backend/internal/list/list_test.go:339#TestCollectionCreateReorderAndBatch",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/create-persists-and-returns-expanded",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/create-repeat-makes-second-collection",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/create-optional-description-and-falsy-books",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/create-visible-to-every-read-and-user"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/full-suite-report.json#collection-empty-name",
+        "go-backend/contracts/parity/full-suite-report.json#collection-create"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R080-VALIDATION-001",
+      "class": "error",
+      "contract": "POST /api/collections answers 400 and persists nothing for a missing or tag-only name, missing library, non-string description, no valid book ids, an unknown, duplicate or non-book/other-library item.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/CollectionController.js:32-64"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/create-invalid-bodies-rejected-unchanged"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Source-derived obligation and scenario binding only. No live run or independent completeness review was performed in this reconciliation; the full requirement remains open."
+      ]
+    },
+    {
+      "id": "INV-R080-ACCESS-001",
+      "class": "error",
+      "contract": "POST /api/collections answers 401 without a token, 403 without update permission and 403 when the library is not accessible, creating nothing.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:354",
+        "server/Auth.js:61-63",
+        "server/controllers/CollectionController.js:44-47",
+        "server/controllers/CollectionController.js:450-453"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/create-denied-without-token-or-permission"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Source-derived obligation and scenario binding only. No live run or independent completeness review was performed in this reconciliation; the full requirement remains open."
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
   }
- ]
 }

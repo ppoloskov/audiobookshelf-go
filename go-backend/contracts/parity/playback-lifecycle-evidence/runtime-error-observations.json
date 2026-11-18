@@ -1,0 +1,154 @@
+{
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "fixture": "/private/tmp/abs-playback-lifecycle/fixture-live/fixture-manifest.json",
+  "scenarios": [
+    {
+      "mode": "runtime-error",
+      "node": {
+        "side": "node",
+        "mode": "runtime-error",
+        "directory": "/private/tmp/abs-playback-lifecycle/runtime-retry/node-runtime-error",
+        "fixtureEncodeExitCode": 0,
+        "duration": 12,
+        "events": [
+          {
+            "recipient": "owner-1",
+            "name": "stream_progress",
+            "args": [
+              {
+                "stream": "52b4b1a2-1a85-4812-aa11-1cd41a9033a4",
+                "chunks": [],
+                "numSegments": 0,
+                "percent": "0%"
+              }
+            ],
+            "at": 1794528351737
+          },
+          {
+            "recipient": "owner-2",
+            "name": "stream_progress",
+            "args": [
+              {
+                "stream": "52b4b1a2-1a85-4812-aa11-1cd41a9033a4",
+                "chunks": [],
+                "numSegments": 0,
+                "percent": "0%"
+              }
+            ],
+            "at": 1794528351737
+          },
+          {
+            "recipient": "owner-1",
+            "name": "stream_error",
+            "args": [
+              {
+                "id": "52b4b1a2-1a85-4812-aa11-1cd41a9033a4",
+                "error": "ffmpeg exited with code 183: Error opening input file /private/tmp/abs-playback-lifecycle/runtime-retry/node-runtime-error/metadata/streams/52b4b1a2-1a85-4812-aa11-1cd41a9033a4/files.txt.\nError opening input files: Invalid data found when processing input"
+              }
+            ],
+            "at": 1794528361864
+          },
+          {
+            "recipient": "owner-2",
+            "name": "stream_error",
+            "args": [
+              {
+                "id": "52b4b1a2-1a85-4812-aa11-1cd41a9033a4",
+                "error": "ffmpeg exited with code 183: Error opening input file /private/tmp/abs-playback-lifecycle/runtime-retry/node-runtime-error/metadata/streams/52b4b1a2-1a85-4812-aa11-1cd41a9033a4/files.txt.\nError opening input files: Invalid data found when processing input"
+              }
+            ],
+            "at": 1794528361864
+          }
+        ],
+        "play": {
+          "status": 200,
+          "id": "52b4b1a2-1a85-4812-aa11-1cd41a9033a4",
+          "playMethod": 2,
+          "duration": 12,
+          "startTime": 0,
+          "currentTime": 0,
+          "tracks": [
+            {
+              "index": 1,
+              "startOffset": 0,
+              "duration": 12,
+              "title": "Deterministic Book",
+              "contentUrl": "/hls/52b4b1a2-1a85-4812-aa11-1cd41a9033a4/output.m3u8",
+              "mimeType": "application/vnd.apple.mpegurl",
+              "codec": null,
+              "metadata": null
+            }
+          ]
+        },
+        "errorObserved": true,
+        "directoryAfterError": false,
+        "hlsAfterError": 404,
+        "close": {
+          "status": 200,
+          "body": "OK",
+          "directoryExists": false,
+          "hlsStatus": 404
+        },
+        "persistence": {
+          "sessions": {
+            "count": 0
+          },
+          "progress": {
+            "count": 0
+          }
+        },
+        "serverExitCode": 0,
+        "serverSignal": null
+      },
+      "go": {
+        "side": "go",
+        "mode": "runtime-error",
+        "directory": "/private/tmp/abs-playback-lifecycle/runtime-retry/go-runtime-error",
+        "fixtureEncodeExitCode": 0,
+        "duration": 12,
+        "events": [],
+        "play": {
+          "status": 200,
+          "id": "85d58940-7660-4686-8e87-a4cf11be305a",
+          "playMethod": 2,
+          "duration": 12,
+          "startTime": 0,
+          "currentTime": 0,
+          "tracks": [
+            {
+              "index": 1,
+              "startOffset": 0,
+              "duration": 12,
+              "title": "Deterministic Book",
+              "contentUrl": "/hls/85d58940-7660-4686-8e87-a4cf11be305a/output.m3u8",
+              "mimeType": "application/vnd.apple.mpegurl",
+              "codec": null,
+              "metadata": null
+            }
+          ]
+        },
+        "errorObserved": false,
+        "directoryAfterError": true,
+        "hlsAfterError": 200,
+        "close": {
+          "status": 200,
+          "body": "OK",
+          "directoryExists": false,
+          "hlsStatus": 404
+        },
+        "persistence": {
+          "sessions": {
+            "count": 0
+          },
+          "progress": {
+            "count": 0
+          }
+        },
+        "serverExitCode": 0,
+        "serverSignal": null
+      }
+    }
+  ],
+  "skips": [],
+  "result": "OBSERVED_NOT_ACCEPTED"
+}

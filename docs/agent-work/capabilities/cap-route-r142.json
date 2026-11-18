@@ -1,25 +1,51 @@
 {
- "id": "route-r142",
- "parent": "http/playback",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /sessions/open candidate recorded from server/routers/ApiRouter.js:236. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:236"
- ],
- "implementation": [
-  "go-backend/internal/playback/playback.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/playback/playback.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r142",
+  "parent": "http/playback",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/sessions/open. Admin open-session snapshot preserves owning-user/device/playback fields without leaking data to listeners; concurrent sync/list must be safe.",
+  "source": [
+    "server/routers/ApiRouter.js:236",
+    "server/controllers/SessionController.js:122"
+  ],
+  "implementation": [
+    "go-backend/internal/playback/playback.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/playback/playback_test.go:354#TestOpenSessionsAndSessionOf",
+    "go-backend/internal/playback/playback_test.go:366#TestConcurrentSyncsAreSafe",
+    "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R142-CONTRACT-001",
+      "class": "shape",
+      "contract": "GET /api/sessions/open. Admin open-session snapshot preserves owning-user/device/playback fields without leaking data to listeners; concurrent sync/list must be safe.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:236",
+        "server/controllers/SessionController.js:122"
+      ],
+      "tests": [
+        "go-backend/internal/playback/playback_test.go:354#TestOpenSessionsAndSessionOf",
+        "go-backend/internal/playback/playback_test.go:366#TestConcurrentSyncsAreSafe",
+        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+      ]
+    }
+  ]
 }

@@ -1,0 +1,42 @@
+{
+  "id": "runtime-binary",
+  "parent": "runtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "The replacement runs as a CGO_ENABLED=0 Go executable without a Node runtime and builds for Linux amd64 and arm64; FFmpeg/ffprobe and unchanged web assets are external runtime assets. Startup on a disposable existing installation and TS rollback must succeed.",
+  "source": [
+    "go-backend/ARCHITECTURE.md",
+    "Dockerfile.go"
+  ],
+  "implementation": [
+    "go-backend/cmd/audiobookshelf-go/",
+    "Dockerfile.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": false,
+  "invariants": [
+    {
+      "id": "INV-RUNTIME-BINARY",
+      "class": "shape",
+      "contract": "The replacement runs as a CGO_ENABLED=0 Go executable without a Node runtime and builds for Linux amd64 and arm64; FFmpeg/ffprobe and unchanged web assets are external runtime assets. Startup on a disposable existing installation and TS rollback must succeed.",
+      "status": "unverified",
+      "source": [
+        "go-backend/ARCHITECTURE.md",
+        "Dockerfile.go"
+      ],
+      "tests": [],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
+}

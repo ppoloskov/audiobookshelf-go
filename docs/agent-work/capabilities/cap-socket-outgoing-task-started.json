@@ -1,0 +1,54 @@
+{
+  "id": "socket-outgoing-task-started",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing task_started: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/managers/TaskManager.js:24",
+    "server/managers/TaskManager.js:67"
+  ],
+  "implementation": [
+    "go-backend/internal/events/events.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/scan/scan_test.go:491#TestUpdateWatchedPathDebouncesIntoOneBatch",
+    "go-backend/internal/events/events_test.go:8#TestEmitterAudiencesAndNilEmitter"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-TASK-STARTED",
+      "class": "repeat_operation",
+      "contract": "Socket.IO outgoing task_started: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "status": "unverified",
+      "source": [
+        "server/managers/TaskManager.js:24",
+        "server/managers/TaskManager.js:67"
+      ],
+      "tests": [
+        "go-backend/internal/scan/scan_test.go:491#TestUpdateWatchedPathDebouncesIntoOneBatch",
+        "go-backend/internal/events/events_test.go:8#TestEmitterAudiencesAndNilEmitter"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

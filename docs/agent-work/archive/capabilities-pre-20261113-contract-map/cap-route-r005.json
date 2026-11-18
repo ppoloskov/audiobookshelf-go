@@ -1,0 +1,25 @@
+{
+ "id": "route-r005",
+ "parent": "http/identity",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /auth/openid/config candidate recorded from server/Auth.js:464. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/Auth.js:464"
+ ],
+ "implementation": [
+  "go-backend/internal/identity/identity.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/identity/identity.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

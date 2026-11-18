@@ -1,63 +1,108 @@
 {
   "id": "route-r172",
-  "parent": "http/emailapi",
+  "parent": "http/mail",
   "kind": "operation",
   "scope": "in",
-  "status": "implemented",
-  "contract": "POST /emails/test candidate recorded from server/routers/ApiRouter.js:279. Verified subset covers configured SMTP delivery, message envelope/body, success sendStatus response, and verification-failure response/no-send behavior. Admin denial, sendMail rejection, absent testAddress fallback, TLS/auth modes, and other edge cases remain unverified.",
+  "status": "unverified",
+  "contract": "POST /emails/test at server/routers/ApiRouter.js:279. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
   "source": [
     "server/routers/ApiRouter.js:279",
     "server/controllers/EmailController.js:43-48",
     "server/managers/EmailManager.js:14-37"
   ],
   "implementation": [
-    "go-backend/internal/emailapi/handler.go"
+    "go-backend/internal/mail/mail.go"
   ],
   "cases": {
-    "normal": "verified",
-    "error": "verified",
+    "normal": "unverified",
+    "error": "unverified",
     "edge": "unverified"
   },
   "invariants": [
     {
-      "id": "INV-EMAIL-TEST-DELIVERY-001",
-      "class": "state_transition",
-      "contract": "With a working SMTP transport, POST /emails/test sends one message from fromAddress to testAddress (or fromAddress fallback), with subject 'Test email from Audiobookshelf' and text 'Success!', then returns the Express sendStatus(200) response.",
-      "status": "verified",
-      "source": ["server/managers/EmailManager.js:14-36"],
-      "tests": ["go-backend/tools/parity/differential.cjs:email-test-success", "go-backend/tools/parity/differential.cjs:email-test-smtp-message"],
-      "evidence": ["go-backend/contracts/parity/email-test-differential-report.json#email-test-smtp-message", "go-backend/contracts/parity/email-test-differential-report.json#email-test-success"],
-      "exceptions": []
+      "id": "INV-ROUTE-R172-ROUTE",
+      "class": "shape",
+      "contract": "POST /emails/test at server/routers/ApiRouter.js:279. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:279",
+        "server/controllers/EmailController.js:43-48",
+        "server/managers/EmailManager.js:14-37"
+      ],
+      "tests": [
+        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
     },
     {
-      "id": "INV-EMAIL-TEST-VERIFY-ERROR-001",
-      "class": "error",
-      "contract": "When SMTP transport verification fails, POST /emails/test returns status 400 with the fixed verification error as an Express text/html send response and does not send an email.",
-      "status": "verified",
-      "source": ["server/managers/EmailManager.js:17-24"],
-      "tests": ["go-backend/internal/emailapi/handler_test.go:TestEmailTestVerificationFailureUsesExpressSendResponse", "go-backend/tools/parity/differential.cjs:email-test-verification-failure"],
-      "evidence": ["go-backend/contracts/parity/email-test-differential-report.json#email-test-verification-failure", "go-backend/contracts/parity/email-test-differential-report.json#email-test-no-message-on-verification-failure"],
-      "exceptions": []
+      "id": "INV-ROUTE-R172-REPEAT",
+      "class": "repeat_operation",
+      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:279",
+        "server/controllers/EmailController.js:43-48",
+        "server/managers/EmailManager.js:14-37"
+      ],
+      "tests": [
+        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
+      ]
     }
   ],
   "stateful": true,
   "state_scenarios": {
-    "initial": "verified",
+    "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "not_applicable",
-    "failure": "verified"
+    "force": "unverified",
+    "failure": "unverified"
   },
   "tests": [
-    "go-backend/tools/parity/differential.cjs",
-    "go-backend/internal/emailapi/handler_test.go:TestEmailTestVerificationFailureUsesExpressSendResponse"
+    "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+    "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+    "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+    "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+    "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+    "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+    "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+    "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+    "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+    "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+    "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
   ],
-  "evidence": [
-    "go-backend/contracts/parity/email-test-differential-report.json: fresh pinned v2.37.2 fixture run; 144/144 route cases passed, including six SMTP test setup/delivery/failure observations.",
-    "SMTP capture matched sender, envelope recipient, header recipient, subject, text body, and content type. Success response matched Express sendStatus(200); rejected SMTP greeting matched the fixed 400 Express text response and produced zero email messages."
-  ],
+  "evidence": [],
   "exceptions": [
     "Delivery evidence is limited to one plaintext unauthenticated local SMTP server and one rejected SMTP greeting. Repeat sends, changed recipient settings, TLS/auth, sendMail-stage rejection, attachment delivery, admin denial, and other edge variants remain unverified.",
-    "The verification-failure path is not forced by a handler flag; the independent local SMTP fixture returns 421 before mail data can be sent."
+    "The verification-failure path is not forced by a handler flag; the independent local SMTP fixture returns 421 before mail data can be sent.",
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
   ]
 }

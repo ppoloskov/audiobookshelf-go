@@ -1,49 +1,101 @@
 {
- "id": "route-r171",
- "parent": "http/emailapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "PATCH /emails/settings candidate recorded from server/routers/ApiRouter.js:278. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:278"
- ],
- "implementation": [
-  "go-backend/internal/emailapi/handler.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "unverified",
-  "edge": "verified"
- },
- "stateful": true,
- "invariants": [
-  {
-   "id": "INV-R171-PATCH-COERCE-001",
-   "class": "state_transition",
-   "contract": "PATCH /emails/settings applies upstream JavaScript coercion to present values (including truthy non-empty strings and numeric strings), and persists a changed settings object even when the settings row did not previously exist.",
-   "status": "verified",
-   "source": ["server/controllers/EmailController.js:32-41", "server/objects/settings/EmailSettings.js:65-110", "server/models/Setting.js:36-39"],
-   "tests": ["go-backend/tools/parity/differential.cjs", "go-backend/internal/emailapi/handler_test.go"],
-   "evidence": ["go-backend/contracts/parity/full-suite-report.json#email-settings-patch-coercion", "go-backend/contracts/parity/full-suite-report.json#email-settings-read-after-coercion"],
-   "exceptions": []
-  }
- ],
- "state_scenarios": {
-  "initial": "verified",
-  "repeat": "unverified",
-  "changed": "verified",
-  "force": "not_applicable",
-  "failure": "unverified"
- },
- "tests": [
-  "go-backend/internal/emailapi/handler.go",
-  "go-backend/internal/emailapi/handler_test.go",
-  "go-backend/tools/parity/differential.cjs"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#email-settings-patch-coercion",
-  "go-backend/contracts/parity/full-suite-report.json#email-settings-read-after-coercion"
- ],
- "exceptions": ["Malformed payloads, no-op/repeated updates, and email test/delivery routes remain unverified."]
+  "id": "route-r171",
+  "parent": "http/mail",
+  "kind": "operation",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "PATCH /emails/settings at server/routers/ApiRouter.js:278. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "source": [
+    "server/routers/ApiRouter.js:278"
+  ],
+  "implementation": [
+    "go-backend/internal/mail/mail.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R171-ROUTE",
+      "class": "shape",
+      "contract": "PATCH /emails/settings at server/routers/ApiRouter.js:278. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:278"
+      ],
+      "tests": [
+        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R171-REPEAT",
+      "class": "repeat_operation",
+      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:278"
+      ],
+      "tests": [
+        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+    "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+    "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+    "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+    "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+    "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+    "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+    "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+    "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+    "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+    "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Malformed payloads, no-op/repeated updates, and email test/delivery routes remain unverified.",
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ]
 }

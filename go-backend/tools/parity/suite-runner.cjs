@@ -11,7 +11,10 @@ const { prepareOracle } = require('./lib/oracle.cjs')
 const ROOT = path.resolve(__dirname, '../../..')
 const NODE = process.execPath
 const workRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'abs-parity-')))
-const goBinary = path.join(workRoot, 'audiobookshelf-go')
+// PARITY_GO_BIN runs the suites against an already built binary (for example a
+// pre-rewrite build, to tell old failures from new ones) instead of building HEAD.
+const prebuiltGoBinary = process.env.PARITY_GO_BIN ? path.resolve(process.env.PARITY_GO_BIN) : ''
+const goBinary = prebuiltGoBinary || path.join(workRoot, 'audiobookshelf-go')
 const env = { ...process.env, SSRF_REQUEST_FILTER_WHITELIST: '127.0.0.1' }
 
 function run(command, args, options = {}) {
@@ -24,6 +27,7 @@ function run(command, args, options = {}) {
 
 function buildGo() {
   const digest = inputDigest()
+  if (prebuiltGoBinary) return digest
   run('go', ['build', '-trimpath', '-o', goBinary, './cmd/audiobookshelf-go'], {
     cwd: path.join(ROOT, 'go-backend'),
     env: { ...env, CGO_ENABLED: '0' }

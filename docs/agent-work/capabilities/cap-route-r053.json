@@ -1,25 +1,193 @@
 {
- "id": "route-r053",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "PATCH /items/:id/media candidate recorded from server/routers/ApiRouter.js:111. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:111"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r053",
+  "parent": "http/item",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "PATCH /api/items/:id/media dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:111, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"PATCH /api/items/{id}/media\", h.authed(h.updateMedia)). Current assertion anchor(s): TestUpdateMediaPersistsPresentFieldsAndLeavesAbsentFieldsUntouched. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:111",
+    "go-backend/internal/item/handler.go",
+    "go-backend/internal/item/handler.go:99",
+    "server/controllers/LibraryItemController.js:1220"
+  ],
+  "implementation": [
+    "go-backend/internal/item/handler.go:99"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/item/patch_test.go:10#TestUpdateMediaPersistsPresentFieldsAndLeavesAbsentFieldsUntouched"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R053-CONTRACT",
+      "class": "shape",
+      "contract": "PATCH /api/items/:id/media dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:111, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"PATCH /api/items/{id}/media\", h.authed(h.updateMedia)). Current assertion anchor(s): TestUpdateMediaPersistsPresentFieldsAndLeavesAbsentFieldsUntouched. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:111",
+        "go-backend/internal/item/handler.go",
+        "go-backend/internal/item/handler.go:99",
+        "server/controllers/LibraryItemController.js:1220"
+      ],
+      "tests": [
+        "go-backend/internal/item/patch_test.go:10#TestUpdateMediaPersistsPresentFieldsAndLeavesAbsentFieldsUntouched",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/patch-requires-login",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/patch-unknown-item-is-404-before-permission",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/patch-requires-update-permission",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/patch-library-access-rule",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/patch-tag-rules",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/patch-explicit-content-rule"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
+        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
+        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+      ]
+    },
+    {
+      "id": "INV-R053-BOOK-META-001",
+      "class": "state_transition",
+      "contract": "PATCH media with every metadata field of the web edit form answers updated:true with the old-format item, stores each value in the books row, derives titleIgnorePrefix, moves updatedAt forward and rewrites metadata/items/<id>/metadata.json. PATCH media with explicit and abridged true stores 1 in both columns and writes both flags to metadata.json. Sending null or an empty string for subtitle, description and publisher stores NULL and the response shows null. A description containing a script element is stored and returned sanitized, with the script removed.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:103-195",
+        "server/models/Book.js:370-431",
+        "server/models/LibraryItem.js:612-700",
+        "client/components/widgets/BookDetailsEdit.vue:240-270",
+        "client/components/widgets/BookDetailsEdit.vue:240-262"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/book-all-metadata-fields",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/book-explicit-abridged",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/book-null-and-empty-clear-to-null",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/book-description-html-sanitized"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R053-NOOP-001",
+      "class": "repeat_operation",
+      "contract": "Repeating a payload whose values equal the stored ones answers updated:false, leaves updatedAt, rows and metadata.json untouched and emits no item_updated. A payload with only tags changes only the tags: title, narrators and genres stay and absent metadata keys are not cleared. Arrays holding non-strings and a non-array tags value are ignored: updated:false and nothing stored changes.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:103-195",
+        "server/models/Book.js:370-431"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/book-repeat-is-noop",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/book-absent-keys-untouched",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/book-invalid-typed-values-ignored"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R053-AUTHORS-001",
+      "class": "identity",
+      "contract": "Adding an author name that does not exist creates the authors row (lastFirst, library), links it in bookAuthors, updates the item's author sort names and metadata.json, answers the author list and emits author_added to every authenticated socket. An author name matching an existing author of the library ignoring case links that author without creating a row and emits author_updated with the new book count. Author names are trimmed and entries without a string name are skipped. Sending the author list the book already has changes nothing: updated is false, updatedAt unchanged and no author event is emitted. Removing authors that have no other book, description, asin or image deletes their rows and emits author_removed {id, libraryId}; shared authors stay with author_updated. A removed author that has a description keeps its row and no author_removed is emitted. An empty authors array removes every link of the book, updates the item sort names to empty and stores no authors in metadata.json.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:103-195",
+        "server/models/Book.js:440-485",
+        "server/models/Author.js:116-125",
+        "server/SocketAuthority.js:98-112",
+        "server/models/Author.js:55-65",
+        "server/routers/ApiRouter.js:472-525"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/authors-create-new-author",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/authors-reuse-existing-case-insensitive",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/authors-trim-and-skip-invalid-names",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/authors-same-list-is-noop",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/authors-remove-orphan-is-deleted",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/authors-removed-author-with-description-is-kept",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/authors-empty-list-removes-all-links"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R053-SERIES-001",
+      "class": "identity",
+      "contract": "Adding a series name creates the series row (nameIgnorePrefix, library), links it with its sequence, answers {id,name,sequence} and writes 'Name #sequence' to metadata.json; an existing series keeps its row. Changing the sequence of a linked series (matched ignoring case) updates the bookSeries row only, creates no series row and answers updated:true. A series list with an entry that has no string name is ignored entirely: updated is false and no rows change. Removing the only link of a series deletes the series row and emits series_removed {id, libraryId}; a series that other books still use stays.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:103-195",
+        "server/models/Book.js:495-545",
+        "server/models/Series.js:75-83",
+        "server/models/LibraryItem.js:612-700",
+        "server/routers/ApiRouter.js:414-470"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/series-create-and-sequence",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/series-sequence-change-and-case-insensitive-reuse",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/series-entry-without-name-ignores-whole-list",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/series-remove-orphan-is-deleted"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R053-PODCAST-META-001",
+      "class": "state_transition",
+      "contract": "PATCH media of a podcast with every field of the web podcast edit form stores each value in the podcasts row (feedURL, imageURL, itunes ids, podcastType), answers them in the old-format item and rewrites metadata.json. The schedule form fields (autoDownloadEpisodes, autoDownloadSchedule, maxEpisodesToKeep, maxNewEpisodesToDownload, lastEpisodeCheck) are stored in the podcasts row and answered by the item. Repeating the same podcast settings answers updated false and leaves updatedAt and rows untouched. An invalid autoDownloadSchedule answers 400 before any field is applied: a title sent with it is not stored and no event is emitted. Authors and series in a podcast payload are ignored: no author or series rows are created and nothing is updated.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:103-195",
+        "server/models/Podcast.js:211-300",
+        "server/models/LibraryItem.js:612-700",
+        "client/components/widgets/PodcastDetailsEdit.vue:201-240",
+        "client/components/modals/item/tabs/Schedule.vue:140-156",
+        "client/components/modals/item/tabs/Episodes.vue:111"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/podcast-all-metadata-fields",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/podcast-download-settings",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/podcast-repeat-is-noop",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/podcast-invalid-cron-is-rejected-first",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/podcast-ignores-book-only-keys"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R053-COVER-001",
+      "class": "state_transition",
+      "contract": "PATCH media with a cover url downloads the image to metadata/items/<id>/cover.jpg, stores coverPath, answers updated true, applies the metadata of the same payload and emits item_updated. A cover url from a user without the upload permission answers 403 and neither the cover nor the metadata of the payload is stored. A cover url that does not serve an image answers 400 and the metadata of the payload is not stored.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:103-195",
+        "server/managers/CoverManager.js:300-345",
+        "server/controllers/LibraryItemController.js:196-240",
+        "server/controllers/LibraryItemController.js:196-205"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/patch-media-url-downloads-cover",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/patch-media-url-requires-upload-permission",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/patch-media-url-not-an-image-is-400"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

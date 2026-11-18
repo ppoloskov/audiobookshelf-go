@@ -1,0 +1,64 @@
+{
+  "id": "socket-outgoing-auth-failed",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing auth_failed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/SocketAuthority.js:277",
+    "server/SocketAuthority.js:288",
+    "server/SocketAuthority.js:295",
+    "server/SocketAuthority.js:301",
+    "server/SocketAuthority.js:307",
+    "server/SocketAuthority.js:312",
+    "server/SocketAuthority.js:320",
+    "server/SocketAuthority.js:326"
+  ],
+  "implementation": [
+    "go-backend/internal/realtime/socketauth.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/realtime/hub_test.go:280#TestSocketAuthentication"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-AUTH-FAILED",
+      "class": "repeat_operation",
+      "contract": "Socket.IO outgoing auth_failed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "status": "unverified",
+      "source": [
+        "server/SocketAuthority.js:277",
+        "server/SocketAuthority.js:288",
+        "server/SocketAuthority.js:295",
+        "server/SocketAuthority.js:301",
+        "server/SocketAuthority.js:307",
+        "server/SocketAuthority.js:312",
+        "server/SocketAuthority.js:320",
+        "server/SocketAuthority.js:326"
+      ],
+      "tests": [
+        "go-backend/internal/realtime/hub_test.go:280#TestSocketAuthentication"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

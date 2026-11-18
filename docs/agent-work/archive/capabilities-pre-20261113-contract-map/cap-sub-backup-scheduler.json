@@ -1,0 +1,40 @@
+{
+ "id": "sub-backup-scheduler",
+ "parent": "jobs",
+ "kind": "job",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "Scheduled and manual backups, restore via graph replacement, backupsToKeep/maxBackupSize/backupSchedule semantics matching upstream DailyBackupManager.",
+ "source": [
+  "server/managers/BackupManager.js"
+ ],
+ "implementation": [
+  "go-backend/internal/backup/backup.go",
+  "go-backend/internal/server/manager.go"
+ ],
+  "cases": {
+   "normal": "verified",
+   "error": "verified",
+   "edge": "verified"
+  },
+  "stateful": true,
+  "state_scenarios": {
+   "initial": "verified",
+   "repeat": "verified",
+   "changed": "unverified",
+   "force": "verified",
+   "failure": "verified"
+  },
+  "tests": [
+   "go-backend/internal/backup/backup_test.go",
+   "go-backend/internal/server/manager_test.go"
+  ],
+  "evidence": [
+   "go-backend/contracts/parity/cascades-differential-report.json (fresh isolated create/retention, malformed upload, apply/restore state, existing socket backup_applied; response and database comparisons, zero divergences)",
+   "go-backend/internal/server/manager_test.go (restore retains hub and rebinds database)"
+  ],
+ "exceptions": [
+   "Three rapid backup creates produced one date-minute-named file per side in this run; cross-side count parity is verified, but distinct-file rolloff under a controlled clock is not.",
+   "Scheduled backup timing remains outside the W6 differential."
+ ]
+}

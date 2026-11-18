@@ -1,0 +1,855 @@
+{
+  "packet": "browse",
+  "reviewer": "independent review, 2026-11-15, claude-sonnet-5-5",
+  "scenario_digest": "c93f437b948e461d4be6052da8ab35122932081f59db9fb4e2f152e8ad6b7123",
+  "requirements_digest": "a997158d3051fa14e5f32be15fcf9a1eb9a423f3ff04b2ae7492b67bc44fffb6",
+  "required_tuples": [
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-SAMPLED",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "book-library-membership",
+      "sources": [
+        "server/controllers/LibraryController.js:604-639"
+      ],
+      "rationale": "The minified book library lists exactly its five fixture items and reports their total."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-SAMPLED",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "book-items-envelope-and-item-shape",
+      "sources": [
+        "server/controllers/LibraryController.js:604-639",
+        "server/models/LibraryItem.js:294-328"
+      ],
+      "rationale": "GET items answers the list envelope (echoed query, total, offset) with minified items whose fields match the fixture book, whatever the minified flag."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-AUTH-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "items-unauthenticated-and-unknown-library",
+      "sources": [
+        "server/controllers/LibraryController.js:1475-1498",
+        "server/Auth.js:322"
+      ],
+      "rationale": "GET items without a token is 401, and an unknown library id is 404 for an unrestricted user."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-AUTH-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "items-invalid-pagination-rejected",
+      "sources": [
+        "server/controllers/LibraryController.js:1486-1495"
+      ],
+      "rationale": "A negative or fractional limit or page is rejected with 400 before any query runs."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-AUTH-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "items-library-access-denied",
+      "sources": [
+        "server/controllers/LibraryController.js:1475-1498",
+        "server/models/User.js:646-650"
+      ],
+      "rationale": "A user limited to the podcast library gets 403 on the book library items, even for an unknown id, and 200 on its own library."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-SORT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "book-items-sort-keys",
+      "sources": [
+        "server/utils/queries/libraryItemsBookFilters.js:244-286",
+        "client/components/controls/LibrarySortSelect.vue:96-160"
+      ],
+      "rationale": "Every sort key of the client's book sort menu, ascending and descending, yields the exact fixture order, and sort/desc are echoed."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-SORT-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "book-items-sort-ties-random-and-unknown",
+      "sources": [
+        "server/utils/queries/libraryItemsBookFilters.js:244-286",
+        "server/managers/ApiCacheManager.js:79-82"
+      ],
+      "rationale": "Sorting by finishedAt puts the only finished book first, random keeps all five items, and an unknown or podcast-only sort key still lists all five items."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-SORT-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "book-items-sort-title-ignores-prefix-setting",
+      "sources": [
+        "server/utils/queries/libraryItemsBookFilters.js:250-256",
+        "server/controllers/MiscController.js:247"
+      ],
+      "rationale": "With the server setting sortingIgnorePrefix on, title sort orders by the title without its leading article, and off again restores plain order."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-PAGING-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "book-items-pagination-pages",
+      "sources": [
+        "server/controllers/LibraryController.js:604-639",
+        "server/utils/queries/libraryItemsBookFilters.js:344-368"
+      ],
+      "rationale": "limit and page slice the sorted list, total stays the full count, offset is page*limit, and a page past the end is empty."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-PAGING-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "book-items-limit-zero-lists-all",
+      "sources": [
+        "server/controllers/LibraryController.js:604-639",
+        "server/utils/queries/libraryItemsBookFilters.js:344-346"
+      ],
+      "rationale": "limit=0 or no limit lists every item and a page without a limit has offset 0."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-FILTER-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "book-items-filter-groups",
+      "sources": [
+        "server/utils/queries/libraryFilters.js:23-40",
+        "server/utils/queries/libraryItemsBookFilters.js:79-243",
+        "client/components/controls/LibraryFilterSelect.vue:160-260"
+      ],
+      "rationale": "Every filter group the client sends (genres, tags, authors, series, narrators, publishers, publishedDecades, languages, progress, missing, tracks, ebooks, abridged, explicit, issues, feed-open, share-open) selects exactly the expected books, with total equal to the match count."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-FILTER-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "book-items-filter-recent",
+      "sources": [
+        "server/utils/queries/libraryItemsBookFilters.js:316-320"
+      ],
+      "rationale": "filter=recent lists the books created within the last 60 days."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-FILTER-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "book-items-filter-progress-per-user",
+      "sources": [
+        "server/utils/queries/libraryItemsBookFilters.js:77-110",
+        "server/utils/queries/libraryItemsBookFilters.js:299-310"
+      ],
+      "rationale": "Progress filters follow the requesting user: the finisher has only the first saga book finished, root has no progress at all."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-FILTER-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "book-items-filter-unknown-and-series-edges",
+      "sources": [
+        "server/utils/queries/libraryFilters.js:23-40",
+        "server/utils/queries/libraryItemsBookFilters.js:223-243"
+      ],
+      "rationale": "An unknown filter group selects everything, a series filter naming an unknown series selects nothing, and series.no-series selects books without a series."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-FILTER-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "book-items-series-filter-sequence-order",
+      "sources": [
+        "server/utils/queries/libraryItemsBookFilters.js:303-312",
+        "server/utils/queries/libraryItemsBookFilters.js:388-394"
+      ],
+      "rationale": "Filtering by a series orders by sequence (secondary default, or the sequence sort, ascending or descending) and each item carries its series sequence."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-INCLUDE-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "book-items-include-rssfeed-and-share",
+      "sources": [
+        "server/utils/queries/libraryItemsBookFilters.js:420-432",
+        "server/utils/queries/libraryItemsBookFilters.js:540-546",
+        "server/models/LibraryItem.js:305-322"
+      ],
+      "rationale": "include=rssfeed,share adds rssFeed to items with an open feed for everyone and mediaItemShare to shared items for admins only; without include neither appears; include is echoed lower-cased."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-COLLAPSE-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "book-items-collapse-series",
+      "sources": [
+        "server/utils/queries/libraryItemsBookFilters.js:318-366",
+        "server/utils/queries/libraryItemsBookFilters.js:486-500"
+      ],
+      "rationale": "collapseseries=1 shows only the first book of each series (by sequence) carrying collapsedSeries, sorts by series name, and counts the collapsed list."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-COLLAPSE-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "book-items-collapse-with-series-filter",
+      "sources": [
+        "server/controllers/LibraryController.js:622-631",
+        "server/utils/libraryHelpers.js:105-215"
+      ],
+      "rationale": "Filtering by one series with collapseseries=1 lists that series' books by sequence, pages them with limit and page, and reports the full count as total."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-PODCAST-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "podcast-items-shape-and-include",
+      "sources": [
+        "server/utils/queries/libraryItemsPodcastFilters.js:131-250",
+        "server/models/LibraryItem.js:305-322"
+      ],
+      "rationale": "The podcast library lists its podcast with author, genres, numEpisodes, rssFeed under include=rssfeed, and numEpisodesIncomplete counted per user."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-PODCAST-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "podcast-items-sorts",
+      "sources": [
+        "server/utils/queries/libraryItemsPodcastFilters.js:67-95",
+        "client/components/controls/LibrarySortSelect.vue:58-95"
+      ],
+      "rationale": "With a second podcast, every podcast sort key of the client menu orders the two podcasts as expected."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-PODCAST-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "podcast-items-filters",
+      "sources": [
+        "server/utils/queries/libraryItemsPodcastFilters.js:46-65",
+        "client/components/controls/LibraryFilterSelect.vue:262-305"
+      ],
+      "rationale": "The podcast filter groups genres, tags, languages, explicit, issues and feed-open select the expected podcasts, and book-only groups do not filter."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-RESTRICT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "book-items-explicit-restriction",
+      "sources": [
+        "server/utils/queries/libraryItemsBookFilters.js:15-37",
+        "server/utils/queries/libraryItemsPodcastFilters.js:16-24"
+      ],
+      "rationale": "A user without explicit access never gets explicit books or podcasts in the lists, their totals or the explicit filter."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-RESTRICT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "book-items-tag-restriction",
+      "sources": [
+        "server/utils/queries/libraryItemsBookFilters.js:22-35"
+      ],
+      "rationale": "A user limited to the tag alpha sees only books tagged alpha, and a user with tag beta not accessible sees all books except those tagged beta."
+    },
+    {
+      "requirement": "route-r022",
+      "invariant": "INV-R022-RESTRICT-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "book-items-restriction-in-collapsed-list",
+      "sources": [
+        "server/utils/queries/libraryItemsBookFilters.js:318-366"
+      ],
+      "rationale": "Collapsing series respects the user's tag restriction: a series is represented by its first accessible book and counts of the collapsed list follow."
+    },
+    {
+      "requirement": "route-r025",
+      "invariant": "INV-R025-SAMPLED",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "series-list-envelope-and-books",
+      "sources": [
+        "server/controllers/LibraryController.js:742-766",
+        "server/utils/queries/seriesFilters.js:28-222:185-222"
+      ],
+      "rationale": "GET series answers the paged envelope with each series, its minified books ordered by numeric sequence, and totals."
+    },
+    {
+      "requirement": "route-r025",
+      "invariant": "INV-R025-SORT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "series-list-sort-keys",
+      "sources": [
+        "server/utils/queries/seriesFilters.js:28-222:142-181",
+        "client/components/app/BookShelfToolbar.vue:156-185"
+      ],
+      "rationale": "Each series sort key of the client menu orders the three fixture series as expected, ascending and descending where the order has no ties."
+    },
+    {
+      "requirement": "route-r025",
+      "invariant": "INV-R025-SORT-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "series-list-name-sort-ignores-prefix-setting",
+      "sources": [
+        "server/utils/queries/seriesFilters.js:28-222:152-158"
+      ],
+      "rationale": "With sortingIgnorePrefix on, name sort uses nameIgnorePrefix, so A Third Saga sorts after Solo Series."
+    },
+    {
+      "requirement": "route-r025",
+      "invariant": "INV-R025-PAGING-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "series-list-paging",
+      "sources": [
+        "server/controllers/LibraryController.js:742-766",
+        "server/utils/queries/seriesFilters.js:28-222:186-190"
+      ],
+      "rationale": "limit and page slice the series list with the full total, and a page past the end is empty."
+    },
+    {
+      "requirement": "route-r025",
+      "invariant": "INV-R025-FILTER-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "series-list-filter-groups",
+      "sources": [
+        "server/utils/queries/seriesFilters.js:28-222:28-140"
+      ],
+      "rationale": "The series filter groups genres, tags, authors, narrators, publishers, languages and progress select the series with a matching book, per user for progress; the all filter and unknown filters select all."
+    },
+    {
+      "requirement": "route-r025",
+      "invariant": "INV-R025-AUTH-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "series-list-auth-and-pagination-errors",
+      "sources": [
+        "server/controllers/LibraryController.js:1475-1498"
+      ],
+      "rationale": "The series list is 401 without a token, 404 for an unknown library, 403 outside the user's libraries and 400 for a negative limit."
+    },
+    {
+      "requirement": "route-r025",
+      "invariant": "INV-R025-RESTRICT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "series-list-user-restrictions",
+      "sources": [
+        "server/utils/queries/seriesFilters.js:28-222:107-130",
+        "server/utils/queries/seriesFilters.js:28-222:193-210"
+      ],
+      "rationale": "Series lists show only series with a book the user may access and list only those books: explicit, tag-limited and tag-excluded users see different series and books."
+    },
+    {
+      "requirement": "route-r026",
+      "invariant": "INV-ROUTE-R026-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "library-series-detail-and-progress",
+      "sources": [
+        "server/controllers/LibraryController.js:778-806"
+      ],
+      "rationale": "GET library series/:id returns the series object without books, and include=progress adds the accessible book ids and the ones this user finished."
+    },
+    {
+      "requirement": "route-r026",
+      "invariant": "INV-ROUTE-R026-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "library-series-detail-rssfeed",
+      "sources": [
+        "server/controllers/LibraryController.js:778-806",
+        "server/managers/RssFeedManager.js"
+      ],
+      "rationale": "include=rssfeed adds rssFeed null for a series without feed and the minified feed once a feed is open for it."
+    },
+    {
+      "requirement": "route-r026",
+      "invariant": "INV-ROUTE-R026-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "library-series-detail-errors",
+      "sources": [
+        "server/controllers/LibraryController.js:778-806",
+        "server/controllers/LibraryController.js:1475-1498"
+      ],
+      "rationale": "Library series/:id is 401 without a token, 404 for an unknown series or one of another library, and 403 for a user without the library."
+    },
+    {
+      "requirement": "route-r138",
+      "invariant": "INV-ROUTE-R138-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "series-by-id-and-progress",
+      "sources": [
+        "server/controllers/SeriesController.js:28-57",
+        "server/controllers/SeriesController.js:95-120"
+      ],
+      "rationale": "GET /api/series/:id returns the series object and include=progress lists the accessible book ids and the user's finished ones."
+    },
+    {
+      "requirement": "route-r138",
+      "invariant": "INV-ROUTE-R138-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "series-by-id-rssfeed",
+      "sources": [
+        "server/controllers/SeriesController.js:52-55"
+      ],
+      "rationale": "include=rssfeed on /api/series/:id gives rssFeed null without a feed and the open feed otherwise."
+    },
+    {
+      "requirement": "route-r138",
+      "invariant": "INV-ROUTE-R138-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "series-by-id-errors",
+      "sources": [
+        "server/controllers/SeriesController.js:95-120",
+        "server/Auth.js:322"
+      ],
+      "rationale": "GET /api/series/:id is 401 without a token, 404 for an unknown id and 404 when the user may access none of the series' books."
+    },
+    {
+      "requirement": "route-r029",
+      "invariant": "INV-ROUTE-R029-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "personalized-book-shelves-listener",
+      "sources": [
+        "server/models/LibraryItem.js:338-520",
+        "server/utils/queries/libraryFilters.js:41-440"
+      ],
+      "rationale": "For the listener the book library shows continue-listening, continue-reading, recently-added, recent-series, discover, listen-again and newest-authors with the expected entities, types and totals."
+    },
+    {
+      "requirement": "route-r029",
+      "invariant": "INV-ROUTE-R029-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "personalized-book-shelves-finisher-and-root",
+      "sources": [
+        "server/models/LibraryItem.js:338-520",
+        "server/utils/queries/libraryFilters.js:41-440"
+      ],
+      "rationale": "The finisher gets continue-series and listen-again from the finished first book and no explicit book, root without progress gets no continue or again shelves."
+    },
+    {
+      "requirement": "route-r029",
+      "invariant": "INV-ROUTE-R029-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "personalized-podcast-shelves",
+      "sources": [
+        "server/models/LibraryItem.js:501-570",
+        "server/utils/queries/libraryFilters.js:41-440"
+      ],
+      "rationale": "The podcast library shows continue-listening and listen-again episodes per user, newest-episodes and recently-added podcasts."
+    },
+    {
+      "requirement": "route-r029",
+      "invariant": "INV-ROUTE-R029-AUTH-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "personalized-auth-errors",
+      "sources": [
+        "server/controllers/LibraryController.js:1475-1498",
+        "server/Auth.js:322"
+      ],
+      "rationale": "Personalized shelves are 401 without a token, 404 for an unknown library and 403 outside the user's libraries."
+    },
+    {
+      "requirement": "route-r029",
+      "invariant": "INV-ROUTE-R029-RESTRICT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "personalized-user-restrictions",
+      "sources": [
+        "server/utils/queries/libraryFilters.js:41-440",
+        "server/utils/queries/libraryItemsBookFilters.js:15-37"
+      ],
+      "rationale": "Shelves of a tag-limited user contain only accessible books, series and authors."
+    },
+    {
+      "requirement": "route-r029",
+      "invariant": "INV-ROUTE-R029-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "personalized-after-progress-change",
+      "sources": [
+        "server/models/LibraryItem.js:338-520",
+        "server/managers/ApiCacheManager.js:7-12"
+      ],
+      "rationale": "After the listener finishes the first saga book and starts the first book of the third saga, the continue, continue-series, discover and listen-again shelves follow."
+    },
+    {
+      "requirement": "route-r031",
+      "invariant": "INV-ROUTE-R031-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "search-book-sections",
+      "sources": [
+        "server/controllers/LibraryController.js:959-972",
+        "server/utils/queries/libraryItemsBookFilters.js:1093-1290",
+        "client/components/controls/GlobalSearch.vue:180"
+      ],
+      "rationale": "Book search matches titles, subtitles and asin as books, and names as series, authors, narrators, tags and genres, case-insensitively and trimmed, with counts."
+    },
+    {
+      "requirement": "route-r031",
+      "invariant": "INV-ROUTE-R031-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "search-no-match-and-limit",
+      "sources": [
+        "server/controllers/LibraryController.js:959-972",
+        "server/utils/queries/libraryItemsBookFilters.js:1093-1290"
+      ],
+      "rationale": "A query without matches returns every section empty, and limit caps each section's matches."
+    },
+    {
+      "requirement": "route-r031",
+      "invariant": "INV-ROUTE-R031-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "search-invalid-query-and-access",
+      "sources": [
+        "server/controllers/LibraryController.js:959-972",
+        "server/controllers/LibraryController.js:1475-1498"
+      ],
+      "rationale": "Search is 400 without q, with an empty q, with a repeated q or a negative limit, 401 without a token, 404 for an unknown library and 403 outside the user's libraries."
+    },
+    {
+      "requirement": "route-r031",
+      "invariant": "INV-ROUTE-R031-PODCAST-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "search-podcast-sections",
+      "sources": [
+        "server/utils/queries/libraryItemsPodcastFilters.js:361-480"
+      ],
+      "rationale": "Podcast search matches podcast title and author as podcasts, episode titles as episodes carrying the recent episode, and tags and genres with counts."
+    },
+    {
+      "requirement": "route-r031",
+      "invariant": "INV-ROUTE-R031-RESTRICT-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "search-user-restrictions",
+      "sources": [
+        "server/utils/queries/libraryItemsBookFilters.js:1093-1290",
+        "server/utils/queries/libraryItemsPodcastFilters.js:361-480",
+        "server/utils/queries/libraryItemsBookFilters.js:15-37"
+      ],
+      "rationale": "Search hides items the user cannot access: explicit books and podcasts for a user without explicit access, books without the allowed tag, and series left with no accessible book."
+    },
+    {
+      "requirement": "route-r139",
+      "invariant": "INV-ROUTE-R139-CONTRACT",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "series-patch-updates-and-persists",
+      "sources": [
+        "server/controllers/SeriesController.js:59-90"
+      ],
+      "rationale": "PATCH /api/series/:id with name and description answers the updated series object and persists both on the series row."
+    },
+    {
+      "requirement": "route-r139",
+      "invariant": "INV-ROUTE-R139-CONTRACT",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "series-patch-repeat-is-unchanged",
+      "sources": [
+        "server/controllers/SeriesController.js:59-90"
+      ],
+      "rationale": "Repeating the same PATCH answers 200 with the same object and leaves the row, including updatedAt, untouched."
+    },
+    {
+      "requirement": "route-r139",
+      "invariant": "INV-ROUTE-R139-CONTRACT",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "series-patch-visible-in-reads",
+      "sources": [
+        "server/controllers/SeriesController.js:59-90",
+        "server/models/Series.js",
+        "server/controllers/LibraryController.js:742-766"
+      ],
+      "rationale": "After the rename the series list, both series routes, item lists and search show the new name."
+    },
+    {
+      "requirement": "route-r139",
+      "invariant": "INV-ROUTE-R139-CONTRACT",
+      "case": "error",
+      "state": "initial",
+      "assertion": "series-patch-rejections",
+      "sources": [
+        "server/controllers/SeriesController.js:59-90",
+        "server/controllers/SeriesController.js:95-120",
+        "server/Auth.js:322"
+      ],
+      "rationale": "PATCH /api/series/:id is 401 without a token, 404 for an unknown series or one with no accessible books, 403 without the update permission and 400 when no valid string field is sent."
+    },
+    {
+      "requirement": "route-r139",
+      "invariant": "INV-ROUTE-R139-CONTRACT",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "series-patch-unicode-empty-and-extra-keys",
+      "sources": [
+        "server/controllers/SeriesController.js:59-90"
+      ],
+      "rationale": "A description-only PATCH, an empty description, a Unicode name and extra keys are accepted: only name and description change."
+    },
+    {
+      "requirement": "route-r139",
+      "invariant": "INV-ROUTE-R139-CONTRACT",
+      "case": "error",
+      "state": "failure",
+      "assertion": "series-patch-rejected-changes-nothing",
+      "sources": [
+        "server/controllers/SeriesController.js:59-90",
+        "server/controllers/SeriesController.js:95-120"
+      ],
+      "rationale": "A rejected PATCH (no permission, invalid body, no accessible books) leaves the row unchanged, including updatedAt, and emits no series_updated event."
+    },
+    {
+      "requirement": "socket-outgoing-series-updated",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-UPDATED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "series-updated-event-payload-and-audience",
+      "sources": [
+        "server/controllers/SeriesController.js:84",
+        "server/SocketAuthority.js:57-65"
+      ],
+      "rationale": "A PATCH that changes a series emits series_updated with the full series object to every authenticated socket (admin, user, library-restricted) and not to a connection that never authenticated."
+    },
+    {
+      "requirement": "socket-outgoing-series-updated",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-UPDATED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "series-updated-event-not-repeated",
+      "sources": [
+        "server/controllers/SeriesController.js:84"
+      ],
+      "rationale": "Repeating a PATCH with unchanged values answers 200 but emits no series_updated."
+    },
+    {
+      "requirement": "socket-outgoing-series-updated",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-UPDATED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "series-updated-event-after-further-change",
+      "sources": [
+        "server/controllers/SeriesController.js:84"
+      ],
+      "rationale": "A later change of only the description emits a new series_updated carrying the unchanged name and the new description."
+    },
+    {
+      "requirement": "socket-outgoing-series-updated",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-UPDATED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "series-updated-event-not-sent-on-rejection",
+      "sources": [
+        "server/controllers/SeriesController.js:84",
+        "server/controllers/SeriesController.js:95-120"
+      ],
+      "rationale": "A rejected PATCH (forbidden, invalid body, unknown series) emits no series_updated."
+    },
+    {
+      "requirement": "socket-outgoing-series-added",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-ADDED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "series-added-event-from-quick-match",
+      "sources": [
+        "server/scanner/Scanner.js:316",
+        "server/controllers/LibraryItemController.js:526-545"
+      ],
+      "rationale": "A quick match that creates a new series emits series_added with the new series object to every authenticated socket and not to an unauthenticated one."
+    },
+    {
+      "requirement": "socket-outgoing-series-added",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-ADDED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "series-added-event-not-repeated-for-existing-series",
+      "sources": [
+        "server/scanner/Scanner.js:316",
+        "server/scanner/Scanner.js:283-286"
+      ],
+      "rationale": "Matching the same book again, also with overrideDetails, naming the existing series emits no series_added and creates no second row."
+    },
+    {
+      "requirement": "socket-outgoing-series-added",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-ADDED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "series-added-event-for-another-new-series",
+      "sources": [
+        "server/scanner/Scanner.js:316"
+      ],
+      "rationale": "A second quick match naming another new series emits a second series_added for that series only."
+    },
+    {
+      "requirement": "socket-outgoing-series-added",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-ADDED",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "series-added-event-not-sent-by-media-update",
+      "sources": [
+        "server/scanner/Scanner.js:316"
+      ],
+      "rationale": "Creating a series through the media update route creates the row but emits no series_added."
+    },
+    {
+      "requirement": "socket-outgoing-series-added",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-ADDED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "series-added-event-not-sent-on-failed-match",
+      "sources": [
+        "server/scanner/Scanner.js:316",
+        "server/scanner/Scanner.js:55-60",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "A quick match without provider results (warning), a forbidden match and a match of an unknown item emit no series_added."
+    },
+    {
+      "requirement": "socket-outgoing-series-removed",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-REMOVED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "series-removed-event-when-media-update-empties-series",
+      "sources": [
+        "server/routers/ApiRouter.js:453",
+        "server/controllers/LibraryItemController.js:238"
+      ],
+      "rationale": "Removing a series from its only book through the media update deletes the series and emits series_removed {id, libraryId} to every authenticated socket, not to an unauthenticated one."
+    },
+    {
+      "requirement": "socket-outgoing-series-removed",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-REMOVED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "series-removed-event-not-repeated",
+      "sources": [
+        "server/routers/ApiRouter.js:453"
+      ],
+      "rationale": "Repeating the update that removes nothing emits no series_removed."
+    },
+    {
+      "requirement": "socket-outgoing-series-removed",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-REMOVED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "series-removed-event-only-when-last-book-leaves",
+      "sources": [
+        "server/routers/ApiRouter.js:453",
+        "server/routers/ApiRouter.js:425-428"
+      ],
+      "rationale": "A series shared by two books survives the first removal without event and is removed, with the event, when the second book leaves it."
+    },
+    {
+      "requirement": "socket-outgoing-series-removed",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-REMOVED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "series-removed-event-from-quick-match-replacement",
+      "sources": [
+        "server/routers/ApiRouter.js:453",
+        "server/scanner/Scanner.js:328-342"
+      ],
+      "rationale": "A quick match with overrideDetails that replaces a book's only series by an existing one removes the emptied series and emits series_removed, and no series_added."
+    },
+    {
+      "requirement": "socket-outgoing-series-removed",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-REMOVED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "series-removed-event-not-sent-on-rejection",
+      "sources": [
+        "server/routers/ApiRouter.js:453",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "rationale": "A forbidden or unknown-item media update leaves the series in place and emits no series_removed."
+    },
+    {
+      "requirement": "socket-outgoing-series-removed",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-REMOVED",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "series-removed-event-from-item-scan",
+      "sources": [
+        "server/scanner/BookScanner.js:1006",
+        "server/scanner/BookScanner.js:290-296",
+        "server/scanner/LibraryItemScanner.js:90"
+      ],
+      "rationale": "Rescanning a book whose metadata file lists another series removes the emptied old series and emits series_removed (the new series gets no series_added)."
+    },
+    {
+      "requirement": "socket-outgoing-series-removed",
+      "invariant": "INV-SOCKET-OUTGOING-SERIES-REMOVED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "series-removed-event-from-item-delete",
+      "sources": [
+        "server/routers/ApiRouter.js:453",
+        "server/controllers/LibraryItemController.js:145"
+      ],
+      "rationale": "Deleting the only book of a series removes the series and emits series_removed."
+    }
+  ],
+  "not_applicable": [],
+  "open_findings": [
+    "route-r022: filters never proven non-empty: series.no-series, missing.series, missing.authors, issues (book and podcast) and ebooks.supplementary all expect an empty list, so a server returning nothing passes; add a book without series/author, an isMissing item (e.Exec) and a supplementary ebook file.",
+    "route-r022: collapseseries=1 combined with a filter is untested although the web and mobile clients send it with any filter (V8: libraryItemsBookFilters.js getCollapseSeriesMediaProgressFilter, missing.authors branch, series.no-series with collapse L402, collapse+sortingIgnorePrefix display_title L599 never run); add scenarios for progress.*, missing.authors, series.no-series and genre/tag filters with collapse.",
+    "route-r022: filter values are only short ASCII; the client  is encodeURIComponent(base64(utf8)), so add values with non-ASCII text and base64 containing '+' and '/' (double decode path) for items and series lists.",
+    "route-r022: sort menu keys lack a descending case: media.metadata.authorName, authorNameLF, birthtimeMs, mtimeMs, progress.createdAt, progress.finishedAt (full order only first element); podcast keys birthtimeMs, mtimeMs, random and addedAt desc are missing (V8: libraryItemsPodcastFilters.js L85-93 unexecuted); series list lastBookAdded desc missing.",
+    "route-r022/r029/r025: podcast tag restrictions (allow and deny mode, libraryItemsPodcastFilters.js L25-35 unexecuted) and the tag-excluded user on recent-series/personalized (libraryFilters.js L245-247) have no scenario.",
+    "route-r025/r029: library settings hideSingleBookSeries (seriesFilters.js L57-62, libraryFilters.js L231-236) and onlyShowLaterBooksInContinueSeries (libraryItemsBookFilters.js L723-727, L805-812) are never set; both are editable in the client library settings and change series list and shelves.",
+    "route-r029: no scenario for the read-again shelf (finished ebook-only book); hide-from-continue-listening effects on shelves (progress hideFromContinueListening and user seriesHideFromContinueListening excluded from continue-listening/continue-reading/continue-series) are not exercised although getMediaItemsInProgress isHomePage and getContinueSeriesLibraryItems read them.",
+    "route-r029: shelf label and labelStringKey (read by clients) are never asserted; summary() only checks id, type, entity names and total.",
+    "route-r029: shelf entity bodies are checked by name/id only: assert numBooks of newest-authors entities, books (ids in sequence order) of recent-series entities, media.metadata.series {id,name,sequence} of continue-series entities, recentEpisode fields of episode shelves.",
+    "route-r029: the client sends include=rssfeed,numEpisodesIncomplete,share (BookShelfCategorized.vue:182) but only discover gets rssFeed (root, no progress); rssFeed/mediaItemShare on continue-listening, recently-added, continue-series, listen-again and numEpisodesIncomplete/rssFeed on the podcast recently-added shelf are unexecuted (libraryFilters.js L63-67,106-107,118-125,147-154,180-181); use a user with progress and an admin.",
+    "route-r029: personalized-limit-and-include pins len(recent-series entities)==3 under limit=1 (upstream passes a fixed 5); no client reads this, remove the assertion (keep that the shelf exists with total 3). Rest of the scenario is fine once the include checks above are added; not listed in required_tuples.",
+    "route-r138: series-by-id-include-is-exact-match asserts that include=RSSFeed adds nothing (SeriesController.js:28-34 does not lower-case, the library route does) and trimming of padded entries; no client sends either, upstream accident, drop the scenario or the case.",
+    "route-r026: library-series-detail-without-accessible-books pins 200 with progress.isFinished:true for a series with no accessible books (empty-array accident of >=; /api/series/:id deliberately 404s); no client reaches it, drop the assertion.",
+    "route-r031: no Unicode/non-ASCII query scenario (a same-case accented title or name matches; Database.TextSearchQuery); add one that is deterministic with and without the unaccent extension. Also search-no-match-and-limit does not prove the default of 12 (only 2 matches exist) and the shelf-independent limit applies per section only for books.",
+    "socket-outgoing-series-updated/added: payload addedAt, updatedAt are only checked > 0 and nameIgnorePrefix only non-empty; compare to the PATCH response / series row (updatedAt, addedAt, exact nameIgnorePrefix) as the client replaces its series object with the payload (pages/library/_library/series/_id.vue seriesUpdated)."
+  ]
+}

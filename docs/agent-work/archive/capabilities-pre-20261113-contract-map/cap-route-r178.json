@@ -1,0 +1,25 @@
+{
+ "id": "route-r178",
+ "parent": "http/providers",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /search/authors candidate recorded from server/routers/ApiRouter.js:289. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:289"
+ ],
+ "implementation": [
+  "go-backend/internal/providers/handler.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/providers/handler.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

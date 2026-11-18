@@ -1,0 +1,28 @@
+{
+ "id": "sub-podcast-download-queue",
+ "parent": "podcasts",
+ "kind": "job",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "Podcast RSS feed ingestion, episode download queue/lifecycle matching upstream PodcastManager episode download task states and files.",
+ "source": [
+  "server/managers/PodcastManager.js"
+ ],
+ "implementation": [
+  "go-backend/internal/podcasts/podcasts.go",
+  "go-backend/internal/podcasts/downloads.go",
+  "go-backend/internal/podcasts/rss.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "tests": [
+  "go-backend/internal/podcasts/rss_test.go"
+ ],
+ "evidence": [],
+ "exceptions": [
+  "Test TestCreatePodcastValidatesFolderAndPersistsSourceShape currently fails at episode download completion (investigation open)."
+ ]
+}

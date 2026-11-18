@@ -1,10 +1,10 @@
 {
   "id": "route-r165",
-  "parent": "http/notifications",
+  "parent": "http/notify",
   "kind": "operation",
   "scope": "in",
-  "status": "implemented",
-  "contract": "GET /notifications/test triggers the onTest notification event and must match upstream v2.37.2 response, authorization, delivery, state transitions, and broadcasts for tested query variants.",
+  "status": "unverified",
+  "contract": "GET /notifications/test triggers the onTest notification event and must match upstream v2.37.2 response, authorization, delivery, state transitions, and broadcasts for tested query variants. at server/routers/ApiRouter.js:268. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
   "source": [
     "server/routers/ApiRouter.js:268",
     "server/controllers/NotificationController.js:67-69",
@@ -12,106 +12,93 @@
     "server/objects/Notification.js:97-103"
   ],
   "implementation": [
-    "go-backend/internal/notifications/handler.go"
+    "go-backend/internal/notify/handlers.go"
   ],
   "cases": {
-    "normal": "verified",
+    "normal": "unverified",
     "error": "unverified",
-    "edge": "verified"
+    "edge": "unverified"
   },
   "stateful": true,
   "state_scenarios": {
-    "initial": "verified",
-    "repeat": "verified",
-    "changed": "verified",
-    "force": "not_applicable",
-    "failure": "verified"
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
   },
   "tests": [
-    "go-backend/internal/notifications/handler_test.go:TestNotificationTestEventUsesSendStatusWhenUnconfigured",
-    "go-backend/internal/notifications/handler_test.go:TestAppriseRequestPreservesMissingAndNullTemplates",
-    "go-backend/tools/parity/differential.cjs:notification-event-test-send-success",
-    "go-backend/tools/parity/differential.cjs:notification-event-test-repeat-success",
-    "go-backend/tools/parity/differential.cjs:notification-event-test-intentional-failure",
-    "go-backend/tools/parity/differential.cjs:notification-event-broadcast-success",
-    "go-backend/tools/parity/differential.cjs:notification-event-broadcast-failure"
+    "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
+    "go-backend/internal/notify/notify_test.go:148#TestCreateUpdateDelete",
+    "go-backend/internal/notify/notify_test.go:199#TestRoutesRejectNonAdmin",
+    "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
+    "go-backend/internal/notify/notify_test.go:228#TestTriggerEventOnlyEnabledMatching",
+    "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
+    "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
+    "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
+    "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
   ],
   "invariants": [
     {
-      "id": "INV-NOTIFICATION-GLOBAL-TRIGGER-001",
-      "class": "error",
-      "contract": "GET /notifications/test requires admin access. With unusable notification settings it returns Express sendStatus(200) without delivery; with usable settings it sends the onTest event to enabled notifications.",
-      "status": "verified",
+      "id": "INV-ROUTE-R165-ROUTE",
+      "class": "shape",
+      "contract": "GET /notifications/test triggers the onTest notification event and must match upstream v2.37.2 response, authorization, delivery, state transitions, and broadcasts for tested query variants. at server/routers/ApiRouter.js:268. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:268",
         "server/controllers/NotificationController.js:67-69",
-        "server/managers/NotificationManager.js:150-166"
-      ],
-      "tests": [
-        "go-backend/tools/parity/differential.cjs:notification-event-test-admin-denied",
-        "go-backend/tools/parity/differential.cjs:notification-event-test-unconfigured",
-        "go-backend/tools/parity/differential.cjs:notification-event-test-send-success"
-      ],
-      "evidence": [
-        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-admin-denied",
-        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-unconfigured",
-        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-send-success"
-      ],
-      "exceptions": []
-    },
-    {
-      "id": "INV-NOTIFICATION-GLOBAL-STATE-001",
-      "class": "state_transition",
-      "contract": "Successful global test delivery updates lastFiredAt and numTimesFired per active notification, resets failed-attempt state, persists settings, then broadcasts notifications_updated. An unchanged repeat performs another delivery and increments the count again.",
-      "status": "verified",
-      "source": [
-        "server/managers/NotificationManager.js:162-181",
+        "server/managers/NotificationManager.js:150-200",
         "server/objects/Notification.js:97-103"
       ],
       "tests": [
-        "go-backend/tools/parity/differential.cjs:notification-event-test-state-success",
-        "go-backend/tools/parity/differential.cjs:notification-event-test-state-repeat",
-        "go-backend/tools/parity/differential.cjs:notification-event-broadcast-success"
+        "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/notify/notify_test.go:148#TestCreateUpdateDelete",
+        "go-backend/internal/notify/notify_test.go:199#TestRoutesRejectNonAdmin",
+        "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
+        "go-backend/internal/notify/notify_test.go:228#TestTriggerEventOnlyEnabledMatching",
+        "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
+        "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
+        "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
       ],
-      "evidence": [
-        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-state-success",
-        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-state-repeat",
-        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-broadcast-success"
-      ],
-      "exceptions": []
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
     },
     {
-      "id": "INV-NOTIFICATION-GLOBAL-FAILURE-001",
-      "class": "state_transition",
-      "contract": "With fail=1, the route still returns sendStatus(200), skips Apprise delivery, records a failed attempt, increments consecutive failures and numTimesFired, disables a notification at maxFailedAttempts, persists state and emits notifications_updated.",
-      "status": "verified",
+      "id": "INV-ROUTE-R165-REPEAT",
+      "class": "repeat_operation",
+      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "status": "unverified",
       "source": [
+        "server/routers/ApiRouter.js:268",
         "server/controllers/NotificationController.js:67-69",
-        "server/managers/NotificationManager.js:162-181",
+        "server/managers/NotificationManager.js:150-200",
         "server/objects/Notification.js:97-103"
       ],
       "tests": [
-        "go-backend/tools/parity/differential.cjs:notification-event-test-intentional-failure",
-        "go-backend/tools/parity/differential.cjs:notification-event-test-no-delivery-on-failure",
-        "go-backend/tools/parity/differential.cjs:notification-event-test-state-failure",
-        "go-backend/tools/parity/differential.cjs:notification-event-broadcast-failure"
+        "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/notify/notify_test.go:148#TestCreateUpdateDelete",
+        "go-backend/internal/notify/notify_test.go:199#TestRoutesRejectNonAdmin",
+        "go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload",
+        "go-backend/internal/notify/notify_test.go:228#TestTriggerEventOnlyEnabledMatching",
+        "go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",
+        "go-backend/internal/notify/notify_test.go:294#TestTestNotificationRoute",
+        "go-backend/internal/notify/notify_test.go:310#TestTestNotificationPreconditions",
+        "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute"
       ],
-      "evidence": [
-        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-intentional-failure",
-        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-no-delivery-on-failure",
-        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-state-failure",
-        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-broadcast-failure"
-      ],
-      "exceptions": []
+      "evidence": [],
+      "exceptions": [
+        "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
+      ]
     }
   ],
-  "evidence": [
-    "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-send-success",
-    "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-repeat-success",
-    "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-state-failure",
-    "go-backend/contracts/parity/notification-event-differential-provenance.json"
-  ],
+  "evidence": [],
   "exceptions": [
-    "Queue saturation, concurrency and ordering, delayed drain, redirects/timeouts, and non-test lifecycle notification event types remain unverified."
+    "Queue saturation, concurrency and ordering, delayed drain, redirects/timeouts, and non-test lifecycle notification event types remain unverified.",
+    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
   ]
 }

@@ -2,20 +2,20 @@
   "schemaVersion": 1,
   "suite": "core",
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
-  "generatedAt": "2026-11-03T07:31:50.727Z",
-  "sourceReport": "/tmp/abs-parity-IZQnAH/core-fixture/core-report.json",
-  "inputDigest": "7b802c1d210c71420fbc09585dfab54a67437cee49be3f875823f42799c26ea7",
+  "generatedAt": "2026-11-12T21:47:18.872Z",
+  "sourceReport": "/private/tmp/claude-501/-Users-paul-projects-audiobookshelf-go/28d59a83-03a3-45bb-bbdd-92de24462d26/scratchpad/v1/tmp-pre/abs-parity-q8BelG/core-fixture/core-report.json",
+  "inputDigest": "8e649312fd1db56f908a7f0e4075625112cf3a298584b1b0c9ed5399e70f2846",
   "summary": {
     "total": 193,
     "executed": 193,
-    "passed": 193,
-    "failed": 0,
+    "passed": 192,
+    "failed": 1,
     "skipped": 0
   },
   "executionError": null,
   "failedStateChecks": [],
-  "equivalencePassed": true,
-  "gateError": null,
+  "equivalencePassed": false,
+  "gateError": "/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node /Users/paul/projects/audiobookshelf-go/go-backend/tools/parity/run-local.cjs --fixture /private/tmp/claude-501/-Users-paul-projects-audiobookshelf-go/28d59a83-03a3-45bb-bbdd-92de24462d26/scratchpad/v1/tmp-pre/abs-parity-q8BelG/core-fixture/fixture-manifest.json --go-bin /private/tmp/claude-501/-Users-paul-projects-audiobookshelf-go/28d59a83-03a3-45bb-bbdd-92de24462d26/scratchpad/v1/pre-go --built-input-digest 8e649312fd1db56f908a7f0e4075625112cf3a298584b1b0c9ed5399e70f2846 --out /private/tmp/claude-501/-Users-paul-projects-audiobookshelf-go/28d59a83-03a3-45bb-bbdd-92de24462d26/scratchpad/v1/tmp-pre/abs-parity-q8BelG/core-fixture/core-report.json exited 1",
   "cases": [
     {
       "id": "login",
@@ -979,7 +979,7 @@
     },
     {
       "id": "item-file-download-disk-missing",
-      "passed": true,
+      "passed": false,
       "skipped": false
     }
   ]

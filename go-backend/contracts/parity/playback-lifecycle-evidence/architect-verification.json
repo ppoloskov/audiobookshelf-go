@@ -1,0 +1,404 @@
+{
+  "baseSHA": "8990c2e61a1637a69effc4ca26e2df1748301889",
+  "environment": {
+    "GOCACHE": "/private/tmp/abs-playback-lifecycle/go-cache",
+    "GOTOOLCHAIN": "local",
+    "FFMPEG_PATH": "/private/tmp/abs-cleanup-checkpoint-20261105/ffmpeg-9.0.2-webp/bin/ffmpeg",
+    "PATHPrefix": "/private/tmp/abs-cleanup-checkpoint-20261105/ffmpeg-9.0.2-webp/bin",
+    "loopback": "required tests and rollback run with authorized loopback access"
+  },
+  "checks": [
+    {
+      "command": "go build ./...",
+      "exitCode": 0
+    },
+    {
+      "command": "go vet ./...",
+      "exitCode": 0
+    },
+    {
+      "command": "go test -json ./... -count=1",
+      "exitCode": 0
+    },
+    {
+      "command": "CGO_ENABLED=1 go test -race ./internal/playback ./internal/media -count=1",
+      "exitCode": 0
+    },
+    {
+      "command": "golangci-lint run --config=../.golangci.yml --timeout=5m ./...",
+      "exitCode": 0
+    },
+    {
+      "command": "gofmt -l .",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o /private/tmp/abs-playback-lifecycle/playback-linux-amd64 ./cmd/audiobookshelf-go",
+      "exitCode": 0
+    },
+    {
+      "command": "GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /private/tmp/abs-playback-lifecycle/playback-linux-arm64 ./cmd/audiobookshelf-go",
+      "exitCode": 0
+    },
+    {
+      "command": "SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 mise exec node@22 -- node go-backend/tools/parity/replacement-trial.cjs --rollback-only --go-bin /private/tmp/abs-playback-lifecycle/playback-fixed-final --work /private/tmp/abs-playback-lifecycle/rollback-fixed",
+      "exitCode": 0
+    },
+    {
+      "command": "go test ./internal/playback -run TestStreamLifecycle -count=1 on isolated base archive plus finalized lifecycle tests",
+      "exitCode": 1
+    }
+  ],
+  "testActions": {
+    "start": 37,
+    "output": 5740,
+    "skip": 3,
+    "run": 1704,
+    "pass": 1738
+  },
+  "skipRecords": [
+    {
+      "Package": "audiobookshelf-compat/cmd/audiobookshelf-go"
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/db/dbtest"
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/version"
+    }
+  ],
+  "individualTestsSkipped": 0,
+  "packageResults": [
+    {
+      "Package": "audiobookshelf-compat/cmd/audiobookshelf-go",
+      "Action": "skip",
+      "Elapsed": 0
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/admin",
+      "Action": "pass",
+      "Elapsed": 0.439
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/author",
+      "Action": "pass",
+      "Elapsed": 0.382
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/backup",
+      "Action": "pass",
+      "Elapsed": 0.41
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/config",
+      "Action": "pass",
+      "Elapsed": 0.193
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/cronspec",
+      "Action": "pass",
+      "Elapsed": 0.091
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/contracttest/shape",
+      "Action": "pass",
+      "Elapsed": 0.113
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/db/dbtest",
+      "Action": "skip",
+      "Elapsed": 0
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/deviceinfo",
+      "Action": "pass",
+      "Elapsed": 0.1
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/events",
+      "Action": "pass",
+      "Elapsed": 0.098
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/ids",
+      "Action": "pass",
+      "Elapsed": 0.084
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/httpx",
+      "Action": "pass",
+      "Elapsed": 0.166
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/library",
+      "Action": "pass",
+      "Elapsed": 0.352
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/mail",
+      "Action": "pass",
+      "Elapsed": 0.303
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/logging",
+      "Action": "pass",
+      "Elapsed": 0.335
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/media",
+      "Action": "pass",
+      "Elapsed": 0.389
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/filterdata",
+      "Action": "pass",
+      "Elapsed": 1.214
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/podcast",
+      "Action": "pass",
+      "Elapsed": 1.766
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/notify",
+      "Action": "pass",
+      "Elapsed": 2.616
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/db",
+      "Action": "pass",
+      "Elapsed": 3.6189999999999998
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/auth",
+      "Action": "pass",
+      "Elapsed": 4.691
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/settings",
+      "Action": "pass",
+      "Elapsed": 1.2690000000000001
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/list",
+      "Action": "pass",
+      "Elapsed": 5.817
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/metadata",
+      "Action": "pass",
+      "Elapsed": 5.461
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/share",
+      "Action": "pass",
+      "Elapsed": 0.293
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/text",
+      "Action": "pass",
+      "Elapsed": 0.178
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/version",
+      "Action": "skip",
+      "Elapsed": 0
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/user",
+      "Action": "pass",
+      "Elapsed": 0.558
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/server",
+      "Action": "pass",
+      "Elapsed": 3.049
+    },
+    {
+      "Package": "audiobookshelf-compat/tools/clientusage",
+      "Action": "pass",
+      "Elapsed": 0.875
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/tools",
+      "Action": "pass",
+      "Elapsed": 2.184
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/realtime",
+      "Action": "pass",
+      "Elapsed": 4.755
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/scan",
+      "Action": "pass",
+      "Elapsed": 4.532
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/browse",
+      "Action": "pass",
+      "Elapsed": 10.297
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/playback",
+      "Action": "pass",
+      "Elapsed": 8.704
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/item",
+      "Action": "pass",
+      "Elapsed": 14.602
+    },
+    {
+      "Package": "audiobookshelf-compat/internal/contracttest",
+      "Action": "pass",
+      "Elapsed": 28.284
+    }
+  ],
+  "sourceSHA256": {
+    "go-backend/internal/media/probe.go": "c27686272cf72e03d3115417df515e76f551c707382faff6ae878007e1eabb4f",
+    "go-backend/internal/media/probe_test.go": "62a908fe967d984289818251c22d5c0c8fc831a13c1d9c7d616ad798937ffced",
+    "go-backend/internal/playback/hls.go": "08bc404b08fdb28d2587be9c5bb17f20d92459a84898188f5b06b7f50cd60aeb",
+    "go-backend/internal/playback/lifecycle.go": "ca681744d0cda8fcb010dadafa0bf95290616a685dab8157f15b05f4b8a9866a",
+    "go-backend/internal/playback/media.go": "38e51132ce0d933d3af17ee2518e07473eca9975e4dbbb746c6c0e9f1b271ac6",
+    "go-backend/internal/playback/session.go": "d1b29ab9ecc919a14fd6cb6f64253d354c652846609acb5431d9394ab2ade732",
+    "go-backend/internal/playback/playback_test.go": "33827a67d5f99036d81b667b7a5b04c5d781fcdd1e4e3c96c392a66e90458a26",
+    "go-backend/internal/playback/hls_lifecycle_test.go": "542c2165afd32aeccc5daf466280dc7222fc83ca3d99beb7ba879d42466e86ad"
+  },
+  "rollback": {
+    "rollback": {
+      "booted": true,
+      "progressMatches": true,
+      "bookmarksMatch": true,
+      "sessionCount": 8,
+      "goView": [
+        {
+          "id": "84937be7-b18f-4d1b-af76-591d78a86b95",
+          "ep": "847a4beb-4ad5-454f-a8cf-ad952b9bd10c",
+          "t": 10.5,
+          "f": false,
+          "e": null,
+          "h": false
+        },
+        {
+          "id": "84937be7-b18f-4d1b-af76-591d78a86b95",
+          "ep": "c43959ef-1197-44d8-8180-3c3ce33f815f",
+          "t": 6,
+          "f": false,
+          "e": null,
+          "h": false
+        },
+        {
+          "id": "84937be7-b18f-4d1b-af76-591d78a86b95",
+          "ep": "e9e1c64e-d892-4b7a-a217-8c94302cc5e0",
+          "t": 0,
+          "f": true,
+          "e": null,
+          "h": false
+        },
+        {
+          "id": "902afd71-6acb-496e-984e-8c87f533b58c",
+          "ep": "",
+          "t": 15,
+          "f": false,
+          "e": null,
+          "h": false
+        },
+        {
+          "id": "b67a9a4b-68b3-482c-a127-05d3510806f1",
+          "ep": "",
+          "t": 0,
+          "f": true,
+          "e": null,
+          "h": false
+        },
+        {
+          "id": "b7d392e0-d829-481d-8539-bab060613c70",
+          "ep": "",
+          "t": 0,
+          "f": false,
+          "e": "epubcfi(/6/2!/4/2/1:0)",
+          "h": false
+        },
+        {
+          "id": "fcead748-840f-4442-a80f-e751785f2379",
+          "ep": "",
+          "t": 10,
+          "f": false,
+          "e": null,
+          "h": false
+        }
+      ],
+      "upView": [
+        {
+          "id": "84937be7-b18f-4d1b-af76-591d78a86b95",
+          "ep": "847a4beb-4ad5-454f-a8cf-ad952b9bd10c",
+          "t": 10.5,
+          "f": false,
+          "e": null,
+          "h": false
+        },
+        {
+          "id": "84937be7-b18f-4d1b-af76-591d78a86b95",
+          "ep": "c43959ef-1197-44d8-8180-3c3ce33f815f",
+          "t": 6,
+          "f": false,
+          "e": null,
+          "h": false
+        },
+        {
+          "id": "84937be7-b18f-4d1b-af76-591d78a86b95",
+          "ep": "e9e1c64e-d892-4b7a-a217-8c94302cc5e0",
+          "t": 0,
+          "f": true,
+          "e": null,
+          "h": false
+        },
+        {
+          "id": "902afd71-6acb-496e-984e-8c87f533b58c",
+          "ep": "",
+          "t": 15,
+          "f": false,
+          "e": null,
+          "h": false
+        },
+        {
+          "id": "b67a9a4b-68b3-482c-a127-05d3510806f1",
+          "ep": "",
+          "t": 0,
+          "f": true,
+          "e": null,
+          "h": false
+        },
+        {
+          "id": "b7d392e0-d829-481d-8539-bab060613c70",
+          "ep": "",
+          "t": 0,
+          "f": false,
+          "e": "epubcfi(/6/2!/4/2/1:0)",
+          "h": false
+        },
+        {
+          "id": "fcead748-840f-4442-a80f-e751785f2379",
+          "ep": "",
+          "t": 10,
+          "f": false,
+          "e": null,
+          "h": false
+        }
+      ]
+    },
+    "goSessionTotal": 8,
+    "sessionsMatch": true
+  },
+  "notes": [
+    "All seven playback regression tests fail on isolated base and pass on fixed source.",
+    "Two lint iterations retained: errcheck requires explicit ignore but staticcheck rejects blank receive assignment; final intentional errcheck directive passes both.",
+    "No semantic production changes after final package/race/full-suite runs; last edit only documented intentional receive error discard.",
+    "Live acceptance is a separate report; machine checks do not imply full-project parity."
+  ]
+}

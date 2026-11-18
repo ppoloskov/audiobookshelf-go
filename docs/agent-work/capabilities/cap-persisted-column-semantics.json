@@ -1,0 +1,83 @@
+{
+  "id": "persisted-column-semantics",
+  "parent": "database",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Persist timestamps as pinned UTC spellings and JSON milliseconds/null; JSON columns remain TEXT with unknown/malformed text retained until changed; nullable bools, link-row ordering, trigger-maintained derived columns, rollback journal and transaction failure preserve upstream row meaning.",
+  "source": [
+    "server/models/",
+    "server/Database.js",
+    "go-backend/ARCHITECTURE.md"
+  ],
+  "implementation": [
+    "go-backend/internal/db/"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/internal/db/types_test.go:18#TestTimeScan",
+    "go-backend/internal/db/types_test.go:65#TestTimeValue",
+    "go-backend/internal/db/types_test.go:84#TestTimeJSON",
+    "go-backend/internal/db/types_test.go:160#TestJSONKeepsUndecodableText",
+    "go-backend/internal/db/types_test.go:219#TestJSONIsStoredAsText",
+    "go-backend/internal/db/db_test.go:261#TestTriggerColumnsAreInsertOnly",
+    "go-backend/internal/db/db_test.go:28#TestTx"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-PERSISTED-COLUMN-SEMANTICS",
+      "class": "repeat_operation",
+      "contract": "Persist timestamps as pinned UTC spellings and JSON milliseconds/null; JSON columns remain TEXT with unknown/malformed text retained until changed; nullable bools, link-row ordering, trigger-maintained derived columns, rollback journal and transaction failure preserve upstream row meaning.",
+      "status": "unverified",
+      "source": [
+        "server/models/",
+        "server/Database.js",
+        "go-backend/ARCHITECTURE.md"
+      ],
+      "tests": [
+        "go-backend/internal/db/types_test.go:18#TestTimeScan",
+        "go-backend/internal/db/types_test.go:65#TestTimeValue",
+        "go-backend/internal/db/types_test.go:84#TestTimeJSON",
+        "go-backend/internal/db/types_test.go:160#TestJSONKeepsUndecodableText",
+        "go-backend/internal/db/types_test.go:219#TestJSONIsStoredAsText",
+        "go-backend/internal/db/db_test.go:261#TestTriggerColumnsAreInsertOnly",
+        "go-backend/internal/db/db_test.go:28#TestTx"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-PERSISTED-CATALOG-TITLE-001",
+      "class": "state_transition",
+      "contract": "A book title mutation updates the book title, trigger-maintained library item title, and metadata JSON file, and those values remain readable after pinned upstream reopens the installation.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:208-285",
+        "server/models/Book.js:370-431",
+        "server/models/LibraryItem.js:612-700",
+        "server/Database.js:854-882"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/store/run_test.go#TestReplacement/catalog-title-upstream-reopen"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  }
+}

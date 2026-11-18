@@ -1,47 +1,186 @@
 {
- "id": "route-r020",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "PATCH /libraries/:id candidate recorded from server/routers/ApiRouter.js:72. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:72"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#library-update (differential pass)"
- ],
- "exceptions": [],
- "invariants": [
-  {
-   "id": "INV-R020-SAMPLED",
-   "class": "shape",
-   "contract": "Sampled PATCH /libraries/:id via differential case(s) library-update: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: library-crud.",
-   "status": "verified",
-   "source": [
-    "server/routers/ApiRouter.js:72"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#library-update"
-   ],
-   "exceptions": [
-    "Sampled evidence; unsampled request-shape variants are separate behaviors."
-   ]
+  "id": "route-r020",
+  "parent": "http/library",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "PATCH /api/libraries/:id dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:72, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"PATCH /api/libraries/{id}\", auth.Admin(httpx.Handler(h.update))). Current assertion anchor(s): TestCreateUpdateRefreshWatchersAfterCommit. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:72",
+    "go-backend/internal/library/libraries.go",
+    "go-backend/internal/library/libraries.go:63",
+    "server/controllers/LibraryController.js:1475",
+    "server/controllers/LibraryController.js:288-375",
+    "server/models/Library.js:56-85",
+    "server/controllers/LibraryController.js:261-298",
+    "server/controllers/LibraryController.js:482-488",
+    "server/controllers/LibraryController.js:377-480",
+    "server/controllers/LibraryController.js:497-515",
+    "server/controllers/LibraryController.js:482-515",
+    "server/Auth.js:54-62",
+    "server/controllers/LibraryController.js:1475-1485",
+    "server/controllers/LibraryController.js:255-259",
+    "server/models/User.js:646-650",
+    "server/controllers/LibraryController.js:261-375"
+  ],
+  "implementation": [
+    "go-backend/internal/library/libraries.go:63"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/library/libraries_test.go:83#TestCreateUpdateRefreshWatchersAfterCommit",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-fields-persist-and-answer",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-settings-merge-over-previous-state",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-podcast-settings-and-region",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-empty-values-ignored-order-and-media-type",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-adds-folder",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-removes-folder-keeps-files",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-uncreatable-folder-rejected",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-removing-all-folders-removes-their-items",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-removing-podcast-folder-removes-episode-data",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-unchanged-values-leave-row-untouched",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-requires-admin-and-existing-library",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-invalid-bodies-rejected-without-effects",
+    "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-lookup-precedes-admin-check-precedes-validation"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Historical evidence leads retained for follow-up: go-backend/contracts/parity/full-suite-report.json#library-update (differential pass)",
+    "force is not applicable: PATCH /api/libraries/:id has no force or override mode."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R020-SAMPLED",
+      "class": "shape",
+      "contract": "PATCH /api/libraries/:id changes the named name, icon, provider and displayOrder, keeps the rest, advances lastUpdate, persists the row and answers the updated document that GET returns.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:255-515",
+        "server/models/Library.js:202-219",
+        "server/routers/ApiRouter.js:72"
+      ],
+      "tests": [
+        "go-backend/internal/library/libraries_test.go:83#TestCreateUpdateRefreshWatchersAfterCommit",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-fields-persist-and-answer"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R020-SETTINGS-001",
+      "class": "state_transition",
+      "contract": "Given settings are merged into the stored settings (numeric strings become numbers, null allowed for markAsFinished and cron, unknown and other-media-type keys ignored); a second PATCH keeps earlier changes; podcast libraries accept podcastSearchRegion.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:288-328",
+        "server/controllers/LibraryController.js:288-375",
+        "server/routers/ApiRouter.js:72"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-settings-merge-over-previous-state",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-podcast-settings-and-region"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R020-FIELDS-001",
+      "class": "state_transition",
+      "contract": "Empty or null name, icon and provider are ignored; displayOrder is stored as given (0 and values shared with other libraries allowed) without renumbering; mediaType is stored when given while the settings document stays as it was.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:261-298",
+        "server/routers/ApiRouter.js:72"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-empty-values-ignored-order-and-media-type"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R020-FOLDERS-001",
+      "class": "state_transition",
+      "contract": "Folders without id are created (directory and row), folders whose id is absent from the body are removed (row, and their library items with progress, playlist entries, feeds, metadata, then authors and series left empty) while the directory and files stay; a new folder that cannot be created answers 400 and changes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:377-412",
+        "server/controllers/LibraryController.js:408-467",
+        "server/controllers/LibraryController.js:414-480",
+        "server/controllers/LibraryController.js:497-515",
+        "server/routers/ApiRouter.js:373-407",
+        "server/routers/ApiRouter.js:414-520",
+        "server/routers/ApiRouter.js:72"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-adds-folder",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-removes-folder-keeps-files",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-uncreatable-folder-rejected",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-removing-all-folders-removes-their-items",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-removing-podcast-folder-removes-episode-data"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R020-NOOP-001",
+      "class": "repeat_operation",
+      "contract": "A PATCH that changes nothing (empty body or the stored values) answers 200 with the same document and does not touch the row.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:288-375",
+        "server/controllers/LibraryController.js:482-515",
+        "server/routers/ApiRouter.js:72"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-unchanged-values-leave-row-untouched"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R020-AUTH-001",
+      "class": "error",
+      "contract": "PATCH answers 401 without a token, 403 for a non-admin user or a limited user on an inaccessible library, 404 for an unknown id as admin, and changes nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:1475-1484",
+        "server/controllers/LibraryController.js:255-259",
+        "server/routers/ApiRouter.js:72"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-requires-admin-and-existing-library",
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-lookup-precedes-admin-check-precedes-validation"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R020-VALIDATION-001",
+      "class": "error",
+      "contract": "Wrongly typed name, icon, provider, mediaType, displayOrder or setting values, out-of-range percent or negative time remaining, and a missing custom provider answer 400 even with valid fields alongside, and change nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:261-375",
+        "server/routers/ApiRouter.js:72"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/library_manage/run_test.go#TestReplacement/update-invalid-bodies-rejected-without-effects"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
   }
- ]
 }

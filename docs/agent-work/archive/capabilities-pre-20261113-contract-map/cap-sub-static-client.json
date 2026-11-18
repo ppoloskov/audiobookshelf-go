@@ -1,0 +1,88 @@
+{
+ "id": "sub-static-client",
+ "parent": "runtime",
+ "kind": "subsystem",
+ "scope": "in",
+ "status": "verified",
+ "contract": "Serves the retained original frontend build at the configured RouterBasePath, preserving index.html fallback and asset paths.",
+ "source": [
+  "server/Server.js",
+  "index.js"
+ ],
+ "implementation": [
+  "go-backend/internal/server/runtime.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "verified"
+ },
+ "tests": [
+  "go-backend/tools/parity/browser-check.cjs",
+  "go-backend/tools/parity/client-check.cjs"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/browser-acceptance-report.json",
+  "go-backend/contracts/parity/browser-screens/ (playwright screenshots, both implementations)",
+  "go-backend/contracts/parity/full-suite-provenance.json",
+  "go-backend/tools/parity/browser-check.cjs (F06 variants 2026-10-30: full 12/12 PASS incl. playback and prefixed assets; restricted-reader login/library/detail PASS with matching api failures; fresh-DB init variant PASS with equal fresh schemas and migrationsMeta; root-launch variant RED \u2014 see f06-root-launch-red-report.json, owned by F44)",
+  "go-backend/contracts/parity/parity-f01-f07-closure-report.json#restrictedBrowser",
+  "go-backend/contracts/parity/parity-f01-f07-closure-report.json#freshDatabase",
+  "go-backend/contracts/parity/parity-f01-f07-closure-report.json#rootLaunch"
+ ],
+ "exceptions": [
+  "Asset caching header variants not yet differentially verified.",
+  "router.all('*') catch-all applies only to the Next.js client branch (REACT_CLIENT_PATH), a documented env-conditional; the pinned default (Nuxt) branch is the verified surface.",
+  "Root launch with this retained client build still fails hydration on both implementations because its asset URLs target /audiobookshelf. The missing-asset HTML/header divergence is repaired and differentially matched. This matching failure is not a successful root client workflow; other F44 variants remain open."
+ ],
+ "stateful": false,
+ "invariants": [
+  {
+   "id": "INV-client-browser-001",
+   "class": "shape",
+   "contract": "Real-browser acceptance (Playwright Chromium) with the retained upstream client build (client/dist): SPA shell renders, UI login completes, library page renders deterministic-book items, item detail renders title and metadata, zero console/page errors, all API calls 2xx \u2014 identical PASS results on the Go server (with a libwebp ffmpeg for cover renders) and the pinned Node server. Error path: unknown route 404s; edge: dynamic library routes and assets serve identically.",
+   "status": "verified",
+   "source": [
+    "server/Server.js",
+    "index.js",
+    "client/"
+   ],
+   "tests": [
+    "go-backend/tools/parity/browser-check.cjs",
+    "go-backend/tools/parity/client-check.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/browser-acceptance-report.json",
+    "go-backend/contracts/parity/full-suite-provenance.json"
+   ],
+   "exceptions": [
+    "webp cover renders need an ffmpeg build with libwebp (browser run used a separate libwebp ffmpeg; suite pins the shared default ffmpeg 500 behavior on both sides)",
+    "acceptance criteria: title DOM-attachment because the upstream client renders card titles hidden under placeholder overlays identically on both implementations"
+   ]
+  },
+  {
+   "id": "INV-F06-REVIEW-CLOSURE-001",
+   "class": "shape",
+   "contract": "The restricted Chromium reader completes prefixed login/library/detail, sees only the book library, and receives matching 403s with no protected podcast ID/name/title. Empty-tree setup shells and fresh database schemas/migration rows match. Root-build failure is retained separately; missing Nuxt asset 404 status, HTML bytes, Content-Type and Content-Length match.",
+   "status": "verified",
+   "source": [
+    "server/Server.js:390-437",
+    "server/controllers/LibraryController.js",
+    "server/controllers/LibraryItemController.js",
+    "node_modules/finalhandler/index.js"
+   ],
+   "tests": [
+    "go-backend/tools/parity/browser-check.cjs",
+    "go-backend/internal/server/runtime_client_test.go:TestMissingClientAssetMatchesExpressFinalhandler"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/parity-f01-f07-closure-report.json#restrictedBrowser",
+    "go-backend/contracts/parity/parity-f01-f07-closure-report.json#freshDatabase",
+    "go-backend/contracts/parity/parity-f01-f07-closure-report.json#rootLaunch"
+   ],
+   "exceptions": [
+    "Matching cover-resize 500s and shared root hydration failure are not successful cover/root workflows. Concurrent root browser diagnostics compare as a multiset after fixture-origin normalization; raw observations are retained."
+   ]
+  }
+ ]
+}

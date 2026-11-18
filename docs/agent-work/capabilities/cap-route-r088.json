@@ -1,47 +1,86 @@
 {
- "id": "route-r088",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /collections/:id/batch/remove candidate recorded from server/routers/ApiRouter.js:154. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:154"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#collection-batch-remove (differential pass)"
- ],
- "exceptions": [],
- "invariants": [
-  {
-   "id": "INV-R088-SAMPLED",
-   "class": "shape",
-   "contract": "Sampled POST /collections/:id/batch/remove via differential case(s) collection-batch-remove: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: collections.",
-   "status": "verified",
-   "source": [
-    "server/routers/ApiRouter.js:154"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#collection-batch-remove"
-   ],
-   "exceptions": [
-    "Sampled evidence; unsampled request-shape variants are separate behaviors."
-   ]
+  "id": "route-r088",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/collections/:id/batch/remove. Batch-remove selected collection links while retaining book rows, preserving remaining order and expanded collection response.",
+  "source": [
+    "server/routers/ApiRouter.js:154",
+    "server/controllers/CollectionController.js:433",
+    "server/controllers/CollectionController.js:380",
+    "server/Server.js:354",
+    "server/Auth.js:61-63",
+    "server/controllers/CollectionController.js:380-385",
+    "server/controllers/CollectionController.js:433-453"
+  ],
+  "implementation": [
+    "go-backend/internal/list/list.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/list/list_test.go:339#TestCollectionCreateReorderAndBatch",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/batch-remove-renumbers",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/batch-remove-repeat-and-nonmembers-noop",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/batch-remove-everything-leaves-empty-collection",
+    "go-backend/tests/replacement/collections/run_test.go#TestReplacement/batch-remove-rejected-unchanged"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#collection-batch-remove (differential pass)"
+  ],
+  "exceptions": [
+    "force is not applicable: the operation has no force, hard or override mode"
+  ],
+  "invariants": [
+    {
+      "id": "INV-R088-SAMPLED",
+      "class": "shape",
+      "contract": "POST /batch/remove removes the links of the given book ids, renumbers the rest 1..n, keeps the items and answers 200 with the collection (unchanged for non-members).",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:154"
+      ],
+      "tests": [
+        "go-backend/internal/list/list_test.go:339#TestCollectionCreateReorderAndBatch",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/batch-remove-renumbers",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/batch-remove-repeat-and-nonmembers-noop",
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/batch-remove-everything-leaves-empty-collection"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/full-suite-report.json#collection-batch-remove"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R088-ACCESS-001",
+      "class": "error",
+      "contract": "POST /batch/remove answers 500 for an empty or non-string books list, 401 without a token, 403 without update permission and 404 for an unknown or inaccessible collection, changing nothing.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:354",
+        "server/Auth.js:61-63",
+        "server/controllers/CollectionController.js:380-385",
+        "server/controllers/CollectionController.js:433-453"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/collections/run_test.go#TestReplacement/batch-remove-rejected-unchanged"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Source-derived obligation and scenario binding only. No live run or independent completeness review was performed in this reconciliation; the full requirement remains open."
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
   }
- ]
 }

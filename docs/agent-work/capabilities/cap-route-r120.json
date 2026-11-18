@@ -1,25 +1,47 @@
 {
- "id": "route-r120",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "GET /me/stats/year/:year candidate recorded from server/routers/ApiRouter.js:194. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:194"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": false,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r120",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /api/me/stats/year/:year. Return current-user yearly listening totals, rankings and month/day statistics with stable time units, tie ordering and empty-history null/array fields; invalid years deny.",
+  "source": [
+    "server/routers/ApiRouter.js:194",
+    "server/controllers/MeController.js:647"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": false,
+  "tests": [
+    "go-backend/internal/user/user_test.go:286#TestListeningStatsAndYear"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R120-CONTRACT-001",
+      "class": "shape",
+      "contract": "GET /api/me/stats/year/:year. Return current-user yearly listening totals, rankings and month/day statistics with stable time units, tie ordering and empty-history null/array fields; invalid years deny.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:194",
+        "server/controllers/MeController.js:647"
+      ],
+      "tests": [
+        "go-backend/internal/user/user_test.go:286#TestListeningStatsAndYear"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+      ]
+    }
+  ]
 }

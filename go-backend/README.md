@@ -17,11 +17,32 @@ a reference for what the contracts mean, not a template.
 
 ## Status
 
+[Unified verification](VERIFICATION.md) is now the authoritative upstream-first
+acceptance path: `make verify` (also `make check`). Go regressions and Node
+self-tests do not establish upstream coverage. Go replacement verification stays
+blocked until every in-scope upstream requirement has shared assertion proof.
+The earlier [integration report](docs/verification/unified-verification-integration-20261114.json) measured nine of 34 packets before additional owner work arrived. The [Q01 queue review](docs/verification/q01-embed-queue-review.md) records the subsequent tools check and whole-suite discovery failure.
+
 The rewrite is finished in code. The packages are listed in
 [ARCHITECTURE.md](ARCHITECTURE.md#packages); the old shared packages, sqlc and
 the ratchet/depguard tooling are gone. Open follow-ups and known gaps are in
 [handover.md](handover.md). Deliberate behaviour differences from the
 pre-rewrite Go build are in [docs/CHANGES.md](docs/CHANGES.md).
+
+This does not establish whole-project parity. The architect-accepted
+[playback lifecycle packet](../docs/agent-work/archive/tasks/TASK-20261113-playback-lifecycle.md)
+restores stream events and failure cleanup. Its characterization tests and
+repository checks pass; live acceptance evidence and review status are in
+[handover.md](handover.md).
+The inherited-pipe cancellation and incremental-progress gate review findings
+are closed by architect re-review. No later production ownership packet has started.
+
+The [requirement-to-test mapping](docs/verification/replacement-requirement-map.md)
+records 345 requirements and 620 invariants, with source/current test anchors and
+explicit proof gaps. The [ordered queue](docs/verification/replacement-gap-queue.md)
+closes them one owner per invocation with architect review between packets.
+Q00 inventory is architect-accepted. The November 17 playlist review and current discovery blocker are in the [handover](handover.md). The target claim
+remains conditional on every defined requirement passing the final closure gate.
 
 What is recorded:
 

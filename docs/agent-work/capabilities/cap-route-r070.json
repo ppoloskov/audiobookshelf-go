@@ -1,25 +1,81 @@
 {
- "id": "route-r070",
- "parent": "http/catalog",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "PATCH /items/:id/ebook/:fileid/status candidate recorded from server/routers/ApiRouter.js:128. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:128"
- ],
- "implementation": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/catalog/handler.go"
- ],
- "evidence": [],
- "exceptions": []
+  "id": "route-r070",
+  "parent": "http/item",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "PATCH /api/items/:id/ebook/:fileid/status dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:128, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"PATCH /api/items/{id}/ebook/{ino}/status\", h.authed(h.updateEbookStatus)). Current assertion anchor(s): TestEbookStatusTogglesThePrimaryEbook. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:128",
+    "go-backend/internal/item/handler.go",
+    "go-backend/internal/item/handler.go:119",
+    "server/controllers/LibraryItemController.js:1220"
+  ],
+  "implementation": [
+    "go-backend/internal/item/handler.go:119"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/item/files_test.go:381#TestEbookStatusTogglesThePrimaryEbook"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
+  },
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R070-CONTRACT",
+      "class": "shape",
+      "contract": "PATCH /api/items/:id/ebook/:fileid/status dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:128, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"PATCH /api/items/{id}/ebook/{ino}/status\", h.authed(h.updateEbookStatus)). Current assertion anchor(s): TestEbookStatusTogglesThePrimaryEbook. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:128",
+        "go-backend/internal/item/handler.go",
+        "go-backend/internal/item/handler.go:119",
+        "server/controllers/LibraryItemController.js:1220"
+      ],
+      "tests": [
+        "go-backend/internal/item/files_test.go:381#TestEbookStatusTogglesThePrimaryEbook",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/ebook-status-invalid-requests",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/ebook-status-authorisation"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
+        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
+        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+      ]
+    },
+    {
+      "id": "INV-R070-EBOOK-STATUS-001",
+      "class": "state_transition",
+      "contract": "PATCH ebook status of the primary ebook file clears books.ebookFile, marks the library file supplementary, flags the item missing (no media files remain), moves updatedAt and emits item_updated. Toggling a supplementary ebook file makes it the primary ebookFile (without isSupplementary/fileType, with ebookFormat), marks it not supplementary and clears the missing flag. With two ebook files, toggling the supplementary one makes it primary and the previous primary supplementary.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:1155-1215",
+        "client/components/tables/EbookFilesTableRow.vue:93-103",
+        "server/controllers/LibraryItemController.js:1182-1200"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/ebook-status-primary-becomes-supplementary",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/ebook-status-supplementary-becomes-primary",
+        "go-backend/tests/replacement/item_write/run_test.go#TestReplacement/ebook-status-switches-the-primary-among-several"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ]
 }

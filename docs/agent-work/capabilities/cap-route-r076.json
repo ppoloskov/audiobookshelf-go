@@ -1,49 +1,83 @@
 {
- "id": "route-r076",
- "parent": "http/userapi",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "DELETE /users/:id candidate recorded from server/routers/ApiRouter.js:138. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:138"
- ],
- "implementation": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "verified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/userapi/userapi.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#user-delete-forbidden (differential pass)",
-  "go-backend/contracts/parity/full-suite-report.json#user-delete (differential pass)"
- ],
- "exceptions": [],
- "invariants": [
-  {
-   "id": "INV-R076-SAMPLED",
-   "class": "shape",
-   "contract": "Sampled DELETE /users/:id via differential case(s) user-delete-forbidden, user-delete: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: permissions, users.",
-   "status": "verified",
-   "source": [
-    "server/routers/ApiRouter.js:138"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#user-delete-forbidden",
-    "go-backend/contracts/parity/full-suite-report.json#user-delete"
-   ],
-   "exceptions": [
-    "Sampled evidence; unsampled request-shape variants are separate behaviors."
-   ]
+  "id": "route-r076",
+  "parent": "http/user",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "DELETE /api/users/:id. Admin deletion refuses self/root-protected cases, removes the user and owned playlists, detaches historical sessions, revokes credentials/connections, and sends user_removed only after successful persistence.",
+  "source": [
+    "server/routers/ApiRouter.js:138",
+    "server/controllers/UserController.js:501",
+    "server/controllers/UserController.js:363"
+  ],
+  "implementation": [
+    "go-backend/internal/user/user.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/user/user_test.go:146#TestUserAdministration",
+    "go-backend/internal/user/user_test.go:191#TestDeleteUserDetachesSessionsAndRemovesPlaylists",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/delete-user-cascades",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/delete-user-without-data",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/delete-user-twice-and-by-admin",
+    "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/delete-user-rejections-change-nothing"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#user-delete-forbidden (differential pass)",
+    "go-backend/contracts/parity/full-suite-report.json#user-delete (differential pass)"
+  ],
+  "exceptions": [
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: deleting a user has no force mode"
+  ],
+  "invariants": [
+    {
+      "id": "INV-R076-SAMPLED",
+      "class": "shape",
+      "contract": "DELETE /api/users/:id answers {success:true}, deletes the user row with its mediaProgresses, auth sessions, playlists with items and devices (cascade), keeps its playback sessions, RSS feeds, media item shares and the API keys it created with a null user id (SET NULL), deletes API keys made for it (CASCADE), revokes its token and login; a second delete answers 404; admins may delete users and admins.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/UserController.js:363-406"
+      ],
+      "tests": [
+        "go-backend/internal/user/user_test.go:146#TestUserAdministration",
+        "go-backend/internal/user/user_test.go:191#TestDeleteUserDetachesSessionsAndRemovesPlaylists",
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/delete-user-cascades",
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/delete-user-without-data",
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/delete-user-twice-and-by-admin"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/full-suite-report.json#user-delete-forbidden",
+        "go-backend/contracts/parity/full-suite-report.json#user-delete"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R076-PROTECT-001",
+      "class": "authorization",
+      "status": "unverified",
+      "evidence": [],
+      "exceptions": [],
+      "contract": "DELETE answers 401 unauthenticated, 403 to non-admins and to an admin targeting root, 400 when the caller targets itself, 404 for an unknown id, and removes nothing.",
+      "source": [
+        "server/controllers/UserController.js:364-373",
+        "server/controllers/UserController.js:501-516"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/user_admin/run_test.go#TestReplacement/delete-user-rejections-change-nothing"
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
   }
- ]
 }

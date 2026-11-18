@@ -1,47 +1,66 @@
 {
- "id": "route-r062",
- "parent": "http/scanner",
- "kind": "operation",
- "scope": "in",
- "status": "implemented",
- "contract": "POST /items/:id/scan candidate recorded from server/routers/ApiRouter.js:120. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
- "source": [
-  "server/routers/ApiRouter.js:120"
- ],
- "implementation": [
-  "go-backend/internal/scanner/scanner.go"
- ],
- "cases": {
-  "normal": "verified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "stateful": true,
- "tests": [
-  "go-backend/internal/scanner/scanner.go"
- ],
- "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#book-item-scan-rerun (differential pass)"
- ],
- "exceptions": [],
- "invariants": [
-  {
-   "id": "INV-R062-SAMPLED",
-   "class": "shape",
-   "contract": "Sampled POST /items/:id/scan via differential case(s) book-item-scan-rerun: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: scanner.",
-   "status": "verified",
-   "source": [
-    "server/routers/ApiRouter.js:120"
-   ],
-   "tests": [
-    "go-backend/tools/parity/differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#book-item-scan-rerun"
-   ],
-   "exceptions": [
-    "Sampled evidence; unsampled request-shape variants are separate behaviors."
-   ]
+  "id": "route-r062",
+  "parent": "http/scan",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "POST /api/items/:id/scan dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:120, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"POST /api/items/batch/scan\", auth.Admin(httpx.Handler(s.batchScan))). Current assertion anchor(s): TestJourneyItems. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "source": [
+    "server/routers/ApiRouter.js:120",
+    "go-backend/internal/scan/routes.go",
+    "go-backend/internal/scan/routes.go:17",
+    "go-backend/internal/scan/routes.go:19",
+    "server/controllers/LibraryItemController.js:1220"
+  ],
+  "implementation": [
+    "go-backend/internal/scan/routes.go:17"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "stateful": true,
+  "tests": [
+    "go-backend/internal/scan/scan_test.go:356#TestRoutes",
+    "go-backend/internal/contracttest/journey_items_test.go:39#TestJourneyItems"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
+    "Historical evidence leads retained for follow-up: go-backend/contracts/parity/full-suite-report.json#book-item-scan-rerun (differential pass)",
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+  ],
+  "invariants": [
+    {
+      "id": "INV-R062-SAMPLED",
+      "class": "shape",
+      "contract": "POST /api/items/:id/scan dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:120, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"POST /api/items/batch/scan\", auth.Admin(httpx.Handler(s.batchScan))). Current assertion anchor(s): TestJourneyItems. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:120",
+        "go-backend/internal/scan/routes.go",
+        "go-backend/internal/scan/routes.go:17",
+        "go-backend/internal/scan/routes.go:19",
+        "server/controllers/LibraryItemController.js:1220"
+      ],
+      "tests": [
+        "go-backend/internal/scan/scan_test.go:356#TestRoutes",
+        "go-backend/internal/contracttest/journey_items_test.go:39#TestJourneyItems"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
+        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
+        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+      ]
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "unverified",
+    "failure": "unverified"
   }
- ]
 }

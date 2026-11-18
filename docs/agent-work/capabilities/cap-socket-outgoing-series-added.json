@@ -1,0 +1,69 @@
+{
+  "id": "socket-outgoing-series-added",
+  "parent": "realtime",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "unverified",
+  "contract": "Socket.IO outgoing series_added: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "source": [
+    "server/scanner/Scanner.js:316",
+    "server/controllers/LibraryItemController.js:526-545",
+    "server/scanner/Scanner.js:283-286",
+    "server/scanner/Scanner.js:55-60",
+    "server/controllers/LibraryItemController.js:1220-1250"
+  ],
+  "implementation": [
+    "go-backend/internal/item/relations.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
+  },
+  "tests": [
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-added-event-from-quick-match",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-added-event-not-repeated-for-existing-series",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-added-event-for-another-new-series",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-added-event-not-sent-by-media-update",
+    "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-added-event-not-sent-on-failed-match",
+    "go-backend/internal/item/match_test.go:72#TestMatchAppliesDetails"
+  ],
+  "evidence": [],
+  "exceptions": [
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: the requirement has no force, hard or override mode; every request is a plain request."
+  ],
+  "stateful": true,
+  "invariants": [
+    {
+      "id": "INV-SOCKET-OUTGOING-SERIES-ADDED",
+      "class": "repeat_operation",
+      "contract": "series_added is emitted with the series object to every authenticated socket only when a quick match creates a new series; not for existing series, media updates or failed matches.",
+      "status": "unverified",
+      "source": [
+        "server/scanner/Scanner.js:316",
+        "server/controllers/LibraryItemController.js:526-545",
+        "server/scanner/Scanner.js:283-286",
+        "server/scanner/Scanner.js:55-60",
+        "server/controllers/LibraryItemController.js:1220-1250"
+      ],
+      "tests": [
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-added-event-from-quick-match",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-added-event-not-repeated-for-existing-series",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-added-event-for-another-new-series",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-added-event-not-sent-by-media-update",
+        "go-backend/tests/replacement/browse/run_test.go#TestReplacement/series-added-event-not-sent-on-failed-match",
+        "go-backend/internal/item/match_test.go:72#TestMatchAppliesDetails"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
+  ],
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  }
+}

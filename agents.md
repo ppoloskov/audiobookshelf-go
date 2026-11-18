@@ -11,6 +11,12 @@ do not create development branches. Review and push ready work to the fork's
 `master`. Live deployment remains separately authorized. Keep README,
 AGENTS, ROADMAP and handover current with each accepted packet.
 
+Use `make verify` for the replacement verdict. It runs the shared scenarios
+against pinned TypeScript v2.37.2 first and requires an independent coverage
+audit before it runs the same scenarios against Go. Packet runs are scoped
+diagnostics. See [verification](go-backend/VERIFICATION.md) for the gate and
+[handover](go-backend/handover.md) for the current blockers.
+
 # Go engineering rules
 
 Two contracts are fixed: the SQLite database stays compatible with upstream

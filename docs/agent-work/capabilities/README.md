@@ -1,35 +1,35 @@
-> **Historical (2026-11-03).** These per-route byte-parity records belong to the
-> previous contract. They are not maintained; the client-usage inventory
-> (go-backend ROADMAP F3) replaces them.
+# Canonical replacement requirement register
 
-# Capability parity records
+Acceptance now runs through `make verify`: one Go-first/.mjs machine, upstream
+proof before Go replacement assessment. Shared assertion bindings never replace
+this requirement register or automatically verify its broad invariants.
 
-Generated per-capability parity ledger for the TypeScript-to-Go rewrite.
-One record per route candidate from `go-backend/contracts/parity/route-coverage.json`,
-plus non-HTTP subsystem records. The route inventory remains regenerable with
-`python3 go-backend/tools/parity/build_route_coverage.py`; the former capability
-ledger generator and its regression test are archived under
-`docs/agent-work/archive/parity-tools/` and are not part of the active gate.
+These JSON records are the active requirement register for the two fixed
+v2.37.2 contracts in [CONTRACT.md](../CONTRACT.md), reconciled on 2026-11-13.
+The pre-reconciliation records are preserved in
+[archive](../archive/capabilities-pre-20261113-contract-map/).
 
-## Status vocabulary (go-scope-ledger check-ledger.go)
+Generated [requirement-to-test views](../../../go-backend/docs/verification/replacement-requirement-map.md)
+and the [ordered owner queue](../../../go-backend/docs/verification/replacement-gap-queue.md)
+come from these records through
+`node go-backend/tools/replacement-contract-map.mjs` (repository root).
+Use `--check` to detect stale views. Do not run the archived capability generator
+over the current register.
 
-Capability `status` values are restricted by the ledger validator:
-`unverified`, `characterized`, `implemented`, `verified`, `blocked`.
+Each source operation/event/format/lifecycle obligation has a stable ID, contract,
+source and implementation references, tests, invariants and normal/error/edge
+plus repeat-state proof status. A test reference is an assertion lead until its
+exact coverage is reviewed and a current run is recorded. `implemented` does not
+mean verified; historical evidence never upgrades a rewritten implementation.
 
-Route-coverage status `implemented_not_differentially_verified` maps to capability
-status `implemented` (implemented but unverified). Route-coverage `not_implemented`
-maps to `unverified`. `characterized` is used when source behaviour was analysed
-but no Go implementation exists yet. `verified` additionally requires checked
-normal/error/edge cases with real test and evidence references and is deliberately
-not assigned automatically; the per-route differential runs recorded in
-`contracts/parity/*.json` sample only a subset of variants.
+The validator accepts `unverified`, `characterized`, `implemented`, `verified`
+and `blocked`. Only reviewed, reproducible current evidence can set `verified`.
+Refine sampled invariants and add newly discovered obligations within the fixed
+contract; never freeze the denominator to obtain closure. Express representation,
+byte order and internal algorithms are free unless a real client or stored value
+requires them. Historical byte-parity details may remain in provenance exceptions.
 
-## Historical provenance
-
-Work before 2026-10-29 predates the go skill pack ledger format. Route-coverage
-and differential reports under `go-backend/contracts/parity/` are the inherited
-evidence; this directory is retained as dated capability evidence, not a gate. Task ledger records created
-2026-10-29 pinned skill pack version 1.1.0. From 2026-10-30 the installed pack
-is 1.3.0: new records (e.g. the upgraded `cap-sub-scanner-watcher.json`) carry
-`invariants`/`stateful`/`state_scenarios` per the 1.3 format; historical
-records keep their original provenance and are not relabelled.
+One bounded owner packet per invocation, architect review between packets. Keep
+current task and accepted evidence in [tasks](../tasks/); final closure also needs
+an independent completeness audit and the strict invariant ledger check. The
+mapping packet itself performs no product verification.
