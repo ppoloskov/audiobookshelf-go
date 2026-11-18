@@ -4,9 +4,12 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing user_offline: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "Every authenticated socket disconnect emits user_offline to every root/admin socket with the user's toJSONForPublic (id, username, type, session, lastSeen, createdAt), including when the user still has another connection; anonymous and rejected sockets emit nothing.",
   "source": [
-    "server/SocketAuthority.js:224"
+    "server/SocketAuthority.js:222-225",
+    "server/SocketAuthority.js:80-87",
+    "server/models/User.js:584-594",
+    "client/layouts/default.vue:275-280"
   ],
   "implementation": [
     "go-backend/internal/realtime/hub.go"
@@ -17,24 +20,36 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/realtime/hub_test.go:403#TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers"
+    "go-backend/internal/realtime/hub_test.go:403#TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-offline-payload-and-audience",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-offline-never-to-users",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-offline-per-socket",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-offline-without-admin"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: user_offline has no force or override mode."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-USER-OFFLINE",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing user_offline: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Each admin socket receives one user_offline per authenticated socket disconnect with the six public fields and a non-null lastSeen; non-admin and anonymous sockets never receive it; closing one of two connections announces while usersOnline keeps the user with one connection; a disconnect without an admin connected leaves no online state behind.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:224"
+        "server/SocketAuthority.js:222-225",
+        "server/SocketAuthority.js:80-87",
+        "server/models/User.js:584-594",
+        "client/layouts/default.vue:275-280"
       ],
       "tests": [
-        "go-backend/internal/realtime/hub_test.go:403#TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers"
+        "go-backend/internal/realtime/hub_test.go:403#TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-offline-payload-and-audience",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-offline-never-to-users",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-offline-per-socket",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-offline-without-admin"
       ],
       "evidence": [],
       "exceptions": []
@@ -44,7 +59,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

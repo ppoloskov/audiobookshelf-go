@@ -6,7 +6,7 @@
   "proof": "Mapping only. No behavior tests executed by this renderer. Test references are assertion/discovery leads, not inferred full coverage.",
   "counts": {
     "requirements": 345,
-    "invariants": 666,
+    "invariants": 673,
     "route_sites": 226,
     "socket_sites": 165,
     "socket_names": 77,
@@ -27,7 +27,7 @@
     "go-backend/testmachine/register/capabilities/cap-flow-client-feed-share.json": "0fbaae8dce23f90c5cd5d584de781d957cba3a78bc471c4723785ed70be11a57",
     "go-backend/testmachine/register/capabilities/cap-flow-client-list-ownership.json": "a27ce5456bb343276971e597cdcc3843331629a655d9d924deb663d308cef263",
     "go-backend/testmachine/register/capabilities/cap-flow-client-mobile-protocol.json": "3c7a433fd85dfca396ee3ce095a1aed6ec6ea860e2d89b85df0c5ece55bab739",
-    "go-backend/testmachine/register/capabilities/cap-flow-client-oidc-mobile-pkce.json": "62e1c5afa05564d8e62c466277f2451c2d7354ba0face2c7a95c97872558004e",
+    "go-backend/testmachine/register/capabilities/cap-flow-client-oidc-mobile-pkce.json": "913f62f59381331438e4bba63ef033d1f354b7d027f9136fc56434f64d96eeb7",
     "go-backend/testmachine/register/capabilities/cap-flow-client-permissions-ownership.json": "cb7f6a7efc801c77e111407f934bf4e865eb2067ae7f2d89d95e5744334acf4a",
     "go-backend/testmachine/register/capabilities/cap-flow-client-playback-session-sync.json": "6268cbabd78b08755676d269bfed9ae5fc4709967c5b09663e16474523f64937",
     "go-backend/testmachine/register/capabilities/cap-flow-mail-smtp-mime.json": "3f90f7285f91ea86e7f1c5157c674e7fea3d7c76030a774a72da238685d2d496",
@@ -42,10 +42,10 @@
     "go-backend/testmachine/register/capabilities/cap-protocol-ranges-cache.json": "abe41bb20d59448b2f72699d95d456468423f6cfbe04ece4fbefb24eb448d183",
     "go-backend/testmachine/register/capabilities/cap-route-r000.json": "0487359f55208128451b08448e259cf2263fe3f87125baf40db384e39fabd561",
     "go-backend/testmachine/register/capabilities/cap-route-r001.json": "15e21874ecb3798ba59d7ca2e0a63b2aeef49863216ed60c0462d6ccd11ba494",
-    "go-backend/testmachine/register/capabilities/cap-route-r002.json": "a11108d59a56138f608360c1e3eadace5716d50d0077cac1a28cc5d41a2ef38e",
-    "go-backend/testmachine/register/capabilities/cap-route-r003.json": "fd6574bd7fb52ef7856cb7591eeeff054fa9e91e27cdeaff8bfffece18df3395",
-    "go-backend/testmachine/register/capabilities/cap-route-r004.json": "949125b6000c812b88a0cc01cbe57ddc47def15598d058f7658bff4aa68b517d",
-    "go-backend/testmachine/register/capabilities/cap-route-r005.json": "36cc066563d8bd230cb6d3f9abd8c4c1ac4d2e054df8f6ea21ed95018c0be2c7",
+    "go-backend/testmachine/register/capabilities/cap-route-r002.json": "86e702eae365b25b247c378b1aa640ec7c7da74a23757f1f6b78bdab93ea5114",
+    "go-backend/testmachine/register/capabilities/cap-route-r003.json": "56f95e1b759445d3e6f41fc8be708af3573e73bff8720548b9b13835dc8827b8",
+    "go-backend/testmachine/register/capabilities/cap-route-r004.json": "867b3216c0d6c66b973736e7132a520335fd52ee67f8f9c5b9450af3a947beb1",
+    "go-backend/testmachine/register/capabilities/cap-route-r005.json": "da819e7f8b4ba104c8d886047099588f7423b31026beb3eb871a94b9c29790e6",
     "go-backend/testmachine/register/capabilities/cap-route-r006.json": "78210a40a322c8a05b20b46d1db7c2d0995d0e021d4f95bacb2b8c0e0f6b4f36",
     "go-backend/testmachine/register/capabilities/cap-route-r007.json": "812b410d14a8ebd90c8ddacef13c8ebc69b922df6e6d8d311a2075aa0e1544c3",
     "go-backend/testmachine/register/capabilities/cap-route-r008.json": "c29547f6f2a072c002912897b91095dfb9f2d8bfbfe05ddd7b8cca0689469cde",
@@ -270,18 +270,18 @@
     "go-backend/testmachine/register/capabilities/cap-runtime-configuration.json": "c34db6707d154ecc92f34686ceec77b7e58d55ebde5af1a2fc34f2aeba967bc0",
     "go-backend/testmachine/register/capabilities/cap-runtime-lifecycle.json": "9cec1dc587a20f1f0d1c7437a97b56cd94da1db031c787c5962f2ad7610d6ab2",
     "go-backend/testmachine/register/capabilities/cap-scan-precedence-timeline.json": "cbd0c14636274d849fdd4c13537d2f6072e0c2889dfaf410fd6b066d0f8d2342",
-    "go-backend/testmachine/register/capabilities/cap-socket-incoming-auth.json": "5ee0378ddc7da522fae1afdd32f8dd109a6cf2e307fec16563593176c3fc8a1b",
+    "go-backend/testmachine/register/capabilities/cap-socket-incoming-auth.json": "34a606a00858db8437a3eb34cf0ea3940340e5fef20756e6f8e877f2ff001d1c",
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-cancel-cover-search.json": "5f553f5e92990d3f4db57d1ed369c74086f3d1f1d86fa8a72cff4fa143680694",
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-cancel-scan.json": "f3d623b34a211c25a8f750baa8aebb431f7234357435c89511db3adc634e8d80",
-    "go-backend/testmachine/register/capabilities/cap-socket-incoming-connection.json": "843badf71b9beea3aa87933cd79c2778b1282997327cf15f3079810a0c2e3ddb",
-    "go-backend/testmachine/register/capabilities/cap-socket-incoming-disconnect.json": "9b42e7f73f1035d4fa8d349d06d1484a3341c2b45f8d0af5654f37e00b994362",
-    "go-backend/testmachine/register/capabilities/cap-socket-incoming-message-all-users.json": "653e4d9dd9d55079ccd19d76c97a2e07d223fa01aace04a1c78552cfb2c7b2cb",
-    "go-backend/testmachine/register/capabilities/cap-socket-incoming-ping.json": "aadbbb18dac73be698f41efcf23dbffdbe4e38146b63226f441099c829f124ac",
+    "go-backend/testmachine/register/capabilities/cap-socket-incoming-connection.json": "b9eaa8fe8d05226a987883fc19e98a47601c85d424ac624b4de5e773134e3593",
+    "go-backend/testmachine/register/capabilities/cap-socket-incoming-disconnect.json": "e02d6870c1cf7a96266b3ea1d347cbceac9790b5cc10e65f76de33e7f572ef56",
+    "go-backend/testmachine/register/capabilities/cap-socket-incoming-message-all-users.json": "19b401b93ad1f1f2bdf4f548d74fec913e918227921ce9ab77417eb3bce0ad7b",
+    "go-backend/testmachine/register/capabilities/cap-socket-incoming-ping.json": "c05d76617e27139b54ef1a97db957cec9ed4faca862a600f04160e4c0bf230d6",
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-remove-log-listener.json": "4fc1d3048a2ecb61e24f5d30bc6909df9e3f13689450377e7b769cbb1d41a80b",
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-search-covers.json": "53117b4fec0c2ad5124bc075f8c1252b65d17c6d4b9aa0b72643f5cde0a14827",
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-set-log-listener.json": "7e11ec089d220685272c1a597682f1e159801acdccc0700df4edb8884525d5ae",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-admin-message.json": "b061025c6bda3053888c989c9eded85ccbb2f15e14eeaf46fd1eeb32ce7a852b",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-auth-failed.json": "90ffa6d94df2d7e216f4c71d4e33084e75b3a6908c0e5cf3c8ec8f38b1df233b",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-admin-message.json": "bca4251e6a40acd75d89582f61bed2abe90e26af260f22d25de8fcfecad74393",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-auth-failed.json": "33544e2d2e1f7790d1e560ab9484f8cf24e2c8d3552a1d0774eb468ab7b515b9",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-added.json": "f4dee4bd12b344a1b6a886cfd9bd08d56daca9fa698b6973b63894dcc434b541",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-removed.json": "caac0107da4497f9c917403207e161b36d658c803b65a1ed17bf20288bcd9ad8",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-updated.json": "3abbebc7b37d86be4521be5bb291dd0f67fea6acacd4d6b2832c144ef67627b0",
@@ -304,7 +304,7 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-queued.json": "aa709368503eb870fbdaa9ed161d9bf918d003992126eefa5bb7dd68347c1b04",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-started.json": "c38152941b13efa0e74657e927c61c702b5d3f858732e528e2de77daa440dbe2",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-ereader-devices-updated.json": "4ed2af63875e154bd522fa1ba6f5c62fdd470cf4f0cc5bf4df344b9fded4958b",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-init.json": "b5053e6eb3bce4f0deb65db5fe6bb5d321215ef926a58b22a81b01faeebef61f",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-init.json": "15ca712b83c48924c2f7dc9d55001ac671dc423d4783512de5cbcd7cecd613f0",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-added.json": "a59c6a84397221efe5875db775b20ac9e06b4dc430feb0787f6056cab7871adc",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-removed.json": "8433ac679a536e6e1145bc1f38e882de69a92b680135fc6ec0f10a70524d5f68",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-updated.json": "4e87ea11825ef3a41240a93dd702bf3cf4fac2816526235d43db9085dfd1bf4b",
@@ -319,7 +319,7 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-playlist-added.json": "8fc273bf33c97c5dc4cf2b2158a47ebee9eb78780056e69478bde3ea602e79a1",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-playlist-removed.json": "4a45d4b26154ff319293b7e5c931216fdc206c76a59f56d7245528c29a19ec32",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-playlist-updated.json": "09173580675c25ea1ea711558737e5c01c819599c9d0c8aacbd000168ace9646",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-pong.json": "ced18861961366d351e0e9b465bbedddacbaf5d6aa4ff99205b9d4f746b5b330",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-pong.json": "9aee7580a8772443c457e0011f810ca3ff35b3340bb49c56f4d59aa49fa4dcc1",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-rss-feed-closed.json": "7bb5e73c0b16d3dc8ccba09d2f05e21e9fed06b9328077c547beeda33bd13714",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-rss-feed-open.json": "ccd9622a8aded645f415f937197f8587b2b48e9b68f3cea071baa377f7f996c1",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-series-added.json": "3f8d72bfd918c4a3b669bbbb8746b02779fa4da96f5d36bf573337bf94104dab",
@@ -341,8 +341,8 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-started.json": "899131360a0aea6558afe10bd7e07c8908b1771c696ed77a75969aeb64450010",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-added.json": "7bafb734be8461830ce376c11a8de21ce2060dbe9cf800bb4d5ca86b0adfd125",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-item-progress-updated.json": "ce7124d1f5c11d9b1c2ceb5ae1a4e6f075d8b1b0e86b6d46cb60620191cd9c06",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-offline.json": "a377c6e297c6f537e70dc82e927e35151e5791c414a05415d0c53a0fb596b9cc",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-online.json": "703a88c8e2a3c9b0a61a61d45e5df518255a9fcdfa87118dbf83a65639e9a1e8",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-offline.json": "fc92c360689402dd29b4866531afbc3d0b46888a5e80315f6e77d333e6cb0e2f",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-online.json": "ff7a9075102e942a35e39a8b5215523162462a3a4c15639af30b4257636572dd",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-removed.json": "c5ee00abb003ace06f6447b935f17565071beeb54835a1a39900b03799a85861",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-session-closed.json": "857bd4f670e1038e0817055fbff5b949d68b16d27cb2e59ebe9dc621fdc97ac2",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-stream-update.json": "a0923f10cd47da473cdf652627254b22ca940be86db9c991be686f18d8034fb4",
@@ -353,7 +353,7 @@
     "go-backend/testmachine/register/capabilities/cap-sub-database-schema.json": "197effbde241807b54bf83807e8a398d5a0d45ef92b8894d760e35a82f365ecf",
     "go-backend/testmachine/register/capabilities/cap-sub-destructive-cascades-w6.json": "ba59fc40ed8cf180d6e5a2c1d56c3b36f55db7bae34714cc950be4d9ae2de9ab",
     "go-backend/testmachine/register/capabilities/cap-sub-downloads.json": "324003bc9df308b695c26d0ca1e497c314d3a4407d1351add9ef06d6383de75f",
-    "go-backend/testmachine/register/capabilities/cap-sub-oidc-auth.json": "46d41a1075ff3643681486947ad2c62ca8a97787bf3d5a61f3d16b2c9746cb16",
+    "go-backend/testmachine/register/capabilities/cap-sub-oidc-auth.json": "e82b94cd56e52e26cbe094dc8ec05bebf9f6d1652817418eb2290dfb459ac286",
     "go-backend/testmachine/register/capabilities/cap-sub-podcast-download-queue.json": "33e43036b41d6859a018f5ef3b16e5a83230d57fb8ac879aa842a45fd2a7728d",
     "go-backend/testmachine/register/capabilities/cap-sub-realtime-socketio.json": "6b9051d918f18eb74a38f0ad5d0e89ab3ca718eddc2c77a5cfcc586c383f1ffb",
     "go-backend/testmachine/register/capabilities/cap-sub-scanner-watcher.json": "a607709c0ac658d0a332acdaf1befe13f9b5c723ed818610b30b08fc49bfc496",
@@ -7273,23 +7273,23 @@
       "invariant": "INV-FLOW-CLIENT-OIDC-MOBILE-PKCE-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Mobile start validates allowlisted redirect URI and S256 challenge, redirects to provider with state/challenge, redirects once to app URI with code/state, and callback returns access/refresh tokens while creating linked user. Replay and invalid URI/challenge return 400.",
+      "contract": "The official app's four calls (GET /auth/openid with response_type=code, redirect_uri audiobookshelf://oauth and an S256 code_challenge; the provider's authorization; GET /auth/openid/mobile-redirect; GET /auth/openid/callback with code_verifier) end in a 200 login payload whose access and refresh tokens authenticate, exactly one linked user and one session. The provider URL carries the app's code_challenge and redirect_uri=<origin>/auth/openid/mobile-redirect; omitting code_challenge_method defaults the provider URL to S256; the token request carries the app's verifier. A wrong, empty or repeated verifier follows the upstream web failure branch (302 /login?error=Error in callback&autoLaunch=0), creates no user or session and consumes the flow so a replay answers 400 No session. A second login for the same subject reuses the user row and adds a session.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:256-281",
         "server/auth/OidcAuthStrategy.js:301-368",
-        "server/Auth.js:383-445"
+        "server/Auth.js:383-445",
+        "go-backend/testmachine/contracts/clients/official-app.md:108",
+        "go-backend/testmachine/contracts/clients/official-app.md:139"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-pkce-full-flow-returns-app-tokens",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-pkce-wrong-verifier-denied-without-user",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-pkce-defaults-method-to-s256",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-pkce-empty-or-duplicate-verifier-denied",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-pkce-repeat-login-reuses-linked-user"
       ],
-      "evidence": [
-        "go-backend/internal/auth/oidc_test.go:TestOIDCMobileFlow",
-        "go-backend/internal/auth/oidc_test.go:TestFlowsExpireAndAreTakenOnce",
-        "go-backend/internal/auth/oidc_test.go:TestOIDCRejectsBadIDTokens"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -7304,10 +7304,11 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Client evidence: contracts/clients/official-app.md OIDC rows and contracts/clients/audiobooth.md Authentication/OIDC. Provider interoperability, app-side token persistence and callback failure combinations remain gaps.",
-        "State scenario force is not applicable for this client workflow because none of its mapped operations has a force/refresh mode; changed and repeat outcomes remain unverified unless an invariant explicitly states otherwise.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed."
+        "force is not applicable: no mapped OIDC operation has a force, override or refresh mode.",
+        "Client evidence: contracts/clients/official-app.md:108 (native start and code exchange) and :139 (refresh storage). Provider interoperability beyond the local stub remains an open question.",
+        "Mapping note: previous internal Go test paths were replaced by the shared scenarios; the historical differential report is provenance, not current proof.",
+        "The native-flow failure branch is asserted from the live v2.37.2 server: a provider invalid_grant reaches the Express error branch and redirects to the login page with error=Error in callback, not the 400 a mobile-only client might expect. The official app treats any non-300 answer or a missing code as a failure and does not parse this redirect.",
+        "App-side token persistence and other redirect URI schemes remain out of scope of this invitation."
       ]
     },
     {
@@ -8554,21 +8555,19 @@
       "invariant": "INV-R002-OIDC-START-COOKIE-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Web/mobile OIDC start and callback preserve allowed redirect parameters, state/PKCE/nonce binding and client-consumed JWT claims. Required auth cookies retain usable lifetime/Path/HttpOnly/Secure/SameSite semantics; opaque cookie values and the Express session implementation are free if isolation and replay protection hold.",
+      "contract": "A web start (GET /auth/openid?callback=<same-origin URL under the router base path>) answers 302 to the configured authorization endpoint with the configured client_id, response_type=code, scope 'openid profile email', a random state, redirect_uri=<request origin>/auth/openid/callback and a 43-character S256 code_challenge; it sets HttpOnly auth_cb=<callback> with Max-Age 600, HttpOnly auth_method=openid with Max-Age 315360000 and an express session cookie, and carries no token material. A native start (response_type=code, redirect_uri audiobookshelf://oauth, code_challenge[, code_challenge_method=S256]) answers 302 with the same client_id, scope, random state and challenge plus redirect_uri=<request origin>/auth/openid/mobile-redirect, sets auth_method=openid-mobile and no auth_cb, and carries no token material. Two independent starts use different states and both callbacks create a session.",
       "status": "unverified",
       "source": [
-        "server/Auth.js:218-248",
+        "server/Auth.js:218-249",
         "server/Auth.js:362-378",
-        "server/Server.js:301-317"
+        "server/auth/OidcAuthStrategy.js:256-386"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:134#TestOIDCWebFlowSignsInAndMapsGroups",
-        "go-backend/internal/auth/oidc_test.go:297#TestOIDCRedirectUsesSubfolderSettingVerbatim"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/start-web-redirects-to-provider-with-auth-cookies",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/start-mobile-redirects-with-pkce-and-app-redirect-uri",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/start-twice-yields-independent-flows"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-start"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -8583,11 +8582,85 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "The force scenario is not applicable because GET /auth/openid has no force or refresh operation.",
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Selected callbacks, PKCE inputs, and cookie attributes only; other callback URL, state, headers, proxy, and middleware variants remain unverified.",
-        "Historical pre-rewrite observation (not a fixed representation requirement): Selected web and mobile starts match upstream redirect parameters and Set-Cookie names, stable values, Max-Age, Path, Expires, HttpOnly, and the signed connect.sid cookie."
+        "force is not applicable: GET /auth/openid has no force, override or refresh mode.",
+        "The exact upstream error text of denied starts is not asserted, only the 400 status and the absence of Location, auth cookies and credentials.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
+        "Cookie field names and attributes are client-visible; the opaque connect.sid value and the Express session implementation are free."
+      ]
+    },
+    {
+      "requirement": "route-r002",
+      "invariant": "INV-R002-OIDC-START-REJECT-001",
+      "owner": "oidc",
+      "packet": "Q06",
+      "contract": "An unlisted mobile redirect_uri, an absent code_challenge, a code_challenge_method other than S256, a response_type other than code, or a state on the web flow each answer 400 without a Location, auth_cb/auth_method cookie or token material, and change no user or session. A web start whose callback is absent, cross-origin, protocol-relative, backslash-prefixed or outside the router base path answers 400 with no Location, no auth_cb cookie and no user/session change. On a server whose OpenID settings are unset the route denies with a status >= 400 and no Location, auth cookie or token material.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:231-244",
+        "server/Auth.js:362-376",
+        "server/auth/OidcAuthStrategy.js:49-74",
+        "server/auth/OidcAuthStrategy.js:291-341",
+        "server/auth/OidcAuthStrategy.js:518-553"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/start-invalid-mobile-inputs-denied",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/start-invalid-web-callback-denied",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/start-without-oidc-settings-denies"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: GET /auth/openid has no force, override or refresh mode.",
+        "The exact upstream error text of denied starts is not asserted, only the 400 status and the absence of Location, auth cookies and credentials.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
+        "The unconfigured-settings denial is asserted as status >= 400 because no client calls /auth/openid while the provider settings are invalid."
+      ]
+    },
+    {
+      "requirement": "route-r002",
+      "invariant": "INV-R002-OIDC-START-REDIRECT-001",
+      "owner": "oidc",
+      "packet": "Q06",
+      "contract": "authOpenIDSubfolderForRedirectURLs is inserted verbatim before /auth/openid/callback and /auth/openid/mobile-redirect in the provider redirect_uri: the value /audiobookshelf yields <origin>/audiobookshelf/auth/openid/callback and <origin>/audiobookshelf/auth/openid/mobile-redirect, and restoring the empty setting yields the origin-only callback URL.",
+      "status": "unverified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js:330-347",
+        "server/objects/settings/ServerSettings.js:342"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/start-subfolder-setting-changes-redirect-uris"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: GET /auth/openid has no force, override or refresh mode.",
+        "The exact upstream error text of denied starts is not asserted, only the 400 status and the absence of Location, auth cookies and credentials.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
+        "Only the /audiobookshelf value and the empty value are exercised; the setting is a caller-supplied URL prefix, not a validated list."
       ]
     },
     {
@@ -8595,21 +8668,19 @@
       "invariant": "INV-R003-MOBILE-STATE-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "For an allowlisted mobile redirect URI, authorization uses S256 PKCE and binds state/challenge; redirect status and Location carry the provider result through mobile-redirect to the validated app callback, consuming state once. HTML redirect bodies and header formatting have no fixed representation.",
+      "contract": "For an allowlisted native start (S256 code_challenge required), the provider's callback to /auth/openid/mobile-redirect answers 302 to <redirect_uri>?code=<urlencoded code>&state=<urlencoded state>; the app link query equals the provider's code and the state the server generated, and that state is consumed so a second mobile-redirect answers 400 with no Location. A state issued for a second allowlisted URI redirects to that URI, and a new start after a consumed state completes with its own code and state. The HTML redirect body and incidental headers are free.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:256-281",
-        "server/auth/OidcAuthStrategy.js:301-368",
-        "server/auth/OidcAuthStrategy.js:479-505"
+        "server/auth/OidcAuthStrategy.js:315-330",
+        "server/auth/OidcAuthStrategy.js:483-505"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-redirect-forwards-code-and-state-to-app-link",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-redirect-second-allowlisted-uri",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-redirect-new-flow-after-consumed"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-start",
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-redirect"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -8624,12 +8695,10 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "The force scenario is not applicable because GET /auth/openid/mobile-redirect has no force or refresh operation.",
-        "Other redirect schemes, missing-code behavior, and additional middleware/query variants remain unverified.",
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Evidence covers one allowlisted audiobookshelf://oauth URI and S256 flow only.",
-        "Historical representation-level observation superseded by fixed client/persisted contract: For an allowlisted mobile redirect URI, OIDC authorization requires an S256 PKCE challenge, forwards state/challenge, redirects the provider callback to /auth/openid/mobile-redirect, and matches Express redirect status, Location, content type, content length, and body; the callback redirects to the app with encoded code/state, then consumes that state."
+        "force is not applicable: GET /auth/openid/mobile-redirect has no force, override or refresh mode.",
+        "The exact ten-minute expiry boundary is unexecuted (see INV-R003-MOBILE-STATE-TTL-001) because the live route exposes neither the timer nor a clock.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
+        "Only audiobookshelf:// URIs are exercised; the allowlist accepts any URI matching the settings endpoint's scheme validation."
       ]
     },
     {
@@ -8637,18 +8706,15 @@
       "invariant": "INV-R003-MOBILE-REPLAY-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Repeating the mobile redirect callback with consumed state returns HTTP 400 and cannot mint credentials or create another session. Preserve only error content consumed by a demonstrated client; Express HTML, Content-Length and ETag algorithm are free.",
+      "contract": "Repeating /auth/openid/mobile-redirect with an already consumed state answers 400 with body 'State parameter mismatch', no Location and no credentials, and creates no user or session; the app callback that received the first answer still completes into exactly one session because it reads the Express session, not the consumed redirect map entry.",
       "status": "unverified",
       "source": [
-        "server/auth/OidcAuthStrategy.js:479-505"
+        "server/auth/OidcAuthStrategy.js:489-501"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-redirect-replay-400-changes-nothing"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-state-replay"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -8663,11 +8729,10 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "The force scenario is not applicable because GET /auth/openid/mobile-redirect has no force or refresh operation.",
-        "Other redirect schemes, missing-code behavior, and additional middleware/query variants remain unverified.",
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Historical representation-level observation superseded by fixed client/persisted contract: Repeating the mobile redirect callback with consumed state returns HTTP 400, text/html; charset=utf-8, exact Express Content-Length and weak ETag, and the State parameter mismatch body."
+        "force is not applicable: GET /auth/openid/mobile-redirect has no force, override or refresh mode.",
+        "The exact ten-minute expiry boundary is unexecuted (see INV-R003-MOBILE-STATE-TTL-001) because the live route exposes neither the timer nor a clock.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
+        "The body text is asserted because it is the only client-visible denial besides the status; no client parses it."
       ]
     },
     {
@@ -8675,21 +8740,18 @@
       "invariant": "INV-R003-MOBILE-VALIDATION-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "An unlisted redirect URI, absent PKCE challenge or unsupported challenge method returns the required HTTP 400 denial, without accepting unsafe redirects or leaking credentials.",
+      "contract": "A mobile-redirect request without a state, with an empty state, with a state that was never issued, or with the state of a web flow answers 400 State parameter mismatch without a Location or credentials and changes no user or session; an unlisted redirect_uri or absent code_challenge is denied with 400 already at start and no credentials.",
       "status": "unverified",
       "source": [
-        "server/auth/OidcAuthStrategy.js:256-281",
-        "server/Auth.js:362-378"
+        "server/auth/OidcAuthStrategy.js:252-281",
+        "server/auth/OidcAuthStrategy.js:319-325",
+        "server/auth/OidcAuthStrategy.js:486-492"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-redirect-requires-held-state",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-state-bound-to-flow-and-used-once"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-invalid-redirect",
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-missing-pkce-challenge",
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-unsupported-pkce-method"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -8704,11 +8766,10 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "The force scenario is not applicable because GET /auth/openid/mobile-redirect has no force or refresh operation.",
-        "Other redirect schemes, missing-code behavior, and additional middleware/query variants remain unverified.",
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Historical representation-level observation superseded by fixed client/persisted contract: An unlisted mobile redirect URI, absent PKCE challenge, or non-S256 challenge method returns the upstream HTTP 400 text response including Express content type, length, and ETag."
+        "force is not applicable: GET /auth/openid/mobile-redirect has no force, override or refresh mode.",
+        "The exact ten-minute expiry boundary is unexecuted (see INV-R003-MOBILE-STATE-TTL-001) because the live route exposes neither the timer nor a clock.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
+        "The 'No redirect URI' branch is unreachable through the API: every map entry is created together with a validated redirect URI."
       ]
     },
     {
@@ -8716,19 +8777,17 @@
       "invariant": "INV-R003-MOBILE-STATE-TTL-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Mobile redirect state expires at the source-defined ten-minute TTL and an expired flow returns HTTP 400 without credentials; characterize the exact boundary and one-time-use behavior.",
+      "contract": "The mobile redirect map holds each state for ten minutes (LRU ttl 10*60*1000, ttlAutopurge); a state the server does not hold because it was consumed or aged out answers 400 State parameter mismatch with no Location and no credentials.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:18-22",
-        "server/auth/OidcAuthStrategy.js:479-505"
+        "server/auth/OidcAuthStrategy.js:489-501"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-redirect-state-not-held-is-400",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-redirect-consumed-or-unknown-state"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-redirect-state-after-ten-minutes"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -8743,12 +8802,10 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "The force scenario is not applicable because GET /auth/openid/mobile-redirect has no force or refresh operation.",
-        "Other redirect schemes, missing-code behavior, and additional middleware/query variants remain unverified.",
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "One allowlisted URI with one S256 flow after 10 minutes is covered; other redirect schemes and exact expiration boundary remain unverified.",
-        "Historical representation-level observation superseded by fixed client/persisted contract: The allowlisted mobile redirect state expires after ten minutes and returns HTTP 400 with the upstream HTML content type, exact Content-Length, weak ETag, and State parameter mismatch body."
+        "force is not applicable: GET /auth/openid/mobile-redirect has no force, override or refresh mode.",
+        "The exact ten-minute expiry boundary is unexecuted (see INV-R003-MOBILE-STATE-TTL-001) because the live route exposes neither the timer nor a clock.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
+        "The exact ten-minute boundary is not executable: the TTL is an in-process timer with no API or clock injection, so expiry is asserted through the identical response for a state the server does not hold."
       ]
     },
     {
@@ -8756,24 +8813,18 @@
       "invariant": "INV-R004-OIDC-CALLBACK-COOKIE-JWT-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Web/mobile OIDC start and callback preserve allowed redirect parameters, state/PKCE/nonce binding and client-consumed JWT claims. Required auth cookies retain usable lifetime/Path/HttpOnly/Secure/SameSite semantics; opaque cookie values and the Express session implementation are free if isolation and replay protection hold.",
+      "contract": "A web callback with a valid provider answer answers 302 to the auth_cb URL with setToken=<the user's legacy token>&accessToken=<JWT> and no state parameter; it sets an HttpOnly Path=/ refresh_token cookie and a Secure SameSite=Strict openid_id_token cookie, links authOpenIDSub on exactly one new active 'user' whose username/email come from the userinfo, creates exactly one session whose refreshToken is the cookie value, and the access token (claims userId, username, type=access, future exp) authenticates GET /api/me as that user with hasOpenIDLink true.",
       "status": "unverified",
       "source": [
-        "server/Auth.js:296-305",
-        "server/Auth.js:430-445",
+        "server/Auth.js:259-312",
+        "server/Auth.js:430-455",
         "server/auth/TokenManager.js:108-171",
-        "server/auth/OidcAuthStrategy.js:112-164"
+        "server/auth/OidcAuthStrategy.js:112-166"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-signs-in-links-subject-and-sets-cookies"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-existing-user-email-link",
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-callback-no-session-empty-verifier"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -8788,12 +8839,47 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "The force scenario is not applicable because GET /auth/openid/callback has no force or refresh operation.",
-        "Exact 24-hour session expiry and rolling session-touch renewal remain unverified; this route subset does not establish route-wide OIDC parity.",
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Evidence covers selected successful web/mobile callbacks only; invalid-verifier/provider errors, error cookie clearing, logout cookie clearing, and other callback variants remain unverified.",
-        "Historical pre-rewrite observation (not a fixed representation requirement): Selected successful web callbacks match cookie names, stable values, Max-Age, Path, Expires, HttpOnly, Secure, SameSite, signed connect.sid, and JWT algorithms/claims; UUID identifiers and timestamps are compared by semantics, and each OIDC ID-token nonce is bound to its own authorization request."
+        "force is not applicable: GET /auth/openid/callback has no force, override or refresh mode.",
+        "Nonce binding is not executable against the pinned strategy: with response_type=code it sends no nonce and validates none, so the invalid-token scenarios cover signature, issuer, audience and exp instead.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
+        "auth_state is never set on a web start (a state query makes the web start fail), so the success redirect cannot contain &state; the absence is asserted."
+      ]
+    },
+    {
+      "requirement": "route-r004",
+      "invariant": "INV-R004-OIDC-CALLBACK-ERROR-001",
+      "owner": "oidc",
+      "packet": "Q06",
+      "contract": "A web callback whose ID token has a broken RS256 signature, a foreign issuer, a foreign audience or an expired exp answers 302 /login?error=Unauthorized&autoLaunch=0; a provider error=access_denied or a mismatched state answers the same Unauthorized redirect; a token endpoint rejection (invalid_grant) answers 302 /login?error=Error in callback&autoLaunch=0. Each rejection creates no user or session and consumes the flow.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:406-432",
+        "server/auth/OidcAuthStrategy.js:117-166",
+        "server/Auth.js:449-452"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-bad-id-token-denied",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-provider-error-and-state-mismatch-denied"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: GET /auth/openid/callback has no force, override or refresh mode.",
+        "Nonce binding is not executable against the pinned strategy: with response_type=code it sends no nonce and validates none, so the invalid-token scenarios cover signature, issuer, audience and exp instead.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
+        "The error strings are asserted because the web client reads login?error= and shows it; the HTML of the login page is free."
       ]
     },
     {
@@ -8801,19 +8887,15 @@
       "invariant": "INV-R004-OIDC-CALLBACK-REPLAY-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Replaying a callback after its state has been consumed returns the upstream no-sign-in-session redirect and creates no additional persisted user/session.",
+      "contract": "Replaying a consumed web callback with the same session and auth cookies answers 302 to /login?error=No sign-in session&autoLaunch=0 and creates no additional user or session.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-418"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-replay-no-sign-in-session"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-state-replay-after-provider-error"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -8828,10 +8910,9 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "The force scenario is not applicable because GET /auth/openid/callback has no force or refresh operation.",
-        "Exact 24-hour session expiry and rolling session-touch renewal remain unverified; this route subset does not establish route-wide OIDC parity.",
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "force is not applicable: GET /auth/openid/callback has no force, override or refresh mode.",
+        "Nonce binding is not executable against the pinned strategy: with response_type=code it sends no nonce and validates none, so the invalid-token scenarios cover signature, issuer, audience and exp instead.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle."
       ]
     },
     {
@@ -8839,21 +8920,18 @@
       "invariant": "INV-R004-OIDC-MOBILE-CODE-EXCHANGE-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "A successful mobile callback accepts the provider code and caller-supplied PKCE verifier, returns the upstream API login payload and token claims, persists one provider-linked active user and one session, and matches the selected user fields and server settings.",
+      "contract": "The native callback with the app's code_verifier answers 200 with the login payload: user id/username/type=user/isActive/hasOpenIDLink, non-empty accessToken, refreshToken and legacy token, default permissions (download and accessAllLibraries true), Source=docker, a non-null userDefaultLibraryId equal to the first-displayOrder library, serverSettings.version/language and an ereaderDevices array. The provider token request carried grant_type=authorization_code, the code, redirect_uri=<origin>/auth/openid/mobile-redirect and that verifier; exactly one session row holds the returned refresh token and it refreshes.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-445",
         "server/auth/OidcAuthStrategy.js:301-368",
-        "server/auth/OidcAuthStrategy.js:112-164"
+        "server/auth/TokenManager.js:184-200",
+        "server/models/User.js:311-341"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-callback-returns-login-payload-with-pkce-verifier"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -8868,11 +8946,10 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "The force scenario is not applicable because GET /auth/openid/callback has no force or refresh operation.",
-        "Exact 24-hour session expiry and rolling session-touch renewal remain unverified; this route subset does not establish route-wide OIDC parity.",
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "One local RS256 provider, one allowlisted redirect URI, one S256 flow, and the fixture auto-registration mode are covered. Invalid verifier/provider failures remain unverified."
+        "force is not applicable: GET /auth/openid/callback has no force, override or refresh mode.",
+        "Nonce binding is not executable against the pinned strategy: with response_type=code it sends no nonce and validates none, so the invalid-token scenarios cover signature, issuer, audience and exp instead.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
+        "The token request form is observed at the stubbed provider; it is not part of the client protocol but proves the verifier was forwarded."
       ]
     },
     {
@@ -8880,19 +8957,15 @@
       "invariant": "INV-R004-OIDC-MOBILE-EXCHANGE-REPLAY-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Repeating the mobile token-exchange callback after the first callback consumed its session returns HTTP 400 No session with a usable client-visible denial and creates no second user or session.",
+      "contract": "Repeating the native token-exchange callback with its consumed session answers 400 with body 'No session' and creates no second user or session; the route rejects before any provider token request.",
       "status": "unverified",
       "source": [
-        "server/Auth.js:383-418"
+        "server/Auth.js:383-397"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-callback-replay-400-no-session"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange-replay"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -8907,11 +8980,9 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "The force scenario is not applicable because GET /auth/openid/callback has no force or refresh operation.",
-        "Exact 24-hour session expiry and rolling session-touch renewal remain unverified; this route subset does not establish route-wide OIDC parity.",
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Historical pre-rewrite observation (not a fixed representation requirement): Repeating the mobile token-exchange callback after the first callback consumed its session returns HTTP 400 No session with Express text/html response behavior and creates no second user or session."
+        "force is not applicable: GET /auth/openid/callback has no force, override or refresh mode.",
+        "Nonce binding is not executable against the pinned strategy: with response_type=code it sends no nonce and validates none, so the invalid-token scenarios cover signature, issuer, audience and exp instead.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle."
       ]
     },
     {
@@ -8919,20 +8990,15 @@
       "invariant": "INV-R004-WEB-EMPTY-VERIFIER-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "A callback request with no browser session and an empty code_verifier is treated as web and redirects to login with No sign-in session; a truthy code_verifier (non-empty string or repeated-query array) selects the mobile No session response.",
+      "contract": "Without a browser session, a callback with no code_verifier or an empty code_verifier is treated as web and answers 302 /login?error=No sign-in session&autoLaunch=0; a non-empty code_verifier, a repeated code_verifier parameter (array) or the auth_method=openid-mobile cookie answers 400 with body 'No session'. None creates a user or session.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-398"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-no-session-verifier-matrix"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-callback-no-session-empty-verifier",
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-callback-no-session-duplicate-empty-verifier"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -8947,10 +9013,10 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "The force scenario is not applicable because GET /auth/openid/callback has no force or refresh operation.",
-        "Exact 24-hour session expiry and rolling session-touch renewal remain unverified; this route subset does not establish route-wide OIDC parity.",
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "force is not applicable: GET /auth/openid/callback has no force, override or refresh mode.",
+        "Nonce binding is not executable against the pinned strategy: with response_type=code it sends no nonce and validates none, so the invalid-token scenarios cover signature, issuer, audience and exp instead.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
+        "This pins the upstream truthiness decision for code_verifier because the official app always sends one on the native callback and the web client never sends one."
       ]
     },
     {
@@ -8958,22 +9024,17 @@
       "invariant": "INV-R004-WEB-SESSION-TTL-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "A web OIDC callback using the same browser session remains valid after more than ten minutes but before the upstream 24-hour session TTL; callback route/tokens/cookies and provider-linked persisted user/session state match.",
+      "contract": "A started web flow still completes after the same browser makes other requests with its session cookie; the flow is not bound to the start request. The Express session store keeps sessions for 24 hours of inactivity; the exact boundary is not exercised.",
       "status": "unverified",
       "source": [
         "server/Server.js:301-313",
         "server/libs/memorystore/index.js:15-28",
-        "server/Auth.js:383-445"
+        "server/auth/OidcAuthStrategy.js:355-363"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-survives-intervening-requests"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-state-after-ten-minutes",
-        "go-backend/testmachine/contracts/parity/oidc-web-state-expiry-red-report.json"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -8988,11 +9049,44 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "The force scenario is not applicable because GET /auth/openid/callback has no force or refresh operation.",
-        "Exact 24-hour session expiry and rolling session-touch renewal remain unverified; this route subset does not establish route-wide OIDC parity.",
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "One callback after 10 minutes with no intervening requests is covered. The exact 24-hour boundary and rolling session-touch renewal remain unverified."
+        "force is not applicable: GET /auth/openid/callback has no force, override or refresh mode.",
+        "Nonce binding is not executable against the pinned strategy: with response_type=code it sends no nonce and validates none, so the invalid-token scenarios cover signature, issuer, audience and exp instead.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
+        "The 24-hour boundary and rolling session-touch renewal are not executable within a bounded run; only survival across other requests is asserted."
+      ]
+    },
+    {
+      "requirement": "route-r004",
+      "invariant": "INV-R004-WEB-DEACTIVATED-USER-001",
+      "owner": "oidc",
+      "packet": "Q06",
+      "contract": "When the user linked to the subject is deactivated after a flow starts, the callback answers 302 /login?error=Unauthorized&autoLaunch=0, creates no session for that user and leaves the user row (including its updatedAt) unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js:131-150",
+        "server/models/User.js:290-295"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-deactivated-user-denied"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: GET /auth/openid/callback has no force, override or refresh mode.",
+        "Nonce binding is not executable against the pinned strategy: with response_type=code it sends no nonce and validates none, so the invalid-token scenarios cover signature, issuer, audience and exp instead.",
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle."
       ]
     },
     {
@@ -9000,13 +9094,16 @@
       "invariant": "INV-R005-CONTRACT-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "GET /auth/openid/config. Authenticated admin discovery requires issuer and returns the provider discovery document or a client-visible failure; anonymous users receive 401 and non-admins 403.",
+      "contract": "GET /auth/openid/config requires a bearer token: an anonymous caller gets 401 and an ordinary user gets 403, and neither answer contains the configured client id/secret, issuer URL or an internal trace. An admin call must pass a string issuer, else 400. The issuer loses one trailing slash and is fetched at <issuer>/.well-known/openid-configuration; success answers 200 with exactly issuer, authorization_endpoint, token_endpoint, userinfo_endpoint, end_session_endpoint, jwks_uri and id_token_signing_alg_values_supported copied from that document (the document's code_challenge_methods_supported is not forwarded). An unparseable issuer, a document answering 404 and an unreachable issuer answer 400 without provider detail.",
       "status": "unverified",
       "source": [
-        "server/Auth.js:464"
+        "server/Auth.js:464-480",
+        "server/auth/OidcAuthStrategy.js:439-476"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/config-admin-gets-seven-discovery-fields",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/config-denies-anonymous-nonadmin-and-bad-issuer",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/config-trailing-slash-and-missing-document"
       ],
       "evidence": [],
       "cases": {
@@ -9017,9 +9114,9 @@
       "stateful": false,
       "state_scenarios": {},
       "exceptions": [
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Mapped tests cover selected denial or lower-level behavior only; successful endpoint payload/state and complete source/client variants need explicit owner-packet assertions.",
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+        "Mapping note: the named internal Go test is an assertion lead only; the shared scenarios are the executable oracle.",
+        "The admin settings endpoint that might expose the same provider fields (PATCH /api/auth-settings) is owned by the admin_settings packet; this requirement asserts only the discovery route.",
+        "Only the access rule, the seven forwarded fields and the failure statuses are asserted; the HTML/text of the 401/403 bodies is free."
       ]
     },
     {
@@ -25599,16 +25696,26 @@
       "invariant": "INV-SOCKET-INCOMING-AUTH",
       "owner": "realtime",
       "packet": "Q07",
-      "contract": "Socket.IO incoming auth: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "A valid access token or active API key authenticates the socket as its user: init names that user (exactly userId/username for non-admins), users.lastSeen is written, and the user is listed once by GET /api/users/online; an inactive user is rejected with Invalid user until reactivated; authenticating the same socket again emits a second init and reports the previous auth's lastSeen in the second user_online, and authenticating it as another user moves the connection to that user; rejected credentials change no users row.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:188"
+        "server/SocketAuthority.js:187-188",
+        "server/SocketAuthority.js:269-278",
+        "server/SocketAuthority.js:282-302",
+        "server/SocketAuthority.js:304-327",
+        "server/SocketAuthority.js:329-361",
+        "server/models/User.js:584-594"
       ],
       "tests": [
         "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
         "go-backend/internal/realtime/sio_test.go:320#TestEventBeforeConnectClosesConnection",
         "go-backend/internal/realtime/sio_test.go:508#TestParsePacket",
-        "go-backend/internal/realtime/hub_test.go:280#TestSocketAuthentication"
+        "go-backend/internal/realtime/hub_test.go:280#TestSocketAuthentication",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-valid-token-initializes",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-inactive-user-rejected",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-api-key-authenticates-key-user",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-repeat-moves-last-seen",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-rejected-leaves-user-row"
       ],
       "evidence": [],
       "cases": {
@@ -25621,11 +25728,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: socket auth has no force or override mode."
       ]
     },
     {
@@ -25696,12 +25804,19 @@
       "invariant": "INV-SOCKET-INCOMING-CONNECTION",
       "owner": "realtime",
       "packet": "Q07",
-      "contract": "Engine.IO/Socket.IO connection lifecycle: authenticate clients before protected events, register actions before client use, manage disconnect/reconnect/heartbeat and per-user sockets without leaking initialization data. connection is a transport hook, not an application event.",
+      "contract": "A connection receives no init, auth_failed or user_online before its auth event succeeds; a successful auth yields exactly one init and one usersOnline entry and writes users.lastSeen; rejected credentials leave the client anonymous (no usersOnline entry, no lastSeen write) and their disconnect announces no user_offline; concurrent connections authenticate independently and one connection's auth never initializes another.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:177"
+        "server/SocketAuthority.js:176-183",
+        "server/SocketAuthority.js:212-221",
+        "server/controllers/UserController.js:484-493"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/transport-connect-gates-initialization",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/transport-rejected-auth-stays-anonymous",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/transport-sockets-authenticate-independently",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/transport-failed-auth-then-authentication"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -25713,11 +25828,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: a transport connection has no force or override mode."
       ]
     },
     {
@@ -25725,12 +25841,19 @@
       "invariant": "INV-SOCKET-INCOMING-DISCONNECT",
       "owner": "realtime",
       "packet": "Q07",
-      "contract": "Socket.IO incoming disconnect: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Closing an authenticated socket removes it from usersOnline and announces user_offline to admins; closing an anonymous or rejected socket announces nothing and changes no users row; closing one of a user's two sockets leaves the user online with one connection.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:213"
+        "server/SocketAuthority.js:212-234",
+        "server/SocketAuthority.js:80-87",
+        "server/controllers/UserController.js:484-493"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/disconnect-removes-authenticated-client",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/disconnect-anonymous-has-no-effect",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/disconnect-one-of-two-sockets",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/disconnect-after-rejected-auth-silent"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -25742,11 +25865,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: a disconnect has no force or override mode."
       ]
     },
     {
@@ -25754,13 +25878,19 @@
       "invariant": "INV-SOCKET-INCOMING-MESSAGE-ALL-USERS",
       "owner": "realtime",
       "packet": "Q07",
-      "contract": "Socket.IO incoming message_all_users: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "An admin's message_all_users delivers admin_message to the sender and every other authenticated socket (admin or user) and to no anonymous socket; two events from a non-admin user emit nothing; a payload without message becomes the empty string, a Unicode message is preserved, and sockets that authenticate later receive the next message; an unauthenticated sender emits nothing and stays unauthenticated.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:239"
+        "server/SocketAuthority.js:239-247",
+        "server/SocketAuthority.js:57-65",
+        "client/layouts/default.vue:364-366"
       ],
       "tests": [
-        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/message-all-users-broadcast",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/message-all-users-non-admin-silent",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/message-all-users-payload-and-new-audience",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/message-all-users-unauthenticated-silent"
       ],
       "evidence": [],
       "cases": {
@@ -25773,11 +25903,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: the message action has no force or override mode."
       ]
     },
     {
@@ -25785,15 +25916,19 @@
       "invariant": "INV-SOCKET-INCOMING-PING",
       "owner": "realtime",
       "packet": "Q07",
-      "contract": "Socket.IO incoming ping: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "One ping produces exactly one pong on the pinging socket (two pings, two pongs) and none on another socket; ping is not behind auth, answers before and after a later authentication, and still answers after a rejected auth without initializing the socket.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:249"
+        "server/SocketAuthority.js:249-254"
       ],
       "tests": [
         "go-backend/internal/contracttest/socketio_client_test.go:156#TestParseSocketIOEvent",
         "go-backend/internal/realtime/sio_test.go:249#TestPacketGrammar",
-        "go-backend/internal/realtime/sio_test.go:270#TestHandlersAreAttachedBeforeConnectAck"
+        "go-backend/internal/realtime/sio_test.go:270#TestHandlersAreAttachedBeforeConnectAck",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/ping-answers-once",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/ping-answers-only-its-sender",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/ping-unauthenticated-answers",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/ping-after-rejected-auth-answers"
       ],
       "evidence": [],
       "cases": {
@@ -25806,11 +25941,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: the ping action has no force or override mode."
       ]
     },
     {
@@ -25912,13 +26048,20 @@
       "invariant": "INV-SOCKET-OUTGOING-ADMIN-MESSAGE",
       "owner": "realtime",
       "packet": "Q07",
-      "contract": "Socket.IO outgoing admin_message: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "admin_message is exactly one JSON string argument equal to the sent message and reaches every authenticated socket including the sender; a non-admin sender produces no event, twice in a row; a payload without message yields the empty string; a socket that authenticates later receives the following message; an unauthenticated sender produces no event.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:244"
+        "server/SocketAuthority.js:244",
+        "server/SocketAuthority.js:57-65",
+        "client/layouts/default.vue:364-366",
+        "client/layouts/default.vue:475"
       ],
       "tests": [
-        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/admin-message-string-payload",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/admin-message-no-event-for-rejected-sender",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/admin-message-empty-and-late-recipient",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/admin-message-unauthenticated-sender"
       ],
       "evidence": [],
       "cases": {
@@ -25931,11 +26074,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: admin_message has no force or override mode."
       ]
     },
     {
@@ -25943,20 +26087,21 @@
       "invariant": "INV-SOCKET-OUTGOING-AUTH-FAILED",
       "owner": "realtime",
       "packet": "Q07",
-      "contract": "Socket.IO outgoing auth_failed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "auth_failed carries exactly one field, message, chosen from Invalid token, Invalid API key, API key expired and Invalid user for the eight rejection branches; it reaches only the socket that sent the credential; an expired API key is deactivated; other rejected credentials leave the users and apiKeys rows, the online list and the user_online stream unchanged; the same socket can still authenticate afterwards.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:277",
-        "server/SocketAuthority.js:288",
-        "server/SocketAuthority.js:295",
-        "server/SocketAuthority.js:301",
-        "server/SocketAuthority.js:307",
-        "server/SocketAuthority.js:312",
-        "server/SocketAuthority.js:320",
-        "server/SocketAuthority.js:326"
+        "server/SocketAuthority.js:272-278",
+        "server/SocketAuthority.js:282-302",
+        "server/SocketAuthority.js:304-327",
+        "client/layouts/default.vue:143-146"
       ],
       "tests": [
-        "go-backend/internal/realtime/hub_test.go:280#TestSocketAuthentication"
+        "go-backend/internal/realtime/hub_test.go:280#TestSocketAuthentication",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-messages-and-branches",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-is-socket-local",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-missing-token",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-expired-token",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-no-side-effects"
       ],
       "evidence": [],
       "cases": {
@@ -25969,11 +26114,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: credential rejection has no force or override mode."
       ]
     },
     {
@@ -26737,14 +26883,22 @@
       "invariant": "INV-SOCKET-OUTGOING-INIT",
       "owner": "realtime",
       "packet": "Q07",
-      "contract": "Socket.IO outgoing init: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "init is exactly {userId, username} for a non-admin and adds usersOnline for an admin; usersOnline lists every authenticated client with its connection count, the admin's own entry, the open playback session of a user and a written lastSeen; a second admin connection sees the admin counted twice; no init is emitted before or instead of a successful auth.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:361"
+        "server/SocketAuthority.js:27-45",
+        "server/SocketAuthority.js:354-361",
+        "server/models/User.js:584-594",
+        "server/objects/PlaybackSession.js:86-115",
+        "client/layouts/default.vue:147-155"
       ],
       "tests": [
         "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
-        "go-backend/internal/contracttest/socketio_client_test.go:156#TestParseSocketIOEvent"
+        "go-backend/internal/contracttest/socketio_client_test.go:156#TestParseSocketIOEvent",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/init-user-payload",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/init-admin-users-online",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/init-admin-repeat-connection",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/init-only-after-successful-auth"
       ],
       "evidence": [],
       "cases": {
@@ -26757,11 +26911,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: init has no force or override mode."
       ]
     },
     {
@@ -27414,14 +27569,18 @@
       "invariant": "INV-SOCKET-OUTGOING-PONG",
       "owner": "realtime",
       "packet": "Q07",
-      "contract": "Socket.IO outgoing pong: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "pong carries no arguments; each ping yields one pong on the sender and none on a second authenticated socket, in arrival order; an unauthenticated socket and a socket whose auth was rejected both still receive pong.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:253"
+        "server/SocketAuthority.js:249-254"
       ],
       "tests": [
         "go-backend/internal/realtime/sio_test.go:249#TestPacketGrammar",
-        "go-backend/internal/realtime/sio_test.go:270#TestHandlersAreAttachedBeforeConnectAck"
+        "go-backend/internal/realtime/sio_test.go:270#TestHandlersAreAttachedBeforeConnectAck",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-carries-no-arguments",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-audience-is-the-sender",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-for-unauthenticated-socket",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-after-failed-auth"
       ],
       "evidence": [],
       "cases": {
@@ -27434,11 +27593,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: pong has no force or override mode."
       ]
     },
     {
@@ -28229,13 +28389,20 @@
       "invariant": "INV-SOCKET-OUTGOING-USER-OFFLINE",
       "owner": "realtime",
       "packet": "Q07",
-      "contract": "Socket.IO outgoing user_offline: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Each admin socket receives one user_offline per authenticated socket disconnect with the six public fields and a non-null lastSeen; non-admin and anonymous sockets never receive it; closing one of two connections announces while usersOnline keeps the user with one connection; a disconnect without an admin connected leaves no online state behind.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:224"
+        "server/SocketAuthority.js:222-225",
+        "server/SocketAuthority.js:80-87",
+        "server/models/User.js:584-594",
+        "client/layouts/default.vue:275-280"
       ],
       "tests": [
-        "go-backend/internal/realtime/hub_test.go:403#TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers"
+        "go-backend/internal/realtime/hub_test.go:403#TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-offline-payload-and-audience",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-offline-never-to-users",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-offline-per-socket",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-offline-without-admin"
       ],
       "evidence": [],
       "cases": {
@@ -28248,11 +28415,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: user_offline has no force or override mode."
       ]
     },
     {
@@ -28260,13 +28428,20 @@
       "invariant": "INV-SOCKET-OUTGOING-USER-ONLINE",
       "owner": "realtime",
       "packet": "Q07",
-      "contract": "Socket.IO outgoing user_online: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Every admin socket receives one user_online per authenticated user with exactly the six public fields and identical values; non-admin and anonymous sockets receive none; the authenticating admin's user_online precedes its init; a repeat connection emits a second event whose lastSeen is the first authentication's written time; an open playback session appears in the session field; a rejected auth emits no user_online.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:348"
+        "server/SocketAuthority.js:347-348",
+        "server/SocketAuthority.js:80-87",
+        "server/models/User.js:584-594",
+        "client/layouts/default.vue:275-280"
       ],
       "tests": [
-        "go-backend/internal/realtime/hub_test.go:280#TestSocketAuthentication"
+        "go-backend/internal/realtime/hub_test.go:280#TestSocketAuthentication",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-online-admin-audience",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-online-repeat-connection",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-online-session-and-root",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/user-online-not-for-rejected-auth"
       ],
       "evidence": [],
       "cases": {
@@ -28279,11 +28454,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: user_online has no force or override mode."
       ]
     },
     {
@@ -29477,17 +29653,18 @@
       "invariant": "INV-OIDC-WEB-CALLBACK-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Web auto-registration success redirects to the configured callback with tokens and persists the provider subject, user fields, and exactly one refresh session; provider error, state replay, expired ID token, and disabled auto-registration match upstream response routing and create no additional user or session.",
+      "contract": "With authOpenIDAutoRegister on, an unknown provider subject creates exactly one active 'user' whose username is preferred_username and whose email is the verified email, stores authOpenIDSub in extraData and creates exactly one refreshable session. With auto-registration off, an unknown subject is denied with 302 /login?error=Unauthorized&autoLaunch=0 and creates no user or session. Two logins of the same subject reuse that user row (same id) and add one session each without a second user_added event.",
       "status": "unverified",
       "source": [
-        "server/auth/OidcAuthStrategy.js",
-        "server/models/User.js",
-        "server/Auth.js"
+        "server/auth/OidcAuthStrategy.js:137-158",
+        "server/models/User.js:220-227",
+        "server/models/User.js:311-341",
+        "server/Auth.js:296-312"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:134#TestOIDCWebFlowSignsInAndMapsGroups",
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-auto-register-creates-linked-user",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-auto-register-disabled-or-provider-failed-creates-nothing",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-repeat-web-login-reuses-user-adds-session"
       ],
       "evidence": [],
       "cases": {
@@ -29504,13 +29681,10 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
-        "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-        "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario.",
-        "Review M1 follow-up (2026-10-30): F05 now implements and differentially verifies local login/logout connect.sid regeneration, including actual-cookie login \u2192 repeated logout relationships. OIDC start/callback/logout value relationships remain open because oidc-differential normalizes connect.sid values; do not infer OIDC value parity from the local-session evidence.",
-        "Current Go assertion tests were remapped to auth/oidc_test.go; previous identity package paths were stale. Historical Node differential reports are retained as provenance but are not treated as current Go assertion evidence. Force has no OIDC operation in the pinned route contract.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Evidence covers the named web flow cases only; it does not establish all callback cookies, mobile, or event behavior."
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state."
       ]
     },
     {
@@ -29518,54 +29692,15 @@
       "invariant": "INV-OIDC-EMAIL-LINK-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "When authOpenIDMatchExistingBy=email finds an active unlinked user, callback links the provider subject to that existing user, preserves existing extraData field values when adding authOpenIDSub, and creates one session. JSON member order is free.",
+      "contract": "When authOpenIDMatchExistingBy=email and userinfo.email_verified is not false, the callback matches an active existing user by email: the user keeps its id, username, email, type and every existing extraData member, gains extraData.authOpenIDSub = userinfo.sub, and gets exactly one session. When email_verified is explicitly false the login is denied with the Unauthorized login redirect, links nothing and creates no session.",
       "status": "unverified",
       "source": [
         "server/models/User.js:220-308",
         "server/auth/OidcAuthStrategy.js:112-164"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:234#TestOIDCUserMatching"
-      ],
-      "evidence": [
-        "go-backend/internal/auth/oidc_test.go:234#TestOIDCUserMatching"
-      ],
-      "cases": {
-        "normal": "unverified",
-        "error": "unverified",
-        "edge": "unverified"
-      },
-      "stateful": true,
-      "state_scenarios": {
-        "initial": "unverified",
-        "repeat": "unverified",
-        "changed": "unverified",
-        "force": "not_applicable",
-        "failure": "unverified"
-      },
-      "exceptions": [
-        "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
-        "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-        "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario.",
-        "Review M1 follow-up (2026-10-30): F05 now implements and differentially verifies local login/logout connect.sid regeneration, including actual-cookie login \u2192 repeated logout relationships. OIDC start/callback/logout value relationships remain open because oidc-differential normalizes connect.sid values; do not infer OIDC value parity from the local-session evidence.",
-        "Current Go assertion tests were remapped to auth/oidc_test.go; previous identity package paths were stale. Historical Node differential reports are retained as provenance but are not treated as current Go assertion evidence. Force has no OIDC operation in the pinned route contract.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed.",
-        "Historical observation superseded by current semantic requirement: When authOpenIDMatchExistingBy=email finds an active unlinked user, callback links the provider subject to that user, creates one session, and retains the existing extraData member order when appending authOpenIDSub."
-      ]
-    },
-    {
-      "requirement": "sub-oidc-auth",
-      "invariant": "INV-OIDC-USER-ADDED-001",
-      "owner": "oidc",
-      "packet": "Q06",
-      "contract": "Successful OIDC auto-registration emits one user_added payload with the legacy browser user shape to root/admin sockets and does not deliver it to an ordinary user socket.",
-      "status": "unverified",
-      "source": [
-        "server/models/User.js:311-345"
-      ],
-      "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-links-existing-user-and-keeps-fields",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-unverified-email-denied"
       ],
       "evidence": [],
       "cases": {
@@ -29582,31 +29717,28 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
-        "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-        "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario.",
-        "Review M1 follow-up (2026-10-30): F05 now implements and differentially verifies local login/logout connect.sid regeneration, including actual-cookie login \u2192 repeated logout relationships. OIDC start/callback/logout value relationships remain open because oidc-differential normalizes connect.sid values; do not infer OIDC value parity from the local-session evidence.",
-        "Current Go assertion tests were remapped to auth/oidc_test.go; previous identity package paths were stale. Historical Node differential reports are retained as provenance but are not treated as current Go assertion evidence. Force has no OIDC operation in the pinned route contract.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Evidence covers the selected auto-registration event and admin-versus-reader recipient distinction only; the full Socket.IO event matrix remains open."
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state.",
+        "JSON member order inside extraData is free; only membership and values are asserted."
       ]
     },
     {
       "requirement": "sub-oidc-auth",
-      "invariant": "INV-OIDC-IDTOKEN-VALIDATION-001",
+      "invariant": "INV-OIDC-USER-ADDED-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Web OIDC callback rejects ID tokens with an invalid nonce, issuer, audience, or RS256 signature using upstream redirect behavior, without changing the resulting user or session state.",
+      "contract": "Successful OIDC auto-registration emits one user_added event with the legacy browser user shape (id, username, email, type, non-empty token, isActive, hasOpenIDLink true, permissions without librariesAccessible/itemTagsSelected, librariesAccessible/itemTagsSelected/mediaProgress/bookmarks arrays) to root/admin sockets and no user_added to an ordinary user socket.",
       "status": "unverified",
       "source": [
-        "server/auth/OidcAuthStrategy.js"
+        "server/models/User.js:311-341",
+        "server/SocketAuthority.js"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-auto-register-emits-user-added-to-admins-only"
       ],
-      "evidence": [
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -29621,14 +29753,47 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
-        "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-        "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario.",
-        "Review M1 follow-up (2026-10-30): F05 now implements and differentially verifies local login/logout connect.sid regeneration, including actual-cookie login \u2192 repeated logout relationships. OIDC start/callback/logout value relationships remain open because oidc-differential normalizes connect.sid values; do not infer OIDC value parity from the local-session evidence.",
-        "Current Go assertion tests were remapped to auth/oidc_test.go; previous identity package paths were stale. Historical Node differential reports are retained as provenance but are not treated as current Go assertion evidence. Force has no OIDC operation in the pinned route contract.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Evidence covers the four named invalid-token cases using the local mock provider; it does not establish all token validation rules or the complete OIDC flow.",
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed."
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state.",
+        "The full Socket.IO audience matrix for every user event is owned by the user_admin packet; this invariant asserts only the auto-registration event and the ordinary-user exclusion."
+      ]
+    },
+    {
+      "requirement": "sub-oidc-auth",
+      "invariant": "INV-OIDC-IDTOKEN-VALIDATION-001",
+      "owner": "oidc",
+      "packet": "Q06",
+      "contract": "A web OIDC callback whose ID token has a broken RS256 signature, a foreign issuer, a foreign audience or an expired exp answers 302 /login?error=Unauthorized&autoLaunch=0, creates no user or session and consumes the flow.",
+      "status": "unverified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js:117-166",
+        "server/Auth.js:406-432"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-invalid-id-tokens-create-no-user"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state.",
+        "The pinned strategy sends no nonce with response_type=code, so nonce validation cannot be exercised; signature, issuer, audience and exp are."
       ]
     },
     {
@@ -29636,7 +29801,7 @@
       "invariant": "INV-OIDC-MOBILE-STATE-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Mobile OIDC validates redirect allowlist and S256 PKCE inputs, forwards bound state/challenge, redirects to the correct provider/app Location with the required status, consumes state once and rejects replay without credentials. Redirect HTML and incidental response headers are free.",
+      "contract": "A native start rejects an unlisted redirect_uri and a missing code_challenge with 400 and no credentials. A valid start binds the app's S256 challenge and a server-generated state: both appear in the provider URL, the mobile-redirect answer carries the provider code and that state to the app URI, and the mobile-redirect state is consumed once (a second use is 400) while the app callback with the same state still completes.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:256-281",
@@ -29645,13 +29810,9 @@
         "server/Auth.js:362-378"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-state-bound-to-flow-and-used-once"
       ],
-      "evidence": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -29666,15 +29827,10 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
-        "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-        "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario.",
-        "Review M1 follow-up (2026-10-30): F05 now implements and differentially verifies local login/logout connect.sid regeneration, including actual-cookie login \u2192 repeated logout relationships. OIDC start/callback/logout value relationships remain open because oidc-differential normalizes connect.sid values; do not infer OIDC value parity from the local-session evidence.",
-        "Current Go assertion tests were remapped to auth/oidc_test.go; previous identity package paths were stale. Historical Node differential reports are retained as provenance but are not treated as current Go assertion evidence. Force has no OIDC operation in the pinned route contract.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Covers one mobile URI and S256 authorization flow; callback cookie attributes, state expiry, mobile app token exchange, other URI schemes, and general Socket.IO behavior remain open.",
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed.",
-        "Historical observation superseded by current semantic requirement: The selected mobile flow validates redirect allowlist and S256 PKCE inputs, forwards provider state/challenge, matches complete Express redirect responses (status, Location, content type, content length and body) to the provider and app, consumes state once, and matches the replay error response."
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state."
       ]
     },
     {
@@ -29682,7 +29838,7 @@
       "invariant": "INV-OIDC-WEB-COOKIE-JWT-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Web/mobile OIDC start and callback preserve allowed redirect parameters, state/PKCE/nonce binding and client-consumed JWT claims. Required auth cookies retain usable lifetime/Path/HttpOnly/Secure/SameSite semantics; opaque cookie values and the Express session implementation are free if isolation and replay protection hold.",
+      "contract": "A web start sets HttpOnly auth_cb (Max-Age 600, value the callback URL), HttpOnly auth_method=openid (Max-Age 315360000) and a fresh connect.sid; the success callback sets an HttpOnly Path=/ refresh_token and a Secure SameSite=Strict openid_id_token, and the returned access token carries userId (the new user), username and type=access with a future exp.",
       "status": "unverified",
       "source": [
         "server/Auth.js:218-248",
@@ -29692,8 +29848,7 @@
         "server/Server.js:301-317"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:134#TestOIDCWebFlowSignsInAndMapsGroups"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-start-and-callback-cookie-and-jwt-shape"
       ],
       "evidence": [],
       "cases": {
@@ -29710,14 +29865,11 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
-        "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-        "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario.",
-        "Review M1 follow-up (2026-10-30): F05 now implements and differentially verifies local login/logout connect.sid regeneration, including actual-cookie login \u2192 repeated logout relationships. OIDC start/callback/logout value relationships remain open because oidc-differential normalizes connect.sid values; do not infer OIDC value parity from the local-session evidence.",
-        "Current Go assertion tests were remapped to auth/oidc_test.go; previous identity package paths were stale. Historical Node differential reports are retained as provenance but are not treated as current Go assertion evidence. Force has no OIDC operation in the pinned route contract.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Evidence covers the selected web auto-registration and email-link success cases; failure/logout cookie clearing, additional proxy/security modes, and every callback branch remain unverified.",
-        "Historical pre-rewrite observation (not a fixed representation requirement): On selected web OIDC success, start cookies and callback cookies match upstream cookie names, stable values, Max-Age, Path, Expires, HttpOnly, Secure, and SameSite attributes; the signed connect.sid is present. Redirect JWT algorithm and claims match after normalizing UUID identifiers and timestamps, and the returned ID-token nonce is bound to that server flow."
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state.",
+        "Opaque cookie values and the Express session implementation are free; the asserted fields are names, values that are URLs, Max-Age, Path, HttpOnly, Secure and SameSite."
       ]
     },
     {
@@ -29725,7 +29877,7 @@
       "invariant": "INV-OIDC-MOBILE-TOKEN-EXCHANGE-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Successful mobile OIDC exchange validates the app PKCE verifier, returns client-consumed login fields and token claims, and persists the linked user and one session. Replaying the consumed callback returns HTTP 400 and creates no second user/session; preserve any parsed error content only with client evidence.",
+      "contract": "A successful native exchange with the app's PKCE verifier returns the API login payload with non-empty accessToken and refreshToken, persists exactly one linked user and one session whose refreshToken equals the returned value, and refreshes. Replaying the consumed callback answers 400 No session and creates no second user or session.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-445",
@@ -29733,50 +29885,7 @@
         "server/auth/OidcAuthStrategy.js:112-164"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow"
-      ],
-      "evidence": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow"
-      ],
-      "cases": {
-        "normal": "unverified",
-        "error": "unverified",
-        "edge": "unverified"
-      },
-      "stateful": true,
-      "state_scenarios": {
-        "initial": "unverified",
-        "repeat": "unverified",
-        "changed": "unverified",
-        "force": "not_applicable",
-        "failure": "unverified"
-      },
-      "exceptions": [
-        "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
-        "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-        "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario.",
-        "Review M1 follow-up (2026-10-30): F05 now implements and differentially verifies local login/logout connect.sid regeneration, including actual-cookie login \u2192 repeated logout relationships. OIDC start/callback/logout value relationships remain open because oidc-differential normalizes connect.sid values; do not infer OIDC value parity from the local-session evidence.",
-        "Current Go assertion tests were remapped to auth/oidc_test.go; previous identity package paths were stale. Historical Node differential reports are retained as provenance but are not treated as current Go assertion evidence. Force has no OIDC operation in the pinned route contract.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Only one local RS256 provider, redirect URI, S256 flow, and auto-registration path are covered; invalid-verifier/provider error handling remains unverified.",
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed.",
-        "Historical observation superseded by current semantic requirement: A successful mobile OIDC exchange accepts the app-supplied PKCE verifier, returns the API login payload with matching token claims, persists one active provider-linked user and exactly one session; replay after consuming the callback session returns HTTP 400 No session with upstream Express response headers."
-      ]
-    },
-    {
-      "requirement": "sub-oidc-auth",
-      "invariant": "INV-OIDC-MOBILE-INVALID-VERIFIER-001",
-      "owner": "oidc",
-      "packet": "Q06",
-      "contract": "After a valid mobile OIDC authorization and mobile redirect, a callback with an incorrect PKCE verifier matches the upstream login redirect failure (302 to /login?error=Unauthorized&autoLaunch=0), creates no provider-linked user/session, and consumes the one-time callback flow so replay returns 400 No session. The pinned strategy stores the mobile redirect URI string in session.mobile while Auth.js checks session.mobile === true, so valid mobile callback failures follow the web redirect branch.",
-      "status": "unverified",
-      "source": [
-        "server/auth/OidcAuthStrategy.js:356-368",
-        "server/Auth.js:399-432",
-        "server/Auth.js:449-452"
-      ],
-      "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-token-exchange-persists-one-user-and-session"
       ],
       "evidence": [],
       "cases": {
@@ -29793,31 +29902,29 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
-        "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-        "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario.",
-        "Review M1 follow-up (2026-10-30): F05 now implements and differentially verifies local login/logout connect.sid regeneration, including actual-cookie login \u2192 repeated logout relationships. OIDC start/callback/logout value relationships remain open because oidc-differential normalizes connect.sid values; do not infer OIDC value parity from the local-session evidence.",
-        "Current Go assertion tests were remapped to auth/oidc_test.go; previous identity package paths were stale. Historical Node differential reports are retained as provenance but are not treated as current Go assertion evidence. Force has no OIDC operation in the pinned route contract.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state.",
+        "Only the local RS256 stub, one allowlisted redirect URI, S256 and the auto-registration mode are covered."
       ]
     },
     {
       "requirement": "sub-oidc-auth",
-      "invariant": "INV-OIDC-WEB-LOGOUT-001",
+      "invariant": "INV-OIDC-MOBILE-INVALID-VERIFIER-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "OIDC logout returns the client-consumed redirect_url, expires required auth cookies with usable Path/security attributes, revokes refresh authentication and retains the linked user. Preserve CSRF/session-fixation protection without requiring Express/Passport cookie implementation or opaque values.",
+      "contract": "After a valid native authorization and mobile redirect, a callback with an incorrect PKCE verifier follows the upstream web failure branch: 302 to /login?error=Error in callback&autoLaunch=0, because the strategy stores the mobile redirect URI string in session.mobile while Auth.js compares it with true and the provider's invalid_grant is an error rather than a plain failure. It creates no provider-linked user or session and consumes the flow, so a replay returns 400 No session.",
       "status": "unverified",
       "source": [
-        "server/Auth.js:486-523",
-        "server/Auth.js:243-248"
+        "server/auth/OidcAuthStrategy.js:356-368",
+        "server/Auth.js:399-432",
+        "server/Auth.js:449-452"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-wrong-verifier-follows-web-redirect"
       ],
-      "evidence": [
-        "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery"
-      ],
+      "evidence": [],
       "cases": {
         "normal": "unverified",
         "error": "unverified",
@@ -29832,15 +29939,47 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
-        "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-        "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario.",
-        "Review M1 follow-up (2026-10-30): F05 now implements and differentially verifies local login/logout connect.sid regeneration, including actual-cookie login \u2192 repeated logout relationships. OIDC start/callback/logout value relationships remain open because oidc-differential normalizes connect.sid values; do not infer OIDC value parity from the local-session evidence.",
-        "Current Go assertion tests were remapped to auth/oidc_test.go; previous identity package paths were stale. Historical Node differential reports are retained as provenance but are not treated as current Go assertion evidence. Force has no OIDC operation in the pinned route contract.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Evidence uses no configured end-session URL. Logout with provider redirect, allDevices=1, missing/invalid refresh credentials, response/session failure, and mobile logout remain unverified.",
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed.",
-        "Historical pre-rewrite observation (not a fixed representation requirement): After a successful web OIDC login, POST /logout with the issued cookies returns the Express JSON response and weak ETag, clears refresh_token, auth_method, and openid_id_token with the source cookie attributes, regenerates connect.sid, and removes the active refresh session without deleting the provider-linked user. The OIDC differential normalizes connect.sid values, so OIDC-specific replacement remains unverified."
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state.",
+        "The live v2.37.2 answer is 302 Error in callback, not the 302 Unauthorized recorded by an earlier differential: a provider token rejection propagates as an error to the Express error branch. The official app does not read this redirect."
+      ]
+    },
+    {
+      "requirement": "sub-oidc-auth",
+      "invariant": "INV-OIDC-WEB-LOGOUT-001",
+      "owner": "oidc",
+      "packet": "Q06",
+      "contract": "POST /logout carrying the refresh_token cookie, auth_method=openid and the openid_id_token cookie answers 200 {redirect_url:<configured end_session_endpoint>?id_token_hint=<that id_token>&post_logout_redirect_uri=<request origin>/audiobookshelf/login}, expires the refresh_token, auth_method and openid_id_token cookies, deletes the session row and keeps the linked user.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:486-523",
+        "server/auth/OidcAuthStrategy.js:395-423"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-logout-returns-end-session-url-and-revokes-session"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state.",
+        "The route itself is owned by route-r006 in the auth packet; this scenario proves the OIDC-specific end-session URL, id_token_hint and cookie interaction."
       ]
     },
     {
@@ -29848,7 +29987,7 @@
       "invariant": "INV-OIDC-WEB-SESSION-TTL-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "A web OIDC callback using the same browser session remains valid after more than ten minutes but before the upstream 24-hour session TTL; callback route/tokens/cookies and provider-linked persisted user/session state match.",
+      "contract": "A started web flow still completes after the same browser makes other requests with its session cookie; the flow is not bound to the start request. The Express store keeps sessions for 24 hours of inactivity; the exact boundary is not exercised.",
       "status": "unverified",
       "source": [
         "server/Server.js:301-313",
@@ -29857,7 +29996,7 @@
         "server/Auth.js:383-445"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-flow-completes-after-other-requests"
       ],
       "evidence": [],
       "cases": {
@@ -29874,13 +30013,11 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
-        "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-        "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario.",
-        "Review M1 follow-up (2026-10-30): F05 now implements and differentially verifies local login/logout connect.sid regeneration, including actual-cookie login \u2192 repeated logout relationships. OIDC start/callback/logout value relationships remain open because oidc-differential normalizes connect.sid values; do not infer OIDC value parity from the local-session evidence.",
-        "Current Go assertion tests were remapped to auth/oidc_test.go; previous identity package paths were stale. Historical Node differential reports are retained as provenance but are not treated as current Go assertion evidence. Force has no OIDC operation in the pinned route contract.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "One callback after 10 minutes with no intervening requests is covered. The exact 24-hour boundary and rolling session-touch renewal remain unverified."
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state.",
+        "The 24-hour boundary and rolling session-touch renewal are not executable in a bounded run."
       ]
     },
     {
@@ -29888,14 +30025,14 @@
       "invariant": "INV-OIDC-MOBILE-REDIRECT-TTL-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "A mobile redirect URI mapping expires after ten minutes; the callback response matches upstream after expiry.",
+      "contract": "The mobile redirect URI mapping is held in the strategy's LRU for ten minutes and each state is one-time; a consumed or never-issued state answers 400 State parameter mismatch with no Location and no credentials.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:18-22",
         "server/auth/OidcAuthStrategy.js:479-505"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-redirect-consumed-or-unknown-state"
       ],
       "evidence": [],
       "cases": {
@@ -29912,13 +30049,122 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
-        "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-        "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario.",
-        "Review M1 follow-up (2026-10-30): F05 now implements and differentially verifies local login/logout connect.sid regeneration, including actual-cookie login \u2192 repeated logout relationships. OIDC start/callback/logout value relationships remain open because oidc-differential normalizes connect.sid values; do not infer OIDC value parity from the local-session evidence.",
-        "Current Go assertion tests were remapped to auth/oidc_test.go; previous identity package paths were stale. Historical Node differential reports are retained as provenance but are not treated as current Go assertion evidence. Force has no OIDC operation in the pinned route contract.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "One allowlisted audiobookshelf://oauth URI and S256 flow after 10 minutes is covered; exact expiry boundary and other schemes remain unverified."
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state.",
+        "The exact ten-minute boundary is unexecuted because the timer is in-process with no API or clock injection; a not-held state produces the identical response."
+      ]
+    },
+    {
+      "requirement": "sub-oidc-auth",
+      "invariant": "INV-OIDC-GROUP-CLAIM-001",
+      "owner": "oidc",
+      "packet": "Q06",
+      "contract": "With authOpenIDGroupClaim=groups the provider scope includes that claim, a groups=[admin] login makes the linked user an admin, and a later groups=[user] login downgrades the same user to user while each login creates a session. A userinfo without the configured claim is denied with the Unauthorized login redirect and creates no user or session.",
+      "status": "unverified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js:80-89",
+        "server/auth/OidcAuthStrategy.js:174-223"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-group-claim-maps-admin-then-downgrades-user",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-group-claim-missing-denied"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state.",
+        "The root-user downgrade refusal is not asserted: upstream links the subject before refusing and leaves that write behind, and no client drives a root account through OIDC without the admin group."
+      ]
+    },
+    {
+      "requirement": "sub-oidc-auth",
+      "invariant": "INV-OIDC-ADVANCED-PERMS-001",
+      "owner": "oidc",
+      "packet": "Q06",
+      "contract": "With authOpenIDAdvancedPermsClaim=abs_perms, a non-admin login whose claim sets canDownload=false and canAccessExplicitContent=false persists exactly those permission changes on the linked user (other defaults unchanged) and reports them in the login payload and GET /api/me. An admin matched by email keeps its permissions. A userinfo without the configured claim is denied with the Unauthorized login redirect, and the user row auto-registered moments earlier is removed again: no user with that subject and no session remains.",
+      "status": "unverified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js:230-244",
+        "server/auth/OidcAuthStrategy.js:159-166",
+        "server/models/User.js:953-1000"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-advanced-perms-claim-applies-to-user",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-advanced-perms-missing-denied-and-user-removed",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-advanced-perms-claim-ignored-for-admin"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state."
+      ]
+    },
+    {
+      "requirement": "sub-oidc-auth",
+      "invariant": "INV-OIDC-UNLINK-001",
+      "owner": "oidc",
+      "packet": "Q06",
+      "contract": "PATCH /api/users/:id/openid-unlink clears extraData.authOpenIDSub for that user so GET /api/me reports hasOpenIDLink false, while keeping the user and its sessions. A later OIDC login with the matching email links the same user again and adds one session.",
+      "status": "unverified",
+      "source": [
+        "server/models/User.js:286-306",
+        "server/controllers/UserController.js:409-428"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-link-unlink-relink"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+        "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+        "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+        "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing, so no scenario asserts that half-state.",
+        "The unlink route (route-r077) and its user_updated event are owned by the user_admin packet; this scenario uses the call as the state change and asserts the OIDC re-link consequence."
       ]
     },
     {

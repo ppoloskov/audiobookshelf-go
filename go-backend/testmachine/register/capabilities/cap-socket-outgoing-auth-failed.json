@@ -4,16 +4,12 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing auth_failed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "Every rejected socket credential is answered on the same socket with one auth_failed whose only field is message: Invalid token (malformed token, refresh token, deleted user), Invalid API key (missing, inactive or userless key), API key expired (and the key row is deactivated) or Invalid user (inactive account). No other socket receives it and nothing else is persisted.",
   "source": [
-    "server/SocketAuthority.js:277",
-    "server/SocketAuthority.js:288",
-    "server/SocketAuthority.js:295",
-    "server/SocketAuthority.js:301",
-    "server/SocketAuthority.js:307",
-    "server/SocketAuthority.js:312",
-    "server/SocketAuthority.js:320",
-    "server/SocketAuthority.js:326"
+    "server/SocketAuthority.js:272-278",
+    "server/SocketAuthority.js:282-302",
+    "server/SocketAuthority.js:304-327",
+    "client/layouts/default.vue:143-146"
   ],
   "implementation": [
     "go-backend/internal/realtime/socketauth.go"
@@ -24,31 +20,38 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/realtime/hub_test.go:280#TestSocketAuthentication"
+    "go-backend/internal/realtime/hub_test.go:280#TestSocketAuthentication",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-messages-and-branches",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-is-socket-local",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-missing-token",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-expired-token",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-no-side-effects"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: credential rejection has no force or override mode."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-AUTH-FAILED",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing auth_failed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "auth_failed carries exactly one field, message, chosen from Invalid token, Invalid API key, API key expired and Invalid user for the eight rejection branches; it reaches only the socket that sent the credential; an expired API key is deactivated; other rejected credentials leave the users and apiKeys rows, the online list and the user_online stream unchanged; the same socket can still authenticate afterwards.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:277",
-        "server/SocketAuthority.js:288",
-        "server/SocketAuthority.js:295",
-        "server/SocketAuthority.js:301",
-        "server/SocketAuthority.js:307",
-        "server/SocketAuthority.js:312",
-        "server/SocketAuthority.js:320",
-        "server/SocketAuthority.js:326"
+        "server/SocketAuthority.js:272-278",
+        "server/SocketAuthority.js:282-302",
+        "server/SocketAuthority.js:304-327",
+        "client/layouts/default.vue:143-146"
       ],
       "tests": [
-        "go-backend/internal/realtime/hub_test.go:280#TestSocketAuthentication"
+        "go-backend/internal/realtime/hub_test.go:280#TestSocketAuthentication",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-messages-and-branches",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-is-socket-local",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-missing-token",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-expired-token",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/auth-failed-no-side-effects"
       ],
       "evidence": [],
       "exceptions": []
@@ -58,7 +61,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

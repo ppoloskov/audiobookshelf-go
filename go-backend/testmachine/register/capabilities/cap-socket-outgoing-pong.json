@@ -4,9 +4,9 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing pong: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "pong is a zero-argument event delivered only to the socket whose ping produced it, whatever that socket's authentication state.",
   "source": [
-    "server/SocketAuthority.js:253"
+    "server/SocketAuthority.js:249-254"
   ],
   "implementation": [
     "go-backend/internal/realtime/hub.go"
@@ -18,25 +18,34 @@
   },
   "tests": [
     "go-backend/internal/realtime/sio_test.go:249#TestPacketGrammar",
-    "go-backend/internal/realtime/sio_test.go:270#TestHandlersAreAttachedBeforeConnectAck"
+    "go-backend/internal/realtime/sio_test.go:270#TestHandlersAreAttachedBeforeConnectAck",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-carries-no-arguments",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-audience-is-the-sender",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-for-unauthenticated-socket",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-after-failed-auth"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: pong has no force or override mode."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-PONG",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing pong: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "pong carries no arguments; each ping yields one pong on the sender and none on a second authenticated socket, in arrival order; an unauthenticated socket and a socket whose auth was rejected both still receive pong.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:253"
+        "server/SocketAuthority.js:249-254"
       ],
       "tests": [
         "go-backend/internal/realtime/sio_test.go:249#TestPacketGrammar",
-        "go-backend/internal/realtime/sio_test.go:270#TestHandlersAreAttachedBeforeConnectAck"
+        "go-backend/internal/realtime/sio_test.go:270#TestHandlersAreAttachedBeforeConnectAck",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-carries-no-arguments",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-audience-is-the-sender",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-for-unauthenticated-socket",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-after-failed-auth"
       ],
       "evidence": [],
       "exceptions": []
@@ -46,7 +55,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

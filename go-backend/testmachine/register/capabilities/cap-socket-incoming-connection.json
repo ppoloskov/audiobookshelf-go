@@ -4,9 +4,11 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Engine.IO/Socket.IO connection lifecycle: authenticate clients before protected events, register actions before client use, manage disconnect/reconnect/heartbeat and per-user sockets without leaking initialization data. connection is a transport hook, not an application event.",
+  "contract": "The Socket.IO connection hook on the prefixed Engine.IO path (/audiobookshelf/socket.io) creates one client record per connection, associates no user and emits no event until the client sends auth, and drops anonymous records on disconnect without announcing them.",
   "source": [
-    "server/SocketAuthority.js:177"
+    "server/SocketAuthority.js:176-183",
+    "server/SocketAuthority.js:212-221",
+    "server/controllers/UserController.js:484-493"
   ],
   "implementation": [],
   "cases": {
@@ -14,22 +16,35 @@
     "error": "unverified",
     "edge": "unverified"
   },
-  "tests": [],
+  "tests": [
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/transport-connect-gates-initialization",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/transport-rejected-auth-stays-anonymous",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/transport-sockets-authenticate-independently",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/transport-failed-auth-then-authentication"
+  ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: a transport connection has no force or override mode."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-INCOMING-CONNECTION",
       "class": "repeat_operation",
-      "contract": "Engine.IO/Socket.IO connection lifecycle: authenticate clients before protected events, register actions before client use, manage disconnect/reconnect/heartbeat and per-user sockets without leaking initialization data. connection is a transport hook, not an application event.",
+      "contract": "A connection receives no init, auth_failed or user_online before its auth event succeeds; a successful auth yields exactly one init and one usersOnline entry and writes users.lastSeen; rejected credentials leave the client anonymous (no usersOnline entry, no lastSeen write) and their disconnect announces no user_offline; concurrent connections authenticate independently and one connection's auth never initializes another.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:177"
+        "server/SocketAuthority.js:176-183",
+        "server/SocketAuthority.js:212-221",
+        "server/controllers/UserController.js:484-493"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/transport-connect-gates-initialization",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/transport-rejected-auth-stays-anonymous",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/transport-sockets-authenticate-independently",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/transport-failed-auth-then-authentication"
+      ],
       "evidence": [],
       "exceptions": []
     }
@@ -38,7 +53,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

@@ -4,9 +4,11 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO incoming message_all_users: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "The message_all_users client event is accepted from root/admin users only and emits admin_message with payload.message (the empty string when absent) to every authorized client; non-admin and unauthenticated senders emit nothing.",
   "source": [
-    "server/SocketAuthority.js:239"
+    "server/SocketAuthority.js:239-247",
+    "server/SocketAuthority.js:57-65",
+    "client/layouts/default.vue:364-366"
   ],
   "implementation": [
     "go-backend/internal/realtime/hub.go"
@@ -17,24 +19,35 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+    "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/message-all-users-broadcast",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/message-all-users-non-admin-silent",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/message-all-users-payload-and-new-audience",
+    "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/message-all-users-unauthenticated-silent"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: the message action has no force or override mode."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-INCOMING-MESSAGE-ALL-USERS",
       "class": "repeat_operation",
-      "contract": "Socket.IO incoming message_all_users: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "An admin's message_all_users delivers admin_message to the sender and every other authenticated socket (admin or user) and to no anonymous socket; two events from a non-admin user emit nothing; a payload without message becomes the empty string, a Unicode message is preserved, and sockets that authenticate later receive the next message; an unauthenticated sender emits nothing and stays unauthenticated.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:239"
+        "server/SocketAuthority.js:239-247",
+        "server/SocketAuthority.js:57-65",
+        "client/layouts/default.vue:364-366"
       ],
       "tests": [
-        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/message-all-users-broadcast",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/message-all-users-non-admin-silent",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/message-all-users-payload-and-new-audience",
+        "go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/message-all-users-unauthenticated-silent"
       ],
       "evidence": [],
       "exceptions": []
@@ -44,7 +57,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }
