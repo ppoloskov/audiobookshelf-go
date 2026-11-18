@@ -398,13 +398,16 @@ func verify(ctx context.Context, cfg config, phase string, result *report) error
 		args               []string
 	}{
 		{"mapping", root, node, []string{"go-backend/testmachine/scripts/replacement-contract-map.mjs", "--check"}},
+		{"route-parity", root, node, []string{"go-backend/testmachine/scripts/route-parity.mjs", "--check"}},
+		{"go-overfit", root, node, []string{"go-backend/testmachine/scripts/go-overfit-audit.mjs"}},
+		{"scenario-sources", root, node, []string{"go-backend/testmachine/scripts/scenario-sources-lint.mjs"}},
 		{"go-build", filepath.Join(root, "go-backend"), "go", []string{"build", "./..."}},
 		{"go-tests", filepath.Join(root, "go-backend"), "go", []string{"test", "./...", "-count=1"}},
 		{"go-vet", filepath.Join(root, "go-backend"), "go", []string{"vet", "./..."}},
 		{"go-vet-replacement", filepath.Join(root, "go-backend"), "go", []string{"vet", "-tags=replacement", "./..."}},
 		{"go-lint", filepath.Join(root, "go-backend"), "golangci-lint", []string{"run", "--config=../.golangci.yml", "--timeout=5m", "--build-tags=replacement", "./..."}},
 		{"verifier-race", filepath.Join(root, "go-backend"), "env", []string{"CGO_ENABLED=1", "go", "test", "-race", "-count=1", "./testmachine/cmd/verify", "./testmachine/scenarios/harness"}},
-		{"node-tests", root, node, []string{"--test", "go-backend/testmachine/scripts/verify-coverage.test.mjs", "go-backend/testmachine/scripts/source-inventory.test.mjs", "go-backend/testmachine/scripts/replacement-contract-map.test.mjs", "go-backend/testmachine/scripts/test-library-oracle.cjs", "go-backend/testmachine/scripts/test-book-item-oracle.cjs", "go-backend/testmachine/parity/test-compare-reports.cjs", "go-backend/testmachine/parity/test-status.cjs", "go-backend/testmachine/parity/test-cover-patch-contract.cjs", "go-backend/testmachine/parity/test-differential-selftest.cjs", "go-backend/testmachine/parity/test-playback-lifecycle.cjs"}},
+		{"node-tests", root, node, []string{"--test", "go-backend/testmachine/scripts/verify-coverage.test.mjs", "go-backend/testmachine/scripts/source-inventory.test.mjs", "go-backend/testmachine/scripts/replacement-contract-map.test.mjs", "go-backend/testmachine/scripts/route-parity.test.mjs", "go-backend/testmachine/scripts/go-overfit-audit.test.mjs", "go-backend/testmachine/scripts/scenario-sources-lint.test.mjs", "go-backend/testmachine/scripts/test-library-oracle.cjs", "go-backend/testmachine/scripts/test-book-item-oracle.cjs", "go-backend/testmachine/parity/test-compare-reports.cjs", "go-backend/testmachine/parity/test-status.cjs", "go-backend/testmachine/parity/test-cover-patch-contract.cjs", "go-backend/testmachine/parity/test-differential-selftest.cjs", "go-backend/testmachine/parity/test-playback-lifecycle.cjs"}},
 		{"upstream-unit-tests", root, node, []string{"node_modules/mocha/bin/mocha.js", "dist-server/test", "--recursive"}},
 	}
 	result.Health = "passed"
