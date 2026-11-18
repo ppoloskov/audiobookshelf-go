@@ -4,10 +4,12 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Pinned official iOS/Android and documented third-party client workflows preserve login/refresh, local-all offline replay, playback seek/progress, revocation/reconnect, collections/playlists and conditional image/media reads; source-audit confirmation alone does not verify a protocol or device workflow.",
+  "contract": "A device booting against a fresh install reads isInit false with config/metadata paths, initialises through POST /init, then logs in and reads /api/me; repeated boot reads and logins are stable, and a wrong password is rejected without changing persisted state.",
   "source": [
     "go-backend/testmachine/contracts/clients/",
-    "go-backend/testmachine/contracts/mobile-client-audit.md"
+    "go-backend/testmachine/contracts/mobile-client-audit.md",
+    "client/pages/login.vue",
+    "server/Server.js"
   ],
   "implementation": [
     "go-backend/internal/contracttest/"
@@ -19,26 +21,51 @@
   },
   "tests": [
     "go-backend/internal/contracttest/mobile_protocol_test.go",
-    "go-backend/internal/contracttest/socketio_client_test.go"
+    "go-backend/internal/contracttest/socketio_client_test.go",
+    "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-fresh-status-drives-setup",
+    "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-boot-status-stable-on-repeat",
+    "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-init-changes-status-and-login",
+    "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-status-public-with-stale-token",
+    "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-wrong-password-no-session"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: client boot and login offer no force/hard variant; the deeper mobile workflows are owned by the protocol and auth packets."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-CLIENT-DEVICE-ACCEPTANCE",
       "class": "repeat_operation",
-      "contract": "Pinned official iOS/Android and documented third-party client workflows preserve login/refresh, local-all offline replay, playback seek/progress, revocation/reconnect, collections/playlists and conditional image/media reads; source-audit confirmation alone does not verify a protocol or device workflow.",
+      "contract": "A fresh install /status reports isInit false with the actual ConfigPath and MetadataPath and a live /ping; POST /init changes /status to isInit true without those paths, and the new root credentials authenticate /api/me. Repeated /status, /ping and device logins on an initialized install succeed with stable boot data.",
       "status": "unverified",
       "source": [
-        "go-backend/testmachine/contracts/clients/",
-        "go-backend/testmachine/contracts/mobile-client-audit.md"
+        "client/pages/login.vue:162-165",
+        "client/pages/login.vue:266-270",
+        "server/Server.js:377-400"
       ],
       "tests": [
-        "go-backend/internal/contracttest/mobile_protocol_test.go",
-        "go-backend/internal/contracttest/socketio_client_test.go"
+        "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-fresh-status-drives-setup",
+        "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-boot-status-stable-on-repeat",
+        "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-init-changes-status-and-login",
+        "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-status-public-with-stale-token"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-CLIENT-DEVICE-ACCEPTANCE-FAILURE-001",
+      "class": "transaction",
+      "contract": "A device login with a wrong password is rejected with 401 and leaves the user and session row counts unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:322",
+        "server/auth/LocalAuthStrategy.js:90-96",
+        "client/pages/login.vue:212-218"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-wrong-password-no-session"
       ],
       "evidence": [],
       "exceptions": []
@@ -48,7 +75,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

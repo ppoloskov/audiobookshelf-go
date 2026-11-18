@@ -4,7 +4,7 @@
   "kind": "subsystem",
   "scope": "in",
   "status": "unverified",
-  "contract": "Serves the retained original frontend build at the configured RouterBasePath, preserving index.html fallback and asset paths.",
+  "contract": "Serves the retained original frontend build at the configured RouterBasePath, preserving index.html fallback for known client routes, bundled assets and asset-path handles; missing assets answer 404 without a directory listing.",
   "source": [
     "server/Server.js",
     "index.js"
@@ -22,7 +22,10 @@
     "go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing",
     "go-backend/internal/server/pipeline_test.go:140#TestBareBasePathRedirectsToItsRoot",
     "go-backend/testmachine/parity/browser-check.cjs",
-    "go-backend/testmachine/parity/client-check.cjs"
+    "go-backend/testmachine/parity/client-check.cjs",
+    "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/client-index-and-assets-served",
+    "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/client-missing-asset-no-fallback",
+    "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/client-prefixed-base-serves-index"
   ],
   "evidence": [
     "go-backend/testmachine/contracts/parity/browser-acceptance-report.json",
@@ -45,18 +48,20 @@
     {
       "id": "INV-client-browser-001",
       "class": "shape",
-      "contract": "The unchanged bundled client build renders a usable SPA shell/assets and completes login, restricted-library/detail and playback flows at its configured base path. A missing asset/unknown route returns usable client fallback semantics; Express error HTML bytes/header order are not fixed.",
+      "contract": "The unchanged bundled client build serves a usable SPA entry document and its assets at the configured base path without authentication; a missing asset or asset directory answers 404 without falling back to the entry document or listing the directory. Express error HTML bytes and header order are not fixed.",
       "status": "unverified",
       "source": [
-        "server/Server.js",
-        "index.js",
+        "server/Server.js:407-414",
+        "server/Server.js:432-437",
+        "index.js:55-56",
         "client/"
       ],
       "tests": [
         "go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing",
         "go-backend/internal/server/pipeline_test.go:140#TestBareBasePathRedirectsToItsRoot",
         "go-backend/testmachine/parity/browser-check.cjs",
-        "go-backend/testmachine/parity/client-check.cjs"
+        "go-backend/testmachine/parity/client-check.cjs",
+        "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/client-index-and-assets-served"
       ],
       "evidence": [
         "go-backend/testmachine/contracts/parity/browser-acceptance-report.json",
@@ -70,19 +75,21 @@
     {
       "id": "INV-F06-REVIEW-CLOSURE-001",
       "class": "shape",
-      "contract": "Fresh-install/setup and root/prefixed client configurations must yield successful required workflows. A shared root-build hydration failure is a source/build discrepancy to resolve, not successful acceptance. Restricted users see no protected identifiers through pages or API calls.",
+      "contract": "F06 prefixed client configuration serves the client entry document and bundled assets under a non-default ROUTER_BASE_PATH; a missing asset or asset directory stays a 404 with no listing or SPA fallback. Express error HTML bytes and header order are not fixed.",
       "status": "unverified",
       "source": [
-        "server/Server.js:390-437",
-        "server/controllers/LibraryController.js",
-        "server/controllers/LibraryItemController.js",
-        "node_modules/finalhandler/index.js"
+        "server/Server.js:323-334",
+        "server/Server.js:407-414",
+        "server/Server.js:432-437",
+        "index.js:50"
       ],
       "tests": [
         "go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing",
         "go-backend/internal/server/pipeline_test.go:140#TestBareBasePathRedirectsToItsRoot",
         "go-backend/testmachine/parity/browser-check.cjs",
-        "go-backend/testmachine/parity/client-check.cjs"
+        "go-backend/testmachine/parity/client-check.cjs",
+        "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/client-missing-asset-no-fallback",
+        "go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/client-prefixed-base-serves-index"
       ],
       "evidence": [
         "go-backend/testmachine/contracts/parity/parity-f01-f07-closure-report.json#restrictedBrowser",

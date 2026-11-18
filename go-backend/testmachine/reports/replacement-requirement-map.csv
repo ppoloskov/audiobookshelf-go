@@ -1,7 +1,15 @@
 requirement,invariant,packet,owner,contract,status,source,tests (leads only),evidence,normal,error,edge,stateful,state scenarios,limitations
-client-device-acceptance,INV-CLIENT-DEVICE-ACCEPTANCE,Q28,client,"Pinned official iOS/Android and documented third-party client workflows preserve login/refresh, local-all offline replay, playback seek/progress, revocation/reconnect, collections/playlists and conditional image/media reads; source-audit confirmation alone does not verify a protocol or device workflow.",unverified,"go-backend/testmachine/contracts/clients/
-go-backend/testmachine/contracts/mobile-client-audit.md","go-backend/internal/contracttest/mobile_protocol_test.go
-go-backend/internal/contracttest/socketio_client_test.go",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+client-device-acceptance,INV-CLIENT-DEVICE-ACCEPTANCE,Q28,client,"A fresh install /status reports isInit false with the actual ConfigPath and MetadataPath and a live /ping; POST /init changes /status to isInit true without those paths, and the new root credentials authenticate /api/me. Repeated /status, /ping and device logins on an initialized install succeed with stable boot data.",unverified,"client/pages/login.vue:162-165
+client/pages/login.vue:266-270
+server/Server.js:377-400","go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-fresh-status-drives-setup
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-boot-status-stable-on-repeat
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-init-changes-status-and-login
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-status-public-with-stale-token",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.
+force is not applicable: client boot and login offer no force/hard variant; the deeper mobile workflows are owned by the protocol and auth packets."
+client-device-acceptance,INV-CLIENT-DEVICE-ACCEPTANCE-FAILURE-001,Q28,client,A device login with a wrong password is rejected with 401 and leaves the user and session row counts unchanged.,unverified,"server/Auth.js:322
+server/auth/LocalAuthStrategy.js:90-96
+client/pages/login.vue:212-218",go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/device-wrong-password-no-session,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.
+force is not applicable: client boot and login offer no force/hard variant; the deeper mobile workflows are owned by the protocol and auth packets."
 cap-event-backup-applied,INV-CAP-EVENT-BACKUP-APPLIED,Q27,server,"A successful backup apply emits exactly one backup_applied to every authenticated socket and none to an unauthenticated one; the event carries exactly one argument decoded as null (upstream omits the data argument); no event is emitted for a rejected upload, unknown id, forbidden caller or otherwise failed swap.",unverified,"server/managers/BackupManager.js:263-266
 server/SocketAuthority.js:52-68","go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives
 go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata
@@ -165,19 +173,23 @@ go-backend/internal/auth/service_test.go:TestChangePasswordAndInvalidateSessions
 State scenario force is not applicable for this client workflow because none of its mapped operations has a force/refresh mode; changed and repeat outcomes remain unverified unless an invariant explicitly states otherwise.
 2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.
 force is not applicable: this requirement has no force, hard or override mode"
-flow-client-feed-share,INV-FLOW-CLIENT-FEED-SHARE-001,Q17,share,"Journey covers invalid and valid feed/share creation, close/delete, public RSS XML and public share routes; direct tests assert public session progress/track/download and expiry/session closure.",unverified,"server/controllers/RSSFeedController.js
-server/controllers/ShareController.js","go-backend/internal/contracttest/journey_steps_feeds_test.go
-go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh
-go-backend/internal/share/share_test.go:159#TestShareSessionProgressTrackDownload
-go-backend/internal/share/share_test.go:204#TestShareExpiryClosesOnceOnEveryRoute
-go-backend/internal/share/share_test.go:223#TestShareDeleteClosesSessions","go-backend/internal/contracttest/journey_steps_feeds_test.go
-go-backend/internal/share/share_test.go:TestFeedOpenListPublicRefresh
-go-backend/internal/share/share_test.go:TestShareSessionProgressTrackDownload
-go-backend/internal/share/share_test.go:TestShareExpiryClosesOnceOnEveryRoute
-go-backend/internal/share/share_test.go:TestShareDeleteClosesSessions",unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Client evidence: contracts/clients/official-app.md RSS/share rows; clients mark feed management and public sharing used. Complete exact event recipient/payload/timing and every public status/media variant are outside the current mapped tests.
-State scenario force is not applicable for this client workflow because none of its mapped operations has a force/refresh mode; changed and repeat outcomes remain unverified unless an invariant explicitly states otherwise.
-2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.
-Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed."
+flow-client-feed-share,INV-FLOW-CLIENT-FEED-SHARE-001,Q17,share,"The web client's feed journey open -> read -> close: the OpenCloseModal POST for an item, collection or series persists a feed with the requested slug and metadata details, GET /api/feeds lists it immediately, POST /api/feeds/:id/close deletes the feed and its feed episodes so the list no longer contains it and its public XML, cover and enclosure answer 404, and a failed open (item without audio tracks, unknown entity, used slug) answers 4xx, persists nothing and leaves no readable feed for the requested slug.",unverified,"client/components/modals/rssfeed/OpenCloseModal.vue:123-176
+client/pages/config/rss-feeds.vue:100-146
+server/controllers/RSSFeedController.js:41-190
+server/managers/RssFeedManager.js:165-189,293-361","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/flow-open-read-close-a-feed
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/flow-failed-open-leaves-no-feed
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/flow-second-journey-repeats-the-shape",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route or feed consumer has a force, hard or override mode; refresh happens implicitly when the source entity is newer than entityUpdatedAt.
+The share half of this requirement is proven by the share packet records route-r195/r196/r220-r224; this packet's write set cannot assert share routes.
+Error bodies are asserted by status only; the web modal shows error.response.data as a toast but parses nothing (OpenCloseModal.vue:152-156).
+Feed list array order is not asserted (only that feeds[] and minified[] are index-aligned); the config page maps and re-sorts episodes by pubDate (client/pages/config/rss-feeds.vue:140-146)."
+flow-client-feed-share,INV-FLOW-CLIENT-FEED-SHARE-002,Q17,share,"An unauthenticated feed reader consumes the same URLs the XML advertises: GET /feed/:slug returns the RSS document, the image URL it advertises serves the cover bytes and the enclosure URL serves the episode file with byte-range support. After the item's title changes the next fetch returns the new title with the same GUID and enclosure URL; after the feed is closed every one of those URLs answers 404 while the media file and the library item row stay intact.",unverified,"server/models/Feed.js:575-632
+server/models/FeedEpisode.js:314-346
+server/managers/RssFeedManager.js:165-265","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/flow-reader-sees-changed-title-keeping-guid
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/flow-closed-feed-leaves-media-intact
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/flow-open-read-close-a-feed",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route or feed consumer has a force, hard or override mode; refresh happens implicitly when the source entity is newer than entityUpdatedAt.
+The share half of this requirement is proven by the share packet records route-r195/r196/r220-r224; this packet's write set cannot assert share routes.
+Error bodies are asserted by status only; the web modal shows error.response.data as a toast but parses nothing (OpenCloseModal.vue:152-156).
+Feed list array order is not asserted (only that feeds[] and minified[] are index-aligned); the config page maps and re-sorts episodes by pubDate (client/pages/config/rss-feeds.vue:140-146)."
 flow-client-list-ownership,INV-FLOW-CLIENT-LIST-OWNERSHIP-001,Q16,list,"Playlists are user-owned and clients use them as follows: an owner creates a playlist (also from a collection), batch adds, reorders, removes and deletes it with rows following each step; other users and administrators get 403 on every playlist route; lists are per user; repeated batch operations never duplicate items; a user without update permission cannot write collections but can make playlists.",unverified,"server/controllers/PlaylistController.js:511-567
 server/controllers/PlaylistController.js:394-454
 server/controllers/PlaylistController.js:166-256
@@ -300,12 +312,37 @@ server/managers/PlaybackSessionManager.js:110-273","go-backend/testmachine/scena
 go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/flow-failed-upload-then-retry",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Client evidence: contracts/clients/official-app.md playback table and contracts/clients/audiobooth.md playback and offline sync sections. These references are discovery leads; assertions for request defaults, repeat sync, changed sync, partial failure and rollback are not fully mapped here.
 2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.
 force is not applicable: the client workflow has no force/refresh operation; forceDirectPlay and forceTranscode are play request fields, not a replay mode."
-cap-flow-mail-smtp-mime,INV-CAP-FLOW-MAIL-SMTP-MIME,Q20,mail,"Construct SMTP envelope from configured sender and requested recipient; validate preconditions before connect; serialize message headers/body and streamed ebook attachment into MIME, and report SMTP failure without claiming send success.",unverified,server/managers/EmailManager.js,"go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
+cap-flow-mail-smtp-mime,INV-CAP-FLOW-MAIL-SMTP-MIME,Q20,mail,"Both flows build one transport from the stored EmailSettings (host/port, tls only when rejectUnauthorized is false), call verify() on its own SMTP connection and only then call sendMail on a second connection. The ebook flow sends from fromAddress to the device email; the test flow sends to testAddress || fromAddress. verify() answers before any sendMail, and a message rejection is reported as a 400, never as OK.",unverified,"server/managers/EmailManager.js:8-10
+server/managers/EmailManager.js:12-37
+server/managers/EmailManager.js:39-63","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
+go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation
+go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers
+go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce
+go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation
+go-backend/internal/mail/mail_test.go:209#TestTestEmail
+go-backend/internal/mail/mail_test.go:231#TestSendEbook
+go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown
+go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
 go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting
 go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment
-go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",,unverified,unverified,unverified,False,{},"Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.
-State scenarios are not applicable to this stateless event-shape/audience requirement.
-2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/flow-ebook-envelope
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-delivers-text-message",,unverified,unverified,unverified,False,{},"Implicit TLS on the IANA smtps port 465 cannot be exercised offline: binding a privileged port needs root. The 465 rule is asserted from the settings defaults and the transport object; TLS is exercised with STARTTLS on an unprivileged port.
+The test and send routes share the transport code; their envelopes and MIME shapes are asserted by the route-r172 and route-r174 scenarios listed here."
+cap-flow-mail-smtp-mime,INV-CAP-FLOW-MAIL-SMTP-MIME-MIME-001,Q20,mail,"The ebook message is multipart/mixed with one text/html part (body '<div dir=""auto""></div>') and one base64 attachment whose Content-Type is derived from the ebook filename (application/epub+zip for .epub), whose filename is ebookFile.metadata.filename, and whose decoded bytes equal the file at ebookFile.metadata.path. The test message is a single text/plain; charset=utf-8 part with body 'Success!' and no attachment.",unverified,"server/managers/EmailManager.js:47-62
+server/managers/EmailManager.js:25-33","go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/flow-ebook-mime-attachment
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-delivers-text-message",,unverified,unverified,unverified,False,{},"Implicit TLS on the IANA smtps port 465 cannot be exercised offline: binding a privileged port needs root. The 465 rule is asserted from the settings defaults and the transport object; TLS is exercised with STARTTLS on an unprivileged port.
+The test and send routes share the transport code; their envelopes and MIME shapes are asserted by the route-r172 and route-r174 scenarios listed here."
+cap-flow-mail-smtp-mime,INV-CAP-FLOW-MAIL-SMTP-MIME-TRANSPORT-001,Q20,mail,"getTransportObject sends secure=true only when port is 465 and forces secure=false for other ports; it adds auth {user,pass} only when user is set and pass is defined; it sets tls.rejectUnauthorized=false only when the setting is false. With STARTTLS advertised, a trusted certificate upgrades both connections and delivers the message, while rejectUnauthorized true rejects the self-signed certificate with the fixed verification message. AUTH PLAIN carries exactly the configured user and password on the verification and delivery connections.",unverified,server/objects/settings/EmailSettings.js:114-139,"go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/flow-starttls-uses-reject-unauthorized
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/flow-auth-plain-credentials",,unverified,unverified,unverified,False,{},"Implicit TLS on the IANA smtps port 465 cannot be exercised offline: binding a privileged port needs root. The 465 rule is asserted from the settings defaults and the transport object; TLS is exercised with STARTTLS on an unprivileged port.
+The test and send routes share the transport code; their envelopes and MIME shapes are asserted by the route-r172 and route-r174 scenarios listed here."
+cap-flow-mail-smtp-mime,INV-CAP-FLOW-MAIL-SMTP-MIME-FAILURE-001,Q20,mail,"A verify failure answers 400 with 'Failed to verify SMTP connection configuration' and a sendMail-stage rejection answers 400, so neither route claims success; a client that cancels while SMTP never answers gets no success response and the server keeps serving requests.",unverified,"server/managers/EmailManager.js:16-24
+server/managers/EmailManager.js:43-51
+server/managers/EmailManager.js:30-34
+server/managers/EmailManager.js:57-61","go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/flow-message-rejection-is-not-success
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/flow-cancel-leaves-server-usable
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-unreachable-smtp-fixed-error
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-smtp-failure-safe-for-user",,unverified,unverified,unverified,False,{},"Implicit TLS on the IANA smtps port 465 cannot be exercised offline: binding a privileged port needs root. The 465 rule is asserted from the settings defaults and the transport object; TLS is exercised with STARTTLS on an unprivileged port.
+The test and send routes share the transport code; their envelopes and MIME shapes are asserted by the route-r172 and route-r174 scenarios listed here."
 cap-flow-notify-delivery,INV-CAP-FLOW-NOTIFY-DELIVERY,Q21,notify,"Admitted notification triggers deliver enabled matching subscriptions, persist delivery outcomes, then emit notifications_updated with the ENTIRE settings object (appriseApiUrl,maxNotificationQueue,maxFailedAttempts,notifications). Characterize no-active-subscription and failed-delivery admission separately; no Go-derived no-change suppression is assumed.",unverified,server/managers/NotificationManager.js,"go-backend/internal/notify/notify_test.go:212#TestTriggerEventDeliversRenderedPayload
 go-backend/internal/notify/notify_test.go:228#TestTriggerEventOnlyEnabledMatching
 go-backend/internal/notify/notify_test.go:262#TestConsecutiveFailuresDisable",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.
@@ -668,16 +705,59 @@ No separate force/refresh mode is defined for this endpoint; any repeat, changed
 Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
 force is not applicable: this requirement has no force, hard or override mode
 Source-derived obligation and scenario binding only. No live run or independent completeness review was performed in this reconciliation; the full requirement remains open."
-route-r007,INV-R007-CONTRACT-001,Q17,share,"GET /feed/:slug. Serve the slug-authorized RSS XML with absolute enclosure/cover URLs, required MIME/XML fields and stable episode identity; refresh changed media while retaining IDs; missing/closed feeds deny.",unverified,server/Server.js:362,go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-route-r008,INV-R008-CONTRACT-001,Q17,share,"GET /feed/:slug/cover*. Serve the feed cover through the slug capability, with image MIME/cache behavior; missing feed/cover denies and must not disclose arbitrary files.",unverified,server/Server.js:366,,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-No current named package test establishes the successful endpoint result; add explicit success and failure/state assertions in the owner packet.
-Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-route-r009,INV-R009-CONTRACT-001,Q17,share,"GET /feed/:slug/item/:episodeId/*. Serve the feed episode file through its slug/episode capability with audio MIME, ranges and attachment semantics; an unknown episode/feed denies without arbitrary-file access.",unverified,server/Server.js:369,go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+route-r007,INV-R007-CONTRACT-001,Q17,share,"GET /feed/:slug answers 200 text/xml; charset=utf-8 for an existing slug with no token and no cookie. The document is RSS 2.0 (version=""2.0"") declaring the dc, content, atom, itunes, podcast and googleplay namespaces, with channel: CDATA title and description (description falls back to the title when the feed description is empty), link = hostPrefix+siteURL, image(url=hostPrefix+imageURL, title, link), generator 'Audiobookshelf', lastBuildDate = the generation time in GMT RFC1123, atom:link(href=hostPrefix+feedURL, rel=self, type=application/rss+xml), language = feed language or 'en', CDATA author, itunes:author (author), itunes:type (podcastType or 'serial'), itunes:image(href=hostPrefix+imageURL), itunes:explicit true|false, itunes:summary only when the description is non-empty, itunes:owner with itunes:name = ownerName||author and itunes:email only when set, and itunes:block + googleplay:block 'yes' only when preventIndexing. Every absolute URL is built from the request origin plus the router base path, never from the stored serverAddress.",unverified,"server/managers/RssFeedManager.js:165-189
+server/models/Feed.js:575-632
+server/libs/rss/index.js:35-140
+server/Server.js:362-365","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/feed-xml-serves-exact-item-channel
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/feed-xml-serves-after-restart",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the read routes and the boot cleanup have no force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+XML element order, whitespace and the exact lastBuildDate value are not asserted (only the GMT RFC1123 format).
+Unexecuted upstream ranges behind these routes: RssFeedManager.js:155-156 (invalid entity type throw, unreachable because only item/collection/series feeds can be created), Feed.js:185-188/275-278/364-367/558-562 (transaction rollback branches, need a database failure), Feed.js:528-530 (invalid entity type in updateFeedForEntityType), Feed.js:467-469 (playlist feed afterFind, no API creates playlist feeds), RSSFeedController.js:73-75/116-118/159-161 (500 after a failed create transaction). FeedEpisode.js:224 (empty books array, unreachable because opens reject entities without audio)."
+route-r007,INV-R007-CONTRACT-002,Q17,share,"Every feed episode becomes one <item> in feedEpisodes order with: CDATA title (the book title for a single-file book, a matching chapter title when chapter starts equal the track starts, else the audio file base name), link = hostPrefix+siteURL, guid = hostPrefix+enclosureURL with isPermaLink=""false"", dc:creator = episode author, pubDate (episode pubDate as a GMT string; audiobook feeds offset track n by n minutes from the library item createdAt), enclosure(url=hostPrefix+enclosureURL, length=enclosureSize, type=enclosureType), itunes:author, itunes:duration = round(duration), itunes:explicit true|false; podcast episodes additionally carry description and itunes:summary when non-empty and itunes:season/episode/episodeType only when set. Titles come from a matching chapter only when every chapter start is within one second of the track offset; otherwise the audio file base name is used.",unverified,"server/models/FeedEpisode.js:141-179,314-346
+server/libs/rss/index.js:67-115","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/feed-xml-multi-track-pubdates
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/feed-xml-podcast-episodic-shape
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/feed-xml-episode-titles-follow-chapter-match",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the read routes and the boot cleanup have no force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+XML element order, whitespace and the exact lastBuildDate value are not asserted (only the GMT RFC1123 format).
+Unexecuted upstream ranges behind these routes: RssFeedManager.js:155-156 (invalid entity type throw, unreachable because only item/collection/series feeds can be created), Feed.js:185-188/275-278/364-367/558-562 (transaction rollback branches, need a database failure), Feed.js:528-530 (invalid entity type in updateFeedForEntityType), Feed.js:467-469 (playlist feed afterFind, no API creates playlist feeds), RSSFeedController.js:73-75/116-118/159-161 (500 after a failed create transaction). FeedEpisode.js:224 (empty books array, unreachable because opens reject entities without audio)."
+route-r007,INV-R007-CONTRACT-003,Q17,share,"A read of a feed whose library item, book, collection, series or newest podcast episode is newer than entityUpdatedAt refreshes the persisted feed in one transaction: feed fields (title, description, author, imageURL with a new ?ts=, coverPath, entityUpdatedAt) are re-derived, new episodes are inserted, episodes whose files disappeared are deleted, and episodes are matched by filePath so existing ids and therefore GUIDs are retained. A repeated read of an unchanged feed writes no row. An unknown or closed slug answers 404 and returns no XML document. A persisted feed whose source entity row disappeared while the server was stopped is removed at the next boot (RssFeedManager.init) and its slug then answers 404. A serial (or NULL-type) podcast feed orders episodes oldest first; an episodic one newest first.",unverified,"server/managers/RssFeedManager.js:88-189
+server/models/Feed.js:488-563","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/feed-xml-repeat-is-stable
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/feed-xml-refreshes-changed-media-keeping-ids
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/feed-unknown-slug-is-404
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/feed-rejected-read-changes-nothing
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/feed-xml-podcast-serial-order-and-refresh
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/feed-removed-at-boot-when-entity-missing",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the read routes and the boot cleanup have no force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+XML element order, whitespace and the exact lastBuildDate value are not asserted (only the GMT RFC1123 format).
+Unexecuted upstream ranges behind these routes: RssFeedManager.js:155-156 (invalid entity type throw, unreachable because only item/collection/series feeds can be created), Feed.js:185-188/275-278/364-367/558-562 (transaction rollback branches, need a database failure), Feed.js:528-530 (invalid entity type in updateFeedForEntityType), Feed.js:467-469 (playlist feed afterFind, no API creates playlist feeds), RSSFeedController.js:73-75/116-118/159-161 (500 after a failed create transaction). FeedEpisode.js:224 (empty books array, unreachable because opens reject entities without audio)."
+route-r008,INV-R008-CONTRACT-001,Q17,share,"GET /feed/:slug/cover.jpg with no token answers 200 Content-Type image/jpg with the exact bytes of the file named by the persisted coverPath (Content-Length is not set because the file is streamed). The extensionless URL the web client builds (/feed/:slug/cover) and the XML imageURL with its ?ts=<entityUpdatedAt> query serve the identical bytes, and repeated reads are identical.",unverified,"server/managers/RssFeedManager.js:234-265
+server/models/Feed.js:90-100
+client/pages/config/rss-feeds.vue:121-124
+server/Server.js:366-368","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/cover-serves-item-cover-bytes
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/cover-extensionless-and-cache-busting-url",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+Content-Length is not asserted because upstream streams the file (Transfer-Encoding chunked); the body length is asserted instead.
+Cache-Control/ETag are not asserted: the route sets none, so they are not a client-visible contract of this route.
+A cover file that disappears between the row read and the stream is handled by an error handler that answers 404 (RssFeedManager.js:256-262); that race is not reproducible deterministically."
+route-r008,INV-R008-CONTRACT-002,Q17,share,"An unknown slug and an existing feed whose persisted coverPath is NULL both answer 404 and stream no bytes, so the slug capability cannot be used to read an arbitrary file. After a refresh the published imageURL's ?ts= equals the new entityUpdatedAt while the cover bytes and coverPath stay unchanged. If the cover file disappeared after the row was read the stream error answers 404, not a 500 or a partial image.",unverified,"server/managers/RssFeedManager.js:234-264
+server/models/Feed.js:96-100,488-563","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/cover-denies-unknown-feed-and-coverless-feed
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/cover-url-follows-refresh-and-still-serves
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/cover-rejected-read-changes-nothing
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/cover-missing-file-is-404",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+Content-Length is not asserted because upstream streams the file (Transfer-Encoding chunked); the body length is asserted instead.
+Cache-Control/ETag are not asserted: the route sets none, so they are not a client-visible contract of this route.
+A cover file that disappears between the row read and the stream is handled by an error handler that answers 404 (RssFeedManager.js:256-262); that race is not reproducible deterministically."
+route-r009,INV-R009-CONTRACT-001,Q17,share,"GET /feed/:slug/item/:episodeId/media.m4b and .../media.mp3 with no token answer 200 with the exact bytes of the episode's persisted filePath, Content-Type audio/mp4 / audio/mpeg / audio/flac by extension, Content-Length equal to the file size, Accept-Ranges bytes, no Content-Disposition and no authentication. Closed byte ranges answer 206 with Content-Range and the exact slice, suffix ranges answer the file tail, and a range at the file size answers 416 with Content-Range bytes */<size> and no media bytes.",unverified,"server/managers/RssFeedManager.js:197-226
+server/utils/fileUtils.js:424-429
+server/utils/constants.js:36-50
+server/Server.js:369-372","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/enclosure-serves-audio-file-with-range-support
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/enclosure-honours-byte-ranges
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/enclosure-repeat-is-identical",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+Last-Modified/ETag/If-Range caching semantics are not asserted: clients read the enclosure through a feed reader, which is not part of this contract.
+The episode path tail is deliberately not validated by upstream; the traversal case asserts only that the stored episode is served."
+route-r009,INV-R009-CONTRACT-002,Q17,share,"An unknown slug, an unknown episode id and an episode id belonging to another feed all answer 404 without any episode bytes. A traversing tail after the episode id still serves only that stored episode file, never another path. Closing the feed makes the previously working enclosure URL answer 404 while the media file stays on disk, and reopening the entity creates new episode ids whose URLs serve the same bytes.",unverified,"server/managers/RssFeedManager.js:197-219
+server/models/Feed.js:639-643
+server/controllers/RSSFeedController.js:176-190","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/enclosure-denies-unknown-feed-and-episode
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/enclosure-never-reads-another-file
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/enclosure-dies-with-feed-and-returns-on-reopen",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+Last-Modified/ETag/If-Range caching semantics are not asserted: clients read the enclosure through a feed reader, which is not part of this contract.
+The episode path tail is deliberately not validated by upstream; the traversal case asserts only that the stored episode is served."
 route-r010,INV-R010-CONTRACT-001,Q05,auth,"POST /init on an uninitialised installation answers 200 and persists exactly one active root user (given or default ""root"" username as written, bcrypt hash or empty hash, JWT token, full root permissions); /status then reports isInit true without paths and login works. Any further POST /init, or one on an initialised server, answers 500 and changes no user.",unverified,"server/Server.js:377-383
 server/Server.js:485-498
 server/models/User.js:192-211
@@ -3154,7 +3234,11 @@ Historical verification claims are retained only in the archived pre-2026-11-13 
 State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.
 Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
 Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
-route-r170,INV-ROUTE-R170-ROUTE,Q20,mail,"GET /emails/settings at server/routers/ApiRouter.js:277. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",unverified,server/routers/ApiRouter.js:277,"go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
+route-r170,INV-ROUTE-R170-ROUTE,Q20,mail,"GET /api/emails/settings answers 401 without a token and 404 for an authenticated non-admin. For an admin it returns {settings: {id, host, port, secure, rejectUnauthorized, user, pass, testAddress, fromAddress, ereaderDevices}} with the constructed defaults when no row exists (port 465, secure true, rejectUnauthorized true, null addresses, empty device array) and the persisted values with their JSON types after an admin PATCH; a read alone never writes the row.",unverified,"server/routers/ApiRouter.js:277
+server/controllers/EmailController.js:22-26
+server/controllers/EmailController.js:133-137
+server/objects/settings/EmailSettings.js:14-63
+server/models/Setting.js:21-34","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
 go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation
 go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers
 go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce
@@ -3164,12 +3248,14 @@ go-backend/internal/mail/mail_test.go:231#TestSendEbook
 go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown
 go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
 go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting
-go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",,unverified,unverified,unverified,False,{},"PATCH behavior and other email routes remain unverified by the GET route record.
-Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.
-State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
-route-r171,INV-ROUTE-R171-ROUTE,Q20,mail,"PATCH /emails/settings at server/routers/ApiRouter.js:278. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",unverified,server/routers/ApiRouter.js:278,"go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
+go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-read-defaults-without-row
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-read-admin-only
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-read-reflects-stored-values",,unverified,unverified,unverified,False,{},State scenarios are not applicable: the read is stateless and is asserted on the fresh fixture and after a write.
+route-r171,INV-ROUTE-R171-ROUTE,Q20,mail,"PATCH /api/emails/settings answers 401 without a token and 404 for an authenticated non-admin. For an admin it applies the payload to EmailSettings, responds 200 {settings} with the resulting values and, when anything changed, upserts the single row key='email-settings' whose JSON contains the same values plus ereaderDevices; a changed write moves settings.updatedAt forward.",unverified,"server/routers/ApiRouter.js:278
+server/controllers/EmailController.js:34-42
+server/objects/settings/EmailSettings.js:50-63
+server/models/Setting.js:36-41","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
 go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation
 go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers
 go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce
@@ -3179,12 +3265,15 @@ go-backend/internal/mail/mail_test.go:231#TestSendEbook
 go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown
 go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
 go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting
-go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Malformed payloads, no-op/repeated updates, and email test/delivery routes remain unverified.
-Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.
-Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
-route-r171,INV-ROUTE-R171-REPEAT,Q20,mail,A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.,unverified,server/routers/ApiRouter.js:278,"go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
+go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-client-payload-persisted
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-changed-values-persisted
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-admin-only-no-write
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-survive-restart",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+A PATCH with an invalid port is coerced (null/NaN to 465) by the source rather than rejected; there is therefore no 4xx validation facet for the payload itself, only for the auth gate.
+The settings value stores the password so the admin form can read it back; secret redaction is the server-settings contract, not this route's."
+route-r171,INV-ROUTE-R171-VALIDATION-001,Q20,mail,"EmailSettings.update coerces payload.port with isNullOrNaN: null or a non-numeric value becomes 465 and otherwise Number(port) is stored; absent keys are not touched, so a partial PATCH keeps the stored secure and rejectUnauthorized values (including the secure default true).",unverified,"server/objects/settings/EmailSettings.js:65-82
+server/utils/index.js:53-55","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
 go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation
 go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers
 go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce
@@ -3194,14 +3283,13 @@ go-backend/internal/mail/mail_test.go:231#TestSendEbook
 go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown
 go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
 go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting
-go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Malformed payloads, no-op/repeated updates, and email test/delivery routes remain unverified.
-Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.
-Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
-route-r172,INV-ROUTE-R172-ROUTE,Q20,mail,"POST /emails/test at server/routers/ApiRouter.js:279. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",unverified,"server/routers/ApiRouter.js:279
-server/controllers/EmailController.js:43-48
-server/managers/EmailManager.js:14-37","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
+go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-absent-keys-keep-values
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-legacy-row-defaults-reject-unauthorized",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+A PATCH with an invalid port is coerced (null/NaN to 465) by the source rather than rejected; there is therefore no 4xx validation facet for the payload itself, only for the auth gate.
+The settings value stores the password so the admin form can read it back; secret redaction is the server-settings contract, not this route's."
+route-r171,INV-ROUTE-R171-REPEAT,Q20,mail,A repeated identical PATCH returns the same settings and does not rewrite the row: settings.updatedAt and the stored JSON are unchanged.,unverified,"server/objects/settings/EmailSettings.js:101-111
+server/controllers/EmailController.js:34-42","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
 go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation
 go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers
 go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce
@@ -3211,15 +3299,13 @@ go-backend/internal/mail/mail_test.go:231#TestSendEbook
 go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown
 go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
 go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting
-go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Delivery evidence is limited to one plaintext unauthenticated local SMTP server and one rejected SMTP greeting. Repeat sends, changed recipient settings, TLS/auth, sendMail-stage rejection, attachment delivery, admin denial, and other edge variants remain unverified.
-The verification-failure path is not forced by a handler flag; the independent local SMTP fixture returns 421 before mail data can be sent.
-Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.
-Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
-route-r172,INV-ROUTE-R172-REPEAT,Q20,mail,A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.,unverified,"server/routers/ApiRouter.js:279
-server/controllers/EmailController.js:43-48
-server/managers/EmailManager.js:14-37","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
+go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-repeat-no-write",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+A PATCH with an invalid port is coerced (null/NaN to 465) by the source rather than rejected; there is therefore no 4xx validation facet for the payload itself, only for the auth gate.
+The settings value stores the password so the admin form can read it back; secret redaction is the server-settings contract, not this route's."
+route-r172,INV-ROUTE-R172-ROUTE,Q20,mail,"POST /api/emails/test answers 401 without a token and 404 for an authenticated non-admin, and no refused call opens an SMTP connection. For an admin it verifies, sends one text/plain message to testAddress || fromAddress with subject 'Test email from Audiobookshelf' and body 'Success!', answers 200 'OK'; with a refused or unresponsive SMTP connection it answers 400 with the fixed verification message.",unverified,"server/routers/ApiRouter.js:279
+server/controllers/EmailController.js:52-54
+server/managers/EmailManager.js:12-37","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
 go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation
 go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers
 go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce
@@ -3229,14 +3315,42 @@ go-backend/internal/mail/mail_test.go:231#TestSendEbook
 go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown
 go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
 go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting
-go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Delivery evidence is limited to one plaintext unauthenticated local SMTP server and one rejected SMTP greeting. Repeat sends, changed recipient settings, TLS/auth, sendMail-stage rejection, attachment delivery, admin denial, and other edge variants remain unverified.
-The verification-failure path is not forced by a handler flag; the independent local SMTP fixture returns 421 before mail data can be sent.
-Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.
-Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
-route-r173,INV-ROUTE-R173-ROUTE,Q20,mail,"POST /emails/ereader-devices at server/routers/ApiRouter.js:280. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",unverified,"server/routers/ApiRouter.js:280
-server/controllers/EmailController.js:62-82
+go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-delivers-text-message
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-test-address-falls-back-to-sender
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-admin-only-no-smtp
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-unreachable-smtp-fixed-error
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-follows-changed-test-address",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+The sendMail-stage error body is nodemailer's message text, which no client parses as a stable value; the scenario asserts the 400 status only, and the fixed verify-failure text that the settings page shows as a toast."
+route-r172,INV-ROUTE-R172-REPEAT,Q20,mail,"Each POST /api/emails/test performs its own verify and sendMail, so two calls deliver two messages with the same envelope and leave the settings row and its updatedAt unchanged.",unverified,server/managers/EmailManager.js:8-37,"go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
+go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation
+go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers
+go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce
+go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation
+go-backend/internal/mail/mail_test.go:209#TestTestEmail
+go-backend/internal/mail/mail_test.go:231#TestSendEbook
+go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown
+go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
+go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting
+go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-repeat-sends-again",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+The sendMail-stage error body is nodemailer's message text, which no client parses as a stable value; the scenario asserts the 400 status only, and the fixed verify-failure text that the settings page shows as a toast."
+route-r173,INV-ROUTE-R173-ROUTE,Q20,mail,"POST /api/emails/ereader-devices replaces the stored list, answers 200 {ereaderDevices} with the normalized array and stores the same array in the email-settings row; an empty array clears the list. A missing/non-array ereaderDevices or an item without name or email answers 400.",unverified,"server/routers/ApiRouter.js:280
+server/controllers/EmailController.js:62-86","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
+go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation
+go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers
+go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce
+go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation
+go-backend/internal/mail/mail_test.go:209#TestTestEmail
+go-backend/internal/mail/mail_test.go:231#TestSendEbook
+go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown
+go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
+go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting
+go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/devices-normalization-and-replacement
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/devices-update-existing-and-clear",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+Duplicate device names are not rejected by the route (the web modal enforces uniqueness client-side), so no server-side conflict facet is asserted."
+route-r173,INV-ROUTE-R173-VALIDATION-001,Q20,mail,"Every posted device keeps name and email; a missing or unknown availabilityOption becomes 'adminOrUp'; 'specificUsers' without a non-empty users array becomes 'adminOrUp'; any other option with users clears users to []. A rejected payload (missing or non-array ereaderDevices, an item without name or email, a non-admin caller) changes neither the stored devices nor updatedAt and emits no event.",unverified,"server/controllers/EmailController.js:62-86
 server/objects/settings/EmailSettings.js:75-101","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
 go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation
 go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers
@@ -3247,15 +3361,17 @@ go-backend/internal/mail/mail_test.go:231#TestSendEbook
 go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown
 go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
 go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting
-go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Evidence is limited to the named successful admin update and selected normalization/repeat cases; request denial, malformed payload, SMTP test/delivery, and broader authorization behavior are not covered.
-The enclosing differential run used EXP_PROXY_SUPPORT=1 for its local cover fixture and skipped the private-address SSRF case; that skip is unrelated to this email route and is recorded separately in the report.
-Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.
-Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
-route-r173,INV-ROUTE-R173-REPEAT,Q20,mail,A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.,unverified,"server/routers/ApiRouter.js:280
-server/controllers/EmailController.js:62-82
-server/objects/settings/EmailSettings.js:75-101","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
+go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/devices-validation-rejects-no-write
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/devices-normalization-and-replacement",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+Duplicate device names are not rejected by the route (the web modal enforces uniqueness client-side), so no server-side conflict facet is asserted."
+route-r173,INV-ROUTE-R173-EVENT-001,Q20,mail,A device-list write emits 'ereader-devices-updated' with {ereaderDevices} equal to the stored list to every connected admin and to no non-admin; a rejected or no-op write emits nothing.,unverified,"server/controllers/EmailController.js:78-81
+server/SocketAuthority.js:81-87","go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/devices-create-normalizes-and-events
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/devices-repeat-no-write-or-event
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/devices-validation-rejects-no-write",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+Duplicate device names are not rejected by the route (the web modal enforces uniqueness client-side), so no server-side conflict facet is asserted."
+route-r173,INV-ROUTE-R173-REPEAT,Q20,mail,"Posting the identical device array again answers 200 with the same array, does not rewrite the row (updatedAt unchanged) and emits no second event.",unverified,"server/controllers/EmailController.js:73-82
+server/utils/areEquivalent.js:24-120","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
 go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation
 go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers
 go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce
@@ -3265,13 +3381,12 @@ go-backend/internal/mail/mail_test.go:231#TestSendEbook
 go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown
 go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
 go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting
-go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Evidence is limited to the named successful admin update and selected normalization/repeat cases; request denial, malformed payload, SMTP test/delivery, and broader authorization behavior are not covered.
-The enclosing differential run used EXP_PROXY_SUPPORT=1 for its local cover fixture and skipped the private-address SSRF case; that skip is unrelated to this email route and is recorded separately in the report.
-Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.
-Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
-route-r174,INV-ROUTE-R174-ROUTE,Q20,mail,"POST /emails/send-ebook-to-device at server/routers/ApiRouter.js:281. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",unverified,server/routers/ApiRouter.js:281,"go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
+go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/devices-repeat-no-write-or-event",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+Duplicate device names are not rejected by the route (the web modal enforces uniqueness client-side), so no server-side conflict facet is asserted."
+route-r174,INV-ROUTE-R174-ROUTE,Q20,mail,"POST /api/emails/send-ebook-to-device answers 401 without a token; any authenticated user may call it. It refuses in the controller's order (unknown device 404, device access 403, unknown item 404, item access 403, missing ebookFile 404) before opening any SMTP connection. On success it verifies then sends one message from fromAddress to device.email and answers 200; a later send uses the current fromAddress and device email.",unverified,"server/routers/ApiRouter.js:281
+server/controllers/EmailController.js:96-125
+server/managers/EmailManager.js:39-63","go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
 go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation
 go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers
 go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce
@@ -3281,11 +3396,20 @@ go-backend/internal/mail/mail_test.go:231#TestSendEbook
 go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown
 go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
 go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting
-go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.
-Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
-route-r174,INV-ROUTE-R174-REPEAT,Q20,mail,A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.,unverified,server/routers/ApiRouter.js:281,"go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
+go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-admin-delivers-to-device
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-follows-changed-sender-and-device",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+A sendMail-stage rejection returns nodemailer's error text to the caller; no scenario pins that text, because no client parses it and a safe implementation may replace it. The reachable safe message (verify failure) is asserted exactly."
+route-r174,INV-ROUTE-R174-ACCESS-001,Q20,mail,"checkUserCanAccessDevice allows adminOrUp devices to admins, userOrUp to admins and users, guestOrUp to everyone, and specificUsers to the listed user ids only; a device refusal is 403 and takes precedence over the library-item lookup. The user must then pass checkCanAccessLibraryItem: library access (accessAllLibraries or librariesAccessible) and item tags (accessAllTags, itemTagsSelected and selectedTagsNotAccessible) and explicit-content permission, otherwise the route answers 403. Both refusals happen before any SMTP connection.",unverified,"server/objects/settings/EmailSettings.js:146-159
+server/controllers/EmailController.js:96-125","go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-preconditions-refuse-before-smtp
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-device-availability-for-users
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-item-access-refused-for-user",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+A sendMail-stage rejection returns nodemailer's error text to the caller; no scenario pins that text, because no client parses it and a safe implementation may replace it. The reachable safe message (verify failure) is asserted exactly."
+route-r174,INV-ROUTE-R174-FAILURE-001,Q20,mail,"When SMTP verification fails, send-ebook answers 400 with the fixed 'Failed to verify SMTP connection configuration' text and transmits no message; the response carries no SMTP reply, host or port, and a sendMail-stage rejection is never reported as success.",unverified,"server/managers/EmailManager.js:43-51
+server/managers/EmailManager.js:57-61","go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-smtp-failure-safe-for-user
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/flow-message-rejection-is-not-success",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+A sendMail-stage rejection returns nodemailer's error text to the caller; no scenario pins that text, because no client parses it and a safe implementation may replace it. The reachable safe message (verify failure) is asserted exactly."
+route-r174,INV-ROUTE-R174-REPEAT,Q20,mail,Repeating the same send delivers another message with the same envelope and leaves the settings row and its updatedAt unchanged.,unverified,server/managers/EmailManager.js:39-63,"go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch
 go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation
 go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers
 go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce
@@ -3295,10 +3419,9 @@ go-backend/internal/mail/mail_test.go:231#TestSendEbook
 go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown
 go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage
 go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting
-go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.
-Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
+go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment
+go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-repeat-delivers-again",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/hard/override mode.
+A sendMail-stage rejection returns nodemailer's error text to the caller; no scenario pins that text, because no client parses it and a safe implementation may replace it. The reachable safe message (verify failure) is asserted exactly."
 route-r175,INV-ROUTE-R175-CONTRACT,Q19,metadata,"GET /api/search/covers?provider=custom-<id>&title=Alpha&author=Ann answers 200 with a results array; the stored provider received one GET /search with mediaType=book, query=Alpha and author=Ann; the array holds the matches' cover values in match order, deduplicated, with a match that has no cover omitted.",unverified,"server/controllers/SearchController.js:113-139
 server/finders/BookFinder.js:608-640
 server/providers/CustomProviderAdapter.js:21-145",go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/covers-custom-provider-ordered-deduplicated,,unverified,unverified,unverified,False,{},"Unexecuted here: the built-in provider success paths (google, itunes, openlibrary, fantlab, audiobookcovers, audible) call fixed external hosts, so their result parsing and fuzzy fallback are not asserted by this packet; every deterministic offline path is asserted."
@@ -3492,32 +3615,78 @@ Stateful operation: scenario evidence is not yet independently reconciled for ea
 Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
 The batch loop's per-item 403 for users who cannot access an item is only reachable by a restricted admin (ordinary non-admins fail the middleware first); covered by batch-route-authorization-and-validation.
 Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
-route-r187,INV-R187-CONTRACT-001,Q17,share,"GET /api/feeds. Admin feed listing returns the persisted feeds with source-entity metadata and slug/URL fields, excluding unauthorized callers.",unverified,"server/routers/ApiRouter.js:310
-server/controllers/RSSFeedController.js:194
-server/controllers/RSSFeedController.js:25",go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh,,unverified,unverified,unverified,False,{},"Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-route-r188,INV-R188-CONTRACT-001,Q17,share,"POST /api/feeds/item/:itemId/open. Admin opens an item feed with unique slug/serverAddress/metadataDetails, persisted feed episodes and rss_feed_open event; repeated slug conflicts return 400.",unverified,"server/routers/ApiRouter.js:311
-server/controllers/RSSFeedController.js:194
-server/controllers/RSSFeedController.js:41",go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-route-r189,INV-R189-CONTRACT-001,Q17,share,"POST /api/feeds/collection/:collectionId/open. Admin opens a collection feed with unique slug and ordered accessible source books, persisting stable feed/episode identities and emitting rss_feed_open.",unverified,"server/routers/ApiRouter.js:312
-server/controllers/RSSFeedController.js:194
-server/controllers/RSSFeedController.js:90",,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-No current named package test establishes the successful endpoint result; add explicit success and failure/state assertions in the owner packet.
-Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-route-r190,INV-R190-CONTRACT-001,Q17,share,"POST /api/feeds/series/:seriesId/open. Admin opens a series feed with unique slug, ordered series books and stable feed/episode identities, emitting rss_feed_open after successful persistence.",unverified,"server/routers/ApiRouter.js:313
-server/controllers/RSSFeedController.js:194
-server/controllers/RSSFeedController.js:133",,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-No current named package test establishes the successful endpoint result; add explicit success and failure/state assertions in the owner packet.
-Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-route-r191,INV-R191-CONTRACT-001,Q17,share,"POST /api/feeds/:id/close. Admin closes the selected feed, deleting its episode links and emitting rss_feed_closed; closed public URLs deny and media remains intact.",unverified,"server/routers/ApiRouter.js:314
-server/controllers/RSSFeedController.js:194
-server/controllers/RSSFeedController.js:176",go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.
-Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.
-Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+route-r187,INV-R187-CONTRACT-001,Q17,share,"GET /api/feeds as root returns one feeds[] entry and one index-aligned minified[] entry per persisted feed with the full client shape: id, slug, userId (feed owner), entityType, entityId, entityUpdatedAt (millisecond timestamp of the newest source entity), coverPath (string or null), meta{title, description (string or null), author, imageUrl, feedUrl, link, explicit, type, language (string or null), preventIndexing, ownerName, ownerEmail}, serverAddress, feedUrl, episodes[] with id/title/description/enclosure{url,size,type}/pubDate/link/author/explicit/duration/season/episode/episodeType/fullPath and createdAt/updatedAt millisecond timestamps. opened feeds appear with their persisted values; a non-admin gets 403 and an anonymous caller 401 without feed data.",unverified,"server/controllers/RSSFeedController.js:25-33
+server/managers/RssFeedManager.js:399-405
+server/models/Feed.js:645-691
+server/models/FeedEpisode.js:287-308
+server/routers/ApiRouter.js:310","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/list-fixture-feeds-with-full-episodes
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/list-reflects-opened-feeds
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/list-feeds-denies-non-admin-and-anonymous",,unverified,unverified,unverified,False,{},"Array order is not asserted (only that feeds[] and minified[] are index-aligned): the config page maps the arrays and sorts episodes for display (client/pages/config/rss-feeds.vue:140-146).
+Unexecuted upstream helper: RssFeedManager.findFeedForEntityId (L59-65) is called by item/series detail projections (LibraryItemController.js:82, SeriesController.js:57, LibraryController.js:800), not by GET /api/feeds; those projections belong to the item_read/browse records."
+route-r188,INV-R188-CONTRACT-001,Q17,share,"POST /api/feeds/item/:itemId/open by an admin answers 200 with {feed: minified} and, in one transaction, persists a feeds row with slug=the request slug, entityType 'libraryItem', entityId=the item, entityUpdatedAt=max(item.updatedAt, book/podcast updatedAt), serverAddress exactly as sent, feedURL /feed/:slug, imageURL /feed/:slug/cover<ext>?ts=<entityUpdatedAt> or /Logo.png when there is no cover, siteURL /item/:itemId, title/description/author from the media, podcastType 'serial' for books, language, explicit, preventIndexing (default true), ownerName/ownerEmail (only string values, else NULL), coverPath and userId=the caller, plus one feedEpisode per track or podcast episode (title, author, siteURL, enclosureURL /feed/:slug/item/:episodeId/media<ext>, enclosureType, enclosureSize, pubDate offset one minute per track from the item createdAt in GMT, duration, podcast season/episode/episodeType, filePath, explicit). The opened feed is listed and its unauthenticated XML, cover and enclosure serve the persisted values, and a later media change is reflected by a new feed opened for the same item.",unverified,"server/controllers/RSSFeedController.js:41-88
+server/managers/RssFeedManager.js:272-305
+server/models/Feed.js:112-189
+server/models/FeedEpisode.js:141-206","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-persists-and-serves
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-defaults-and-invalid-metadata
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-after-media-change",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+serverAddress is persisted and returned but never used to build feed URLs (the live request origin is used, RssFeedManager.js:186); the scenarios assert both facts.
+The 500 'Failed to open RSS feed' branch requires a database failure inside the create transaction (Feed.js:184-188); it is not reachable through the API and is not asserted.
+Error response text ('Invalid request body', 'Slug already in use', 'Item has no audio tracks') is shown as a toast by the client but not parsed; only statuses are asserted."
+route-r188,INV-R188-CONTRACT-002,Q17,share,"The route is rejected in upstream's order: 404 for an unknown item even without a body, then 403 for an admin denied the item's library, then 400 for a missing body, a non-string or missing serverAddress/slug, an item without audio tracks, and a slug already used by any feed. A non-admin gets 403 from the route middleware and an anonymous caller 401. Every rejection persists no feed or episode row and emits no rss_feed_open.",unverified,"server/controllers/RSSFeedController.js:41-88,194-204
+server/models/User.js:646-683
+server/managers/RssFeedManager.js:72-80,293-305","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-validates-entity-access-and-body
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-duplicate-slug-rejected
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-rejection-is-silent",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+serverAddress is persisted and returned but never used to build feed URLs (the live request origin is used, RssFeedManager.js:186); the scenarios assert both facts.
+The 500 'Failed to open RSS feed' branch requires a database failure inside the create transaction (Feed.js:184-188); it is not reachable through the API and is not asserted.
+Error response text ('Invalid request body', 'Slug already in use', 'Item has no audio tracks') is shown as a toast by the client but not parsed; only statuses are asserted."
+route-r189,INV-R189-CONTRACT-001,Q17,share,"POST /api/feeds/collection/:collectionId/open by an admin answers 200 and persists one feed with entityType 'collection', entityId, entityUpdatedAt = max(collection.updatedAt, each audio book's book/libraryItem updatedAt), title=name, description=description||'' (empty string for NULL), author = the first three distinct book author names joined with ', ' plus ' & more' beyond three, podcastType 'serial', explicit = any book explicit, coverPath and imageURL from the first book with a cover (or /Logo.png), siteURL /collection/:id, and four feed episodes for the fixture's two audio books in collection order with pubDates one minute apart from the earliest added library item in GMT. The unauthenticated XML lists the episodes in that order with absolute enclosures; a collection that also holds a book without audio files yields episodes only for the audio books; adding a book later is reflected on the next read (episode count grows, existing episode ids and enclosures stay). With more than three distinct book authors the joined author ends with ' & more'. Removing a book from the collection drops its episodes on the next read while the other episode ids stay.",unverified,"server/controllers/RSSFeedController.js:90-131
+server/models/Feed.js:201-279
+server/models/FeedEpisode.js:217-244
+server/managers/RssFeedManager.js:88-157","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-persists-books-in-order
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-filters-books-without-audio
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-refresh-adds-book-episodes
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-author-list-more-than-three
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-refresh-drops-removed-book",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+Adding a book to a collection does not change the collection row's updatedAt (only the join rows), so the refresh trigger there is the episode-count mismatch; the scenario asserts the feed row's updatedAt advances while entityUpdatedAt stays.
+The 500 'Failed to open RSS feed' transaction-failure branch is not reachable through the API and is not asserted.
+Error text is not asserted (display only in the client toast).
+Unexecuted upstream range: Feed.js:275-278 (collection create rollback) needs a database failure; CollectionController code outside create/addBook/delete belongs to the list packet."
+route-r189,INV-R189-CONTRACT-002,Q17,share,"The route validates the body before the entity (an unknown collection without a body answers 400, with a body 404), rejects a collection whose books all lack audio files with 400, answers 403 to a non-admin and 401 without a token, answers 400 for a used slug, and every rejection persists nothing and emits no rss_feed_open.",unverified,"server/controllers/RSSFeedController.js:90-131,194-204","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-validation-order
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-duplicate-slug-rejected
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-rejection-is-silent",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+Adding a book to a collection does not change the collection row's updatedAt (only the join rows), so the refresh trigger there is the episode-count mismatch; the scenario asserts the feed row's updatedAt advances while entityUpdatedAt stays.
+The 500 'Failed to open RSS feed' transaction-failure branch is not reachable through the API and is not asserted.
+Error text is not asserted (display only in the client toast).
+Unexecuted upstream range: Feed.js:275-278 (collection create rollback) needs a database failure; CollectionController code outside create/addBook/delete belongs to the list packet."
+route-r190,INV-R190-CONTRACT-001,Q17,share,"POST /api/feeds/series/:seriesId/open by an admin answers 200 and persists one feed with entityType 'series', entityId, entityUpdatedAt = the newest of the series' updatedAt and its books' book/libraryItem updatedAt, title=name, description=description||'', author = distinct book author names (each once), podcastType 'serial', explicit = any book explicit, coverPath/imageURL from the first book with a cover, siteURL /library/<libraryId of the first audio book>/series/:seriesId, and one feed episode per track of every book with audio files in bookSeries sequence order (sequence CAST AS FLOAT ASC), pubDates one minute apart from the earliest added library item in GMT. The XML lists the same order with absolute enclosures. After a series book's title changes the next read refreshes the row and renames the affected episode while all episode ids and enclosure URLs stay.",unverified,"server/controllers/RSSFeedController.js:133-174
+server/models/Feed.js:291-368
+server/models/Series.js:144-166
+server/models/FeedEpisode.js:217-244
+server/managers/RssFeedManager.js:88-157","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-persists-ordered-books
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-author-and-site-shape
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-refresh-keeps-episode-ids",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+A series with no audio book is produced by attaching a new series to the ebook-only fixture book through PATCH /api/items/:id/media, the only API path that creates a series.
+The 500 transaction-failure branch is not reachable through the API and is not asserted."
+route-r190,INV-R190-CONTRACT-002,Q17,share,"The route validates the body before the entity (unknown series without a body answers 400, with a body 404), rejects a series whose only book has no audio files with 400, answers 403 to a non-admin and 401 without a token, answers 400 for a used slug, and every rejection persists nothing and emits no rss_feed_open.",unverified,"server/controllers/RSSFeedController.js:133-174,194-204","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-validation-and-no-audio
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-duplicate-slug-rejected
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-rejection-is-silent",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+A series with no audio book is produced by attaching a new series to the ebook-only fixture book through PATCH /api/items/:id/media, the only API path that creates a series.
+The 500 transaction-failure branch is not reachable through the API and is not asserted."
+route-r191,INV-R191-CONTRACT-001,Q17,share,"POST /api/feeds/:id/close by an admin answers 200 and deletes the feed row together with all of its feed episode rows, emits rss_feed_closed with the closed feed's minified payload, makes the slug's XML, cover and enclosure answer 404, and leaves the library item/collection/series rows and the episode media files unchanged. Repeating the close answers 404 and changes nothing. Reopening the entity afterwards with a new slug creates a new feed id that appears in the list and serves the entity's current episodes. A non-admin gets 403 and an anonymous caller 401. Deleting the only book of a series with an open feed removes the emptied series and closes that series feed; deleting an item without a feed succeeds and changes no feed row.",unverified,"server/controllers/RSSFeedController.js:176-190,194-204
+server/managers/RssFeedManager.js:355-393
+server/models/Feed.js:80-88
+server/controllers/CollectionController.js:214-224
+server/routers/ApiRouter.js:385-388","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-deletes-feed-and-episodes
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-denies-unknown-and-non-admin
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-rejection-changes-nothing
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-fixture-feed-cascades-podcast-episodes
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-twice-is-404
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-allows-reopening-the-entity
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-on-empty-series-and-feedless-item-delete",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.
+The empty-series cleanup call site (ApiRouter.js:457, BookScanner.js:1002) shares RssFeedManager.closeFeedsForEntityIds with the proven collection/item sites; it is not separately driven because it requires deleting the last book of a series during a scan.
+The close response is sendStatus(200) with no body; the body text is not asserted.
+Item deletion closes only the first feed found for the entity (findOne); extra feeds for the same item stay until opened feeds are closed individually or boot cleanup removes them. The scenarios do not pin that accident: they assert the single-feed case and only one close per entity."
 route-r192,INV-ROUTE-R192-CONTRACT,Q19,metadata,"GET /api/custom-metadata-providers answers 401 without a token and 403 for both non-admin fixture users. As the admin it answers 200 with {providers: []} on the fixture state, and after three creates it returns three rows keyed by their created ids, each with the created name, mediaType, url, authHeaderValue, parseable createdAt/updatedAt and no slug.",unverified,"server/controllers/CustomMetadataProviderController.js:24-35
 server/controllers/CustomMetadataProviderController.js:108-124
 server/models/CustomMetadataProvider.js:96-103","go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/custom-providers-list-empty
@@ -3986,14 +4155,39 @@ The client reads the URL through AudioTrack.sessionTrackUrl; the exact file byte
 route-r225,INV-R225-CLOSED-001,Q08,playback,After the playback session is closed a track request answers 404.,unverified,"server/controllers/SessionController.js:292-296
 server/managers/PlaybackSessionManager.js:448-456",go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/public-track-gone-after-close,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the route has no force/refresh mode; the play method is decided when the session starts.
 The client reads the URL through AudioTrack.sessionTrackUrl; the exact file bytes and headers are asserted, not an ETag or Last-Modified algorithm."
-runtime-binary,INV-RUNTIME-BINARY,Q26,config,The replacement runs as a CGO_ENABLED=0 Go executable without a Node runtime and builds for Linux amd64 and arm64; FFmpeg/ffprobe and unchanged web assets are external runtime assets. Startup on a disposable existing installation and TS rollback must succeed.,unverified,"go-backend/ARCHITECTURE.md
-Dockerfile.go",,,unverified,unverified,unverified,False,{},"Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
-runtime-configuration,INV-RUNTIME-CONFIGURATION,Q26,config,"Existing config/metadata paths, environment/CLI overrides, router prefix, token expiry and tool resolution select the intended installation without persisting process-only overrides or revealing secrets; invalid startup input fails clearly.",unverified,"index.js
-server/Server.js
-go-backend/README.md","go-backend/internal/config/config_test.go:8#TestLoadRouterBasePathAndPort
-go-backend/internal/config/config_test.go:65#TestLoadArgsOverridesEnvironment
-go-backend/internal/settings/settings_test.go:200#TestEnvOverridesAreNotPersisted
-go-backend/internal/settings/settings_test.go:152#TestSecretsAbsentFromViewsAndFormatting",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+runtime-binary,INV-RUNTIME-BINARY,Q26,config,"A standalone boot of a fresh install serves /ping {success:true}, /status with isInit false and app audiobookshelf/version 2.37.2, the bundled client entry document and the auth-gated API 401 from one process; reopening an existing install serves the same library ids, user count and initialised status after a new process starts on the same tree.",unverified,"index.js:41-56
+server/Server.js:77-126
+server/Server.js:180-258
+server/Server.js:384-404","go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/binary-boots-and-serves-boot-contract
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/binary-reopens-existing-install-identity",,unverified,unverified,unverified,False,{},"Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.
+With an unwritable metadata tree upstream logs repeated unhandled rejections and does not exit promptly; the scenario pins only the client-visible effect (never ready, nothing created) and the harness kills the process after SIGINT."
+runtime-binary,INV-RUNTIME-BINARY-REFUSED-001,Q26,config,"A corrupt absdatabase.sqlite or a CONFIG_PATH that is a regular file exits non-zero, answers no HTTP and leaves the supplied bytes and the install config directory unchanged; an unwritable METADATA_PATH never becomes HTTP-ready and creates no files in that tree.",unverified,"index.js:46-47
+server/Server.js:121-126
+server/Server.js:188
+server/Database.js:180-192","go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/binary-refuses-corrupt-config
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/binary-refuses-bad-config-path
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/binary-unwritable-metadata-never-ready",,unverified,unverified,unverified,False,{},"Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.
+With an unwritable metadata tree upstream logs repeated unhandled rejections and does not exit promptly; the scenario pins only the client-visible effect (never ready, nothing created) and the harness kills the process after SIGINT."
+runtime-configuration,INV-RUNTIME-CONFIGURATION,Q26,config,"PORT from the environment overrides the built-in 3333 default; a later --port, --config, --metadata or --host flag overrides its environment variable, observed in the bound TCP listener and the paths reported by /status. Restarting with the same configuration keeps /status and /ping answering the same boot contract.",unverified,"index.js:41-48
+server/Server.js:83-85
+server/Server.js:384-400
+server/Server.js:475-478","go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/port-env-overrides-default
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/flag-port-overrides-env
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/flag-paths-override-env-shown-in-status
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/host-flag-overrides-invalid-env
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/config-restart-preserves-boot-contract",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.
+force is not applicable: configuration is read once at process start; there is no force/hard mode that re-applies it after launch."
+runtime-configuration,INV-RUNTIME-CONFIGURATION-BASEPATH-001,Q26,config,ROUTER_BASE_PATH is environment-only: setting it moves /ping and /status to the configured prefix and away from the /audiobookshelf default.,unverified,"index.js:50
+server/Server.js:55-63
+server/Server.js:323-334
+server/Server.js:401",go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/router-base-path-from-env,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.
+force is not applicable: configuration is read once at process start; there is no force/hard mode that re-applies it after launch."
+runtime-configuration,INV-RUNTIME-CONFIGURATION-REJECT-001,Q26,config,"An out-of-range PORT exits non-zero, answers no HTTP and leaves the install reusable by a later normal boot.",unverified,"index.js:44
+server/Server.js:475-478",go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/port-out-of-range-refused,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.
+force is not applicable: configuration is read once at process start; there is no force/hard mode that re-applies it after launch."
+runtime-configuration,INV-RUNTIME-CONFIGURATION-NONNUM-001,Q26,config,A non-numeric PORT leaves no TCP liveness listener on the configured port (live upstream binds a named socket instead).,unverified,"index.js:44
+server/Server.js:475-478",go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/port-nonnumeric-has-no-tcp-listener,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.
+force is not applicable: configuration is read once at process start; there is no force/hard mode that re-applies it after launch."
 runtime-lifecycle,INV-RUNTIME-LIFECYCLE,Q27,server,"A cold boot serves /ping, /status, the bundled client and the auth-gated API as one complete graph (fresh install: isInit false, empty user table, metadata/streams and the database created); SIGINT stops answering HTTP without removing the database, and a restart receives new sockets and authenticates them.",unverified,"server/Server.js:180-258
 server/Server.js:276-322
 server/Server.js:565-572
@@ -4475,12 +4669,27 @@ go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-audie
 go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-for-unauthenticated-socket
 go-backend/testmachine/scenarios/realtime/run_test.go#TestReplacement/pong-after-failed-auth",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.
 force is not applicable: pong has no force or override mode."
-socket-outgoing-rss-feed-closed,INV-SOCKET-OUTGOING-RSS-FEED-CLOSED,Q17,share,"Socket.IO outgoing rss_feed_closed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",unverified,server/managers/RssFeedManager.js:358,"go-backend/internal/item/delete_test.go:45#TestDeleteItemCascadesToEverythingReferencingIt
-go-backend/internal/item/delete_test.go:114#TestDeleteItemPurgesCoverCacheAndMetadata
-go-backend/internal/list/list_test.go:228#TestCollectionDeleteClosesRSSFeed",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
-socket-outgoing-rss-feed-open,INV-SOCKET-OUTGOING-RSS-FEED-OPEN,Q17,share,"Socket.IO outgoing rss_feed_open: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",unverified,"server/managers/RssFeedManager.js:302
-server/managers/RssFeedManager.js:323
-server/managers/RssFeedManager.js:344",,,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""unverified"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+socket-outgoing-rss-feed-closed,INV-SOCKET-OUTGOING-RSS-FEED-CLOSED,Q17,share,"Every successful close emits exactly one rss_feed_closed whose single argument equals the minified feed (id, entityType, entityId, feedUrl, meta.title, meta.description, meta.preventIndexing, meta.ownerName, meta.ownerEmail) to the root socket and to a non-admin user's socket with identical payloads and to no unauthenticated socket. Closing the same feed twice emits one event (the second close answers 404). Deleting a collection with an open feed and hard-deleting a library item with an open feed each emit rss_feed_closed for that feed. A close by a non-admin (403), without a token (401) or for an unknown id (404) emits nothing.",unverified,"server/managers/RssFeedManager.js:355-378
+server/SocketAuthority.js:57-65
+server/controllers/CollectionController.js:214-224
+server/routers/ApiRouter.js:385-388","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-reaches-every-authenticated-socket
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-not-emitted-for-denied-close
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-on-collection-delete
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-emits-once
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-on-item-delete
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-not-emitted-for-unknown-feed",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the feed event producers (open, close, item/collection deletion) have no force, hard or override mode.
+The emptied-series call site (ApiRouter.js:457) shares closeFeedsForEntityIds with the proven item/collection sites and is not separately driven (it needs the last book of a series removed during a scan).
+The item-delete scenario also emits item_removed and the collection-delete scenario also emits collection_removed; only rss_feed_closed is asserted here because the other events belong to their own records."
+socket-outgoing-rss-feed-open,INV-SOCKET-OUTGOING-RSS-FEED-OPEN,Q17,share,"Each successful POST /api/feeds/{item,collection,series}/:id/open emits exactly one rss_feed_open whose single argument equals the minified feed the route returned (id, entityType, entityId, feedUrl, meta.title, meta.description, meta.preventIndexing, meta.ownerName, meta.ownerEmail and no other client-read field), delivered to the root socket and to a non-admin user's socket with identical payloads and to no unauthenticated socket. Two opens emit two events in creation order; a reopen after close emits the new feed id with the same feedUrl. Opens rejected by the admin middleware (403), the auth layer (401), a used slug, an unknown entity or a source without audio tracks emit no event.",unverified,"server/managers/RssFeedManager.js:293-347
+server/SocketAuthority.js:57-65
+server/controllers/RSSFeedController.js:41-204","go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-reaches-every-authenticated-socket
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-not-emitted-for-rejected-open
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-carries-collection-entity
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-emits-once-per-open-in-order
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-after-close-carries-new-id
+go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-not-emitted-for-failed-write",,unverified,unverified,unverified,True,"{""changed"": ""unverified"", ""failure"": ""unverified"", ""force"": ""not_applicable"", ""initial"": ""unverified"", ""repeat"": ""unverified""}","force is not applicable: the feed event producers (open, close, item/collection deletion) have no force, hard or override mode.
+Emission timing is asserted through the socket wait window (the event is delivered while the HTTP response is produced); exact scheduling is not asserted.
+Revoked-session and disconnected-socket variants are covered by the realtime packet's auth/socket records, not duplicated here."
 socket-outgoing-series-added,INV-SOCKET-OUTGOING-SERIES-ADDED,Q14,browse,"series_added is emitted with the series object to every authenticated socket only when a quick match creates a new series; not for existing series, media updates or failed matches.",unverified,"server/scanner/Scanner.js:316
 server/controllers/LibraryItemController.js:526-545
 server/scanner/Scanner.js:283-286
@@ -5265,12 +5474,14 @@ go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/embedded-cover
 The watcher is asserted through its observable effect (a watcher-scan task and the imported item), never through a fixed delay; the packet disables the library watcher for its other file changes so no assertion depends on watcher timing.
 Ebook-only items are grouped but not imported: owner-approved compatibility-stub exception (2026-10-30).
 Series RSS-feed closure on a removed series is not wired to the Go RSS manager and is not asserted."
-sub-static-client,INV-client-browser-001,Q28,client,"The unchanged bundled client build renders a usable SPA shell/assets and completes login, restricted-library/detail and playback flows at its configured base path. A missing asset/unknown route returns usable client fallback semantics; Express error HTML bytes/header order are not fixed.",unverified,"server/Server.js
-index.js
+sub-static-client,INV-client-browser-001,Q28,client,The unchanged bundled client build serves a usable SPA entry document and its assets at the configured base path without authentication; a missing asset or asset directory answers 404 without falling back to the entry document or listing the directory. Express error HTML bytes and header order are not fixed.,unverified,"server/Server.js:407-414
+server/Server.js:432-437
+index.js:55-56
 client/","go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing
 go-backend/internal/server/pipeline_test.go:140#TestBareBasePathRedirectsToItsRoot
 go-backend/testmachine/parity/browser-check.cjs
-go-backend/testmachine/parity/client-check.cjs","go-backend/testmachine/contracts/parity/browser-acceptance-report.json
+go-backend/testmachine/parity/client-check.cjs
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/client-index-and-assets-served","go-backend/testmachine/contracts/parity/browser-acceptance-report.json
 go-backend/testmachine/contracts/parity/full-suite-provenance.json",unverified,unverified,unverified,False,{},"Asset caching header variants not yet differentially verified.
 router.all('*') catch-all applies only to the Next.js client branch (REACT_CLIENT_PATH), a documented env-conditional; the pinned default (Nuxt) branch is the verified surface.
 Root launch with this retained client build still fails hydration on both implementations because its asset URLs target /audiobookshelf. The missing-asset HTML/header divergence is repaired and differentially matched. This matching failure is not a successful root client workflow; other F44 variants remain open.
@@ -5278,13 +5489,15 @@ Root launch with this retained client build still fails hydration on both implem
 Mapping correction: historical exact-byte/Express-header observations are provenance, not new requirements beyond persisted data meaning and real client behavior.
 webp cover renders need an ffmpeg build with libwebp (browser run used a separate libwebp ffmpeg; suite pins the shared default ffmpeg 500 behavior on both sides)
 acceptance criteria: title DOM-attachment because the upstream client renders card titles hidden under placeholder overlays identically on both implementations"
-sub-static-client,INV-F06-REVIEW-CLOSURE-001,Q28,client,"Fresh-install/setup and root/prefixed client configurations must yield successful required workflows. A shared root-build hydration failure is a source/build discrepancy to resolve, not successful acceptance. Restricted users see no protected identifiers through pages or API calls.",unverified,"server/Server.js:390-437
-server/controllers/LibraryController.js
-server/controllers/LibraryItemController.js
-node_modules/finalhandler/index.js","go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing
+sub-static-client,INV-F06-REVIEW-CLOSURE-001,Q28,client,F06 prefixed client configuration serves the client entry document and bundled assets under a non-default ROUTER_BASE_PATH; a missing asset or asset directory stays a 404 with no listing or SPA fallback. Express error HTML bytes and header order are not fixed.,unverified,"server/Server.js:323-334
+server/Server.js:407-414
+server/Server.js:432-437
+index.js:50","go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing
 go-backend/internal/server/pipeline_test.go:140#TestBareBasePathRedirectsToItsRoot
 go-backend/testmachine/parity/browser-check.cjs
-go-backend/testmachine/parity/client-check.cjs","go-backend/testmachine/contracts/parity/parity-f01-f07-closure-report.json#restrictedBrowser
+go-backend/testmachine/parity/client-check.cjs
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/client-missing-asset-no-fallback
+go-backend/testmachine/scenarios/launch/run_test.go#TestReplacement/client-prefixed-base-serves-index","go-backend/testmachine/contracts/parity/parity-f01-f07-closure-report.json#restrictedBrowser
 go-backend/testmachine/contracts/parity/parity-f01-f07-closure-report.json#freshDatabase
 go-backend/testmachine/contracts/parity/parity-f01-f07-closure-report.json#rootLaunch",unverified,unverified,unverified,False,{},"Asset caching header variants not yet differentially verified.
 router.all('*') catch-all applies only to the Next.js client branch (REACT_CLIENT_PATH), a documented env-conditional; the pinned default (Nuxt) branch is the verified surface.
