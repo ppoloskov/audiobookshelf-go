@@ -4,9 +4,11 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing episode_download_queue_cleared: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "Clearing a non-empty item queue emits episode_download_queue_cleared with the library item id string; clearing an empty queue and clearing one item's queue do not emit an event for another item. episode_* events use SocketAuthority.emitter, which sends to every socket that has an authenticated user, without a library/permission filter; a socket that never authenticated receives nothing.",
   "source": [
-    "server/managers/PodcastManager.js:50"
+    "server/SocketAuthority.js:57-65",
+    "server/managers/PodcastManager.js:40-52",
+    "server/objects/PodcastEpisodeDownload.js:28-49"
   ],
   "implementation": [
     "go-backend/internal/podcast/queue.go"
@@ -17,24 +19,47 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/podcast/podcast_test.go:261#TestClearQueueDropsWaitingDownloadsOnly"
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-cleared-payload-and-audience",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-cleared-silent-repeat",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-cleared-only-names-the-cleared-item",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-cleared-not-sent-for-a-rejected-caller"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "normal, error and edge facets are covered by the listed scenarios.",
+    "force is not applicable: the event has no force/override trigger.",
+    "Upstream sends episode_* events to every authenticated user without a library or tag permission filter (SocketAuthority.emitter); a listener without access to the podcast item still receives them. That authorisation gap is deliberately not asserted because no client offers those events to a user who cannot access the item, and the packet asserts only that unauthenticated sockets receive nothing."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-EPISODE-DOWNLOAD-QUEUE-CLEARED",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing episode_download_queue_cleared: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Clearing a non-empty item queue emits episode_download_queue_cleared with the library item id string; clearing an empty queue and clearing one item's queue do not emit an event for another item.",
       "status": "unverified",
       "source": [
-        "server/managers/PodcastManager.js:50"
+        "server/managers/PodcastManager.js:40-52",
+        "server/objects/PodcastEpisodeDownload.js:28-49"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:261#TestClearQueueDropsWaitingDownloadsOnly"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-cleared-payload-and-audience",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-cleared-silent-repeat",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-cleared-only-names-the-cleared-item"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SOCKET-OUTGOING-EPISODE-DOWNLOAD-QUEUE-CLEARED-AUDIENCE-001",
+      "status": "unverified",
+      "class": "audience",
+      "contract": "The event reaches every authenticated socket, including a non-admin listener that may access the library, and never reaches a socket that did not authenticate; a rejected (403) request that would trigger the event emits nothing.",
+      "source": [
+        "server/SocketAuthority.js:57-65",
+        "server/managers/PodcastManager.js:40-52"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-cleared-not-sent-for-a-rejected-caller"
       ],
       "evidence": [],
       "exceptions": []
@@ -44,7 +69,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

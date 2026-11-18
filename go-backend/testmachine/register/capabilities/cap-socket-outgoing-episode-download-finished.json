@@ -4,9 +4,11 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing episode_download_finished: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "Each completed download emits episode_download_finished with the download's client JSON, isFinished true and a finishedAt, failed false on success and failed true when the request or probe failed. episode_* events use SocketAuthority.emitter, which sends to every socket that has an authenticated user, without a library/permission filter; a socket that never authenticated receives nothing.",
   "source": [
-    "server/managers/PodcastManager.js:177"
+    "server/SocketAuthority.js:57-65",
+    "server/managers/PodcastManager.js:152-178",
+    "server/objects/PodcastEpisodeDownload.js:28-49"
   ],
   "implementation": [
     "go-backend/internal/podcast/queue.go"
@@ -17,24 +19,49 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/podcast/podcast_test.go:282#TestFailedDownloadIsReportedAndQueueContinues"
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-success-payload-and-audience",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-repeats-per-episode",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-for-a-checknew-download",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-failure-payload",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-not-sent-for-a-rejected-caller"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "normal, error and edge facets are covered by the listed scenarios.",
+    "force is not applicable: the event has no force/override trigger.",
+    "Upstream sends episode_* events to every authenticated user without a library or tag permission filter (SocketAuthority.emitter); a listener without access to the podcast item still receives them. That authorisation gap is deliberately not asserted because no client offers those events to a user who cannot access the item, and the packet asserts only that unauthenticated sockets receive nothing."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-EPISODE-DOWNLOAD-FINISHED",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing episode_download_finished: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Each completed download emits episode_download_finished with the download's client JSON, isFinished true and a finishedAt, failed false on success and failed true when the request or probe failed.",
       "status": "unverified",
       "source": [
-        "server/managers/PodcastManager.js:177"
+        "server/managers/PodcastManager.js:152-178",
+        "server/objects/PodcastEpisodeDownload.js:28-49"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:282#TestFailedDownloadIsReportedAndQueueContinues"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-success-payload-and-audience",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-repeats-per-episode",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-for-a-checknew-download",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-failure-payload"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SOCKET-OUTGOING-EPISODE-DOWNLOAD-FINISHED-AUDIENCE-001",
+      "status": "unverified",
+      "class": "audience",
+      "contract": "The event reaches every authenticated socket, including a non-admin listener that may access the library, and never reaches a socket that did not authenticate; a rejected (403) request that would trigger the event emits nothing.",
+      "source": [
+        "server/SocketAuthority.js:57-65",
+        "server/managers/PodcastManager.js:152-178"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-not-sent-for-a-rejected-caller"
       ],
       "evidence": [],
       "exceptions": []
@@ -44,7 +71,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

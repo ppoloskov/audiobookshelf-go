@@ -4,9 +4,17 @@
   "kind": "job",
   "scope": "in",
   "status": "unverified",
-  "contract": "Podcast RSS feed ingestion, episode download queue/lifecycle matching upstream PodcastManager episode download task states and files.",
+  "contract": "The PodcastManager episode download queue runs one download at a time in order, reports success and failure, skips known feed episodes and loses only in-memory queue state on restart.",
   "source": [
-    "server/managers/PodcastManager.js"
+    "server/managers/PodcastManager.js:183-185",
+    "server/managers/PodcastManager.js:26-32",
+    "server/managers/PodcastManager.js:380-455",
+    "server/managers/PodcastManager.js:54-190",
+    "server/managers/PodcastManager.js:54-262",
+    "server/models/Podcast.js:393-399",
+    "server/models/PodcastEpisode.js:161-176",
+    "server/utils/ffmpegHelpers.js:107-232",
+    "server/utils/fileUtils.js:290-330"
   ],
   "implementation": [
     "go-backend/internal/podcast/queue.go"
@@ -17,37 +25,89 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/podcast/podcast_test.go"
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-runs-one-at-a-time-in-order",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-failed-download-keeps-no-row-and-continues",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-retries-without-tagging-and-removes-the-file",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-auto-downloads-checknew-episodes-with-stable-identity",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-restart-drops-the-queue-and-keeps-no-partial-episode"
   ],
   "evidence": [],
   "exceptions": [
-    "Test TestCreatePodcastValidatesFolderAndPersistsSourceShape currently fails at episode download completion (investigation open).",
-    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+    "normal, error and edge facets are covered by the listed scenarios.",
+    "force is not applicable: the queue has no force/override operation; downloads start from the download-episodes route and the new-episode check.",
+    "The scheduled cron path (runEpisodeCheck with maxEpisodesToKeep pruning and notifications) is not asserted because it is time-scheduled and not reachable by a request; the checknew download path is asserted instead.",
+    "The queue's missing-folder re-creation, deleted-library-item mid-download and ffmpeg-succeeds-but-probe-fails branches are not asserted: they need an external folder/item deletion or a media sample that ffmpeg copies while ffprobe rejects, which a deterministic local fixture cannot provide."
   ],
   "stateful": true,
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "invariants": [
     {
       "id": "INV-SUB-PODCAST-DOWNLOAD-QUEUE",
       "class": "repeat_operation",
-      "contract": "Podcast RSS feed ingestion, episode download queue/lifecycle matching upstream PodcastManager episode download task states and files.",
+      "contract": "Requested episodes download one at a time in request order: episode_download_started and episode_download_finished follow the queue order, episode_download_queued is emitted for each waiting episode, each successful download leaves one podcast episode row with its audio file, and a pre-existing file at the target name is kept while the new episode is written with a random-id suffix.",
       "status": "unverified",
       "source": [
-        "server/managers/PodcastManager.js"
+        "server/managers/PodcastManager.js:54-262"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-runs-one-at-a-time-in-order"
       ],
       "evidence": [],
-      "exceptions": [
-        "Required detailed state/recipient/failure assertions are not yet characterized."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-SUB-PODCAST-DOWNLOAD-QUEUE-FAILURE-001",
+      "status": "unverified",
+      "class": "failure",
+      "contract": "A download whose request fails, or whose file cannot be probed after the untagged retry, emits episode_download_finished with isFinished true, failed true and a finish time, leaves no episode row and no file, and the next queued episode still downloads.",
+      "source": [
+        "server/managers/PodcastManager.js:54-190",
+        "server/utils/ffmpegHelpers.js:107-232",
+        "server/utils/fileUtils.js:290-330"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-failed-download-keeps-no-row-and-continues",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-retries-without-tagging-and-removes-the-file"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SUB-PODCAST-DOWNLOAD-QUEUE-AUTO-001",
+      "status": "unverified",
+      "class": "behaviour",
+      "contract": "The new-episode check downloads the new feed episodes with their guid, enclosure and publication time, and a later check does not download again an episode with the same guid but a new URL nor one with the same enclosure URL but a new guid (episode identity is guid or enclosure URL).",
+      "source": [
+        "server/managers/PodcastManager.js:380-455",
+        "server/models/PodcastEpisode.js:161-176",
+        "server/models/Podcast.js:393-399"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-auto-downloads-checknew-episodes-with-stable-identity"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SUB-PODCAST-DOWNLOAD-QUEUE-RESTART-001",
+      "status": "unverified",
+      "class": "failure",
+      "contract": "Stopping the server during a download creates no episode row, the in-memory running and waiting downloads are gone after restart, and posting the episode again downloads it once with its audio file.",
+      "source": [
+        "server/managers/PodcastManager.js:26-32",
+        "server/managers/PodcastManager.js:183-185"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-restart-drops-the-queue-and-keeps-no-partial-episode"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }
