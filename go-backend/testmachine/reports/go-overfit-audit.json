@@ -1,0 +1,30 @@
+{
+  "counts": {
+    "go_files_scanned": 208,
+    "fixture_literals": 51,
+    "hits": 4,
+    "allow_listed": 4,
+    "unallowlisted_findings": 0
+  },
+  "findings": [],
+  "allow_list": [
+    {
+      "literal": "desc.txt",
+      "file": "internal/scan/sidecar.go",
+      "reason": "upstream-defined companion file: upstream's book scanner reads desc.txt for the description (server/scanner/BookScanner.js:786-790, LibraryItemScanData.js:148); the Go hit implements that behaviour, it does not expect the fixture's file",
+      "upstream_ref": "server/scanner/BookScanner.js:783-794"
+    },
+    {
+      "literal": "reader.txt",
+      "file": "internal/scan/sidecar.go",
+      "reason": "upstream-defined companion file: upstream's book scanner reads reader.txt for the narrator (server/scanner/BookScanner.js:792-794, LibraryItemScanData.js:153); the Go hit implements that behaviour, it does not expect the fixture's file",
+      "upstream_ref": "server/scanner/BookScanner.js:783-794"
+    },
+    {
+      "literal": "saga1",
+      "file": "internal/contracttest/fixture.go",
+      "reason": "doc comment in the contracttest fixture loader listing example ids.json keys (library, saga1, listener, ...); documentation of the fixture contract, not a runtime expectation",
+      "upstream_ref": null
+    }
+  ]
+}
