@@ -22,21 +22,30 @@
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: a socket event has no force mode; every successful close emits once."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-USER-SESSION-CLOSED",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing user_session_closed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Socket.IO user_session_closed carries exactly one argument, the closed session id string. It is emitted by closeSession on a successful close (with or without listening time), an admin closing another user's session, a close after the item was deleted and a same-device replacement, exactly once per close, to every socket of the session owner only; admin sockets and other users' sockets must not receive it, and no rejected close (401, 403, 404) emits it.",
       "status": "unverified",
       "source": [
-        "server/managers/PlaybackSessionManager.js:429"
+        "server/managers/PlaybackSessionManager.js:428-431",
+        "server/SocketAuthority.js:68-78",
+        "server/managers/PlaybackSessionManager.js:282-288"
       ],
       "tests": [
         "go-backend/internal/playback/playback_test.go:227#TestDirectPlayRangeOwnershipAndProgress",
-        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle"
+        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-on-close",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-not-repeated",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-by-admin",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-refused",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-on-replacement",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-without-listening"
       ],
       "evidence": [],
       "exceptions": []
@@ -46,7 +55,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

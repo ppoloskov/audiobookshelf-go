@@ -40,9 +40,9 @@
   "exceptions": [
     "No tests were executed in this mapping invocation. Current tests map selected payload, permission, missing-media and malformed-type assertions but remain unverified until executed and reviewed against current pinned-source/client oracles.",
     "The accepted playback lifecycle packet is bounded to stream lifecycle and does not establish POST /play request/response parity.",
-    "force is not an operation-level state scenario: forceDirectPlay and forceTranscode select playback modes; these are request fields, not a refresh/force replay operation.",
     "The browser and operational playback reports are historical evidence leads; they are not used to mark current requirements verified.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: forceDirectPlay/forceTranscode select a play method, not a refresh/force replay operation."
   ],
   "invariants": [
     {

@@ -2,6 +2,8 @@ package playback_sessions
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -237,6 +239,36 @@ func closeScenarios() []harness.Scenario {
 					t.Fatal("a refused close must not store the session")
 				}
 				closeQuietly(t, e, listener.Token, doc.ID)
+			},
+		},
+		{
+			Requirement: "route-r148", Invariant: "INV-R148-SAMPLED", Case: "normal", State: "initial", Assertion: "session-close-removes-transcode-stream",
+			Sources: []string{routeClose, closeSource, "server/objects/Stream.js:357-370", "server/managers/PlaybackSessionManager.js:401-418"},
+			Claim:   "Closing a transcode session answers 200, removes its metadata/streams/<session id> folder and announces user_session_closed once.",
+			Run: func(t *testing.T, e *harness.Env) {
+				listener := fixtureActor(t, e, "listener")
+				a := watch(t, e, listener)
+				doc := play(t, e, listener.Token, e.IDs["saga1"], "", playBody{
+					"mediaPlayer": "html5", "supportedMimeTypes": []string{"audio/ogg"},
+					"deviceInfo": map[string]any{"deviceId": "ps-close-stream"},
+				})
+				if doc.PlayMethod == nil || *doc.PlayMethod != 2 {
+					t.Fatalf("the stream scenario needs a transcode session, got playMethod %v", doc.PlayMethod)
+				}
+				dir := filepath.Join(e.Metadata, "streams", doc.ID)
+				if _, err := os.Stat(dir); err != nil {
+					t.Fatalf("a transcode session must create its stream folder: %v", err)
+				}
+				a.reset()
+				closeSession(t, e, listener.Token, doc.ID, map[string]any{})
+				harness.Eventually(t, 5*time.Second, "stream folder removed", func() bool {
+					_, err := os.Stat(dir)
+					return os.IsNotExist(err)
+				})
+				a.requireClosedOnce(t, doc.ID)
+				if _, status := getSession(t, e, listener.Token, doc.ID); status != http.StatusNotFound {
+					t.Fatalf("the closed transcode session must be gone, GET answered %d", status)
+				}
 			},
 		},
 	}

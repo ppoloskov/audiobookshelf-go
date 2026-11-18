@@ -14,17 +14,18 @@ import (
 // Fixture facts (go-backend/internal/contracttest/testdata/install). Library
 // item ids come from Env.IDs; these are values of the seeded rows.
 const (
-	serverVersion = "2.37.2"
-	saga1BookID   = "5e33de11-3e94-4c51-87d8-d06d2928ac38" // book of "The Beginning" (saga1)
-	saga2BookID   = "5c5badbc-e141-4fbc-8a5b-31c1ba7d33af" // book of "The Middle" (saga2)
-	saga1Duration = 60.186123
-	saga2Duration = 30.0
-	ep1Duration   = 24.058776
-	ep3Duration   = 12.068571
-	listenerProg  = "b95b3028-3461-4306-803b-6e310140cd22" // listener's progress row of saga1
-	listenerEp3   = "3dc1ddba-4b1a-45fc-8b91-53e355fc52fc" // listener's progress row of episode 3
-	chromeAgent   = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-	userPassword  = "ps-packet-password"
+	serverVersion    = "2.37.2"
+	saga1BookID      = "5e33de11-3e94-4c51-87d8-d06d2928ac38" // book of "The Beginning" (saga1)
+	saga2BookID      = "5c5badbc-e141-4fbc-8a5b-31c1ba7d33af" // book of "The Middle" (saga2)
+	saga1Duration    = 60.186123
+	saga2Duration    = 30.0
+	ep1Duration      = 24.058776
+	ep3Duration      = 12.068571
+	listenerProg     = "b95b3028-3461-4306-803b-6e310140cd22" // listener's progress row of saga1
+	listenerEp3      = "3dc1ddba-4b1a-45fc-8b91-53e355fc52fc" // listener's progress row of episode 3
+	chromeAgent      = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+	userPassword     = "ps-packet-password"
+	fixtureLibraryID = "51bf3bdf-f246-4f7d-b0a6-9059e4d0ed41"
 )
 
 // chapterDoc is one chapter of a session.

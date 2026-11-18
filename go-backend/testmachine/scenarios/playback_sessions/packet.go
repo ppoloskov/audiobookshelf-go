@@ -15,6 +15,13 @@ func Packet() harness.Packet {
 	scenarios = append(scenarios, syncScenarios()...)
 	scenarios = append(scenarios, closeScenarios()...)
 	scenarios = append(scenarios, openScenarios()...)
+	scenarios = append(scenarios, historyScenarios()...)
+	scenarios = append(scenarios, openSessionScenarios()...)
+	scenarios = append(scenarios, localScenarios()...)
+	scenarios = append(scenarios, localAllScenarios()...)
+	scenarios = append(scenarios, flowScenarios()...)
+	scenarios = append(scenarios, deleteScenarios()...)
+	scenarios = append(scenarios, socketScenarios()...)
 	return harness.Packet{
 		Name:      "playback_sessions",
 		Options:   harness.Options{Env: map[string]string{"RATE_LIMIT_AUTH_MAX": "0"}},

@@ -25,8 +25,8 @@
   ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: episode play has no force/refresh mode; force flags select the play method."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -51,7 +51,8 @@
         "go-backend/internal/playback/playback_test.go:276#TestPlayRefusals",
         "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-direct-session",
         "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-method-and-start-times",
-        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-sync-moves-episode-progress"
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-sync-moves-episode-progress",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-repeat-replaces-session"
       ],
       "evidence": [],
       "exceptions": [

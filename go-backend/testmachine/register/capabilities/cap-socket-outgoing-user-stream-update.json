@@ -22,21 +22,30 @@
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: a socket event has no force mode."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-USER-STREAM-UPDATE",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing user_stream_update: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Socket.IO user_stream_update carries one object {id, username, type, session, lastSeen, createdAt} of the acting user where session is that user's own open session as toJSONForClient (libraryItem null), and is sent to every admin socket and no non-admin socket: once on a play, once on a close (the session is still the closing one, with its listening time, or 0 for a session that never listened), twice in order (previous session, then new session) when a play replaces a same-device session; a refused play or close emits none.",
       "status": "unverified",
       "source": [
         "server/managers/PlaybackSessionManager.js:361",
-        "server/managers/PlaybackSessionManager.js:428"
+        "server/managers/PlaybackSessionManager.js:428",
+        "server/SocketAuthority.js:80-87",
+        "server/models/User.js:584-594"
       ],
       "tests": [
-        "go-backend/internal/playback/playback_test.go:227#TestDirectPlayRangeOwnershipAndProgress"
+        "go-backend/internal/playback/playback_test.go:227#TestDirectPlayRangeOwnershipAndProgress",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-on-play",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-on-close-once",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-own-session-only",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-refused",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-on-replacement",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-empty-close"
       ],
       "evidence": [],
       "exceptions": []
@@ -46,7 +55,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

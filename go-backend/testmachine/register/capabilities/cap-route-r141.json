@@ -24,8 +24,8 @@
   ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: session delete has no force/hard mode; a repeated delete answers 404."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -38,15 +38,20 @@
     {
       "id": "INV-R141-CONTRACT-001",
       "class": "state_transition",
-      "contract": "DELETE /api/sessions/:id. Delete an authorized historical session and close its live session if open; unknown ID returns 404 and disallowed user 403; retain media/progress and unrelated history.",
+      "contract": "DELETE /api/sessions/:id by a user with the delete permission answers 200 with an empty body and removes that stored session; an open session is also closed without a user_session_closed event; media, progress and other sessions stay. Unknown or malformed ids answer 404 and a user without the delete permission 403.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:235",
-        "server/controllers/SessionController.js:357",
-        "server/controllers/SessionController.js:192"
+        "server/controllers/SessionController.js:186-196",
+        "server/controllers/SessionController.js:313-326"
       ],
       "tests": [
-        "go-backend/internal/playback/playback_test.go:577#TestHistoryListingSortsFiltersAndDeletes"
+        "go-backend/internal/playback/playback_test.go:577#TestHistoryListingSortsFiltersAndDeletes",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-delete-stored-session",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-delete-repeat-not-found",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-delete-open-session",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-delete-episode-session",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-delete-refusals-change-nothing"
       ],
       "evidence": [],
       "exceptions": [

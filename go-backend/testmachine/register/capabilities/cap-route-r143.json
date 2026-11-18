@@ -23,8 +23,8 @@
   ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: batch delete has no force/hard mode; absent ids are ignored and a repeat answers 200."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -37,14 +37,19 @@
     {
       "id": "INV-R143-CONTRACT-001",
       "class": "state_transition",
-      "contract": "POST /api/sessions/batch/delete. Admin batch deletion validates a nonempty session-ID array, deletes selected history and closes matching open sessions; malformed arrays return 400 and non-admins 403.",
+      "contract": "POST /api/sessions/batch/delete as an admin with a non-empty array of session uuids answers 200 with an empty body, removes exactly those stored rows and any matching open session without an event, and keeps the other rows; a missing, empty, non-array or non-uuid sessions body answers 400, a non-admin 403 (checked first) and an unauthenticated caller 401, changing nothing.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:237",
-        "server/controllers/SessionController.js:213"
+        "server/controllers/SessionController.js:213-249"
       ],
       "tests": [
-        "go-backend/internal/playback/playback_test.go:577#TestHistoryListingSortsFiltersAndDeletes"
+        "go-backend/internal/playback/playback_test.go:577#TestHistoryListingSortsFiltersAndDeletes",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-batch-delete-stored",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-batch-delete-repeat",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-batch-delete-open",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-batch-delete-duplicates",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-batch-delete-refusals"
       ],
       "evidence": [],
       "exceptions": [

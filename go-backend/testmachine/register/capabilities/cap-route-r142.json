@@ -31,16 +31,20 @@
     {
       "id": "INV-R142-CONTRACT-001",
       "class": "shape",
-      "contract": "GET /api/sessions/open. Admin open-session snapshot preserves owning-user/device/playback fields without leaking data to listeners; concurrent sync/list must be safe.",
+      "contract": "GET /api/sessions/open as an admin answers {sessions, shareSessions}: each open session in creation order is its toJSON plus user {id, username}, shareSessions is [] with no open share, a session entry reflects each sync and disappears once closed, and a non-admin gets 404 while an unauthenticated caller gets 401.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:236",
-        "server/controllers/SessionController.js:122"
+        "server/controllers/SessionController.js:122-147",
+        "server/objects/PlaybackSession.js:62-92"
       ],
       "tests": [
         "go-backend/internal/playback/playback_test.go:354#TestOpenSessionsAndSessionOf",
         "go-backend/internal/playback/playback_test.go:366#TestConcurrentSyncsAreSafe",
-        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle"
+        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/open-sessions-admin-snapshot",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/open-sessions-refused",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/open-sessions-empty-and-synced"
       ],
       "evidence": [],
       "exceptions": [

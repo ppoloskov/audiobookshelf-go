@@ -125,5 +125,33 @@ func episodeScenarios() []harness.Scenario {
 				closeQuietly(t, e, listener.Token, again.ID)
 			},
 		},
+		{
+			Requirement: "route-r060", Invariant: "INV-R060-CONTRACT-001", Case: "normal", State: "repeat", Assertion: "play-episode-repeat-replaces-session",
+			Sources: []string{"server/routers/ApiRouter.js:118", episodeSource, startSource, "server/managers/PlaybackSessionManager.js:282-288"},
+			Claim:   "Playing the same episode again on the same device closes the previous episode session, opens one new session for that episode at the synced position and keeps the episode progress destination.",
+			Run: func(t *testing.T, e *harness.Env) {
+				listener := fixtureActor(t, e, "listener")
+				body := playBody{"supportedMimeTypes": []string{"audio/mpeg"}, "deviceInfo": map[string]any{"deviceId": "ps-episode-4"}}
+				first := play(t, e, listener.Token, e.IDs["podcast"], e.IDs["ep1"], body)
+				syncSession(t, e, listener.Token, first.ID, map[string]any{"currentTime": 9, "timeListened": 2, "duration": ep1Duration})
+				second := play(t, e, listener.Token, e.IDs["podcast"], e.IDs["ep1"], body)
+				if second.ID == first.ID || second.EpisodeID == nil || *second.EpisodeID != e.IDs["ep1"] {
+					t.Fatalf("the repeated play must create a new episode session: %+v", second)
+				}
+				requireNear(t, "resume position of the repeated episode session", second.StartTime, 9)
+				if _, status := getSession(t, e, listener.Token, first.ID); status != http.StatusNotFound {
+					t.Fatalf("the previous episode session must be closed, GET answered %d", status)
+				}
+				if row := sessionRow(t, e, first.ID); row == nil || row["mediaItemId"] != e.IDs["ep1"] || row["mediaItemType"] != "podcastEpisode" || !near(number(t, row["timeListening"]), 2) {
+					t.Fatalf("the closed episode session stays stored: %v", row)
+				}
+				syncSession(t, e, listener.Token, second.ID, map[string]any{"currentTime": 10, "timeListened": 1, "duration": ep1Duration})
+				row := progressRow(t, e, listener.ID, e.IDs["ep1"])
+				if !near(number(t, row["currentTime"]), 10) || !near(progressFraction(t, row), 10/ep1Duration) {
+					t.Fatalf("the repeated session moves the episode progress: %v", row)
+				}
+				closeQuietly(t, e, listener.Token, second.ID)
+			},
+		},
 	}
 }

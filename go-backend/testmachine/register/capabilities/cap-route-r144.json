@@ -23,8 +23,8 @@
   ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: offline upload has no force mode; the client timestamp decides whether the progress moves."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -37,14 +37,21 @@
     {
       "id": "INV-R144-CONTRACT-001",
       "class": "state_transition",
-      "contract": "POST /api/session/local. Offline upload maps play_local identity to one persisted server ID, updates repeat progress without duplicate sessions, preserves initial client metadata/date, recomputes updated date and never moves newer progress backward.",
+      "contract": "POST /api/session/local with a mobile offline session answers 200 with an empty body and stores it under the client id with the caller as user, the item's library, duration and media metadata, the client display fields and date, createdAt=startedAt and updatedAt=updatedAt; a play_local_ id maps to one stable generated id; a repeat updates currentTime, timeListening, updatedAt and the recomputed date in the same row while keeping the initial metadata; the caller progress moves only when the client timestamp is not older than the stored progress; an unknown item or episode answers 500 and stores no session or progress.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:238",
-        "server/controllers/SessionController.js:254"
+        "server/controllers/SessionController.js:254-267",
+        "server/managers/PlaybackSessionManager.js:144-273",
+        "server/models/PlaybackSession.js:140-163"
       ],
       "tests": [
-        "go-backend/internal/playback/playback_test.go:485#TestLocalSyncStoresOnceAndRespectsNewerProgress"
+        "go-backend/internal/playback/playback_test.go:485#TestLocalSyncStoresOnceAndRespectsNewerProgress",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-local-creates-stored-session",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-local-repeat-keeps-one-session",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-local-never-moves-newer-progress",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-local-minimal-payload",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-local-unknown-item"
       ],
       "evidence": [],
       "exceptions": [

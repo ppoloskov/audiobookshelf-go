@@ -29,22 +29,25 @@
     "go-backend/testmachine/contracts/parity/browser-playback-differential-report.json#results.playback"
   ],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: session close has no force/hard mode; a second close answers 404."
   ],
   "invariants": [
     {
       "id": "INV-R148-SAMPLED",
       "class": "shape",
-      "contract": "Sampled POST /session/:id/close via differential case(s) session-close: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: playback.",
+      "contract": "POST /api/session/:id/close of a transcode session answers 200 with an empty body, removes the session's metadata/streams/<id> folder and announces user_session_closed once for that id.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:243"
+        "server/routers/ApiRouter.js:243",
+        "server/managers/PlaybackSessionManager.js:376-418",
+        "server/objects/Stream.js:357-370"
       ],
       "tests": [
         "go-backend/internal/playback/playback_test.go:227#TestDirectPlayRangeOwnershipAndProgress",
         "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
-        "go-backend/internal/playback/playback_test.go:330#TestCloseWithoutSyncDataSavesOnlyListenedSessions"
+        "go-backend/internal/playback/playback_test.go:330#TestCloseWithoutSyncDataSavesOnlyListenedSessions",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-removes-transcode-stream"
       ],
       "evidence": [
         "go-backend/testmachine/contracts/parity/full-suite-report.json#session-close"
@@ -71,7 +74,14 @@
         "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-without-listening-stores-nothing",
         "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-empty-keeps-synced-row",
         "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-twice-and-sync-after-close",
-        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-by-admin"
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-by-admin",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-on-close",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-not-repeated",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-by-admin",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-on-replacement",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-without-listening",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-on-close-once",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-on-play"
       ],
       "evidence": [],
       "exceptions": []
