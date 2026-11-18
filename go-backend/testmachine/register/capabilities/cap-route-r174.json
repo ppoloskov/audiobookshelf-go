@@ -4,9 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "POST /emails/send-ebook-to-device at server/routers/ApiRouter.js:281. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "POST /emails/send-ebook-to-device (ApiRouter:281) needs only an authenticated user (401 without a token; no admin gate). In this order it answers 404 'Ereader device not found' when no device has the body.deviceName, 403 when the device availability refuses the user, 404 when body.libraryItemId does not resolve, 403 when the user cannot access the library item, and 404 'Ebook file not found' when the item has no ebookFile; before any of those checks it opens no SMTP connection. On success it sends the ebook through EmailManager.sendEBookToDevice and answers 200; an SMTP failure answers 400 and never 200.",
   "source": [
-    "server/routers/ApiRouter.js:281"
+    "server/routers/ApiRouter.js:281",
+    "server/controllers/EmailController.js:96-125",
+    "server/objects/settings/EmailSettings.js:146-159",
+    "server/managers/EmailManager.js:39-63"
   ],
   "implementation": [
     "go-backend/internal/mail/mail.go"
@@ -17,6 +20,13 @@
     "edge": "unverified"
   },
   "stateful": true,
+  "state_scenarios": {
+    "initial": "unverified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "unverified"
+  },
   "tests": [
     "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
     "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
@@ -28,29 +38,30 @@
     "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
     "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
     "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
-    "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
+    "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-admin-delivers-to-device",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-preconditions-refuse-before-smtp",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-device-availability-for-users",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-repeat-delivers-again",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-follows-changed-sender-and-device",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-smtp-failure-safe-for-user",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-item-access-refused-for-user"
   ],
   "evidence": [],
   "exceptions": [
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: the route has no force/hard/override mode.",
+    "A sendMail-stage rejection returns nodemailer's error text to the caller; no scenario pins that text, because no client parses it and a safe implementation may replace it. The reachable safe message (verify failure) is asserted exactly."
   ],
-  "state_scenarios": {
-    "initial": "unverified",
-    "repeat": "unverified",
-    "changed": "unverified",
-    "force": "unverified",
-    "failure": "unverified"
-  },
   "invariants": [
     {
       "id": "INV-ROUTE-R174-ROUTE",
       "class": "shape",
-      "contract": "POST /emails/send-ebook-to-device at server/routers/ApiRouter.js:281. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "POST /api/emails/send-ebook-to-device answers 401 without a token; any authenticated user may call it. It refuses in the controller's order (unknown device 404, device access 403, unknown item 404, item access 403, missing ebookFile 404) before opening any SMTP connection. On success it verifies then sends one message from fromAddress to device.email and answers 200; a later send uses the current fromAddress and device email.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:281"
+        "server/routers/ApiRouter.js:281",
+        "server/controllers/EmailController.js:96-125",
+        "server/managers/EmailManager.js:39-63"
       ],
       "tests": [
         "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
@@ -63,20 +74,53 @@
         "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
         "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
         "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
-        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-admin-delivers-to-device",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-follows-changed-sender-and-device"
       ],
       "evidence": [],
-      "exceptions": [
-        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R174-ACCESS-001",
+      "class": "authorisation",
+      "contract": "checkUserCanAccessDevice allows adminOrUp devices to admins, userOrUp to admins and users, guestOrUp to everyone, and specificUsers to the listed user ids only; a device refusal is 403 and takes precedence over the library-item lookup. The user must then pass checkCanAccessLibraryItem: library access (accessAllLibraries or librariesAccessible) and item tags (accessAllTags, itemTagsSelected and selectedTagsNotAccessible) and explicit-content permission, otherwise the route answers 403. Both refusals happen before any SMTP connection.",
+      "status": "unverified",
+      "source": [
+        "server/objects/settings/EmailSettings.js:146-159",
+        "server/controllers/EmailController.js:96-125"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-preconditions-refuse-before-smtp",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-device-availability-for-users",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-item-access-refused-for-user"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R174-FAILURE-001",
+      "class": "behaviour",
+      "contract": "When SMTP verification fails, send-ebook answers 400 with the fixed 'Failed to verify SMTP connection configuration' text and transmits no message; the response carries no SMTP reply, host or port, and a sendMail-stage rejection is never reported as success.",
+      "status": "unverified",
+      "source": [
+        "server/managers/EmailManager.js:43-51",
+        "server/managers/EmailManager.js:57-61"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-smtp-failure-safe-for-user",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/flow-message-rejection-is-not-success"
+      ],
+      "evidence": [],
+      "exceptions": []
     },
     {
       "id": "INV-ROUTE-R174-REPEAT",
       "class": "repeat_operation",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "Repeating the same send delivers another message with the same envelope and leaves the settings row and its updatedAt unchanged.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:281"
+        "server/managers/EmailManager.js:39-63"
       ],
       "tests": [
         "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
@@ -89,12 +133,11 @@
         "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
         "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
         "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
-        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/send-ebook-repeat-delivers-again"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
-      ]
+      "exceptions": []
     }
   ]
 }

@@ -6,7 +6,7 @@
   "proof": "Mapping only. No behavior tests executed by this renderer. Test references are assertion/discovery leads, not inferred full coverage.",
   "counts": {
     "requirements": 345,
-    "invariants": 756,
+    "invariants": 775,
     "route_sites": 226,
     "socket_sites": 165,
     "socket_names": 77,
@@ -47,7 +47,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r004.json": "867b3216c0d6c66b973736e7132a520335fd52ee67f8f9c5b9450af3a947beb1",
     "go-backend/testmachine/register/capabilities/cap-route-r005.json": "63763eeb683aee4bc17fa94d2ef4922b269bcdaad028b7736f3fa5eba8b6075b",
     "go-backend/testmachine/register/capabilities/cap-route-r006.json": "78210a40a322c8a05b20b46d1db7c2d0995d0e021d4f95bacb2b8c0e0f6b4f36",
-    "go-backend/testmachine/register/capabilities/cap-route-r007.json": "6ebfde6837ceac3ab9955e0d1644a48323b53bef9a9da6827ea551374697c69b",
+    "go-backend/testmachine/register/capabilities/cap-route-r007.json": "99ef381917b253f1106a1cb6f31944503cd447718395af21d6bbaaf5705592ac",
     "go-backend/testmachine/register/capabilities/cap-route-r008.json": "c4824ad5829eeab2dc3de8118b0a43eca734c52de9066ed7044d9f82b0c0b6bc",
     "go-backend/testmachine/register/capabilities/cap-route-r009.json": "ae36d91c83586fb1557eb28cd2f9dda52719162a355f9dae528e4bf277ed60c6",
     "go-backend/testmachine/register/capabilities/cap-route-r010.json": "7189c70990dd88498031abbdda64405abf00a8cf628dfcea1374bce23333167c",
@@ -64,7 +64,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r021.json": "155a5f70afef8376f149bef38c3868c7266f62ab5bac55870ea54a6e1a5903ac",
     "go-backend/testmachine/register/capabilities/cap-route-r022.json": "1c0c6e9dfb8728ae813fa3522ef76db68797cd1724e2109523ba367421468481",
     "go-backend/testmachine/register/capabilities/cap-route-r023.json": "4da39c1a2471a0639a8a8add7e5ebb44e084f3b888d704239c65b7a7154ab9a1",
-    "go-backend/testmachine/register/capabilities/cap-route-r024.json": "af64af8240a184b887c1c7984dd39e46dcc633f3904a0520006219504586a090",
+    "go-backend/testmachine/register/capabilities/cap-route-r024.json": "0a49e8fa5ca3f63f4843bb6045deb7bacbc20dbb0ae416f20be3b58cb0cfa4c6",
     "go-backend/testmachine/register/capabilities/cap-route-r025.json": "4c04c1dfa92e83d17d6c91af6bf1fd4f23e8adeef13a091037bbe22cc2e40bcd",
     "go-backend/testmachine/register/capabilities/cap-route-r026.json": "88a99282679d3e63e4e598fca2922574ba8d405b54a6725b751a9e21317f1a64",
     "go-backend/testmachine/register/capabilities/cap-route-r027.json": "0a79e5c91ca4c2851fe83c15bd1c1b46996469e9ee4478131f40984f5a766f20",
@@ -79,7 +79,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r036.json": "63da996e270388b13eb13a39cd6edcb5e86378d77abd94a02c66970a95ac78c8",
     "go-backend/testmachine/register/capabilities/cap-route-r037.json": "94fa790147c8d0f28249b7b5278c10ce4e340c019d5d54a42f8c185ee8927967",
     "go-backend/testmachine/register/capabilities/cap-route-r038.json": "e08ac2e1b766cdf1595f8a6fa9caf8cbae6e322fa5e34c242c79896dcce4f37f",
-    "go-backend/testmachine/register/capabilities/cap-route-r039.json": "f01f89cb53ec9d5e4948486572fa03dac2cc4e488fb8e414f339263e737cc69f",
+    "go-backend/testmachine/register/capabilities/cap-route-r039.json": "86a1e9729eb3001f566e18972d65a49f98e954398bbd9cbd1ccf1114be6a1a9e",
     "go-backend/testmachine/register/capabilities/cap-route-r040.json": "426635fc16b500aa684e88f2669e8839852465bfcaa4e13e7777b79bc16d5a0a",
     "go-backend/testmachine/register/capabilities/cap-route-r041.json": "e4c14a0dc4f2a9f970f36b3e5b44c9ebc31475b40fdf8bcf7951fb7dc405f708",
     "go-backend/testmachine/register/capabilities/cap-route-r042.json": "0c1f01475153200e2ab5c979ea8ac843a67a517e8270feddbf783022437efae9",
@@ -194,14 +194,14 @@
     "go-backend/testmachine/register/capabilities/cap-route-r151.json": "3cf1b83dfe404a92b86ba46dd0fcbb1dea54f05a86a443427969ba24938c6d9a",
     "go-backend/testmachine/register/capabilities/cap-route-r152.json": "34ca2aebf97b98bca9e8d16e25b7ffd639c2946b1f46b2175e79db3e2df64455",
     "go-backend/testmachine/register/capabilities/cap-route-r153.json": "f6e63d96b783d6e84cc62318a4dc914c0c2a27e90628453b837d066ea26a35cc",
-    "go-backend/testmachine/register/capabilities/cap-route-r154.json": "78dde646e0db13c1702d195dbd7af4adb1e9d53a1acaf74309f3c78a92f63643",
-    "go-backend/testmachine/register/capabilities/cap-route-r155.json": "0f4e00421a590e4eedfaf66146f9c94f8b192a88736d6609c43509adda1fa5a0",
+    "go-backend/testmachine/register/capabilities/cap-route-r154.json": "d4022060fa7dbdf39da8d5337c00a4cec96afad8d57e650a6f95ce1fb0bca819",
+    "go-backend/testmachine/register/capabilities/cap-route-r155.json": "67f06e54916627968ed886358d4b139dd601737b22c50d91b56dca9031f58968",
     "go-backend/testmachine/register/capabilities/cap-route-r156.json": "06b82a6d84bc97379969bbd560a7202d047c022aa454d011ee4cb4b780fec789",
-    "go-backend/testmachine/register/capabilities/cap-route-r157.json": "68d2a00bd58a964e8b904056558e03fd94b1e116ed7aec634c34f5ea4c77ab95",
+    "go-backend/testmachine/register/capabilities/cap-route-r157.json": "c1c86dc6885e0efed198a3f082dee43cf26ed676be4328df210e249840cf147c",
     "go-backend/testmachine/register/capabilities/cap-route-r158.json": "e32446eb9dd70b59aa2d9570f4bef723f837af16d6454a9755c346462fbc4993",
-    "go-backend/testmachine/register/capabilities/cap-route-r159.json": "e8ff1a7633304bcd1a573d126b5c7fc3a5eef608a3f10af2a4a838453a9bcdfa",
-    "go-backend/testmachine/register/capabilities/cap-route-r160.json": "5425d70ffb6ce00810f878d95955a0ea540780aa1e208e7f96c9d256533df8a6",
-    "go-backend/testmachine/register/capabilities/cap-route-r161.json": "b1b46ab8ab5236085118845e77fb61f5561347221002fcb615c8b116691fd8fe",
+    "go-backend/testmachine/register/capabilities/cap-route-r159.json": "db38d69e9ac06b3d1f9ffcb78d934dc98a1706059af9d3035cd89fe87b192b9b",
+    "go-backend/testmachine/register/capabilities/cap-route-r160.json": "d6d0fd695f4ffefc984c4dd1a69d435bd90512a72c9f08b307c3004dc76c46b2",
+    "go-backend/testmachine/register/capabilities/cap-route-r161.json": "8bf5cdf17d77189f499fc3d51d66c255820339b0146c9a330e93b733fe4e9603",
     "go-backend/testmachine/register/capabilities/cap-route-r162.json": "ecd9aa242ef005e6666198c252fdc3ac1f3242b469d35c2cc87608806704f318",
     "go-backend/testmachine/register/capabilities/cap-route-r163.json": "87d7efba0e58dc71e9f5f9f9d07feea71251eaf960055fca91d1baaa7979f944",
     "go-backend/testmachine/register/capabilities/cap-route-r164.json": "62f532ebc33ff631d0feffdf107f26cc06267a3ff8e50f91a387d226971acad9",
@@ -298,11 +298,11 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-cover-search-result.json": "843af3c016159ce2fd19f5aeb827650d78f1cb42d96d847a8f36a1bd8b2d0687",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-custom-metadata-provider-added.json": "73da496e5cc7275f7d7f2a6fcfc34cbfd2ece84cfd02dc6df160ca69b9c159b3",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-custom-metadata-provider-removed.json": "4fa3d919636c5ab4bfe736033a9fea26850c83562d5309393379face8bf2cbe9",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-added.json": "603cb1c72735ac585bf35964d3b2338881c2864de81dff9eadc55212b73bdff8",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-finished.json": "15e25a620bf393c6a086c0435b7b73da3d6c788e4613b95c2f2b7f140dceba6b",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-queue-cleared.json": "b892adaafc9ee36812adeb598667968b1b08397556ac791870f58d4c3005c5db",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-queued.json": "aa709368503eb870fbdaa9ed161d9bf918d003992126eefa5bb7dd68347c1b04",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-started.json": "c38152941b13efa0e74657e927c61c702b5d3f858732e528e2de77daa440dbe2",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-added.json": "bc751b33f69cd13e69fa725684f2f329e7c592d25d172cf78103fb7caa2480b6",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-finished.json": "d29abe5072d8c5889151a14790fd9d2301e35ecb774db47f01543a1753b6b0a9",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-queue-cleared.json": "8a4a7f8c63a4b43e9fefd571ef3c97df4e5e7da0174cf86bbfe49eba48fcec5b",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-queued.json": "b6c5e40860abb00b2d4780dd9c9ee1a009b37c26fd1218f5382e62bd8ea6af13",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-download-started.json": "25577e5eb0fc958e29898f0d97439b15a8e065abab216c93b8ba7670d2db20da",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-ereader-devices-updated.json": "4ed2af63875e154bd522fa1ba6f5c62fdd470cf4f0cc5bf4df344b9fded4958b",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-init.json": "15ca712b83c48924c2f7dc9d55001ac671dc423d4783512de5cbcd7cecd613f0",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-added.json": "a59c6a84397221efe5875db775b20ac9e06b4dc430feb0787f6056cab7871adc",
@@ -354,7 +354,7 @@
     "go-backend/testmachine/register/capabilities/cap-sub-destructive-cascades-w6.json": "ba59fc40ed8cf180d6e5a2c1d56c3b36f55db7bae34714cc950be4d9ae2de9ab",
     "go-backend/testmachine/register/capabilities/cap-sub-downloads.json": "f3c4b48cb2171af656d4d25a4c761f2448200fb9e3699327f86225291814cb73",
     "go-backend/testmachine/register/capabilities/cap-sub-oidc-auth.json": "87c6b7f65e6cadd3eea60e581a7566827a7a016ed46dcb079b324cc3b8538e06",
-    "go-backend/testmachine/register/capabilities/cap-sub-podcast-download-queue.json": "33e43036b41d6859a018f5ef3b16e5a83230d57fb8ac879aa842a45fd2a7728d",
+    "go-backend/testmachine/register/capabilities/cap-sub-podcast-download-queue.json": "ba39c07b048badb7d44c123aa02e4f4d633a2f5dde46eae21cc7d098e8aadc1f",
     "go-backend/testmachine/register/capabilities/cap-sub-realtime-socketio.json": "5b753c599279f231c40665896013def7cf385e791ac110fa45b382a4007e633e",
     "go-backend/testmachine/register/capabilities/cap-sub-scanner-watcher.json": "8a972f888dace2a295abf92053033571d784e1f59e4bf41af77453ff03a1154e",
     "go-backend/testmachine/register/capabilities/cap-sub-static-client.json": "ae8d6d13eee14efbfe7f15c3c56a9ac0cb5d8dd298542ffe3243bae7cc237545",
@@ -9456,7 +9456,7 @@
       "exceptions": [
         "force is not applicable: the read routes and the boot cleanup have no force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.",
         "XML element order, whitespace and the exact lastBuildDate value are not asserted (only the GMT RFC1123 format).",
-        "Unexecuted upstream ranges behind these routes: RssFeedManager.js:155-156 (invalid entity type throw, unreachable because only item/collection/series feeds can be created), Feed.js:185-188/275-278/364-367/558-562 (transaction rollback branches, need a database failure), Feed.js:528-530 (invalid entity type in updateFeedForEntityType), Feed.js:467-469 (playlist feed afterFind, no API creates playlist feeds), RSSFeedController.js:73-75/116-118/159-161 (500 after a failed create transaction). FeedEpisode.js:224 (empty books array, unreachable because opens reject entities without audio)."
+        "Unexecuted upstream ranges behind these routes: RssFeedManager.js:155-156 (invalid entity type throw; only item/collection/series feeds exist), Feed.js:185-188/275-278/364-367/558-562 (transaction rollback branches; need a database failure), Feed.js:528-530 (invalid entity type in updateFeedForEntityType), Feed.js:467-469 (playlist feed afterFind; no API creates playlist feeds), RSSFeedController.js:73-75/116-118/159-161 (500 after a failed create transaction), FeedEpisode.js:224 (empty books array; opens reject entities without audio), rss/index.js:28-33 getSize and :89-97 (enclosure.file is never set by Audiobookshelf), :60-63 feed categories and item categories (never set), :131-132 geoRSS (no lat/long), :20-21 (ifTruePushArray early return; custom_elements is always an array)."
       ]
     },
     {
@@ -9492,7 +9492,7 @@
       "exceptions": [
         "force is not applicable: the read routes and the boot cleanup have no force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.",
         "XML element order, whitespace and the exact lastBuildDate value are not asserted (only the GMT RFC1123 format).",
-        "Unexecuted upstream ranges behind these routes: RssFeedManager.js:155-156 (invalid entity type throw, unreachable because only item/collection/series feeds can be created), Feed.js:185-188/275-278/364-367/558-562 (transaction rollback branches, need a database failure), Feed.js:528-530 (invalid entity type in updateFeedForEntityType), Feed.js:467-469 (playlist feed afterFind, no API creates playlist feeds), RSSFeedController.js:73-75/116-118/159-161 (500 after a failed create transaction). FeedEpisode.js:224 (empty books array, unreachable because opens reject entities without audio)."
+        "Unexecuted upstream ranges behind these routes: RssFeedManager.js:155-156 (invalid entity type throw; only item/collection/series feeds exist), Feed.js:185-188/275-278/364-367/558-562 (transaction rollback branches; need a database failure), Feed.js:528-530 (invalid entity type in updateFeedForEntityType), Feed.js:467-469 (playlist feed afterFind; no API creates playlist feeds), RSSFeedController.js:73-75/116-118/159-161 (500 after a failed create transaction), FeedEpisode.js:224 (empty books array; opens reject entities without audio), rss/index.js:28-33 getSize and :89-97 (enclosure.file is never set by Audiobookshelf), :60-63 feed categories and item categories (never set), :131-132 geoRSS (no lat/long), :20-21 (ifTruePushArray early return; custom_elements is always an array)."
       ]
     },
     {
@@ -9531,7 +9531,7 @@
       "exceptions": [
         "force is not applicable: the read routes and the boot cleanup have no force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.",
         "XML element order, whitespace and the exact lastBuildDate value are not asserted (only the GMT RFC1123 format).",
-        "Unexecuted upstream ranges behind these routes: RssFeedManager.js:155-156 (invalid entity type throw, unreachable because only item/collection/series feeds can be created), Feed.js:185-188/275-278/364-367/558-562 (transaction rollback branches, need a database failure), Feed.js:528-530 (invalid entity type in updateFeedForEntityType), Feed.js:467-469 (playlist feed afterFind, no API creates playlist feeds), RSSFeedController.js:73-75/116-118/159-161 (500 after a failed create transaction). FeedEpisode.js:224 (empty books array, unreachable because opens reject entities without audio)."
+        "Unexecuted upstream ranges behind these routes: RssFeedManager.js:155-156 (invalid entity type throw; only item/collection/series feeds exist), Feed.js:185-188/275-278/364-367/558-562 (transaction rollback branches; need a database failure), Feed.js:528-530 (invalid entity type in updateFeedForEntityType), Feed.js:467-469 (playlist feed afterFind; no API creates playlist feeds), RSSFeedController.js:73-75/116-118/159-161 (500 after a failed create transaction), FeedEpisode.js:224 (empty books array; opens reject entities without audio), rss/index.js:28-33 getSize and :89-97 (enclosure.file is never set by Audiobookshelf), :60-63 feed categories and item categories (never set), :131-132 geoRSS (no lat/long), :20-21 (ifTruePushArray early return; custom_elements is always an array)."
       ]
     },
     {
@@ -11173,16 +11173,19 @@
       "invariant": "INV-ROUTE-R024-CONTRACT",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "GET /api/libraries/:id/episode-downloads dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:77, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"GET /api/libraries/{id}/episode-downloads\", httpx.Handler(h.libraryDownloads)). Current assertion anchor(s): TestLibraryRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "GET /api/libraries/:id/episode-downloads answers 200 with currentDownload being the running download of that library (or null) and queue listing that library's waiting downloads in queue order; each download object has id, episodeDisplayTitle, url, libraryItemId, libraryId, isFinished, failed, appendRandomId, startedAt, createdAt, finishedAt, podcastTitle, podcastExplicit, season, episode, episodeType, publishedAt and guid, and the queue is empty when nothing runs or waits.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:77",
-        "go-backend/internal/podcast/podcast.go",
-        "go-backend/internal/podcast/podcast.go:127",
-        "server/controllers/LibraryController.js:1475"
+        "server/controllers/LibraryController.js:236-247",
+        "server/managers/PodcastManager.js:36-38",
+        "server/managers/PodcastManager.js:509-516",
+        "server/objects/PodcastEpisodeDownload.js:28-49",
+        "client/pages/library/_library/podcast/download-queue.vue:109"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:619#TestLibraryRoutes"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/library-episode-downloads-empty-queue",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/library-episode-downloads-shows-running-and-queued"
       ],
       "evidence": [],
       "cases": {
@@ -11193,11 +11196,34 @@
       "stateful": false,
       "state_scenarios": {},
       "exceptions": [
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "The response is served through ApiCacheManager (server/managers/ApiCacheManager.js:83-118); an in-memory episode queue change does not clear that cache, so a repeated GET of the same URL can return a stale body until a database write clears it. Scenarios read the live response and the caching behaviour itself is not asserted."
+      ]
+    },
+    {
+      "requirement": "route-r024",
+      "invariant": "INV-ROUTE-R024-AUTH-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "GET /api/libraries/:id/episode-downloads answers 401 without a token, 403 for a user without access to the library, 404 for an unknown library, 400 for a negative limit or a fractional page, and 200 with the coerced limit 0 for a non-numeric limit; a rejected request changes no row.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:1475-1498"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/library-episode-downloads-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "The response is served through ApiCacheManager (server/managers/ApiCacheManager.js:83-118); an in-memory episode queue change does not clear that cache, so a repeated GET of the same URL can return a stale body until a database write clears it. Scenarios read the live response and the caching behaviour itself is not asserted."
       ]
     },
     {
@@ -12691,16 +12717,17 @@
       "invariant": "INV-ROUTE-R039-CONTRACT",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "GET /api/libraries/:id/recent-episodes dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:92, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"GET /api/libraries/{id}/recent-episodes\", httpx.Handler(h.recentEpisodes)). Current assertion anchor(s): TestLibraryRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "GET /api/libraries/:id/recent-episodes answers {episodes, limit, page} where limit and page are numbers from the query (both 0 by default), episodes are the library's podcast episodes ordered by publishedAt descending from the page offset, each with the old expanded episode JSON (libraryItemId, podcastId, id, title, description, enclosure, guid, pubDate, audioFile, audioTrack with contentUrl /api/items/<item>/file/<ino>, publishedAt, addedAt, updatedAt, size, duration), libraryId and a podcast object whose episodes array is empty; a limit of 0 or an absent limit returns no episodes.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:92",
-        "go-backend/internal/podcast/podcast.go",
-        "go-backend/internal/podcast/podcast.go:126",
-        "server/controllers/LibraryController.js:1475"
+        "server/controllers/LibraryController.js:1278-1300",
+        "server/utils/queries/libraryItemsPodcastFilters.js:506-558",
+        "server/models/PodcastEpisode.js:193-238",
+        "client/pages/library/_library/podcast/latest.vue:250"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:619#TestLibraryRoutes"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/recent-episodes-newest-first-and-paginated"
       ],
       "evidence": [],
       "cases": {
@@ -12711,11 +12738,62 @@
       "stateful": false,
       "state_scenarios": {},
       "exceptions": [
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "The response body has no total key; the web client reads payload.total as undefined. Only limit and page are asserted."
+      ]
+    },
+    {
+      "requirement": "route-r039",
+      "invariant": "INV-ROUTE-R039-PERMS-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "Recent episodes exclude every episode the requesting user has finished and, for a user without explicit-content access, every episode of an explicit podcast; with item tag permissions, a deny-mode user whose selected tags include an item tag and an allow-mode user whose selected tags do not include one get no episodes of that podcast, while an allow-mode user whose selected tags include one does.",
+      "status": "unverified",
+      "source": [
+        "server/utils/queries/libraryItemsPodcastFilters.js:16-41",
+        "server/utils/queries/libraryItemsPodcastFilters.js:506-558"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/recent-episodes-hide-finished-and-explicit",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/recent-episodes-tag-filters"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "The response body has no total key; the web client reads payload.total as undefined. Only limit and page are asserted."
+      ]
+    },
+    {
+      "requirement": "route-r039",
+      "invariant": "INV-ROUTE-R039-AUTH-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "GET /api/libraries/:id/recent-episodes answers 401 without a token, 403 for a user without access to the library (before query validation), 404 for a book library and for an unknown library, and 400 for a negative limit or a fractional page; a rejected request changes no row.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryController.js:1475-1498"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/recent-episodes-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "The response body has no total key; the web client reads payload.total as undefined. Only limit and page are asserted."
       ]
     },
     {
@@ -22126,15 +22204,16 @@
       "invariant": "INV-ROUTE-R154-CONTRACT",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "GET /api/podcasts/:id/downloads dispatches to the pinned TS handler PodcastController.middleware (ApiRouter.js:253, server/controllers/PodcastController.js:560) and Go registration No direct registrar match found; review composition wiring. Current assertion anchor(s): TestLibraryRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "GET /api/podcasts/:id/downloads answers {downloads: [...]} with only that item's waiting downloads in queue order (the running one is excluded) with the download client JSON, and an empty array once the queue drains; another item's waiting downloads are not listed.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:253",
-        "go-backend/internal/podcast/podcast.go",
-        "server/controllers/PodcastController.js:560"
+        "server/controllers/PodcastController.js:320-330",
+        "server/managers/PodcastManager.js:36-38",
+        "server/objects/PodcastEpisodeDownload.js:28-49"
       ],
       "tests": [
-        "go-backend/internal/contracttest/journey_test.go:127#TestJourney"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/podcast-downloads-lists-waiting-in-order"
       ],
       "evidence": [],
       "cases": {
@@ -22145,11 +22224,32 @@
       "stateful": false,
       "state_scenarios": {},
       "exceptions": [
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "normal, error and edge facets are covered by the listed scenarios."
+      ]
+    },
+    {
+      "requirement": "route-r154",
+      "invariant": "INV-ROUTE-R154-AUTH-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "GET /api/podcasts/:id/downloads answers 401 without a token, 403 for a user without access to the item's library, 404 for an unknown item, 500 for a book item and 200 for a non-admin listener with access; a rejected request changes no row.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PodcastController.js:560-585"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/podcast-downloads-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios."
       ]
     },
     {
@@ -22157,15 +22257,17 @@
       "invariant": "INV-ROUTE-R155-CONTRACT",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "GET /api/podcasts/:id/clear-queue dispatches to the pinned TS handler PodcastController.middleware (ApiRouter.js:254, server/controllers/PodcastController.js:560) and Go registration No direct registrar match found; review composition wiring. Current assertion anchor(s): TestClearQueueDropsWaitingDownloadsOnly. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "GET /api/podcasts/:id/clear-queue answers 200, drops only that item's waiting downloads, leaves the running download and other items' queues untouched and emits episode_download_queue_cleared with the library item id string to authenticated clients; an empty queue answers 200 and emits nothing.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:254",
-        "go-backend/internal/podcast/podcast.go",
-        "server/controllers/PodcastController.js:560"
+        "server/controllers/PodcastController.js:299-318",
+        "server/managers/PodcastManager.js:40-52",
+        "client/pages/item/_id/index.vue:460-474"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:261#TestClearQueueDropsWaitingDownloadsOnly"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/clear-queue-empty-queue-is-silent",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/clear-queue-drops-only-one-items-waiting-downloads"
       ],
       "evidence": [],
       "cases": {
@@ -22176,11 +22278,33 @@
       "stateful": false,
       "state_scenarios": {},
       "exceptions": [
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "normal, error and edge facets are covered by the listed scenarios."
+      ]
+    },
+    {
+      "requirement": "route-r155",
+      "invariant": "INV-ROUTE-R155-AUTH-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "GET /api/podcasts/:id/clear-queue answers 401 without a token, 403 for a non-admin with access and for a user without access to the library, 404 for an unknown item before the admin check and 500 for a book item; the queue is unchanged and no episode_download_queue_cleared is emitted.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PodcastController.js:299-318",
+        "server/controllers/PodcastController.js:560-585"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/clear-queue-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios."
       ]
     },
     {
@@ -22243,15 +22367,18 @@
       "invariant": "INV-ROUTE-R157-CONTRACT",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "POST /api/podcasts/:id/download-episodes dispatches to the pinned TS handler PodcastController.middleware (ApiRouter.js:256, server/controllers/PodcastController.js:560) and Go registration No direct registrar match found; review composition wiring. Current assertion anchor(s): TestDownloadsRunOneAtATimeInQueueOrder. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "POST /api/podcasts/:id/download-episodes answers 200, starts the first requested episode's download, queues the remaining ones in request order, emits episode_download_started for the first and episode_download_queued for each waiting one with the download client JSON, and each successful download stores one podcast episode row with the request's title, enclosure URL/type/length, guid, season, episode, pubDate and publishedAt, an audio file inside the item folder listed as a library file, and increases the item's numEpisodes and size.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:256",
-        "go-backend/internal/podcast/podcast.go",
-        "server/controllers/PodcastController.js:560"
+        "server/controllers/PodcastController.js:367-387",
+        "server/managers/PodcastManager.js:54-86",
+        "server/managers/PodcastManager.js:192-262",
+        "server/models/PodcastEpisode.js:66-107"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:231#TestDownloadsRunOneAtATimeInQueueOrder"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-episodes-starts-first-and-queues-the-rest",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-episodes-store-rows-files-and-library-files"
       ],
       "evidence": [],
       "cases": {
@@ -22264,15 +22391,78 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the route has no force/override request mode; posting an episode again starts a normal download instead of overriding one."
+      ]
+    },
+    {
+      "requirement": "route-r157",
+      "invariant": "INV-ROUTE-R157-ORDER-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "A requested episode whose URL is already waiting for the same library item, or is the item's running download, is skipped: the request answers 200 without a second started or queued event and without a second queue entry.",
+      "status": "unverified",
+      "source": [
+        "server/managers/PodcastManager.js:74-86"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-episodes-skips-a-waiting-duplicate",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-episodes-skips-the-running-episode"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the route has no force/override request mode; posting an episode again starts a normal download instead of overriding one."
+      ]
+    },
+    {
+      "requirement": "route-r157",
+      "invariant": "INV-ROUTE-R157-AUTH-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "POST /api/podcasts/:id/download-episodes answers 400 for an empty or non-array body, 401 without a token, 403 for a non-admin and for a user without access to the library, 404 for an unknown item and 500 for a book item, and queues nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PodcastController.js:367-387",
+        "server/controllers/PodcastController.js:560-585"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-episodes-rejects-empty-and-unauthorised-requests"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the route has no force/override request mode; posting an episode again starts a normal download instead of overriding one."
       ]
     },
     {
@@ -22410,16 +22600,15 @@
       "invariant": "INV-ROUTE-R159-CONTRACT",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "GET /api/podcasts/:id/episode/:episodeId dispatches to the pinned TS handler PodcastController.middleware (ApiRouter.js:258, server/controllers/PodcastController.js:560) and Go registration No direct registrar match found; review composition wiring. Current assertion anchor(s): TestEpisodePatchAndDelete. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "GET /api/podcasts/:id/episode/:episodeId answers the episode's old JSON: libraryItemId, podcastId, id, oldEpisodeId, index, season, episode, episodeType, title, subtitle, description, enclosure (null without an enclosure URL) with url/type/length, guid (null without one), pubDate, chapters, audioFile, publishedAt in milliseconds (null when absent), addedAt and updatedAt.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:258",
-        "go-backend/internal/podcast/podcast.go",
-        "server/controllers/PodcastController.js:560"
+        "server/controllers/PodcastController.js:479-495",
+        "server/models/PodcastEpisode.js:193-228"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:432#TestEpisodePatchAndDelete",
-        "go-backend/internal/contracttest/journey_test.go:127#TestJourney"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-get-returns-old-episode-json"
       ],
       "evidence": [],
       "cases": {
@@ -22430,11 +22619,32 @@
       "stateful": false,
       "state_scenarios": {},
       "exceptions": [
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "normal, error and edge facets are covered by the listed scenarios."
+      ]
+    },
+    {
+      "requirement": "route-r159",
+      "invariant": "INV-ROUTE-R159-AUTH-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "GET /api/podcasts/:id/episode/:episodeId answers 401 without a token, 404 for an unknown library item before the access check, 403 for a user without access to the item's library, 500 for a book item and 404 for an episode that is not in the item; a rejected request changes no row.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PodcastController.js:560-585"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-get-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios."
       ]
     },
     {
@@ -22442,15 +22652,17 @@
       "invariant": "INV-ROUTE-R160-CONTRACT",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "PATCH /api/podcasts/:id/episode/:episodeId dispatches to the pinned TS handler PodcastController.middleware (ApiRouter.js:259, server/controllers/PodcastController.js:560) and Go registration No direct registrar match found; review composition wiring. Current assertion anchor(s): TestEpisodePatchAndDelete. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "PATCH /api/podcasts/:id/episode/:episodeId stores the supported string fields (title, subtitle, description, pubDate, episode, season, episodeType) after sanitizing description and subtitle HTML to the allowed tags and attributes, stores a numeric publishedAt, stores an enclosure object as URL/type/length, stores chapters only when every chapter has a title and a truthy start, moves the episode's updatedAt strictly forward without changing the library item's updatedAt, emits item_updated with the library item and answers the expanded library item; a non-string value, an unsupported key, a string publishedAt and invalid chapters are ignored.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:259",
-        "go-backend/internal/podcast/podcast.go",
-        "server/controllers/PodcastController.js:560"
+        "server/controllers/PodcastController.js:413-477",
+        "server/utils/htmlSanitizer.js:1-25"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:432#TestEpisodePatchAndDelete"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-patch-stores-text-fields-and-publishes",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-patch-sanitizes-and-sets-enclosure",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-patch-ignores-unsupported-values-and-clears-enclosure"
       ],
       "evidence": [],
       "cases": {
@@ -22463,15 +22675,76 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: PATCH has no force/hard/override parameter; the hard delete route is the force mode of episode removal."
+      ]
+    },
+    {
+      "requirement": "route-r160",
+      "invariant": "INV-ROUTE-R160-NOOP-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "Repeating the same PATCH leaves the episode's updatedAt unchanged and emits no item_updated, and answers the unchanged episode in the library item.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PodcastController.js:455-471"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-patch-repeat-is-a-noop"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: PATCH has no force/hard/override parameter; the hard delete route is the force mode of episode removal."
+      ]
+    },
+    {
+      "requirement": "route-r160",
+      "invariant": "INV-ROUTE-R160-AUTH-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "PATCH /api/podcasts/:id/episode/:episodeId answers 401 without a token, 403 for a user without update permission and for a user without access to the library, 404 for an unknown item before the permission check and for an episode that is not in the item, and 500 for a book item; a rejected request changes no row.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PodcastController.js:560-585"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-patch-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: PATCH has no force/hard/override parameter; the hard delete route is the force mode of episode removal."
       ]
     },
     {
@@ -22479,15 +22752,16 @@
       "invariant": "INV-ROUTE-R161-CONTRACT",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "DELETE /api/podcasts/:id/episode/:episodeId dispatches to the pinned TS handler PodcastController.middleware (ApiRouter.js:260, server/controllers/PodcastController.js:560) and Go registration No direct registrar match found; review composition wiring. Current assertion anchor(s): TestEpisodePatchAndDelete. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "DELETE /api/podcasts/:id/episode/:episodeId without hard removes the episode row, its library file entry and its media progress, keeps the audio file on disk, decrements the item's stored numEpisodes, emits item_updated and answers the library item without the episode; with hard=1 it also removes the audio file; deleting an already deleted episode answers 404 and changes nothing.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:260",
-        "go-backend/internal/podcast/podcast.go",
-        "server/controllers/PodcastController.js:560"
+        "server/controllers/PodcastController.js:498-557"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:432#TestEpisodePatchAndDelete"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-delete-soft-removes-row-and-keeps-file",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-delete-hard-removes-the-file",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-delete-repeat-is-not-found"
       ],
       "evidence": [],
       "cases": {
@@ -22504,11 +22778,40 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "Playlist membership removal on delete is not asserted; the scenarios delete downloaded episodes that no playlist references."
+      ]
+    },
+    {
+      "requirement": "route-r161",
+      "invariant": "INV-ROUTE-R161-AUTH-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "DELETE /api/podcasts/:id/episode/:episodeId answers 401 without a token, 403 for a user without delete permission and for a user without access to the library, 404 for an unknown item before the permission check and for an episode that is not in the item, and 500 for a book item; a rejected request changes no row.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/PodcastController.js:560-585"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-delete-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "Playlist membership removal on delete is not asserted; the scenarios delete downloaded episodes that no playlist references."
       ]
     },
     {
@@ -29051,13 +29354,17 @@
       "invariant": "INV-SOCKET-OUTGOING-EPISODE-ADDED",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "Socket.IO outgoing episode_added: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "A successful episode download emits episode_added once per stored episode with the episode's old expanded JSON (id, libraryItemId, podcastId, title, enclosure, guid, publishedAt, audioFile, size, duration) and a libraryItem object holding the expanded library item; a failed download emits none.",
       "status": "unverified",
       "source": [
-        "server/managers/PodcastManager.js:256"
+        "server/managers/PodcastManager.js:250-262",
+        "server/models/PodcastEpisode.js:193-238",
+        "server/models/LibraryItem.js:965-993"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:398#TestScheduledRunDownloadsNewEpisodesAndNotifies"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-added-payload-and-audience",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-added-repeats-per-episode",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-added-for-a-checknew-download"
       ],
       "evidence": [],
       "cases": {
@@ -29070,11 +29377,47 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the event has no force/override trigger.",
+        "Upstream sends episode_* events to every authenticated user without a library or tag permission filter (SocketAuthority.emitter); a listener without access to the podcast item still receives them. That authorisation gap is deliberately not asserted because no client offers those events to a user who cannot access the item, and the packet asserts only that unauthenticated sockets receive nothing."
+      ]
+    },
+    {
+      "requirement": "socket-outgoing-episode-added",
+      "invariant": "INV-SOCKET-OUTGOING-EPISODE-ADDED-AUDIENCE-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "The event reaches every authenticated socket, including a non-admin listener that may access the library, and never reaches a socket that did not authenticate; a rejected (403) request that would trigger the event emits nothing.",
+      "status": "unverified",
+      "source": [
+        "server/SocketAuthority.js:57-65",
+        "server/managers/PodcastManager.js:250-262"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-added-not-sent-for-a-failed-download"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the event has no force/override trigger.",
+        "Upstream sends episode_* events to every authenticated user without a library or tag permission filter (SocketAuthority.emitter); a listener without access to the podcast item still receives them. That authorisation gap is deliberately not asserted because no client offers those events to a user who cannot access the item, and the packet asserts only that unauthenticated sockets receive nothing."
       ]
     },
     {
@@ -29082,13 +29425,17 @@
       "invariant": "INV-SOCKET-OUTGOING-EPISODE-DOWNLOAD-FINISHED",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "Socket.IO outgoing episode_download_finished: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Each completed download emits episode_download_finished with the download's client JSON, isFinished true and a finishedAt, failed false on success and failed true when the request or probe failed.",
       "status": "unverified",
       "source": [
-        "server/managers/PodcastManager.js:177"
+        "server/managers/PodcastManager.js:152-178",
+        "server/objects/PodcastEpisodeDownload.js:28-49"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:282#TestFailedDownloadIsReportedAndQueueContinues"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-success-payload-and-audience",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-repeats-per-episode",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-for-a-checknew-download",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-failure-payload"
       ],
       "evidence": [],
       "cases": {
@@ -29101,11 +29448,47 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the event has no force/override trigger.",
+        "Upstream sends episode_* events to every authenticated user without a library or tag permission filter (SocketAuthority.emitter); a listener without access to the podcast item still receives them. That authorisation gap is deliberately not asserted because no client offers those events to a user who cannot access the item, and the packet asserts only that unauthenticated sockets receive nothing."
+      ]
+    },
+    {
+      "requirement": "socket-outgoing-episode-download-finished",
+      "invariant": "INV-SOCKET-OUTGOING-EPISODE-DOWNLOAD-FINISHED-AUDIENCE-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "The event reaches every authenticated socket, including a non-admin listener that may access the library, and never reaches a socket that did not authenticate; a rejected (403) request that would trigger the event emits nothing.",
+      "status": "unverified",
+      "source": [
+        "server/SocketAuthority.js:57-65",
+        "server/managers/PodcastManager.js:152-178"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-finished-not-sent-for-a-rejected-caller"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the event has no force/override trigger.",
+        "Upstream sends episode_* events to every authenticated user without a library or tag permission filter (SocketAuthority.emitter); a listener without access to the podcast item still receives them. That authorisation gap is deliberately not asserted because no client offers those events to a user who cannot access the item, and the packet asserts only that unauthenticated sockets receive nothing."
       ]
     },
     {
@@ -29113,13 +29496,16 @@
       "invariant": "INV-SOCKET-OUTGOING-EPISODE-DOWNLOAD-QUEUE-CLEARED",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "Socket.IO outgoing episode_download_queue_cleared: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Clearing a non-empty item queue emits episode_download_queue_cleared with the library item id string; clearing an empty queue and clearing one item's queue do not emit an event for another item.",
       "status": "unverified",
       "source": [
-        "server/managers/PodcastManager.js:50"
+        "server/managers/PodcastManager.js:40-52",
+        "server/objects/PodcastEpisodeDownload.js:28-49"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:261#TestClearQueueDropsWaitingDownloadsOnly"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-cleared-payload-and-audience",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-cleared-silent-repeat",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-cleared-only-names-the-cleared-item"
       ],
       "evidence": [],
       "cases": {
@@ -29132,11 +29518,47 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the event has no force/override trigger.",
+        "Upstream sends episode_* events to every authenticated user without a library or tag permission filter (SocketAuthority.emitter); a listener without access to the podcast item still receives them. That authorisation gap is deliberately not asserted because no client offers those events to a user who cannot access the item, and the packet asserts only that unauthenticated sockets receive nothing."
+      ]
+    },
+    {
+      "requirement": "socket-outgoing-episode-download-queue-cleared",
+      "invariant": "INV-SOCKET-OUTGOING-EPISODE-DOWNLOAD-QUEUE-CLEARED-AUDIENCE-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "The event reaches every authenticated socket, including a non-admin listener that may access the library, and never reaches a socket that did not authenticate; a rejected (403) request that would trigger the event emits nothing.",
+      "status": "unverified",
+      "source": [
+        "server/SocketAuthority.js:57-65",
+        "server/managers/PodcastManager.js:40-52"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-cleared-not-sent-for-a-rejected-caller"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the event has no force/override trigger.",
+        "Upstream sends episode_* events to every authenticated user without a library or tag permission filter (SocketAuthority.emitter); a listener without access to the podcast item still receives them. That authorisation gap is deliberately not asserted because no client offers those events to a user who cannot access the item, and the packet asserts only that unauthenticated sockets receive nothing."
       ]
     },
     {
@@ -29144,12 +29566,17 @@
       "invariant": "INV-SOCKET-OUTGOING-EPISODE-DOWNLOAD-QUEUED",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "Socket.IO outgoing episode_download_queued: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Requesting more than one episode download emits episode_download_queued once per waiting episode with the download client JSON (id, episodeDisplayTitle, url, libraryItemId, libraryId, isFinished false, failed false, appendRandomId, startedAt null, createdAt, finishedAt null, podcastTitle, podcastExplicit, season, episode, episodeType, publishedAt, guid).",
       "status": "unverified",
       "source": [
-        "server/managers/PodcastManager.js:85"
+        "server/managers/PodcastManager.js:84-86",
+        "server/objects/PodcastEpisodeDownload.js:28-49"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-queued-payload-and-audience",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-queued-repeats-per-waiting-episode",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-queued-after-a-clear"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -29161,11 +29588,47 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the event has no force/override trigger.",
+        "Upstream sends episode_* events to every authenticated user without a library or tag permission filter (SocketAuthority.emitter); a listener without access to the podcast item still receives them. That authorisation gap is deliberately not asserted because no client offers those events to a user who cannot access the item, and the packet asserts only that unauthenticated sockets receive nothing."
+      ]
+    },
+    {
+      "requirement": "socket-outgoing-episode-download-queued",
+      "invariant": "INV-SOCKET-OUTGOING-EPISODE-DOWNLOAD-QUEUED-AUDIENCE-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "The event reaches every authenticated socket, including a non-admin listener that may access the library, and never reaches a socket that did not authenticate; a rejected (403) request that would trigger the event emits nothing.",
+      "status": "unverified",
+      "source": [
+        "server/SocketAuthority.js:57-65",
+        "server/managers/PodcastManager.js:84-86"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-queued-not-sent-for-a-rejected-caller"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the event has no force/override trigger.",
+        "Upstream sends episode_* events to every authenticated user without a library or tag permission filter (SocketAuthority.emitter); a listener without access to the podcast item still receives them. That authorisation gap is deliberately not asserted because no client offers those events to a user who cannot access the item, and the packet asserts only that unauthenticated sockets receive nothing."
       ]
     },
     {
@@ -29173,12 +29636,17 @@
       "invariant": "INV-SOCKET-OUTGOING-EPISODE-DOWNLOAD-STARTED",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "Socket.IO outgoing episode_download_started: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Starting an episode download emits episode_download_started with the download's client JSON and no finishedAt, both for the first episode and for each subsequent waiting one that starts.",
       "status": "unverified",
       "source": [
-        "server/managers/PodcastManager.js:104"
+        "server/managers/PodcastManager.js:89-105",
+        "server/objects/PodcastEpisodeDownload.js:28-49"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-started-payload-and-audience",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-started-repeats-for-the-next-episode",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-started-after-a-clear"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -29190,11 +29658,47 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the event has no force/override trigger.",
+        "Upstream sends episode_* events to every authenticated user without a library or tag permission filter (SocketAuthority.emitter); a listener without access to the podcast item still receives them. That authorisation gap is deliberately not asserted because no client offers those events to a user who cannot access the item, and the packet asserts only that unauthenticated sockets receive nothing."
+      ]
+    },
+    {
+      "requirement": "socket-outgoing-episode-download-started",
+      "invariant": "INV-SOCKET-OUTGOING-EPISODE-DOWNLOAD-STARTED-AUDIENCE-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "The event reaches every authenticated socket, including a non-admin listener that may access the library, and never reaches a socket that did not authenticate; a rejected (403) request that would trigger the event emits nothing.",
+      "status": "unverified",
+      "source": [
+        "server/SocketAuthority.js:57-65",
+        "server/managers/PodcastManager.js:89-105"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/episode-socket-started-not-sent-for-a-rejected-caller"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the event has no force/override trigger.",
+        "Upstream sends episode_* events to every authenticated user without a library or tag permission filter (SocketAuthority.emitter); a listener without access to the podcast item still receives them. That authorisation gap is deliberately not asserted because no client offers those events to a user who cannot access the item, and the packet asserts only that unauthenticated sockets receive nothing."
       ]
     },
     {
@@ -32965,13 +33469,13 @@
       "invariant": "INV-SUB-PODCAST-DOWNLOAD-QUEUE",
       "owner": "podcast",
       "packet": "Q11",
-      "contract": "Podcast RSS feed ingestion, episode download queue/lifecycle matching upstream PodcastManager episode download task states and files.",
+      "contract": "Requested episodes download one at a time in request order: episode_download_started and episode_download_finished follow the queue order, episode_download_queued is emitted for each waiting episode, and each successful download leaves one podcast episode row with its audio file.",
       "status": "unverified",
       "source": [
-        "server/managers/PodcastManager.js"
+        "server/managers/PodcastManager.js:54-262"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-runs-one-at-a-time-in-order"
       ],
       "evidence": [],
       "cases": {
@@ -32984,13 +33488,118 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Test TestCreatePodcastValidatesFolderAndPersistsSourceShape currently fails at episode download completion (investigation open).",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
-        "Required detailed state/recipient/failure assertions are not yet characterized."
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the queue has no force/override operation; downloads start from the download-episodes route and the new-episode check.",
+        "The scheduled cron path (runEpisodeCheck with maxEpisodesToKeep pruning and notifications) is not asserted because it is time-scheduled and not reachable by a request; the checknew download path is asserted instead."
+      ]
+    },
+    {
+      "requirement": "sub-podcast-download-queue",
+      "invariant": "INV-SUB-PODCAST-DOWNLOAD-QUEUE-FAILURE-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "A download whose request fails, or whose file cannot be probed after the untagged retry, emits episode_download_finished with isFinished true, failed true and a finish time, leaves no episode row and no file, and the next queued episode still downloads.",
+      "status": "unverified",
+      "source": [
+        "server/managers/PodcastManager.js:54-190",
+        "server/utils/ffmpegHelpers.js:107-232",
+        "server/utils/fileUtils.js:290-330"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-failed-download-keeps-no-row-and-continues",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-retries-without-tagging-and-removes-the-file"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the queue has no force/override operation; downloads start from the download-episodes route and the new-episode check.",
+        "The scheduled cron path (runEpisodeCheck with maxEpisodesToKeep pruning and notifications) is not asserted because it is time-scheduled and not reachable by a request; the checknew download path is asserted instead."
+      ]
+    },
+    {
+      "requirement": "sub-podcast-download-queue",
+      "invariant": "INV-SUB-PODCAST-DOWNLOAD-QUEUE-AUTO-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "The new-episode check downloads the new feed episodes with their guid, enclosure and publication time, and a later check does not download again an episode with the same guid but a new URL nor one with the same enclosure URL but a new guid (episode identity is guid or enclosure URL).",
+      "status": "unverified",
+      "source": [
+        "server/managers/PodcastManager.js:380-455",
+        "server/models/PodcastEpisode.js:161-176",
+        "server/models/Podcast.js:393-399"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-auto-downloads-checknew-episodes-with-stable-identity"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the queue has no force/override operation; downloads start from the download-episodes route and the new-episode check.",
+        "The scheduled cron path (runEpisodeCheck with maxEpisodesToKeep pruning and notifications) is not asserted because it is time-scheduled and not reachable by a request; the checknew download path is asserted instead."
+      ]
+    },
+    {
+      "requirement": "sub-podcast-download-queue",
+      "invariant": "INV-SUB-PODCAST-DOWNLOAD-QUEUE-RESTART-001",
+      "owner": "podcast",
+      "packet": "Q11",
+      "contract": "Stopping the server during a download creates no episode row, the in-memory running and waiting downloads are gone after restart, and posting the episode again downloads it once with its audio file.",
+      "status": "unverified",
+      "source": [
+        "server/managers/PodcastManager.js:26-32",
+        "server/managers/PodcastManager.js:183-185"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/download-queue-restart-drops-the-queue-and-keeps-no-partial-episode"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "normal, error and edge facets are covered by the listed scenarios.",
+        "force is not applicable: the queue has no force/override operation; downloads start from the download-episodes route and the new-episode check.",
+        "The scheduled cron path (runEpisodeCheck with maxEpisodesToKeep pruning and notifications) is not asserted because it is time-scheduled and not reachable by a request; the checknew download path is asserted instead."
       ]
     },
     {

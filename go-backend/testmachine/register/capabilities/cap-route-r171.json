@@ -4,9 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "PATCH /emails/settings at server/routers/ApiRouter.js:278. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "PATCH /emails/settings (ApiRouter:278) behind the admin gate (401 anonymous, 404 non-admin) decodes the client payload {host, port, secure, rejectUnauthorized, user, pass, testAddress, fromAddress}, applies EmailSettings.update (port null or NaN becomes 465, secure/rejectUnauthorized are coerced to booleans, keys absent from the body keep their stored value, a non-array ereaderDevices is ignored), persists the row only when a value changed, and answers 200 {settings}. A changed write moves settings.updatedAt forward; a no-op or refused write does not touch the row.",
   "source": [
-    "server/routers/ApiRouter.js:278"
+    "server/routers/ApiRouter.js:278",
+    "server/controllers/EmailController.js:34-42",
+    "server/objects/settings/EmailSettings.js:65-112",
+    "server/models/Setting.js:36-41"
   ],
   "implementation": [
     "go-backend/internal/mail/mail.go"
@@ -17,65 +20,11 @@
     "edge": "unverified"
   },
   "stateful": true,
-  "invariants": [
-    {
-      "id": "INV-ROUTE-R171-ROUTE",
-      "class": "shape",
-      "contract": "PATCH /emails/settings at server/routers/ApiRouter.js:278. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
-      "status": "unverified",
-      "source": [
-        "server/routers/ApiRouter.js:278"
-      ],
-      "tests": [
-        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
-        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
-        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
-        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
-        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
-        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
-        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
-        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
-        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
-        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
-        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
-      ],
-      "evidence": [],
-      "exceptions": [
-        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
-      ]
-    },
-    {
-      "id": "INV-ROUTE-R171-REPEAT",
-      "class": "repeat_operation",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
-      "status": "unverified",
-      "source": [
-        "server/routers/ApiRouter.js:278"
-      ],
-      "tests": [
-        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
-        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
-        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
-        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
-        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
-        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
-        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
-        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
-        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
-        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
-        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
-      ],
-      "evidence": [],
-      "exceptions": [
-        "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
-      ]
-    }
-  ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "tests": [
@@ -89,13 +38,105 @@
     "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
     "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
     "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
-    "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
+    "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-client-payload-persisted",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-absent-keys-keep-values",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-repeat-no-write",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-changed-values-persisted",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-admin-only-no-write",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-survive-restart",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-legacy-row-defaults-reject-unauthorized"
   ],
   "evidence": [],
   "exceptions": [
-    "Malformed payloads, no-op/repeated updates, and email test/delivery routes remain unverified.",
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: the route has no force/hard/override mode.",
+    "A PATCH with an invalid port is coerced (null/NaN to 465) by the source rather than rejected; there is therefore no 4xx validation facet for the payload itself, only for the auth gate.",
+    "The settings value stores the password so the admin form can read it back; secret redaction is the server-settings contract, not this route's."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R171-ROUTE",
+      "class": "shape",
+      "contract": "PATCH /api/emails/settings answers 401 without a token and 404 for an authenticated non-admin. For an admin it applies the payload to EmailSettings, responds 200 {settings} with the resulting values and, when anything changed, upserts the single row key='email-settings' whose JSON contains the same values plus ereaderDevices; a changed write moves settings.updatedAt forward.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:278",
+        "server/controllers/EmailController.js:34-42",
+        "server/objects/settings/EmailSettings.js:50-63",
+        "server/models/Setting.js:36-41"
+      ],
+      "tests": [
+        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-client-payload-persisted",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-changed-values-persisted",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-admin-only-no-write",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-survive-restart"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R171-VALIDATION-001",
+      "class": "shape",
+      "contract": "EmailSettings.update coerces payload.port with isNullOrNaN: null or a non-numeric value becomes 465 and otherwise Number(port) is stored; absent keys are not touched, so a partial PATCH keeps the stored secure and rejectUnauthorized values (including the secure default true).",
+      "status": "unverified",
+      "source": [
+        "server/objects/settings/EmailSettings.js:65-82",
+        "server/utils/index.js:53-55"
+      ],
+      "tests": [
+        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-absent-keys-keep-values",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-legacy-row-defaults-reject-unauthorized"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R171-REPEAT",
+      "class": "repeat_operation",
+      "contract": "A repeated identical PATCH returns the same settings and does not rewrite the row: settings.updatedAt and the stored JSON are unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/objects/settings/EmailSettings.js:101-111",
+        "server/controllers/EmailController.js:34-42"
+      ],
+      "tests": [
+        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/settings-patch-repeat-no-write"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
   ]
 }

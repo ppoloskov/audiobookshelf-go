@@ -4,11 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "POST /emails/test at server/routers/ApiRouter.js:279. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "POST /emails/test (ApiRouter:279) behind the admin gate (401 anonymous, 404 non-admin) runs EmailManager.sendTest: verify() on one SMTP connection, then sendMail from fromAddress to testAddress || fromAddress with subject 'Test email from Audiobookshelf' and text 'Success!'. Success answers 200 'OK'; a verify failure answers 400 'Failed to verify SMTP connection configuration'; a sendMail failure answers 400. Repeating the call sends again; it never writes settings.",
   "source": [
     "server/routers/ApiRouter.js:279",
-    "server/controllers/EmailController.js:43-48",
-    "server/managers/EmailManager.js:14-37"
+    "server/controllers/EmailController.js:52-54",
+    "server/controllers/EmailController.js:133-137",
+    "server/managers/EmailManager.js:12-37"
   ],
   "implementation": [
     "go-backend/internal/mail/mail.go"
@@ -18,70 +19,12 @@
     "error": "unverified",
     "edge": "unverified"
   },
-  "invariants": [
-    {
-      "id": "INV-ROUTE-R172-ROUTE",
-      "class": "shape",
-      "contract": "POST /emails/test at server/routers/ApiRouter.js:279. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
-      "status": "unverified",
-      "source": [
-        "server/routers/ApiRouter.js:279",
-        "server/controllers/EmailController.js:43-48",
-        "server/managers/EmailManager.js:14-37"
-      ],
-      "tests": [
-        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
-        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
-        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
-        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
-        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
-        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
-        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
-        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
-        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
-        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
-        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
-      ],
-      "evidence": [],
-      "exceptions": [
-        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
-      ]
-    },
-    {
-      "id": "INV-ROUTE-R172-REPEAT",
-      "class": "repeat_operation",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
-      "status": "unverified",
-      "source": [
-        "server/routers/ApiRouter.js:279",
-        "server/controllers/EmailController.js:43-48",
-        "server/managers/EmailManager.js:14-37"
-      ],
-      "tests": [
-        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
-        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
-        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
-        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
-        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
-        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
-        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
-        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
-        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
-        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
-        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
-      ],
-      "evidence": [],
-      "exceptions": [
-        "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
-      ]
-    }
-  ],
   "stateful": true,
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "tests": [
@@ -95,14 +38,75 @@
     "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
     "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
     "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
-    "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment"
+    "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-delivers-text-message",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-test-address-falls-back-to-sender",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-admin-only-no-smtp",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-unreachable-smtp-fixed-error",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-repeat-sends-again",
+    "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-follows-changed-test-address"
   ],
   "evidence": [],
   "exceptions": [
-    "Delivery evidence is limited to one plaintext unauthenticated local SMTP server and one rejected SMTP greeting. Repeat sends, changed recipient settings, TLS/auth, sendMail-stage rejection, attachment delivery, admin denial, and other edge variants remain unverified.",
-    "The verification-failure path is not forced by a handler flag; the independent local SMTP fixture returns 421 before mail data can be sent.",
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: the route has no force/hard/override mode.",
+    "The sendMail-stage error body is nodemailer's message text, which no client parses as a stable value; the scenario asserts the 400 status only, and the fixed verify-failure text that the settings page shows as a toast."
+  ],
+  "invariants": [
+    {
+      "id": "INV-ROUTE-R172-ROUTE",
+      "class": "shape",
+      "contract": "POST /api/emails/test answers 401 without a token and 404 for an authenticated non-admin, and no refused call opens an SMTP connection. For an admin it verifies, sends one text/plain message to testAddress || fromAddress with subject 'Test email from Audiobookshelf' and body 'Success!', answers 200 'OK'; with a refused or unresponsive SMTP connection it answers 400 with the fixed verification message.",
+      "status": "unverified",
+      "source": [
+        "server/routers/ApiRouter.js:279",
+        "server/controllers/EmailController.js:52-54",
+        "server/managers/EmailManager.js:12-37"
+      ],
+      "tests": [
+        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-delivers-text-message",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-test-address-falls-back-to-sender",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-admin-only-no-smtp",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-unreachable-smtp-fixed-error",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-follows-changed-test-address"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R172-REPEAT",
+      "class": "repeat_operation",
+      "contract": "Each POST /api/emails/test performs its own verify and sendMail, so two calls deliver two messages with the same envelope and leave the settings row and its updatedAt unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/managers/EmailManager.js:8-37"
+      ],
+      "tests": [
+        "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
+        "go-backend/internal/mail/mail_test.go:128#TestSettingsPatchValidation",
+        "go-backend/internal/mail/mail_test.go:145#TestAdminRoutesAnswer404ToOthers",
+        "go-backend/internal/mail/mail_test.go:154#TestDeviceListIsNormalizedAndEventedOnce",
+        "go-backend/internal/mail/mail_test.go:190#TestDeviceListValidation",
+        "go-backend/internal/mail/mail_test.go:209#TestTestEmail",
+        "go-backend/internal/mail/mail_test.go:231#TestSendEbook",
+        "go-backend/internal/mail/mail_test.go:285#TestSendEbookMissingFileAndSMTPDown",
+        "go-backend/internal/mail/mail_test.go:305#TestSendAuthenticatesAndBuildsMessage",
+        "go-backend/internal/mail/mail_test.go:340#TestSendChecksInputsBeforeConnecting",
+        "go-backend/internal/mail/mail_test.go:357#TestWriteMessageStreamsAttachment",
+        "go-backend/testmachine/scenarios/mail/run_test.go#TestReplacement/test-email-repeat-sends-again"
+      ],
+      "evidence": [],
+      "exceptions": []
+    }
   ]
 }
