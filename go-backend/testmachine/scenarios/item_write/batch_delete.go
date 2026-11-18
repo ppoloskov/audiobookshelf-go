@@ -134,6 +134,50 @@ func batchDeleteScenarios(s *setup) []harness.Scenario {
 					}
 				}
 			}),
+		scenario(r045, inv, "edge", "changed", "batch-delete-duplicate-id-after-cascade-state",
+			"A soft batch delete whose id list repeats one item, after a playlist, progress and collection were created through the API, answers 200, deletes the item once, renumbers the shared playlist, removes the solo playlist and emits one item_removed.",
+			srcs(batchDeleteSrc, handleDeleteSrc),
+			func(t *testing.T, _ *harness.Env) {
+				e, s := freshServer(t)
+				c := buildCascade(t, e, "dupe")
+				folder := itemPath(t, e, c.ItemID)
+				media := directoryList(t, folder)
+				a := removalAudience(t, e, s)
+				wantStatus(t, "batch delete duplicate id", batchDelete(t, e, e.Token(t, "root"), "", idsBody(c.ItemID, c.ItemID)), http.StatusOK)
+				settle(t, e, c)
+				after := factsOf(t, e, c, folder)
+				// the unawaited book destroy of a soft delete races with the orphan cleanup upstream (LibraryItem.js:836-842)
+				after.Author, after.Series = 0, 0
+				requireEqual(t, "facts after", after, cascadeFacts{SharedPlaylists: 1, Collections: 1, Shares: 1, Sessions: 1, ItemFolder: true})
+				requireEqual(t, "media files", directoryList(t, folder), media)
+				requireEqual(t, "shared playlist", playlistOrder(t, e, c.SharedPlaylist), []string{"5e33de11-3e94-4c51-87d8-d06d2928ac38:1"})
+				wantItemRemoved(t, a, e, c.ItemID, e.IDs["library"])
+				for _, name := range []string{"root", "listener", "podcastonly", "tagallow"} {
+					if got := countEvents(a, name, "item_removed"); got != 1 {
+						t.Fatalf("%s received %d item_removed events, want 1", name, got)
+					}
+				}
+			}),
+		scenario(r045, inv, "normal", "repeat", "batch-delete-repeat-is-404",
+			"Repeating a batch delete of an already deleted item answers 404, changes no row or file and emits no item_removed.",
+			srcs(batchDeleteSrc),
+			func(t *testing.T, _ *harness.Env) {
+				e, s := freshServer(t)
+				id := e.IDs["disposable"]
+				book, _ := itemRow(t, e, id)["mediaId"].(string)
+				a := removalAudience(t, e, s)
+				wantStatus(t, "first batch delete", batchDelete(t, e, e.Token(t, "root"), "", idsBody(id)), http.StatusOK)
+				wantItemRemoved(t, a, e, id, e.IDs["library"])
+				harness.Eventually(t, eventWait, "the book row to be destroyed", func() bool {
+					return e.Count(t, "SELECT COUNT(*) FROM books WHERE id = ?", book) == 0
+				})
+				a.reset()
+				rows, folder := snapshot(t, e), directoryList(t, folderOf(e, id))
+				wantStatus(t, "repeat batch delete", batchDelete(t, e, e.Token(t, "root"), "", idsBody(id)), http.StatusNotFound)
+				wantSnapshot(t, e, rows)
+				requireEqual(t, "media files", directoryList(t, folderOf(e, id)), folder)
+				a.receive(t, "item_removed", nil, nil, []string{"root", "listener", "podcastonly", "tagallow"})
+			}),
 	}
 }
 

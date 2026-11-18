@@ -19,13 +19,17 @@ func Packet() harness.Packet {
 		mediaAccessScenarios(s),
 		mediaCoverScenarios(s),
 		mediaEventScenarios(s),
+		socketItemUpdatedScenarios(s),
 		batchUpdateScenarios(s),
 		tracksScenarios(s),
 		chaptersScenarios(s),
 		ebookStatusScenarios(s),
 		deleteFileScenarios(s),
+		socketItemRemovedScenarios(s),
+		itemsUpdatedScenarios(s),
 		deleteItemScenarios(s),
 		batchDeleteScenarios(s),
+		w6RestoreScenarios(s),
 	} {
 		scenarios = append(scenarios, group...)
 	}

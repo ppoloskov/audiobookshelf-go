@@ -27,13 +27,14 @@
   "evidence": [],
   "exceptions": [
     "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: the file delete route has no force or override mode; deleting the file is the only action."
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "invariants": [
@@ -73,6 +74,7 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/file-delete-non-media-file",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/file-delete-repeat-is-404",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/file-delete-audio-file",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/file-delete-ebook-files",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/file-delete-podcast-episode-cascades"

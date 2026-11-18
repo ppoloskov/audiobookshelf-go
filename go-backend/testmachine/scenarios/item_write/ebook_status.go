@@ -125,6 +125,32 @@ func ebookStatusScenarios(s *setup) []harness.Scenario {
 					t.Fatalf("primary %q after switching back", primaryName(t, e, id))
 				}
 			}),
+		scenario(r070, inv, "normal", "repeat", "ebook-status-repeat-toggles-back",
+			"Repeating the same ebook status request toggles the file back to primary: each request flips primary and supplementary, moves updatedAt and emits item_updated.",
+			srcs(ebookSrc, "client/components/tables/EbookFilesTableRow.vue:93-103"),
+			func(t *testing.T, e *harness.Env) {
+				id := e.IDs["ebook"]
+				if primaryName(t, e, id) != ebookName {
+					t.Fatalf("primary before the repeat = %q", primaryName(t, e, id))
+				}
+				ino := inoOf(t, e, id, ebookName)
+				a := connect(t, e, map[string]string{"root": e.Token(t, "root"), "listener": e.Token(t, "listener"), "anonymous": ""})
+				before := updatedAt(t, e, id)
+				wantStatus(t, "toggle off", ebookStatus(t, e, e.Token(t, "root"), id, ino), http.StatusOK)
+				if primaryName(t, e, id) != "" || supplementaryOf(t, e, id, ebookName) != true || itemRow(t, e, id)["isMissing"] != int64(1) {
+					t.Fatal("first toggle did not make the file supplementary")
+				}
+				wantMoved(t, e, id, before)
+				a.receive(t, "item_updated", idOf(id), []string{"root", "listener"}, nil)
+				a.reset()
+				before = updatedAt(t, e, id)
+				wantStatus(t, "toggle on", ebookStatus(t, e, e.Token(t, "root"), id, ino), http.StatusOK)
+				if primaryName(t, e, id) != ebookName || supplementaryOf(t, e, id, ebookName) != false || itemRow(t, e, id)["isMissing"] != int64(0) {
+					t.Fatal("second identical request did not restore the primary file")
+				}
+				wantMoved(t, e, id, before)
+				a.receive(t, "item_updated", idOf(id), []string{"root", "listener"}, []string{"anonymous"})
+			}),
 		scenario(r070, errInv, "error", "failure", "ebook-status-invalid-requests",
 			"A non-ebook file, a podcast item and an unknown file id are rejected (400, 400, 404) and change nothing.",
 			srcs(middlewareSrc, ebookSrc),

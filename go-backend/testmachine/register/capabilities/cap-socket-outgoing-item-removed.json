@@ -41,7 +41,10 @@
         "go-backend/internal/item/delete_test.go:45#TestDeleteItemCascadesToEverythingReferencingIt",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-not-emitted-for-rejected-delete",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-audience-and-cascade-events",
-        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-once-per-batch-item"
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-once-per-batch-item",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-duplicate-batch-id-once",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-repeat-delete-once",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-hard-delete"
       ],
       "evidence": [],
       "exceptions": []

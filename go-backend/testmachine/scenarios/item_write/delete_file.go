@@ -84,6 +84,23 @@ func deleteFileScenarios(s *setup) []harness.Scenario {
 				repeat := deleteFile(t, e, e.Token(t, "root"), id, cover)
 				wantStatus(t, "repeat", repeat, http.StatusNotFound)
 			}),
+		scenario(r067, inv, "normal", "repeat", "file-delete-repeat-is-404",
+			"Deleting the same library file again answers 404, leaves the stored rows and the media folder as after the first delete and emits no second item_updated.",
+			srcs(middlewareSrc, deleteFileSrc),
+			func(t *testing.T, _ *harness.Env) {
+				e, _ := freshServer(t)
+				id := e.IDs["saga1"]
+				cover := inoOf(t, e, id, "cover.jpg")
+				a := connect(t, e, map[string]string{"root": e.Token(t, "root"), "listener": e.Token(t, "listener"), "anonymous": ""})
+				wantStatus(t, "first delete", deleteFile(t, e, e.Token(t, "root"), id, cover), http.StatusOK)
+				a.receive(t, "item_updated", idOf(id), []string{"root", "listener"}, nil)
+				a.reset()
+				rows, folder := snapshot(t, e), directoryList(t, itemPath(t, e, id))
+				wantStatus(t, "repeat delete", deleteFile(t, e, e.Token(t, "root"), id, cover), http.StatusNotFound)
+				wantSnapshot(t, e, rows)
+				requireEqual(t, "media files", directoryList(t, itemPath(t, e, id)), folder)
+				a.receive(t, "item_updated", idOf(id), nil, []string{"root", "listener"})
+			}),
 		scenario(r067, inv, "normal", "changed", "file-delete-audio-file",
 			"DELETE of an audio file removes it from disk, libraryFiles and the book's audioFiles; the item stays present and the book duration column is unchanged.",
 			srcs(deleteFileSrc),

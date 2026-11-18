@@ -72,7 +72,9 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/batch-delete-soft-several-items",
-        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/batch-delete-hard-with-unknown-ids"
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/batch-delete-hard-with-unknown-ids",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/batch-delete-duplicate-id-after-cascade-state",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/batch-delete-repeat-is-404"
       ],
       "evidence": [],
       "exceptions": []

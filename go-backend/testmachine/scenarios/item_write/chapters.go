@@ -103,6 +103,29 @@ func chaptersScenarios(s *setup) []harness.Scenario {
 				wantSnapshot(t, e, rows)
 				a.receive(t, "item_updated", idOf(id), nil, []string{"root"})
 			}),
+		scenario(r064, inv, "normal", "repeat", "chapters-repeat-identical-list-is-noop",
+			"Posting the chapter list the book already stores answers updated:false, leaves the chapters, updatedAt and rows untouched and emits no item_updated; a second identical post answers the same.",
+			srcs(chaptersSrc),
+			func(t *testing.T, _ *harness.Env) {
+				e, _ := freshServer(t)
+				id := e.IDs["saga1"]
+				stored, _ := column(t, mediaRow(t, e, id), "chapters").([]any)
+				if len(stored) != 3 {
+					t.Fatalf("fixture chapters = %d, want 3", len(stored))
+				}
+				a := connect(t, e, map[string]string{"root": e.Token(t, "root"), "listener": e.Token(t, "listener"), "anonymous": ""})
+				before, rows := updatedAt(t, e, id), snapshot(t, e)
+				for range 2 {
+					result := chaptersOK(t, e, id, chapterBody(stored...))
+					if result.Updated {
+						t.Fatal("identical chapter list reported an update")
+					}
+				}
+				wantUnchanged(t, e, id, before)
+				wantSnapshot(t, e, rows)
+				requireEqual(t, "books.chapters", column(t, mediaRow(t, e, id), "chapters"), stored)
+				a.receive(t, "item_updated", idOf(id), nil, []string{"root", "listener"})
+			}),
 		scenario(r064, inv, "edge", "changed", "chapters-empty-list-clears",
 			"An empty chapter list clears the stored chapters and metadata.json chapters.",
 			srcs(chaptersSrc),

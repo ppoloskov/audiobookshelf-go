@@ -26,13 +26,14 @@
   "evidence": [],
   "exceptions": [
     "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: the ebook status route toggles the file; it has no force or override mode."
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "invariants": [
@@ -72,6 +73,7 @@
       "tests": [
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/ebook-status-primary-becomes-supplementary",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/ebook-status-supplementary-becomes-primary",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/ebook-status-repeat-toggles-back",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/ebook-status-switches-the-primary-among-several"
       ],
       "evidence": [],

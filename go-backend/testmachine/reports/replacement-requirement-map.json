@@ -6,7 +6,7 @@
   "proof": "Mapping only. No behavior tests executed by this renderer. Test references are assertion/discovery leads, not inferred full coverage.",
   "counts": {
     "requirements": 345,
-    "invariants": 661,
+    "invariants": 666,
     "route_sites": 226,
     "socket_sites": 165,
     "socket_names": 77,
@@ -15,21 +15,21 @@
   "pinned_source_and_client_sha256": "fa1f0e08c70b3447d5b19c497fcef0b8e42a3600dbe2ddbdd54fb9fd073b2f9f",
   "capability_sha256": {
     "go-backend/testmachine/register/capabilities/cap-client-device-acceptance.json": "efa941f33b1a96475182a691547d00e993af489795f7db04583cd0eaec183fb3",
-    "go-backend/testmachine/register/capabilities/cap-event-backup-applied.json": "6fa68d2175e1a4ffd9bf7d94413d69a9522d6b938a0c2350aa1dce15255d325c",
-    "go-backend/testmachine/register/capabilities/cap-event-log.json": "786e14c6df3ae1ce0f76a708b0b875ebf774c6c91dd929b6aae08bbe0203e860",
+    "go-backend/testmachine/register/capabilities/cap-event-backup-applied.json": "ded10263b4359bfe5f52b1d7dc55f12d99d64addcae4120d9240aa87e0b51565",
+    "go-backend/testmachine/register/capabilities/cap-event-log.json": "020e2cf341d126328c032ea7558c43e81f68e498e1b10472aa56d0455e5cdb98",
     "go-backend/testmachine/register/capabilities/cap-event-metadata-embed-queue.json": "50a0e9285ca5d76b4058d9c8969fe2b481faaeaefd39301e6400341f6a69bd7b",
     "go-backend/testmachine/register/capabilities/cap-event-notifications-updated.json": "c2525832e42e046bb92469a1c3ca1b39d99b3b9e9421b729147e209514252fbc",
     "go-backend/testmachine/register/capabilities/cap-event-task-lifecycle.json": "27e3ee0a3cbb2cd6c62dd59941f0c95e99c2b322d5b8d099a84146bdb504adc1",
     "go-backend/testmachine/register/capabilities/cap-event-track-finished.json": "d23b5bff6b988c5fbed52fc2ad902353f3adc2f40cf2445fd5c582b66ea611bd",
     "go-backend/testmachine/register/capabilities/cap-event-track-progress.json": "6f524956ceb24827a66fc582c398c1b99f291ebad7d945b0736e9c16ae0b9a1b",
-    "go-backend/testmachine/register/capabilities/cap-flow-backup-restore-swap.json": "0550f7eec024ca010fd6eaa1ef67f311b0f59ce1299fc3dc8a61fab308f969c7",
+    "go-backend/testmachine/register/capabilities/cap-flow-backup-restore-swap.json": "809d5e38bf3fef3e6a09ca2eb9ad4575a0404b35af9672f99e6c05b9d4f34828",
     "go-backend/testmachine/register/capabilities/cap-flow-client-auth-token-lifecycle.json": "2f26a2453651265ada167ea947ef129c7d4c67302f22be50c85fb1f40feb17a0",
     "go-backend/testmachine/register/capabilities/cap-flow-client-feed-share.json": "0fbaae8dce23f90c5cd5d584de781d957cba3a78bc471c4723785ed70be11a57",
     "go-backend/testmachine/register/capabilities/cap-flow-client-list-ownership.json": "a27ce5456bb343276971e597cdcc3843331629a655d9d924deb663d308cef263",
     "go-backend/testmachine/register/capabilities/cap-flow-client-mobile-protocol.json": "3c7a433fd85dfca396ee3ce095a1aed6ec6ea860e2d89b85df0c5ece55bab739",
     "go-backend/testmachine/register/capabilities/cap-flow-client-oidc-mobile-pkce.json": "62e1c5afa05564d8e62c466277f2451c2d7354ba0face2c7a95c97872558004e",
     "go-backend/testmachine/register/capabilities/cap-flow-client-permissions-ownership.json": "cb7f6a7efc801c77e111407f934bf4e865eb2067ae7f2d89d95e5744334acf4a",
-    "go-backend/testmachine/register/capabilities/cap-flow-client-playback-session-sync.json": "89bdb29559a6456e4623e5c4b949d450e7d2909425829fcefa5d346b4d9fb47d",
+    "go-backend/testmachine/register/capabilities/cap-flow-client-playback-session-sync.json": "6268cbabd78b08755676d269bfed9ae5fc4709967c5b09663e16474523f64937",
     "go-backend/testmachine/register/capabilities/cap-flow-mail-smtp-mime.json": "3f90f7285f91ea86e7f1c5157c674e7fea3d7c76030a774a72da238685d2d496",
     "go-backend/testmachine/register/capabilities/cap-flow-notify-delivery.json": "577150b63a87696e2c73359b9bdba378eca0573639e24ce6c286bf34efeee19d",
     "go-backend/testmachine/register/capabilities/cap-flow-settings-atomicity.json": "3f55271bfbb2452bb67a7882d9c7c89bcd1bbd11e65a6488b85262c736dadfc5",
@@ -38,7 +38,7 @@
     "go-backend/testmachine/register/capabilities/cap-format-daily-logs.json": "791490b3f7f32ba24b0444cb92c61344e56d68cd6d9e8e09b9723131e571e027",
     "go-backend/testmachine/register/capabilities/cap-format-metadata-json.json": "0a00c4e9c8a8da5c0123a01a958dfa270241db1a0bc52e35133f5eb9c00c655b",
     "go-backend/testmachine/register/capabilities/cap-persisted-column-semantics.json": "ee5f345d6daac714e6c7cc364bd21033b6b23745706a4752bdd8e77facf930cd",
-    "go-backend/testmachine/register/capabilities/cap-protocol-cors-basepath.json": "5045645a50d17b0ff75ba94c6ffad6c9c0c22a144ae68ce8b88c10c4ad493b6e",
+    "go-backend/testmachine/register/capabilities/cap-protocol-cors-basepath.json": "f7112864bdea052f4bfe97096b4e6053977c6fcad0062462d65a81c87fb2fec1",
     "go-backend/testmachine/register/capabilities/cap-protocol-ranges-cache.json": "abe41bb20d59448b2f72699d95d456468423f6cfbe04ece4fbefb24eb448d183",
     "go-backend/testmachine/register/capabilities/cap-route-r000.json": "0487359f55208128451b08448e259cf2263fe3f87125baf40db384e39fabd561",
     "go-backend/testmachine/register/capabilities/cap-route-r001.json": "15e21874ecb3798ba59d7ca2e0a63b2aeef49863216ed60c0462d6ccd11ba494",
@@ -51,12 +51,12 @@
     "go-backend/testmachine/register/capabilities/cap-route-r008.json": "c29547f6f2a072c002912897b91095dfb9f2d8bfbfe05ddd7b8cca0689469cde",
     "go-backend/testmachine/register/capabilities/cap-route-r009.json": "6c741eaf275159c9f2f49446c8c6aa393308d2bcf436136c9dbdb0a441c76844",
     "go-backend/testmachine/register/capabilities/cap-route-r010.json": "7189c70990dd88498031abbdda64405abf00a8cf628dfcea1374bce23333167c",
-    "go-backend/testmachine/register/capabilities/cap-route-r011.json": "3852f7e2fa79afac304335214c49fcc695349416157050b9769a897194ea8ff8",
-    "go-backend/testmachine/register/capabilities/cap-route-r012.json": "eb7096598bb842668078a906f3efa54e1c0139d86fb663ac2439b6a717b208e7",
-    "go-backend/testmachine/register/capabilities/cap-route-r013.json": "b80a017eca599692be9c01caab552cdf75a4a312e7c7ef82eca0d49d8a3ed3fe",
-    "go-backend/testmachine/register/capabilities/cap-route-r014.json": "74b6df43ccf2c963ca0fa1e0923466dcd4818bda1579548be976ec3df968e55d",
-    "go-backend/testmachine/register/capabilities/cap-route-r015.json": "973d3704b323d413cd4679e0b17c92c3c74387ac58cf03d00f50f01d91e62d18",
-    "go-backend/testmachine/register/capabilities/cap-route-r016.json": "d2dab185bd1e413941c24ad35de41e543621b08c4c3b381d3e432336213d6613",
+    "go-backend/testmachine/register/capabilities/cap-route-r011.json": "4256109adfde5d9f2aeb9ceefe1ada2c784afc729f06a8962b4ff6251aa5de7a",
+    "go-backend/testmachine/register/capabilities/cap-route-r012.json": "0c860be86516b88053c8dee242bd4aa4f15eeb9ce954bb4dde89ecbb246cfe49",
+    "go-backend/testmachine/register/capabilities/cap-route-r013.json": "cb64a6bb1292df5d99fc57b3b2aa75622a7e52c1e16714b2d40d38fef0ac223d",
+    "go-backend/testmachine/register/capabilities/cap-route-r014.json": "b51c21f7a28eb19014906dd30344b8653a78f46dbc4cd7da3c5adbac7c25dedb",
+    "go-backend/testmachine/register/capabilities/cap-route-r015.json": "738b510659a64ac6a1f18959a7b44114e877ccea075de29599b64782ff371494",
+    "go-backend/testmachine/register/capabilities/cap-route-r016.json": "956792efbd86d02b4a9f115135ad1b55fa9899cf09b563aa32269100b1b18b40",
     "go-backend/testmachine/register/capabilities/cap-route-r017.json": "b99314e8a34f63a565fc690a620c9ad06c8ba349216eca970c70770cabc7bccc",
     "go-backend/testmachine/register/capabilities/cap-route-r018.json": "9eee98725a2c43c048965dee611b44cb5d58d5f6518f3d2ccd251512c435b1f3",
     "go-backend/testmachine/register/capabilities/cap-route-r019.json": "95aa7cd863d066b96551f0dcee4dcc2683575d43b1012ae21ccebcb5a00071ff",
@@ -85,32 +85,32 @@
     "go-backend/testmachine/register/capabilities/cap-route-r042.json": "0c1f01475153200e2ab5c979ea8ac843a67a517e8270feddbf783022437efae9",
     "go-backend/testmachine/register/capabilities/cap-route-r043.json": "8e5198610ead232601897426948406f60d2851c201eaf17caca941085ace32eb",
     "go-backend/testmachine/register/capabilities/cap-route-r044.json": "8be8d67fb26747463ad80ceeadb07843ad6a0c44fbef1cf31a4b6b418835ea6d",
-    "go-backend/testmachine/register/capabilities/cap-route-r045.json": "26524221b51d71ee6d367dd06243a1579e42b34c521f605d7cc11dec03132793",
-    "go-backend/testmachine/register/capabilities/cap-route-r046.json": "c9520c4e50f782393355e2c46a7a9756ff315a09d7fd11c9a07a8847ec517844",
+    "go-backend/testmachine/register/capabilities/cap-route-r045.json": "3d8299bcb9090977c9bc057408d2d878a5db9991145248baf034a16e1c6a757e",
+    "go-backend/testmachine/register/capabilities/cap-route-r046.json": "ab0a82c52e83199114ae878a299b04293e8781b8ff753ba4cb00f7b9513e8a6d",
     "go-backend/testmachine/register/capabilities/cap-route-r047.json": "76618d18acdc1d0012b22c3df5a5387f8dcae2c97b5a29b6760d1b4b0d71f179",
     "go-backend/testmachine/register/capabilities/cap-route-r048.json": "1e567c979d006d6997eec8246acbc7ec04912873842e50d54bf37d8e175bad6b",
     "go-backend/testmachine/register/capabilities/cap-route-r049.json": "7ccb046be561f913f840f8c0fa9223ade6b749d18801b8a26c0d25d80b7c854a",
     "go-backend/testmachine/register/capabilities/cap-route-r050.json": "9e92df3d0e64001480e1fbc5ec872cc327cacb2d6e816abfa6dfe74e68b1e42f",
     "go-backend/testmachine/register/capabilities/cap-route-r051.json": "d4be8945b48dc10d10cd5bd45196efbb29dec2b5feca4b9d933cf1017dd2e96c",
     "go-backend/testmachine/register/capabilities/cap-route-r052.json": "5250d73aab44931fdcd99282d495a6e46eca4deb381ba5b2ac4d25347e751913",
-    "go-backend/testmachine/register/capabilities/cap-route-r053.json": "5019be6e77a7cbfeb5e2708efacaca98419ec2215c5affd5dbd814c4069c1e3d",
+    "go-backend/testmachine/register/capabilities/cap-route-r053.json": "928c0b65effdd45a4e8f7f1a78fd962e663062c708a5f294c609956d4da48c6b",
     "go-backend/testmachine/register/capabilities/cap-route-r054.json": "40c2bd5d5704dc0d1877a83fc6caba3bc953c1652bc2bebbf9fb2b4b157b86d7",
     "go-backend/testmachine/register/capabilities/cap-route-r055.json": "dcdcd1dd792ce45f93a9e66038831f5b7719c3063b6dab685ce0ed066efd2c55",
     "go-backend/testmachine/register/capabilities/cap-route-r056.json": "0d90603a7d222b5f9064c1cb8538595c8be6de755d79fb6dd1e9c3b04ea560ae",
     "go-backend/testmachine/register/capabilities/cap-route-r057.json": "1d24a6133770d02ee5ee68d5db777c41e64b1468aab8706ef9dd477a668720ba",
     "go-backend/testmachine/register/capabilities/cap-route-r058.json": "00c16ca0c5d954ee2d8da2def96a0c453397ac9f14b6512c2b2537b78eebcfea",
-    "go-backend/testmachine/register/capabilities/cap-route-r059.json": "69a0ee8c017712a26e7db4240c0043b7bb0b99ce3fb5c9813f079e9aa4f17b13",
-    "go-backend/testmachine/register/capabilities/cap-route-r060.json": "90b0c7f69c6bf9340ab72a24b05d590783129155d604346ebe20399c2398ee18",
-    "go-backend/testmachine/register/capabilities/cap-route-r061.json": "034408f1f42cf42843e7c209f0e5b70d136aa65b10c0d83d187f9ffbcb1c62cd",
+    "go-backend/testmachine/register/capabilities/cap-route-r059.json": "ba8797c8887adf8499f660491e467b2e706cc8ced448dad1005027909b87e35a",
+    "go-backend/testmachine/register/capabilities/cap-route-r060.json": "80de4e278dc7460194b60fc4886ff8fe9b919311f65242fd2651a8864b3cab97",
+    "go-backend/testmachine/register/capabilities/cap-route-r061.json": "0af1f55640530f180beabd21456d1c79e43f6d8c6008a09a6cf114acfc857cc7",
     "go-backend/testmachine/register/capabilities/cap-route-r062.json": "c6a02006a3a5a0b04d1f20b19d013e83163eefed82156f5e10eb1543f07ba48e",
     "go-backend/testmachine/register/capabilities/cap-route-r063.json": "9557c692c54648c361f2275c1ea06e7bc118316b9b4d406503362137eae729e5",
-    "go-backend/testmachine/register/capabilities/cap-route-r064.json": "e130fce2313ffdf55264c1eca1c71e8e7db4c70c57dde2ab0d95af12c91aa6e7",
+    "go-backend/testmachine/register/capabilities/cap-route-r064.json": "ae106fbd179bfd56a0331b30423fa5dd310f90193f07aeae3f532eb3f7ff7439",
     "go-backend/testmachine/register/capabilities/cap-route-r065.json": "a1dfc8d380083c0fbaea8fa4960b098d68bbce2eb3f2203baaa5866a26e27cf2",
     "go-backend/testmachine/register/capabilities/cap-route-r066.json": "438faab89a01219aac0953499e08f1802681b37f480abfc90eefa1c2272f3786",
-    "go-backend/testmachine/register/capabilities/cap-route-r067.json": "69bd103d46eb430f8ba050e3920d2a55ed661015eaf3af73028bef2506293ea6",
+    "go-backend/testmachine/register/capabilities/cap-route-r067.json": "bff620200c202d1f39f8064bff97db03c29025f64b32930a2f667b1347391b53",
     "go-backend/testmachine/register/capabilities/cap-route-r068.json": "1d3156b8bd459f7f36e57e1058b6fbcec2a75c19167e69d15d3050cbf91dc1a2",
     "go-backend/testmachine/register/capabilities/cap-route-r069.json": "a33180497f5905c20736088bc825526c4beff2f201be82b876616a55cc1d9ce4",
-    "go-backend/testmachine/register/capabilities/cap-route-r070.json": "3bc06e9660ac99e6c0446ab2176755d7b0d56c5e25801b3154861da9106e54a7",
+    "go-backend/testmachine/register/capabilities/cap-route-r070.json": "10d88f96451c211e9d96c5bbf0faa3a6aadd5e67b8e907845ac4fb04e7d1042c",
     "go-backend/testmachine/register/capabilities/cap-route-r071.json": "23d43f4593615276c642ad550316d2affae67953a4668f06c4cfebae0c019f1f",
     "go-backend/testmachine/register/capabilities/cap-route-r072.json": "27bc9b94ff257f8313fe9a95ea58d23f577aec6fecce5d102cbac50c64ac29a5",
     "go-backend/testmachine/register/capabilities/cap-route-r073.json": "423a69586a718543be99c3d27facbdfe921fcd0c83b45afe41e2a2deb33e61e6",
@@ -180,15 +180,15 @@
     "go-backend/testmachine/register/capabilities/cap-route-r137.json": "d8b195c57e61a878cf8373170d9fccb0e6167087eef27fc9711defdb8b637b15",
     "go-backend/testmachine/register/capabilities/cap-route-r138.json": "72e3382bfaa734c28b45112e712f0009adfa96b5eadbc83a6dfbb0deab70b9cf",
     "go-backend/testmachine/register/capabilities/cap-route-r139.json": "43314d89ada6335f1a60b6e31ad6c048aafb586da9cb6b34803dcfee67953076",
-    "go-backend/testmachine/register/capabilities/cap-route-r140.json": "88f96cd515953aa4813c7ad58a2679620ea58111422211649878e0ecdd12baa5",
-    "go-backend/testmachine/register/capabilities/cap-route-r141.json": "1c40652958e321bf36eb71a59feea46ad27674332f8c8aa3e2f6086a73662428",
-    "go-backend/testmachine/register/capabilities/cap-route-r142.json": "f67c682361b505149f269ba4396e058426f29c333063d6f3868d01da674f5bed",
-    "go-backend/testmachine/register/capabilities/cap-route-r143.json": "6229637f38c4b8c6638698b425c2d199f43289db130699de3f80966837842117",
-    "go-backend/testmachine/register/capabilities/cap-route-r144.json": "03beeb3e0709088ede0b836a2076234a7107a3209b6061050b3440f543344635",
-    "go-backend/testmachine/register/capabilities/cap-route-r145.json": "1321e617d5b30c9a34ec8dc28984093168485506ca91a98f5cd13c4329afa94e",
+    "go-backend/testmachine/register/capabilities/cap-route-r140.json": "78757e7b280acf4d2df4aa8dc63bacfe2a0d00d849c7df15be47642a78cbf76b",
+    "go-backend/testmachine/register/capabilities/cap-route-r141.json": "d18fcaee644fb9e7aefb750a2c8f1b85d38d397df5d5670378a6037e33c90117",
+    "go-backend/testmachine/register/capabilities/cap-route-r142.json": "e08d11f8395cb890be07bd53c700f92065dc5d1c08d049c65bb10c176de5ac94",
+    "go-backend/testmachine/register/capabilities/cap-route-r143.json": "a55e1795f31a0415653f626818f97a846f3168172f9ac374d385a9c2576f6186",
+    "go-backend/testmachine/register/capabilities/cap-route-r144.json": "ed25e5845f1d65ef037d90e1aa68c511e598fab5e66363b2280f6d47222019ba",
+    "go-backend/testmachine/register/capabilities/cap-route-r145.json": "a10e7ecf3252d23a9055e92abcf084a0827e9532000707f44b51f93cb2b19cd3",
     "go-backend/testmachine/register/capabilities/cap-route-r146.json": "c000f58d1d3d865f0184a9ca7502df4cd777e5785d25c10d609ace973817b425",
-    "go-backend/testmachine/register/capabilities/cap-route-r147.json": "87730e7031d798fdae891dbeec62c0dbeacbb294187f6aeee6dd64243be17fbc",
-    "go-backend/testmachine/register/capabilities/cap-route-r148.json": "3ef7f2c8a3786ce5a169afef4a8167bf1d9ab485f98e82cfe2f8ae4d08c5baf2",
+    "go-backend/testmachine/register/capabilities/cap-route-r147.json": "28ed1497b0a60c4eea8a289eb124a0d2fb6d132162290f3ddebc54af2e95bf7a",
+    "go-backend/testmachine/register/capabilities/cap-route-r148.json": "3bcd3365a4c978c6102746af2a63f3900c4ef971764807c5785af5e09ee081ba",
     "go-backend/testmachine/register/capabilities/cap-route-r149.json": "bd6eedd4d93ac8f23fd8b69bd95923b43d09265b08d1c624204dddc2813c9bba",
     "go-backend/testmachine/register/capabilities/cap-route-r150.json": "ff90f32f0255b8e46c19e5fa41e06e445518a30a735a2923eb72726489375991",
     "go-backend/testmachine/register/capabilities/cap-route-r151.json": "2a5daa1689b9d78ef4a2ac5423d1ee3a92d1886daca5edbe682fd98fbdbd9245",
@@ -268,7 +268,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r225.json": "bd816d59899de16b24114dfc5e76063c23faa0510a20ce42621c5828d6c803c6",
     "go-backend/testmachine/register/capabilities/cap-runtime-binary.json": "eeb4a0a5e5f16772a8c246df70ea54615b3c7544491dfa1d07d2fcf8a6b35832",
     "go-backend/testmachine/register/capabilities/cap-runtime-configuration.json": "c34db6707d154ecc92f34686ceec77b7e58d55ebde5af1a2fc34f2aeba967bc0",
-    "go-backend/testmachine/register/capabilities/cap-runtime-lifecycle.json": "c18b51318d78094102141618bd480b7cf6e615752072477a500e2eea3cce672d",
+    "go-backend/testmachine/register/capabilities/cap-runtime-lifecycle.json": "9cec1dc587a20f1f0d1c7437a97b56cd94da1db031c787c5962f2ad7610d6ab2",
     "go-backend/testmachine/register/capabilities/cap-scan-precedence-timeline.json": "cbd0c14636274d849fdd4c13537d2f6072e0c2889dfaf410fd6b066d0f8d2342",
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-auth.json": "5ee0378ddc7da522fae1afdd32f8dd109a6cf2e307fec16563593176c3fc8a1b",
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-cancel-cover-search.json": "5f553f5e92990d3f4db57d1ed369c74086f3d1f1d86fa8a72cff4fa143680694",
@@ -286,7 +286,7 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-removed.json": "caac0107da4497f9c917403207e161b36d658c803b65a1ed17bf20288bcd9ad8",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-updated.json": "3abbebc7b37d86be4521be5bb291dd0f67fea6acacd4d6b2832c144ef67627b0",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-authors-num-books-updated.json": "a18c5019176018778e49b56cb3b4a0764f831fe28f389d514d62c9a51604c5e8",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-backup-applied.json": "3c09043a404beaa6883fb5053130abc039560129b6bfc08f6a94e46d26422c75",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-backup-applied.json": "46eb7fcd2477c569785116119e11bf3f2c35695d43cfabec58c10ab89cecf430",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-batch-quickmatch-complete.json": "a69cf9f1bd7edff0df91cc0bec18785b0e6bf96d29b1f2dbb58da43a40755fd0",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-collection-added.json": "613d743fcea56b7943aefbae9de20109a81555e61417c0805951e605cd79f2f1",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-collection-removed.json": "e33f32c5794da33c8300a949dea6bb21c63f0dcc31a71fbf1c3ced4a9f107abc",
@@ -306,10 +306,10 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-ereader-devices-updated.json": "4ed2af63875e154bd522fa1ba6f5c62fdd470cf4f0cc5bf4df344b9fded4958b",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-init.json": "b5053e6eb3bce4f0deb65db5fe6bb5d321215ef926a58b22a81b01faeebef61f",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-added.json": "a59c6a84397221efe5875db775b20ac9e06b4dc430feb0787f6056cab7871adc",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-removed.json": "e7b602c7926cbcc2ba1bfe406f43a876f32f910a7df0c0007b7d03ae570b54b3",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-updated.json": "462c4423a0e167759e50ca862f9d58f01de8919f665c666fe069a6939660d1b5",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-removed.json": "8433ac679a536e6e1145bc1f38e882de69a92b680135fc6ec0f10a70524d5f68",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-item-updated.json": "4e87ea11825ef3a41240a93dd702bf3cf4fac2816526235d43db9085dfd1bf4b",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-items-added.json": "070c5fb76d7053977239d5cf24ae233c9c1e60ab48c3bd6eb93600acafbfe9fe",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-items-updated.json": "4414d4ff6e0f8d1e666d37b6b555e73975e8f8fef5e7194af48325a62dbbfcb1",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-items-updated.json": "5216c36b61b51aa2b4d7305fda06b43d9b0ca2c3850bb85823590c02b83fb29d",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-library-added.json": "6e6d3ca76beef8a9c0c1faa1fafd6fe93346b532b972a6535e3b13219fa0e550",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-library-removed.json": "96ff2b58dec1075f9ba7aba07da547d4614052071e87986e3bab493b701772fe",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-library-updated.json": "31e31c5fc404f19e1d95062b4f6dce17c426a86fac88f546f07dd4a19aa02f70",
@@ -344,14 +344,14 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-offline.json": "a377c6e297c6f537e70dc82e927e35151e5791c414a05415d0c53a0fb596b9cc",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-online.json": "703a88c8e2a3c9b0a61a61d45e5df518255a9fcdfa87118dbf83a65639e9a1e8",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-removed.json": "c5ee00abb003ace06f6447b935f17565071beeb54835a1a39900b03799a85861",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-session-closed.json": "5b463ee177ab30c6f5b83a2d3dcce2e566a3cdd05e962c1b6df85e500bdb0198",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-stream-update.json": "64401a69ee4998c3d9a0b7d2eef5c5e6c40d8b2d51230bfc31cc72ef1b1021fc",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-session-closed.json": "857bd4f670e1038e0817055fbff5b949d68b16d27cb2e59ebe9dc621fdc97ac2",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-stream-update.json": "a0923f10cd47da473cdf652627254b22ca940be86db9c991be686f18d8034fb4",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-updated.json": "c98decd5c97a4521ba9dc870c489751ee5f0a235889496782e322aa2ceec1b30",
     "go-backend/testmachine/register/capabilities/cap-sub-authorization-ownership.json": "34c749bdfe64802c5f32b01dc560aebe2b532c9aedb887c99faa7f70f2f84169",
     "go-backend/testmachine/register/capabilities/cap-sub-backup-scheduler.json": "be4d96243b031ec9c3a5e32115b47ff1335486bac2a8f56ee2cf9e9aeb39dfe7",
     "go-backend/testmachine/register/capabilities/cap-sub-covers.json": "60dd572222998a79bf6b59aa1539fd5e0d5e81de6b88244d78f81d64ce7979bb",
     "go-backend/testmachine/register/capabilities/cap-sub-database-schema.json": "197effbde241807b54bf83807e8a398d5a0d45ef92b8894d760e35a82f365ecf",
-    "go-backend/testmachine/register/capabilities/cap-sub-destructive-cascades-w6.json": "07120296f9d06dd9ef9b92470c2a743b6898ef14c41da0262f2a631c8ceceda6",
+    "go-backend/testmachine/register/capabilities/cap-sub-destructive-cascades-w6.json": "ba59fc40ed8cf180d6e5a2c1d56c3b36f55db7bae34714cc950be4d9ae2de9ab",
     "go-backend/testmachine/register/capabilities/cap-sub-downloads.json": "324003bc9df308b695c26d0ca1e497c314d3a4407d1351add9ef06d6383de75f",
     "go-backend/testmachine/register/capabilities/cap-sub-oidc-auth.json": "46d41a1075ff3643681486947ad2c62ca8a97787bf3d5a61f3d16b2c9746cb16",
     "go-backend/testmachine/register/capabilities/cap-sub-podcast-download-queue.json": "33e43036b41d6859a018f5ef3b16e5a83230d57fb8ac879aa842a45fd2a7728d",
@@ -6508,14 +6508,22 @@
       "invariant": "INV-CAP-EVENT-BACKUP-APPLIED",
       "owner": "server",
       "packet": "Q27",
-      "contract": "After successful backup application emit backup_applied to all sockets with no explicit source argument (BackupManager.js:266); characterize decoded missing argument versus null for clients. Do not emit for failed validation or rollback.",
+      "contract": "A successful backup apply emits exactly one backup_applied to every authenticated socket and none to an unauthenticated one; the event carries exactly one argument decoded as null (upstream omits the data argument); no event is emitted for a rejected upload, unknown id, forbidden caller or otherwise failed swap.",
       "status": "unverified",
       "source": [
-        "server/managers/BackupManager.js:263-266"
+        "server/managers/BackupManager.js:263-266",
+        "server/SocketAuthority.js:52-68"
       ],
       "tests": [
         "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
-        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata"
+        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-emitted-to-all-authorized-sockets",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-absent-on-rejected-apply",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-single-null-argument",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-first-apply-after-connect",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-once-per-apply",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-not-replayed-to-late-socket",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-absent-on-failed-swap"
       ],
       "evidence": [],
       "cases": {
@@ -6528,12 +6536,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "force is not applicable: backup apply has no force/hard mode; a backup is applied or rejected."
       ]
     },
     {
@@ -6541,14 +6550,23 @@
       "invariant": "INV-CAP-EVENT-LOG",
       "owner": "server",
       "packet": "Q27",
-      "contract": "Only subscribed socket IDs receive log event; payload uses upstream LogObject shape and log setting levels control which entries are emitted.",
+      "contract": "Only admin socket IDs subscribed with a valid LogLevel receive log; the payload has string timestamp, source and message plus levelName and numeric level; a WARN subscription filters INFO lines while an INFO subscription receives INFO and WARN; re-subscribing replaces (no duplicates), remove_log_listener stops delivery, and non-admin or invalid-level subscriptions deliver nothing.",
       "status": "unverified",
       "source": [
-        "server/Logger.js:85",
-        "client/layouts/default.vue"
+        "server/Logger.js:44-90",
+        "server/SocketAuthority.js:201-210",
+        "server/utils/constants.js:19-27",
+        "client/pages/config/log.vue:85-185"
       ],
       "tests": [
-        "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents"
+        "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/log-subscribed-admin-receives-shape",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/log-non-admin-subscription-rejected",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/log-level-threshold",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/log-no-events-before-subscription",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/log-resubscribe-single-delivery",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/log-level-change-and-removal",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/log-invalid-level-not-subscribed"
       ],
       "evidence": [],
       "cases": {
@@ -6561,13 +6579,14 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
         "State scenarios are not applicable to this stateless event-shape/audience requirement.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "force is not applicable: log delivery is controlled only by the subscription level; there is no force/override mode."
       ]
     },
     {
@@ -6881,15 +6900,24 @@
       "invariant": "INV-CAP-FLOW-BACKUP-RESTORE-SWAP",
       "owner": "server",
       "packet": "Q27",
-      "contract": "On successful apply, stage database plus item/author metadata and replace the active runtime graph; on any failed swap restore old paths/database, clean staging artifacts, and emit backup_applied only after success.",
+      "contract": "A created backup is listed with id YYYY-MM-DDTHHmm, key sqlite, id-based filename and backups/ path, server version 2.37.2, current createdAt and a fileSize equal to the archive on disk; applying it restores the database snapshot (reverting later library renames and removing later users) while keeping the caller's token; applying twice is idempotent; admin-only access is 401/403/404 as appropriate; a hostile archive is rejected with 400/500 and leaves rows, backup list, directory and events unchanged.",
       "status": "unverified",
       "source": [
-        "server/managers/BackupManager.js"
+        "server/managers/BackupManager.js:87-290",
+        "server/controllers/BackupController.js:20-195",
+        "server/objects/Backup.js:1-80"
       ],
       "tests": [
         "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
         "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
-        "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+        "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-list-empty-at-start",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-list-shape-and-file",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-create-apply-restores-database",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-route-auth-and-unknown-id",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-apply-repeat-idempotent",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-apply-restores-users-and-library",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-hostile-archive-rejected"
       ],
       "evidence": [],
       "cases": {
@@ -6902,12 +6930,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "force is not applicable: backup apply has no force/hard variant; the archive is applied or rejected."
       ]
     },
     {
@@ -7461,17 +7490,24 @@
       "invariant": "INV-FLOW-CLIENT-PLAYBACK-SESSION-SYNC-001",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "The client creates authenticated server/local sessions, submits listened time/duration/currentTime, receives per-session sync results for local-all and closes owned sessions.",
+      "contract": "The online journey runs play -> GET /api/session/:id -> sync -> close: the play response creates the session GET returns unchanged, every sync moves currentTime and adds timeListening while startTime stays at the position the play response reported, a repeated sync accumulates, a new play on the same device resumes at the synced position and closes the previous session, and the close stores the session and moves the caller progress.",
       "status": "unverified",
       "source": [
-        "server/controllers/SessionController.js",
-        "server/models/PlaybackSession.js"
+        "server/controllers/LibraryItemController.js:443-472",
+        "server/controllers/SessionController.js:152-200",
+        "server/managers/PlaybackSessionManager.js:281-373",
+        "server/managers/PlaybackSessionManager.js:376-399"
       ],
       "tests": [
         "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
         "go-backend/internal/playback/playback_test.go:485#TestLocalSyncStoresOnceAndRespectsNewerProgress",
         "go-backend/internal/playback/playback_test.go:530#TestLocalAllReportsEachSessionAndAcceptsStringTimestamps",
-        "go-backend/internal/contracttest/journey_test.go:127#TestJourney"
+        "go-backend/internal/contracttest/journey_test.go:127#TestJourney",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/flow-online-session-lifecycle",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/flow-repeat-sync-and-resume",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/flow-offline-then-online-resume",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/flow-failed-upload-then-retry",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/flow-refusals-change-nothing"
       ],
       "evidence": [
         "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
@@ -7494,9 +7530,44 @@
       },
       "exceptions": [
         "Client evidence: contracts/clients/official-app.md playback table and contracts/clients/audiobooth.md playback and offline sync sections. These references are discovery leads; assertions for request defaults, repeat sync, changed sync, partial failure and rollback are not fully mapped here.",
-        "State scenario force is not applicable for this client workflow because none of its mapped operations has a force/refresh mode; changed and repeat outcomes remain unverified unless an invariant explicitly states otherwise.",
         "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "force is not applicable: the client workflow has no force/refresh operation; forceDirectPlay and forceTranscode are play request fields, not a replay mode.",
         "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed."
+      ]
+    },
+    {
+      "requirement": "flow-client-playback-session-sync",
+      "invariant": "INV-FLOW-CLIENT-PLAYBACK-SESSION-SYNC-002",
+      "owner": "playback",
+      "packet": "Q08",
+      "contract": "An offline client batch replayed after a lost connection keeps one stored session and one result id per id (a play_local_ id maps to one generated server id), and a later batch appends its new sessions; a failed upload leaves progress and stored sessions unchanged and the next batch still applies its valid entries.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/SessionController.js:254-267",
+        "server/managers/PlaybackSessionManager.js:110-273"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/flow-local-all-retry",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/flow-failed-upload-then-retry"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Client evidence: contracts/clients/official-app.md playback table and contracts/clients/audiobooth.md playback and offline sync sections. These references are discovery leads; assertions for request defaults, repeat sync, changed sync, partial failure and rollback are not fully mapped here.",
+        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "force is not applicable: the client workflow has no force/refresh operation; forceDirectPlay and forceTranscode are play request fields, not a replay mode."
       ]
     },
     {
@@ -8010,17 +8081,96 @@
       "invariant": "INV-PROTOCOL-CORS-BASEPATH",
       "owner": "server",
       "packet": "Q27",
-      "contract": "Mobile ebook/cover origins and configured allowed origins receive usable CORS/preflight responses; base-prefixed and legacy capability/auth routes remain reachable, unknown API paths retain client fallback statuses, and public image exceptions do not expose protected file content.",
+      "contract": "Item cover, item ebook and configured-origin requests receive the exact CORS grant (echoed origin, methods GET, POST, PATCH, PUT, DELETE, OPTIONS, headers *, credentials true); preflight OPTIONS on the mobile cover path answers 200 OK for a permitted origin and 401 without one; ALLOW_CORS=1 forces the grant on any path; no grant is added for an unlisted origin.",
       "status": "unverified",
       "source": [
         "server/Server.js:270-295",
-        "go-backend/testmachine/contracts/clients/"
+        "server/Server.js:71"
       ],
       "tests": [
         "go-backend/internal/server/pipeline_test.go:214#TestCORSAllowed",
         "go-backend/internal/server/pipeline_test.go:250#TestCORSHeadersAndPreflight",
         "go-backend/internal/server/pipeline_test.go:280#TestMiddlewareOrder",
-        "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404"
+        "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/cors-mobile-cover-and-ebook-origins",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/cors-unlisted-origin-and-path",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/cors-preflight-mobile-cover",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/cors-mobile-cover-repeated",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/cors-configured-origin-after-settings-change",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/cors-allow-cors-force-override"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+      ]
+    },
+    {
+      "requirement": "protocol-cors-basepath",
+      "invariant": "INV-PROTOCOL-CORS-BASEPATH-ROUTE-001",
+      "owner": "server",
+      "packet": "Q27",
+      "contract": "With ROUTER_BASE_PATH=/audiobookshelf every capability and static route answers identically under the prefix and under its bare path through the legacy rewrite.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:323-334"
+      ],
+      "tests": [
+        "go-backend/internal/server/pipeline_test.go:214#TestCORSAllowed",
+        "go-backend/internal/server/pipeline_test.go:250#TestCORSHeadersAndPreflight",
+        "go-backend/internal/server/pipeline_test.go:280#TestMiddlewareOrder",
+        "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/basepath-and-legacy-routes"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+      ]
+    },
+    {
+      "requirement": "protocol-cors-basepath",
+      "invariant": "INV-PROTOCOL-CORS-BASEPATH-PUBLIC-001",
+      "owner": "server",
+      "packet": "Q27",
+      "contract": "The unauthenticated GET item cover and author image exceptions serve only those image routes (known cover 200, unknown id 404) and never an ebook: ebook downloads answer 401 without a valid token even with the mobile CORS grant.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:21",
+        "server/Auth.js:36-52",
+        "server/controllers/LibraryItemController.js:401-433",
+        "server/controllers/LibraryItemController.js:1121-1154"
+      ],
+      "tests": [
+        "go-backend/internal/server/pipeline_test.go:214#TestCORSAllowed",
+        "go-backend/internal/server/pipeline_test.go:250#TestCORSHeadersAndPreflight",
+        "go-backend/internal/server/pipeline_test.go:280#TestMiddlewareOrder",
+        "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/public-image-exception-boundary"
       ],
       "evidence": [],
       "cases": {
@@ -9149,10 +9299,10 @@
       "invariant": "INV-ROUTE-R011-ROUTE",
       "owner": "server",
       "packet": "Q27",
-      "contract": "GET /status at server/Server.js:384. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "GET /status is public, reports app audiobookshelf, the pinned server version, isInit and the active auth settings, includes the absolute ConfigPath and MetadataPath only when isInit is false, and ignores credentials; other methods answer 404.",
       "status": "unverified",
       "source": [
-        "server/Server.js:384"
+        "server/Server.js:384-399"
       ],
       "tests": [
         "go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing",
@@ -9160,7 +9310,9 @@
         "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404",
         "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
         "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime",
-        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/initialized-status-safe-fields"
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/status-initialized-public-shape",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/status-wrong-method-and-credentials-ignored",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/status-uninitialized-paths"
       ],
       "evidence": [],
       "cases": {
@@ -9182,10 +9334,11 @@
       "invariant": "INV-ROUTE-R012-ROUTE",
       "owner": "server",
       "packet": "Q27",
-      "contract": "GET /ping at server/Server.js:401. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "GET /ping is public and always answers 200 {success:true}; the legacy rewrite makes /ping and /audiobookshelf/ping equivalent; POST /ping answers 404.",
       "status": "unverified",
       "source": [
-        "server/Server.js:401"
+        "server/Server.js:323-334",
+        "server/Server.js:401-404"
       ],
       "tests": [
         "go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing",
@@ -9194,6 +9347,7 @@
         "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
         "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime",
         "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/ping-value-and-repeat",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/ping-wrong-method-is-404",
         "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/ping-basepath-and-legacy"
       ],
       "evidence": [],
@@ -9216,7 +9370,7 @@
       "invariant": "INV-ROUTE-R013-ROUTE",
       "owner": "server",
       "packet": "Q27",
-      "contract": "GET /healthcheck at server/Server.js:405. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "GET /healthcheck is public and answers 200 body OK; HEAD answers 200 with an empty body; query parameters do not change the answer; POST answers 404.",
       "status": "unverified",
       "source": [
         "server/Server.js:405"
@@ -9227,7 +9381,9 @@
         "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404",
         "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
         "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime",
-        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/health-value-and-repeat"
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/health-value-and-repeat",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/healthcheck-wrong-method-is-404",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/healthcheck-head-and-query"
       ],
       "evidence": [],
       "cases": {
@@ -9249,13 +9405,20 @@
       "invariant": "INV-ROUTE-R014-SPA",
       "owner": "server",
       "packet": "Q27",
-      "contract": "The dynamic SPA route serves the configured client entry document for a client-side route and serves an existing asset at its static path.",
+      "contract": "The bundled client entry document is served for / and every enumerated client route (including query and optional-segment variants) with text/html; an existing asset is served with its own type; a missing asset, a directory request and an unlisted client path answer 404 and never fall back to the entry document.",
       "status": "unverified",
       "source": [
-        "server/Server.js:437"
+        "server/Server.js:410-452"
       ],
       "tests": [
-        "go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing"
+        "go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing",
+        "go-backend/internal/server/pipeline_test.go:47#TestPublicEndpoints",
+        "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404",
+        "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
+        "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/spa-client-routes-serve-entry",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/spa-missing-asset-404-no-listing",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/spa-dynamic-variants-and-unknown-client-path"
       ],
       "evidence": [],
       "cases": {
@@ -9278,13 +9441,21 @@
       "invariant": "INV-ROUTE-R015-ORDER",
       "owner": "server",
       "packet": "Q27",
-      "contract": "The terminal ALL * handler runs only after more specific route handlers and preserves their registered responses; unmatched API paths are not converted into client HTML.",
+      "contract": "Unmatched API paths are answered by the API auth gate (401 without a token) and then default 404 with an error body, never converted to the client HTML; registered routes and unknown methods on them keep their own statuses, so the terminal handler does not shadow them.",
       "status": "unverified",
       "source": [
-        "server/Server.js:452"
+        "server/Server.js:346-355",
+        "server/Server.js:437-467"
       ],
       "tests": [
-        "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404"
+        "go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing",
+        "go-backend/internal/server/pipeline_test.go:47#TestPublicEndpoints",
+        "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404",
+        "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
+        "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/unmatched-api-404-with-token",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/unmatched-api-unauthenticated-401",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/registered-routes-not-shadowed"
       ],
       "evidence": [],
       "cases": {
@@ -9306,14 +9477,18 @@
       "invariant": "INV-ROUTE-R016-CACHE",
       "owner": "server",
       "packet": "Q27",
-      "contract": "Library GET responses remain isolated by authenticated user and reflect committed writes; conditional validators must not serve stale or unauthorized payloads. Recreating the upstream LRU algorithm is unnecessary.",
+      "contract": "GET /api/libraries answers only the caller's accessible libraries with their folders, repeats the same body and ETag, answers 304 to a matching If-None-Match, reflects a committed rename on the next request, and answers 401 without valid credentials.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:68",
-        "server/managers/ApiCacheManager.js"
+        "server/managers/ApiCacheManager.js:79-115",
+        "server/controllers/LibraryController.js:74-90"
       ],
       "tests": [
-        "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET"
+        "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/libraries-list-and-conditional",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/libraries-requires-authentication",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/libraries-user-isolation-and-write-freshness"
       ],
       "evidence": [],
       "cases": {
@@ -12637,7 +12812,9 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/batch-delete-soft-several-items",
-        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/batch-delete-hard-with-unknown-ids"
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/batch-delete-hard-with-unknown-ids",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/batch-delete-duplicate-id-after-cascade-state",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/batch-delete-repeat-is-404"
       ],
       "evidence": [],
       "cases": {
@@ -12689,12 +12866,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: batch update has no force or hard-delete query parameter; only the item delete routes have one.",
         "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
         "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
         "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
@@ -12734,12 +12912,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: batch update has no force or hard-delete query parameter; only the item delete routes have one."
       ]
     },
     {
@@ -13277,12 +13456,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the media edit route has no force or override mode; a cover replacement is a normal payload field.",
         "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
         "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
         "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
@@ -13319,12 +13499,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the media edit route has no force or override mode; a cover replacement is a normal payload field."
       ]
     },
     {
@@ -13354,12 +13535,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the media edit route has no force or override mode; a cover replacement is a normal payload field."
       ]
     },
     {
@@ -13397,12 +13579,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the media edit route has no force or override mode; a cover replacement is a normal payload field."
       ]
     },
     {
@@ -13436,12 +13619,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the media edit route has no force or override mode; a cover replacement is a normal payload field."
       ]
     },
     {
@@ -13477,12 +13661,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the media edit route has no force or override mode; a cover replacement is a normal payload field."
       ]
     },
     {
@@ -13514,12 +13699,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the media edit route has no force or override mode; a cover replacement is a normal payload field."
       ]
     },
     {
@@ -13747,9 +13933,9 @@
       "exceptions": [
         "No tests were executed in this mapping invocation. Current tests map selected payload, permission, missing-media and malformed-type assertions but remain unverified until executed and reviewed against current pinned-source/client oracles.",
         "The accepted playback lifecycle packet is bounded to stream lifecycle and does not establish POST /play request/response parity.",
-        "force is not an operation-level state scenario: forceDirectPlay and forceTranscode select playback modes; these are request fields, not a refresh/force replay operation.",
         "The browser and operational playback reports are historical evidence leads; they are not used to mark current requirements verified.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: forceDirectPlay/forceTranscode select a play method, not a refresh/force replay operation.",
         "Mapped test assertion is not executed/reviewed during this invocation."
       ]
     },
@@ -13786,9 +13972,9 @@
       "exceptions": [
         "No tests were executed in this mapping invocation. Current tests map selected payload, permission, missing-media and malformed-type assertions but remain unverified until executed and reviewed against current pinned-source/client oracles.",
         "The accepted playback lifecycle packet is bounded to stream lifecycle and does not establish POST /play request/response parity.",
-        "force is not an operation-level state scenario: forceDirectPlay and forceTranscode select playback modes; these are request fields, not a refresh/force replay operation.",
         "The browser and operational playback reports are historical evidence leads; they are not used to mark current requirements verified.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: forceDirectPlay/forceTranscode select a play method, not a refresh/force replay operation.",
         "Mapped test assertion is not executed/reviewed during this invocation; precise upstream status parity remains unverified."
       ]
     },
@@ -13823,9 +14009,9 @@
       "exceptions": [
         "No tests were executed in this mapping invocation. Current tests map selected payload, permission, missing-media and malformed-type assertions but remain unverified until executed and reviewed against current pinned-source/client oracles.",
         "The accepted playback lifecycle packet is bounded to stream lifecycle and does not establish POST /play request/response parity.",
-        "force is not an operation-level state scenario: forceDirectPlay and forceTranscode select playback modes; these are request fields, not a refresh/force replay operation.",
         "The browser and operational playback reports are historical evidence leads; they are not used to mark current requirements verified.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: forceDirectPlay/forceTranscode select a play method, not a refresh/force replay operation."
       ]
     },
     {
@@ -13859,9 +14045,9 @@
       "exceptions": [
         "No tests were executed in this mapping invocation. Current tests map selected payload, permission, missing-media and malformed-type assertions but remain unverified until executed and reviewed against current pinned-source/client oracles.",
         "The accepted playback lifecycle packet is bounded to stream lifecycle and does not establish POST /play request/response parity.",
-        "force is not an operation-level state scenario: forceDirectPlay and forceTranscode select playback modes; these are request fields, not a refresh/force replay operation.",
         "The browser and operational playback reports are historical evidence leads; they are not used to mark current requirements verified.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: forceDirectPlay/forceTranscode select a play method, not a refresh/force replay operation."
       ]
     },
     {
@@ -13898,9 +14084,9 @@
       "exceptions": [
         "No tests were executed in this mapping invocation. Current tests map selected payload, permission, missing-media and malformed-type assertions but remain unverified until executed and reviewed against current pinned-source/client oracles.",
         "The accepted playback lifecycle packet is bounded to stream lifecycle and does not establish POST /play request/response parity.",
-        "force is not an operation-level state scenario: forceDirectPlay and forceTranscode select playback modes; these are request fields, not a refresh/force replay operation.",
         "The browser and operational playback reports are historical evidence leads; they are not used to mark current requirements verified.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: forceDirectPlay/forceTranscode select a play method, not a refresh/force replay operation."
       ]
     },
     {
@@ -13936,9 +14122,9 @@
       "exceptions": [
         "No tests were executed in this mapping invocation. Current tests map selected payload, permission, missing-media and malformed-type assertions but remain unverified until executed and reviewed against current pinned-source/client oracles.",
         "The accepted playback lifecycle packet is bounded to stream lifecycle and does not establish POST /play request/response parity.",
-        "force is not an operation-level state scenario: forceDirectPlay and forceTranscode select playback modes; these are request fields, not a refresh/force replay operation.",
         "The browser and operational playback reports are historical evidence leads; they are not used to mark current requirements verified.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: forceDirectPlay/forceTranscode select a play method, not a refresh/force replay operation."
       ]
     },
     {
@@ -13974,9 +14160,9 @@
       "exceptions": [
         "No tests were executed in this mapping invocation. Current tests map selected payload, permission, missing-media and malformed-type assertions but remain unverified until executed and reviewed against current pinned-source/client oracles.",
         "The accepted playback lifecycle packet is bounded to stream lifecycle and does not establish POST /play request/response parity.",
-        "force is not an operation-level state scenario: forceDirectPlay and forceTranscode select playback modes; these are request fields, not a refresh/force replay operation.",
         "The browser and operational playback reports are historical evidence leads; they are not used to mark current requirements verified.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: forceDirectPlay/forceTranscode select a play method, not a refresh/force replay operation."
       ]
     },
     {
@@ -13996,7 +14182,8 @@
         "go-backend/internal/playback/playback_test.go:276#TestPlayRefusals",
         "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-direct-session",
         "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-method-and-start-times",
-        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-sync-moves-episode-progress"
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-sync-moves-episode-progress",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/play-episode-repeat-replaces-session"
       ],
       "evidence": [],
       "cases": {
@@ -14013,8 +14200,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: episode play has no force/refresh mode; force flags select the play method.",
         "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
       ]
     },
@@ -14047,8 +14234,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: episode play has no force/refresh mode; force flags select the play method."
       ]
     },
     {
@@ -14080,12 +14267,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the tracks route has no force or override mode; the ordered file data fully replaces the order.",
         "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
         "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
         "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
@@ -14118,12 +14306,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the tracks route has no force or override mode; the ordered file data fully replaces the order."
       ]
     },
     {
@@ -14267,12 +14456,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the chapters route has no force or override mode; a different chapter count replaces the list.",
         "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
         "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
         "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
@@ -14292,6 +14482,7 @@
       "tests": [
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/chapters-replace-list",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/chapters-edit-same-count",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/chapters-repeat-identical-list-is-noop",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/chapters-empty-list-clears"
       ],
       "evidence": [],
@@ -14305,12 +14496,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the chapters route has no force or override mode; a different chapter count replaces the list."
       ]
     },
     {
@@ -14481,12 +14673,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the file delete route has no force or override mode; deleting the file is the only action.",
         "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
         "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
         "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
@@ -14507,6 +14700,7 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/file-delete-non-media-file",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/file-delete-repeat-is-404",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/file-delete-audio-file",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/file-delete-ebook-files",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/file-delete-podcast-episode-cascades"
@@ -14522,12 +14716,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the file delete route has no force or override mode; deleting the file is the only action."
       ]
     },
     {
@@ -14733,12 +14928,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the ebook status route toggles the file; it has no force or override mode.",
         "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
         "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
         "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
@@ -14759,6 +14955,7 @@
       "tests": [
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/ebook-status-primary-becomes-supplementary",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/ebook-status-supplementary-becomes-primary",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/ebook-status-repeat-toggles-back",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/ebook-status-switches-the-primary-among-several"
       ],
       "evidence": [],
@@ -14772,12 +14969,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the ebook status route toggles the file; it has no force or override mode."
       ]
     },
     {
@@ -20094,14 +20292,19 @@
       "invariant": "INV-R140-CONTRACT-001",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "GET /api/sessions. Admin history supports user/sort/desc/itemsPerPage/page filters and returns total/numPages/page/itemsPerPage/sessions plus optional userId with historical null/device fields; non-admin returns 404.",
+      "contract": "GET /api/sessions as an admin answers {total, numPages, page, itemsPerPage, sessions, userId} where each stored session is the old playback document (id, userId, libraryId, libraryItemId, bookId, episodeId, mediaType, mediaMetadata, chapters [], displayTitle, displayAuthor, coverPath, duration, playMethod, mediaPlayer, deviceInfo or {}, serverVersion, date, dayOfWeek, timeListening, startTime, currentTime, startedAt, updatedAt) plus user {id, username}; it filters by user uuid, sorts by the validated key (default updatedAt) in asc/desc, pages with itemsPerPage (default 10) and page (default 0), ignores a non-uuid user filter, and answers 404 to a non-admin and 401 unauthenticated. A stored session whose user was deleted answers userId null and user null.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:234",
-        "server/controllers/SessionController.js:29"
+        "server/controllers/SessionController.js:29-118",
+        "server/models/PlaybackSession.js:74-106"
       ],
       "tests": [
-        "go-backend/internal/playback/playback_test.go:577#TestHistoryListingSortsFiltersAndDeletes"
+        "go-backend/internal/playback/playback_test.go:577#TestHistoryListingSortsFiltersAndDeletes",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-history-lists-user-sessions",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-history-refused",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-history-paging-and-legacy",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-history-deleted-user"
       ],
       "evidence": [],
       "cases": {
@@ -20121,15 +20324,20 @@
       "invariant": "INV-R141-CONTRACT-001",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "DELETE /api/sessions/:id. Delete an authorized historical session and close its live session if open; unknown ID returns 404 and disallowed user 403; retain media/progress and unrelated history.",
+      "contract": "DELETE /api/sessions/:id by a user with the delete permission answers 200 with an empty body and removes that stored session; an open session is also closed without a user_session_closed event; media, progress and other sessions stay. Unknown or malformed ids answer 404 and a user without the delete permission 403.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:235",
-        "server/controllers/SessionController.js:357",
-        "server/controllers/SessionController.js:192"
+        "server/controllers/SessionController.js:186-196",
+        "server/controllers/SessionController.js:313-326"
       ],
       "tests": [
-        "go-backend/internal/playback/playback_test.go:577#TestHistoryListingSortsFiltersAndDeletes"
+        "go-backend/internal/playback/playback_test.go:577#TestHistoryListingSortsFiltersAndDeletes",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-delete-stored-session",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-delete-repeat-not-found",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-delete-open-session",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-delete-episode-session",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-delete-refusals-change-nothing"
       ],
       "evidence": [],
       "cases": {
@@ -20146,8 +20354,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: session delete has no force/hard mode; a repeated delete answers 404.",
         "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
       ]
     },
@@ -20156,16 +20364,20 @@
       "invariant": "INV-R142-CONTRACT-001",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "GET /api/sessions/open. Admin open-session snapshot preserves owning-user/device/playback fields without leaking data to listeners; concurrent sync/list must be safe.",
+      "contract": "GET /api/sessions/open as an admin answers {sessions, shareSessions}: each open session in creation order is its toJSON plus user {id, username}, shareSessions is [] with no open share, a session entry reflects each sync and disappears once closed, and a non-admin gets 404 while an unauthenticated caller gets 401.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:236",
-        "server/controllers/SessionController.js:122"
+        "server/controllers/SessionController.js:122-147",
+        "server/objects/PlaybackSession.js:62-92"
       ],
       "tests": [
         "go-backend/internal/playback/playback_test.go:354#TestOpenSessionsAndSessionOf",
         "go-backend/internal/playback/playback_test.go:366#TestConcurrentSyncsAreSafe",
-        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle"
+        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/open-sessions-admin-snapshot",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/open-sessions-refused",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/open-sessions-empty-and-synced"
       ],
       "evidence": [],
       "cases": {
@@ -20185,14 +20397,19 @@
       "invariant": "INV-R143-CONTRACT-001",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "POST /api/sessions/batch/delete. Admin batch deletion validates a nonempty session-ID array, deletes selected history and closes matching open sessions; malformed arrays return 400 and non-admins 403.",
+      "contract": "POST /api/sessions/batch/delete as an admin with a non-empty array of session uuids answers 200 with an empty body, removes exactly those stored rows and any matching open session without an event, and keeps the other rows; a missing, empty, non-array or non-uuid sessions body answers 400, a non-admin 403 (checked first) and an unauthenticated caller 401, changing nothing.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:237",
-        "server/controllers/SessionController.js:213"
+        "server/controllers/SessionController.js:213-249"
       ],
       "tests": [
-        "go-backend/internal/playback/playback_test.go:577#TestHistoryListingSortsFiltersAndDeletes"
+        "go-backend/internal/playback/playback_test.go:577#TestHistoryListingSortsFiltersAndDeletes",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-batch-delete-stored",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-batch-delete-repeat",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-batch-delete-open",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-batch-delete-duplicates",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/sessions-batch-delete-refusals"
       ],
       "evidence": [],
       "cases": {
@@ -20209,8 +20426,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: batch delete has no force/hard mode; absent ids are ignored and a repeat answers 200.",
         "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
       ]
     },
@@ -20219,14 +20436,21 @@
       "invariant": "INV-R144-CONTRACT-001",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "POST /api/session/local. Offline upload maps play_local identity to one persisted server ID, updates repeat progress without duplicate sessions, preserves initial client metadata/date, recomputes updated date and never moves newer progress backward.",
+      "contract": "POST /api/session/local with a mobile offline session answers 200 with an empty body and stores it under the client id with the caller as user, the item's library, duration and media metadata, the client display fields and date, createdAt=startedAt and updatedAt=updatedAt; a play_local_ id maps to one stable generated id; a repeat updates currentTime, timeListening, updatedAt and the recomputed date in the same row while keeping the initial metadata; the caller progress moves only when the client timestamp is not older than the stored progress; an unknown item or episode answers 500 and stores no session or progress.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:238",
-        "server/controllers/SessionController.js:254"
+        "server/controllers/SessionController.js:254-267",
+        "server/managers/PlaybackSessionManager.js:144-273",
+        "server/models/PlaybackSession.js:140-163"
       ],
       "tests": [
-        "go-backend/internal/playback/playback_test.go:485#TestLocalSyncStoresOnceAndRespectsNewerProgress"
+        "go-backend/internal/playback/playback_test.go:485#TestLocalSyncStoresOnceAndRespectsNewerProgress",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-local-creates-stored-session",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-local-repeat-keeps-one-session",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-local-never-moves-newer-progress",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-local-minimal-payload",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-local-unknown-item"
       ],
       "evidence": [],
       "cases": {
@@ -20243,8 +20467,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: offline upload has no force mode; the client timestamp decides whether the progress moves.",
         "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
       ]
     },
@@ -20253,14 +20477,20 @@
       "invariant": "INV-R145-CONTRACT-001",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "POST /api/session/local-all. Offline batch upload returns one results entry per input, stable IDs for repeats, success/error/progressSynced fields, numeric-string epoch-millisecond timestamps and partial-failure behavior.",
+      "contract": "POST /api/session/local-all answers 200 {results} with one entry per input in request order: {id, success:true, progressSynced} for a stored session (progressSynced false when the stored progress is newer) and {id, success:false, error} for an unknown item or episode while the other entries still apply; ids stay stable for repeats and play_local_ ids map to one generated id; an empty or absent sessions list answers {results: []}.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:239",
-        "server/controllers/SessionController.js:266"
+        "server/controllers/SessionController.js:266",
+        "server/managers/PlaybackSessionManager.js:110-273"
       ],
       "tests": [
-        "go-backend/internal/playback/playback_test.go:530#TestLocalAllReportsEachSessionAndAcceptsStringTimestamps"
+        "go-backend/internal/playback/playback_test.go:530#TestLocalAllReportsEachSessionAndAcceptsStringTimestamps",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/local-all-reports-each-session",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/local-all-repeat-keeps-ids",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/local-all-partial-failure-and-conflict",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/local-all-empty-and-duplicates",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/local-all-failures-change-nothing"
       ],
       "evidence": [],
       "cases": {
@@ -20277,8 +20507,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: offline batch upload has no force mode.",
         "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
       ]
     },
@@ -20373,8 +20603,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: session sync has no force mode; every sync applies its payload.",
         "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
       ]
     },
@@ -20410,8 +20640,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: session sync has no force mode; every sync applies its payload."
       ]
     },
     {
@@ -20443,8 +20673,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: session sync has no force mode; every sync applies its payload."
       ]
     },
     {
@@ -20476,8 +20706,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: session sync has no force mode; every sync applies its payload."
       ]
     },
     {
@@ -20485,15 +20715,18 @@
       "invariant": "INV-R148-SAMPLED",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "Sampled POST /session/:id/close via differential case(s) session-close: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: playback.",
+      "contract": "POST /api/session/:id/close of a transcode session answers 200 with an empty body, removes the session's metadata/streams/<id> folder and announces user_session_closed once for that id.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:243"
+        "server/routers/ApiRouter.js:243",
+        "server/managers/PlaybackSessionManager.js:376-418",
+        "server/objects/Stream.js:357-370"
       ],
       "tests": [
         "go-backend/internal/playback/playback_test.go:227#TestDirectPlayRangeOwnershipAndProgress",
         "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
-        "go-backend/internal/playback/playback_test.go:330#TestCloseWithoutSyncDataSavesOnlyListenedSessions"
+        "go-backend/internal/playback/playback_test.go:330#TestCloseWithoutSyncDataSavesOnlyListenedSessions",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-removes-transcode-stream"
       ],
       "evidence": [
         "go-backend/testmachine/contracts/parity/full-suite-report.json#session-close"
@@ -20512,8 +20745,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: session close has no force/hard mode; a second close answers 404.",
         "Sampled evidence; unsampled request-shape variants are separate behaviors."
       ]
     },
@@ -20537,7 +20770,14 @@
         "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-without-listening-stores-nothing",
         "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-empty-keeps-synced-row",
         "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-twice-and-sync-after-close",
-        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-by-admin"
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-close-by-admin",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-on-close",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-not-repeated",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-by-admin",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-on-replacement",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-without-listening",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-on-close-once",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-on-play"
       ],
       "evidence": [],
       "cases": {
@@ -20554,8 +20794,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: session close has no force/hard mode; a second close answers 404."
       ]
     },
     {
@@ -20587,8 +20827,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: session close has no force/hard mode; a second close answers 404."
       ]
     },
     {
@@ -20621,8 +20861,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: session close has no force/hard mode; a second close answers 404."
       ]
     },
     {
@@ -25207,17 +25447,22 @@
       "invariant": "INV-RUNTIME-LIFECYCLE",
       "owner": "server",
       "packet": "Q27",
-      "contract": "Starting/stopping/restoring the runtime owns scanner watchers, schedules, podcast/backup jobs, sockets and media children; requests cannot observe a half-installed graph; shutdown/repeat close reaps owned work and restart removes orphan playback streams.",
+      "contract": "A cold boot serves /ping, /status, the bundled client and the auth-gated API as one complete graph (fresh install: isInit false, empty user table, metadata/streams and the database created); SIGINT stops answering HTTP without removing the database, and a restart receives new sockets and authenticates them.",
       "status": "unverified",
       "source": [
-        "server/Server.js",
-        "index.js",
-        "go-backend/testmachine/reports/playback-lifecycle-architect-review.md"
+        "server/Server.js:180-258",
+        "server/Server.js:276-322",
+        "server/Server.js:565-572",
+        "index.js:19-56"
       ],
       "tests": [
         "go-backend/internal/server/pipeline_test.go:338#TestCloseStopsServingAndIsIdempotent",
         "go-backend/internal/server/wave_g_playback_startup_test.go:15#TestManagerStartupRemovesOrphanPlaybackStreams",
-        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata"
+        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/cold-boot-fresh-install-serves-complete-graph",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/boot-stop-restart-serves-and-persists",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/shutdown-refuses-requests-not-half-graph",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/restart-closes-open-sockets-and-welcomes-new"
       ],
       "evidence": [],
       "cases": {
@@ -25230,11 +25475,85 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: the runtime has no force/hard shutdown or restart mode; SIGINT is the only shutdown signal."
+      ]
+    },
+    {
+      "requirement": "runtime-lifecycle",
+      "invariant": "INV-RUNTIME-LIFECYCLE-RESTART-001",
+      "owner": "server",
+      "packet": "Q27",
+      "contract": "Restarting on the same install serves committed library state again, repeated restarts and a repeated shutdown call keep serving, and boot removes UUID-named orphan stream directories while leaving other names and committed data.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:180-258",
+        "server/managers/PlaybackSessionManager.js:459-484"
+      ],
+      "tests": [
+        "go-backend/internal/server/pipeline_test.go:338#TestCloseStopsServingAndIsIdempotent",
+        "go-backend/internal/server/wave_g_playback_startup_test.go:15#TestManagerStartupRemovesOrphanPlaybackStreams",
+        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/repeated-restart-cycles-keep-serving",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/restart-removes-orphan-playback-streams"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: the runtime has no force/hard shutdown or restart mode; SIGINT is the only shutdown signal."
+      ]
+    },
+    {
+      "requirement": "runtime-lifecycle",
+      "invariant": "INV-RUNTIME-LIFECYCLE-FAILURE-001",
+      "owner": "server",
+      "packet": "Q27",
+      "contract": "A boot with CONFIG_PATH naming a regular file exits non-zero, answers no HTTP, and leaves the install config directory empty and the file unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:180-200",
+        "index.js:19-56"
+      ],
+      "tests": [
+        "go-backend/internal/server/pipeline_test.go:338#TestCloseStopsServingAndIsIdempotent",
+        "go-backend/internal/server/wave_g_playback_startup_test.go:15#TestManagerStartupRemovesOrphanPlaybackStreams",
+        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/failed-boot-exits-without-partial-install"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: the runtime has no force/hard shutdown or restart mode; SIGINT is the only shutdown signal."
       ]
     },
     {
@@ -25817,13 +26136,21 @@
       "invariant": "INV-SOCKET-OUTGOING-BACKUP-APPLIED",
       "owner": "server",
       "packet": "Q27",
-      "contract": "Socket.IO outgoing backup_applied: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "backup_applied is delivered to every authenticated socket connection (two admin sockets and an ordinary socket alike) and never to an unauthenticated socket; its argument list is exactly one JSON null; each successful apply emits one event in apply order, a late-connected socket receives no past replay but the next apply, and rejected applies emit none.",
       "status": "unverified",
       "source": [
-        "server/managers/BackupManager.js:266"
+        "server/managers/BackupManager.js:263-266",
+        "server/SocketAuthority.js:52-68"
       ],
       "tests": [
-        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata"
+        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/socket-backup-applied-audiences",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/socket-backup-applied-non-admin-apply-silent",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/socket-backup-applied-argument-list",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/socket-backup-applied-after-connect",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/socket-backup-applied-each-apply-one-event",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/socket-backup-applied-late-socket-no-replay",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/socket-backup-applied-absent-on-failure"
       ],
       "evidence": [],
       "cases": {
@@ -25836,11 +26163,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: the event has no force/override mode; it follows a successful apply only."
       ]
     },
     {
@@ -26483,7 +26811,10 @@
         "go-backend/internal/item/delete_test.go:45#TestDeleteItemCascadesToEverythingReferencingIt",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-not-emitted-for-rejected-delete",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-audience-and-cascade-events",
-        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-once-per-batch-item"
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-once-per-batch-item",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-duplicate-batch-id-once",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-repeat-delete-once",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-removed-hard-delete"
       ],
       "evidence": [],
       "cases": {
@@ -26545,7 +26876,10 @@
         "go-backend/internal/item/files_test.go:381#TestEbookStatusTogglesThePrimaryEbook",
         "go-backend/internal/item/files_test.go:466#TestDeleteFileRemovesItFromTheItemAndMarksAnEmptyBookMissing",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-updated-tag-rules",
-        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-updated-explicit-and-library-rules"
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-updated-explicit-and-library-rules",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-updated-not-emitted-for-rejected-write",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-updated-repeat-noop-is-silent",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-updated-failed-cover-leaves-state"
       ],
       "evidence": [],
       "cases": {
@@ -26558,11 +26892,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: item metadata writes have no force or override mode; the explicit force flag exists only on the library scan, which emits items_updated."
       ]
     },
     {
@@ -26616,7 +26951,12 @@
         "go-backend/internal/scan/scan_test.go:166#TestMissingIsStampedOnceAndAFolderComesBack",
         "go-backend/internal/scan/scan_test.go:202#TestScanEmitsItemsInChunksOfTen",
         "go-backend/internal/scan/scan_test.go:228#TestRescanSweepsAuthorsAndSeriesTheBookLeft",
-        "go-backend/internal/contracttest/socketio_client_test.go:156#TestParseSocketIOEvent"
+        "go-backend/internal/contracttest/socketio_client_test.go:156#TestParseSocketIOEvent",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/items-updated-on-scan-marks-missing",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/items-updated-repeat-scan-is-silent",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/items-updated-scan-restores-item",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/items-updated-forced-scan-restores-item",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/items-updated-rejected-scan-emits-nothing"
       ],
       "evidence": [],
       "cases": {
@@ -27986,14 +28326,22 @@
       "invariant": "INV-SOCKET-OUTGOING-USER-SESSION-CLOSED",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "Socket.IO outgoing user_session_closed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Socket.IO user_session_closed carries exactly one argument, the closed session id string. It is emitted by closeSession on a successful close (with or without listening time), an admin closing another user's session, a close after the item was deleted and a same-device replacement, exactly once per close, to every socket of the session owner only; admin sockets and other users' sockets must not receive it, and no rejected close (401, 403, 404) emits it.",
       "status": "unverified",
       "source": [
-        "server/managers/PlaybackSessionManager.js:429"
+        "server/managers/PlaybackSessionManager.js:428-431",
+        "server/SocketAuthority.js:68-78",
+        "server/managers/PlaybackSessionManager.js:282-288"
       ],
       "tests": [
         "go-backend/internal/playback/playback_test.go:227#TestDirectPlayRangeOwnershipAndProgress",
-        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle"
+        "go-backend/internal/playback/playback_test.go:294#TestSessionOpenSyncCloseLifecycle",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-on-close",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-not-repeated",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-by-admin",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-refused",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-on-replacement",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-session-closed-without-listening"
       ],
       "evidence": [],
       "cases": {
@@ -28006,11 +28354,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: a socket event has no force mode; every successful close emits once."
       ]
     },
     {
@@ -28018,14 +28367,22 @@
       "invariant": "INV-SOCKET-OUTGOING-USER-STREAM-UPDATE",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "Socket.IO outgoing user_stream_update: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Socket.IO user_stream_update carries one object {id, username, type, session, lastSeen, createdAt} of the acting user where session is that user's own open session as toJSONForClient (libraryItem null), and is sent to every admin socket and no non-admin socket: once on a play, once on a close (the session is still the closing one, with its listening time, or 0 for a session that never listened), twice in order (previous session, then new session) when a play replaces a same-device session; a refused play or close emits none.",
       "status": "unverified",
       "source": [
         "server/managers/PlaybackSessionManager.js:361",
-        "server/managers/PlaybackSessionManager.js:428"
+        "server/managers/PlaybackSessionManager.js:428",
+        "server/SocketAuthority.js:80-87",
+        "server/models/User.js:584-594"
       ],
       "tests": [
-        "go-backend/internal/playback/playback_test.go:227#TestDirectPlayRangeOwnershipAndProgress"
+        "go-backend/internal/playback/playback_test.go:227#TestDirectPlayRangeOwnershipAndProgress",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-on-play",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-on-close-once",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-own-session-only",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-refused",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-on-replacement",
+        "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/socket-stream-update-empty-close"
       ],
       "evidence": [],
       "cases": {
@@ -28038,11 +28395,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: a socket event has no force mode."
       ]
     },
     {
@@ -28899,6 +29257,7 @@
       "exceptions": [
         "Rapid backup filenames have minute granularity; this run compared cross-side counts/lifecycle, but distinct-file retention rolloff under a controlled clock is not established.",
         "Socket evidence covers selected W6 lifecycle windows only; it is not a complete event recipient/payload inventory.",
+        "force is not applicable: this lifecycle subset has no force or override mode; the hard-delete item mode is asserted by the item-delete requirements.",
         "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
       ]
     },
@@ -28907,7 +29266,7 @@
       "invariant": "INV-W6-RESTORE-SOCKET-001",
       "owner": "item",
       "packet": "Q12",
-      "contract": "Applying a backup preserves the authenticated live Socket.IO connection and emits backup_applied after restore; selected cascade event names are captured on real sockets.",
+      "contract": "Applying a backup preserves the authenticated live Socket.IO connection and emits backup_applied (one null argument) after restore; selected cascade event names are captured on real sockets.",
       "status": "unverified",
       "source": [
         "server/managers/BackupManager.js:263-266"
@@ -28917,7 +29276,8 @@
         "go-backend/internal/list/list_test.go:228#TestCollectionDeleteClosesRSSFeed",
         "go-backend/internal/user/user_test.go:191#TestDeleteUserDetachesSessionsAndRemovesPlaylists",
         "go-backend/internal/item/delete_test.go",
-        "go-backend/internal/server/manager_test.go"
+        "go-backend/internal/server/manager_test.go",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/w6-restore-keeps-live-socket"
       ],
       "evidence": [
         "go-backend/testmachine/contracts/parity/cascades-differential-report.json"
@@ -28938,6 +29298,7 @@
       "exceptions": [
         "Rapid backup filenames have minute granularity; this run compared cross-side counts/lifecycle, but distinct-file retention rolloff under a controlled clock is not established.",
         "Socket evidence covers selected W6 lifecycle windows only; it is not a complete event recipient/payload inventory.",
+        "force is not applicable: this lifecycle subset has no force or override mode; the hard-delete item mode is asserted by the item-delete requirements.",
         "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
       ]
     },

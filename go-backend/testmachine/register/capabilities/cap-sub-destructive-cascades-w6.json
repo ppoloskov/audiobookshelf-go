@@ -51,7 +51,7 @@
     {
       "id": "INV-W6-RESTORE-SOCKET-001",
       "class": "state_transition",
-      "contract": "Applying a backup preserves the authenticated live Socket.IO connection and emits backup_applied after restore; selected cascade event names are captured on real sockets.",
+      "contract": "Applying a backup preserves the authenticated live Socket.IO connection and emits backup_applied (one null argument) after restore; selected cascade event names are captured on real sockets.",
       "status": "unverified",
       "source": [
         "server/managers/BackupManager.js:263-266"
@@ -61,7 +61,8 @@
         "go-backend/internal/list/list_test.go:228#TestCollectionDeleteClosesRSSFeed",
         "go-backend/internal/user/user_test.go:191#TestDeleteUserDetachesSessionsAndRemovesPlaylists",
         "go-backend/internal/item/delete_test.go",
-        "go-backend/internal/server/manager_test.go"
+        "go-backend/internal/server/manager_test.go",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/w6-restore-keeps-live-socket"
       ],
       "evidence": [
         "go-backend/testmachine/contracts/parity/cascades-differential-report.json"
@@ -91,6 +92,7 @@
   "exceptions": [
     "Rapid backup filenames have minute granularity; this run compared cross-side counts/lifecycle, but distinct-file retention rolloff under a controlled clock is not established.",
     "Socket evidence covers selected W6 lifecycle windows only; it is not a complete event recipient/payload inventory.",
+    "force is not applicable: this lifecycle subset has no force or override mode; the hard-delete item mode is asserted by the item-delete requirements.",
     "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
   ]
 }

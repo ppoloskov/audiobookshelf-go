@@ -56,7 +56,12 @@
         "go-backend/internal/scan/scan_test.go:166#TestMissingIsStampedOnceAndAFolderComesBack",
         "go-backend/internal/scan/scan_test.go:202#TestScanEmitsItemsInChunksOfTen",
         "go-backend/internal/scan/scan_test.go:228#TestRescanSweepsAuthorsAndSeriesTheBookLeft",
-        "go-backend/internal/contracttest/socketio_client_test.go:156#TestParseSocketIOEvent"
+        "go-backend/internal/contracttest/socketio_client_test.go:156#TestParseSocketIOEvent",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/items-updated-on-scan-marks-missing",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/items-updated-repeat-scan-is-silent",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/items-updated-scan-restores-item",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/items-updated-forced-scan-restores-item",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/items-updated-rejected-scan-emits-nothing"
       ],
       "evidence": [],
       "exceptions": []

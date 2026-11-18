@@ -54,7 +54,8 @@
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: item metadata writes have no force or override mode; the explicit force flag exists only on the library scan, which emits items_updated."
   ],
   "stateful": true,
   "invariants": [
@@ -98,7 +99,10 @@
         "go-backend/internal/item/files_test.go:381#TestEbookStatusTogglesThePrimaryEbook",
         "go-backend/internal/item/files_test.go:466#TestDeleteFileRemovesItFromTheItemAndMarksAnEmptyBookMissing",
         "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-updated-tag-rules",
-        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-updated-explicit-and-library-rules"
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-updated-explicit-and-library-rules",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-updated-not-emitted-for-rejected-write",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-updated-repeat-noop-is-silent",
+        "go-backend/testmachine/scenarios/item_write/run_test.go#TestReplacement/item-updated-failed-cover-leaves-state"
       ],
       "evidence": [],
       "exceptions": []
@@ -108,7 +112,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }
