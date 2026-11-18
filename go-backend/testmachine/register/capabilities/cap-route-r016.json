@@ -4,7 +4,7 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "GET /api/libraries* response-cache middleware from /^\\/libraries/ at server/routers/ApiRouter.js:68. Preserve user-isolated response values and post-write freshness for matching library reads; internal caching is optional. This is cache middleware, not authorization middleware or a standalone endpoint.",
+  "contract": "GET /api/libraries* response cache from server/routers/ApiRouter.js:68 and ApiCacheManager.js: GET library lists are authentication-gated, scoped to the caller's accessible libraries, carry a stable ETag with 304 for If-None-Match, and a committed library rename is visible on the next GET (no stale entry).",
   "source": [
     "server/routers/ApiRouter.js:68"
   ],
@@ -19,7 +19,10 @@
   },
   "stateful": false,
   "tests": [
-    "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET"
+    "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/libraries-list-and-conditional",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/libraries-requires-authentication",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/libraries-user-isolation-and-write-freshness"
   ],
   "evidence": [],
   "exceptions": [
@@ -32,14 +35,18 @@
     {
       "id": "INV-ROUTE-R016-CACHE",
       "class": "precedence",
-      "contract": "Library GET responses remain isolated by authenticated user and reflect committed writes; conditional validators must not serve stale or unauthorized payloads. Recreating the upstream LRU algorithm is unnecessary.",
+      "contract": "GET /api/libraries answers only the caller's accessible libraries with their folders, repeats the same body and ETag, answers 304 to a matching If-None-Match, reflects a committed rename on the next request, and answers 401 without valid credentials.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:68",
-        "server/managers/ApiCacheManager.js"
+        "server/managers/ApiCacheManager.js:79-115",
+        "server/controllers/LibraryController.js:74-90"
       ],
       "tests": [
-        "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET"
+        "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/libraries-list-and-conditional",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/libraries-requires-authentication",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/libraries-user-isolation-and-write-freshness"
       ],
       "evidence": [],
       "exceptions": [

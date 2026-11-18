@@ -4,7 +4,7 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Dynamic SPA/static-client fallback selected by server/Server.js:437. Requirement is the actual path-expression behavior plus serving the bundled client for client routes; this is not a standalone API route. Verify successful static asset and SPA-route responses, missing asset behavior, and no directory listing against upstream.",
+  "contract": "Without REACT_CLIENT_PATH, server/Server.js:410-437 serves express.static(client/dist) and sends client/dist/index.html for / and each listed client route; a missing asset or directory is 404, unlisted client paths are 404, and the SPA is not served for API paths.",
   "source": [
     "server/Server.js:437"
   ],
@@ -22,7 +22,10 @@
     "go-backend/internal/server/pipeline_test.go:47#TestPublicEndpoints",
     "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404",
     "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
-    "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime"
+    "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/spa-client-routes-serve-entry",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/spa-missing-asset-404-no-listing",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/spa-dynamic-variants-and-unknown-client-path"
   ],
   "evidence": [],
   "exceptions": [
@@ -35,13 +38,20 @@
     {
       "id": "INV-ROUTE-R014-SPA",
       "class": "shape",
-      "contract": "The dynamic SPA route serves the configured client entry document for a client-side route and serves an existing asset at its static path.",
+      "contract": "The bundled client entry document is served for / and every enumerated client route (including query and optional-segment variants) with text/html; an existing asset is served with its own type; a missing asset, a directory request and an unlisted client path answer 404 and never fall back to the entry document.",
       "status": "unverified",
       "source": [
-        "server/Server.js:437"
+        "server/Server.js:410-452"
       ],
       "tests": [
-        "go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing"
+        "go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing",
+        "go-backend/internal/server/pipeline_test.go:47#TestPublicEndpoints",
+        "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404",
+        "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
+        "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/spa-client-routes-serve-entry",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/spa-missing-asset-404-no-listing",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/spa-dynamic-variants-and-unknown-client-path"
       ],
       "evidence": [],
       "exceptions": [

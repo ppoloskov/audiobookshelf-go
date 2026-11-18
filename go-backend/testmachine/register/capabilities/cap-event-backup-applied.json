@@ -4,7 +4,7 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "After successful backup application emit backup_applied to all sockets with no explicit source argument (BackupManager.js:266); characterize decoded missing argument versus null for clients. Do not emit for failed validation or rollback.",
+  "contract": "After a successful apply server/managers/BackupManager.js:263-266 sends 200 and emits backup_applied via SocketAuthority.emitter with no data argument: every authenticated socket receives exactly one event whose single argument serializes as null; no event is emitted for a rejected archive or a failed apply.",
   "source": [
     "server/managers/BackupManager.js:263-266"
   ],
@@ -19,32 +19,48 @@
   "stateful": true,
   "tests": [
     "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
-    "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata"
+    "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-emitted-to-all-authorized-sockets",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-absent-on-rejected-apply",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-single-null-argument",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-first-apply-after-connect",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-once-per-apply",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-not-replayed-to-late-socket",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-absent-on-failed-swap"
   ],
   "evidence": [],
   "exceptions": [
     "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+    "force is not applicable: backup apply has no force/hard mode; a backup is applied or rejected."
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "invariants": [
     {
       "id": "INV-CAP-EVENT-BACKUP-APPLIED",
       "class": "timeline",
-      "contract": "After successful backup application emit backup_applied to all sockets with no explicit source argument (BackupManager.js:266); characterize decoded missing argument versus null for clients. Do not emit for failed validation or rollback.",
+      "contract": "A successful backup apply emits exactly one backup_applied to every authenticated socket and none to an unauthenticated one; the event carries exactly one argument decoded as null (upstream omits the data argument); no event is emitted for a rejected upload, unknown id, forbidden caller or otherwise failed swap.",
       "status": "unverified",
       "source": [
-        "server/managers/BackupManager.js:263-266"
+        "server/managers/BackupManager.js:263-266",
+        "server/SocketAuthority.js:52-68"
       ],
       "tests": [
         "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
-        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata"
+        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-emitted-to-all-authorized-sockets",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-absent-on-rejected-apply",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-single-null-argument",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-first-apply-after-connect",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-once-per-apply",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-not-replayed-to-late-socket",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-applied-absent-on-failed-swap"
       ],
       "evidence": [],
       "exceptions": []

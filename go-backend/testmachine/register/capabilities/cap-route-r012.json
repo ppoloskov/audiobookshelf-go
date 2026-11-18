@@ -4,7 +4,7 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "GET /ping at server/Server.js:401. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "GET /ping at server/Server.js:401-404 answers 200 {success:true} without authentication; the base-path rewrite also serves the bare /ping; other methods are 404.",
   "source": [
     "server/Server.js:401"
   ],
@@ -24,6 +24,7 @@
     "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
     "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime",
     "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/ping-value-and-repeat",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/ping-wrong-method-is-404",
     "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/ping-basepath-and-legacy"
   ],
   "evidence": [],
@@ -36,10 +37,11 @@
     {
       "id": "INV-ROUTE-R012-ROUTE",
       "class": "shape",
-      "contract": "GET /ping at server/Server.js:401. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "GET /ping is public and always answers 200 {success:true}; the legacy rewrite makes /ping and /audiobookshelf/ping equivalent; POST /ping answers 404.",
       "status": "unverified",
       "source": [
-        "server/Server.js:401"
+        "server/Server.js:323-334",
+        "server/Server.js:401-404"
       ],
       "tests": [
         "go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing",
@@ -48,6 +50,7 @@
         "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
         "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime",
         "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/ping-value-and-repeat",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/ping-wrong-method-is-404",
         "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/ping-basepath-and-legacy"
       ],
       "evidence": [],

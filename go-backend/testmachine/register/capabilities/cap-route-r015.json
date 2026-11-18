@@ -4,7 +4,7 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Final ALL * catch-all in server/Server.js:452 handles unmatched requests after routers/static setup. Preserve its method/path ordering, response behavior for unmatched API versus client paths, and ensure it does not shadow registered routes.",
+  "contract": "Final ALL * catch-all at server/Server.js:452 is installed only when REACT_CLIENT_PATH is set; in the supported deployment unmatched paths use Express defaults: unknown /api paths are 401 without a token and 404 with one (never client HTML), and unknown methods on registered routes answer 404, so the catch-all never shadows a registered route.",
   "source": [
     "server/Server.js:452"
   ],
@@ -22,7 +22,10 @@
     "go-backend/internal/server/pipeline_test.go:47#TestPublicEndpoints",
     "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404",
     "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
-    "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime"
+    "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/unmatched-api-404-with-token",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/unmatched-api-unauthenticated-401",
+    "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/registered-routes-not-shadowed"
   ],
   "evidence": [],
   "exceptions": [
@@ -34,13 +37,21 @@
     {
       "id": "INV-ROUTE-R015-ORDER",
       "class": "precedence",
-      "contract": "The terminal ALL * handler runs only after more specific route handlers and preserves their registered responses; unmatched API paths are not converted into client HTML.",
+      "contract": "Unmatched API paths are answered by the API auth gate (401 without a token) and then default 404 with an error body, never converted to the client HTML; registered routes and unknown methods on them keep their own statuses, so the terminal handler does not shadow them.",
       "status": "unverified",
       "source": [
-        "server/Server.js:452"
+        "server/Server.js:346-355",
+        "server/Server.js:437-467"
       ],
       "tests": [
-        "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404"
+        "go-backend/internal/server/pipeline_test.go:107#TestClientServedWithSPAFallbackAndNoListing",
+        "go-backend/internal/server/pipeline_test.go:47#TestPublicEndpoints",
+        "go-backend/internal/server/pipeline_test.go:75#TestAPIRequiresAuthAndUnknownRoutesAre404",
+        "go-backend/internal/server/logging_test.go:37#TestSetLogListenerDeliversLogEvents",
+        "go-backend/internal/server/logging_test.go:100#TestLoggerDataEndpointThroughRuntime",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/unmatched-api-404-with-token",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/unmatched-api-unauthenticated-401",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/registered-routes-not-shadowed"
       ],
       "evidence": [],
       "exceptions": [
