@@ -97,7 +97,8 @@
       "exceptions": [],
       "contract": "Changing the password stores a new bcrypt hash; changing the username rotates the stored api token; both delete the user auth sessions (the presenting session of the same user is rotated and kept); the old password or name stops working and the new one logs in; the same username changes nothing and a taken one answers 400; a case-variant rename applies; username and password in one PATCH give one new token and one event.",
       "source": [
-        "server/controllers/UserController.js:242-258,329-346",
+        "server/controllers/UserController.js:242-258",
+      "server/controllers/UserController.js:329-346",
         "server/auth/TokenManager.js:467-504"
       ],
       "tests": [

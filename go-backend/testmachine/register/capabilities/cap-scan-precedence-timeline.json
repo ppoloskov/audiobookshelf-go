@@ -7,8 +7,10 @@
   "contract": "Scanning applies the library's configured metadata sources in the stored order, each enabled source overwriting only the fields it supplies (with non-empty arrays for authors/series/genres/tags/chapters and null/absent values skipped). A precedence change forces the next scan to re-evaluate unchanged items and the order is persisted in library extraData. Audio files are ordered by disc then track and chapters are rebuilt from file durations with cumulative offsets. Item identity survives moves and inode collisions, removed files/authors/series are reconciled, an unprobeable file yields no audio entry, an unreadable metadata.json is ignored and a cancelled scan stops without recording a completed scan.",
   "source": [
     "server/scanner/BookScanner.js:660-817",
-    "server/scanner/LibraryScanner.js:51-135,169-281",
-    "server/scanner/AudioFileScanner.js:52-100,495-573",
+    "server/scanner/LibraryScanner.js:51-135",
+      "server/scanner/LibraryScanner.js:169-281",
+    "server/scanner/AudioFileScanner.js:52-100",
+      "server/scanner/AudioFileScanner.js:495-573",
     "server/scanner/AbsMetadataFileScanner.js:20-51",
     "server/utils/generators/abmetadataGenerator.js:60-150"
   ],

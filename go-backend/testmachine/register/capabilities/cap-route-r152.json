@@ -71,7 +71,8 @@
       "contract": "Importing the same URLs again answers 200 without a second item, without an item_added and without changing the stored podcast; an import list mixing an unreachable feed, an existing feed and a new feed creates exactly the new item (with autoDownloadEpisodes false and no cover when its image cannot be fetched) and leaves the earlier import untouched.",
       "status": "unverified",
       "source": [
-        "server/managers/PodcastManager.js:539-612,686-694"
+        "server/managers/PodcastManager.js:539-612",
+      "server/managers/PodcastManager.js:686-694"
       ],
       "tests": [
         "go-backend/testmachine/scenarios/podcast_feed/run_test.go#TestReplacement/opml-create-repeat-adds-no-item",

@@ -98,7 +98,8 @@
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:242",
-        "server/managers/PlaybackSessionManager.js:106-110,340-348"
+        "server/managers/PlaybackSessionManager.js:106-110",
+      "server/managers/PlaybackSessionManager.js:340-348"
       ],
       "tests": [
         "go-backend/testmachine/scenarios/playback_sessions/run_test.go#TestReplacement/session-sync-item-removed"

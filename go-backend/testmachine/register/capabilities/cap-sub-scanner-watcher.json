@@ -103,7 +103,8 @@
       "status": "unverified",
       "source": [
         "server/utils/scandir.js:48-121",
-        "server/utils/fileUtils.js:140-166,227-249"
+        "server/utils/fileUtils.js:140-166",
+      "server/utils/fileUtils.js:227-249"
       ],
       "tests": [
         "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/discovery-groups-media-and-skips-ignored",
@@ -184,7 +185,8 @@
       "contract": "With the library watcher enabled, adding a book folder produces a watcher-scan task (action watcher-scan, libraryId of the library) that finishes successfully and adds the item, without moving libraries.lastScan, which only a full library scan updates.",
       "status": "unverified",
       "source": [
-        "server/Watcher.js:56-100,200-330",
+        "server/Watcher.js:56-100",
+      "server/Watcher.js:200-330",
         "server/scanner/LibraryScanner.js:374-464",
         "server/scanner/LibraryItemScanner.js:207-223"
       ],

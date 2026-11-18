@@ -8,7 +8,8 @@
   "source": [
     "server/routers/ApiRouter.js:249",
     "server/controllers/PodcastController.js:200-218",
-    "server/utils/podcastUtils.js:106-240,296-344",
+    "server/utils/podcastUtils.js:106-240",
+      "server/utils/podcastUtils.js:296-344",
     "server/utils/podcastUtils.js:346-410",
     "server/Server.js:95-107"
   ],
@@ -61,7 +62,8 @@
       "contract": "An accepted request answers {podcast: {metadata, episodes}} with the feed title, author, language, explicit, type, pubDate, link, the itunes image, nested itunes categories joined as \"Parent:Child\", the sanitized description and its plain text, the requested feed URL, and for each playable item the title, subtitle, sanitized content:encoded description and plain description, pubDate, episodeType, season, episode, author, duration string and seconds, explicit, guid, publishedAt (null when unparsable), enclosure (url trimmed, type and length) and chapters with computed ends; an item without audio is skipped, an item whose cover is only in the RSS image element reports no image, ISO-8859-1 bytes decode, attributed text values and bare guids are read, and invalid chapters are dropped.",
       "status": "unverified",
       "source": [
-        "server/utils/podcastUtils.js:106-240,296-344",
+        "server/utils/podcastUtils.js:106-240",
+      "server/utils/podcastUtils.js:296-344",
         "server/utils/podcastUtils.js:346-410",
         "server/utils/index.js:67-79"
       ],

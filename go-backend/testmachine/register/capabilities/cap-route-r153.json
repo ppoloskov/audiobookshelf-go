@@ -10,7 +10,8 @@
     "server/controllers/PodcastController.js:277-303",
     "server/managers/PodcastManager.js:380-455",
     "server/models/Podcast.js:393-399",
-    "server/models/PodcastEpisode.js:66-107,168-176"
+    "server/models/PodcastEpisode.js:66-107",
+      "server/models/PodcastEpisode.js:168-176"
   ],
   "implementation": [
     "go-backend/internal/podcast/podcast.go"
@@ -92,7 +93,8 @@
       "status": "unverified",
       "source": [
         "server/models/Podcast.js:393-399",
-        "server/models/PodcastEpisode.js:66-107,168-176",
+        "server/models/PodcastEpisode.js:66-107",
+      "server/models/PodcastEpisode.js:168-176",
         "server/managers/PodcastManager.js:206-262"
       ],
       "tests": [
