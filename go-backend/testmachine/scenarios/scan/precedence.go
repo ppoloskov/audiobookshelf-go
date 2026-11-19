@@ -83,7 +83,7 @@ func precedenceScenarios() []harness.Scenario {
 		{
 			Requirement: precedenceReq, Invariant: precedenceAbsent, Case: "edge", State: "changed", Assertion: "precedence-absent-and-empty-keep-values",
 			Sources: []string{sidecarSkipSrc, "server/utils/generators/abmetadataGenerator.js:85-118", "server/scanner/BookScanner.js:230-262"},
-			Claim:   "A sidecar whose null and empty values are skipped applies its non-empty title and leaves the fields only the sidecar supplied (series, genres, chapters, publishedYear) at their stored values, while authors are re-derived from the folder because folderStructure supplies them.",
+			Claim:   "A sidecar whose null and empty values are skipped applies its non-empty title and leaves the fields only the sidecar supplied (series, genres, tags, chapters, publishedYear) at their stored values, while authors are re-derived from the folder because folderStructure supplies them.",
 			Run: func(t *testing.T, e *harness.Env) {
 				id := itemIDByRelPath(t, e, "Precedence Author/Precedence Folder")
 				inFolder := filepath.Join(e.Media, "audiobooks/Precedence Author/Precedence Folder/metadata.json")
@@ -92,6 +92,7 @@ func precedenceScenarios() []harness.Scenario {
 					"authors":       []string{"Base Author"},
 					"series":        []string{"Base Series #5"},
 					"genres":        []string{"Base Genre"},
+					"tags":          []string{"Base Tag"},
 					"publishedYear": "1984",
 					"chapters":      []map[string]any{{"start": 0, "end": 5, "title": "Base One"}, {"start": 5, "end": 10, "title": "Base Two"}},
 				}))
@@ -102,6 +103,7 @@ func precedenceScenarios() []harness.Scenario {
 				requireStrings(t, "base authors", authorNames(base), []string{"Base Author"})
 				requireStrings(t, "base series", seriesNames(base), []string{"Base Series #5"})
 				requireStrings(t, "base genres", base.Media.Metadata.Genres, []string{"Base Genre"})
+				requireStrings(t, "base tags", base.Media.Tags, []string{"Base Tag"})
 				writeFile(t, inFolder, marshalJSON(t, map[string]any{
 					"title":     "Absent Fields Title",
 					"subtitle":  nil,
@@ -109,6 +111,7 @@ func precedenceScenarios() []harness.Scenario {
 					"authors":   []string{},
 					"series":    []string{},
 					"genres":    []string{},
+					"tags":      []string{},
 					"chapters":  []map[string]any{},
 					"narrators": []string{},
 				}))
@@ -122,6 +125,7 @@ func precedenceScenarios() []harness.Scenario {
 				requireStrings(t, "authors", authorNames(after), []string{"Precedence Author"})
 				requireStrings(t, "series", seriesNames(after), []string{"Base Series #5"})
 				requireStrings(t, "genres", after.Media.Metadata.Genres, []string{"Base Genre"})
+				requireStrings(t, "tags", after.Media.Tags, []string{"Base Tag"})
 				if after.Media.Metadata.PublishedYear == nil || *after.Media.Metadata.PublishedYear != "1984" {
 					t.Fatalf("publishedYear = %v, want the stored 1984", after.Media.Metadata.PublishedYear)
 				}
@@ -134,6 +138,7 @@ func precedenceScenarios() []harness.Scenario {
 				stored := readSidecar[bookMetadata](t, e, id)
 				requireStrings(t, "written sidecar series", stored.Series, []string{"Base Series #5"})
 				requireStrings(t, "written sidecar genres", stored.Genres, []string{"Base Genre"})
+				requireStrings(t, "written sidecar tags", stored.Tags, []string{"Base Tag"})
 			},
 		},
 		{

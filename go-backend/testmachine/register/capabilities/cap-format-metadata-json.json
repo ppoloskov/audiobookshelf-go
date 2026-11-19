@@ -32,14 +32,14 @@
   ],
   "exceptions": [
     "force is not applicable: the metadata writer has no force or override mode; it writes when an accepted media update changed something or a scan detected metadata changes.",
-    "The podcast key set is pinned through the podcast item scan (route-r062), which rewrites and rereads the podcast sidecar."
+    "The podcast key set is pinned through the podcast item scan (route-r062), which applies every value and asserts the exact fifteen-key sidecar it rewrites."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-FORMAT-METADATA-JSON",
       "class": "repeat_operation",
-      "contract": "metadata.json is written at metadata/items/<id>/metadata.json (storeMetadataWithItem off) with exactly the canonical keys of the media type, the item's current values, explicit null/empty arrays for cleared values and \"name #sequence\" series strings; it is not a library file, a no-change update leaves it byte-identical, a scan rereads it (series strings become name and sequence), and an unwritable file keeps its previous content while the item keeps the new values, both for a media update and for a scan's own write.",
+      "contract": "metadata.json is written at metadata/items/<id>/metadata.json (storeMetadataWithItem off) with exactly the canonical keys of the media type, the item's current values including subtitle, explicit null/empty arrays for cleared values and \"name #sequence\" series strings; it is not a library file, a no-change update leaves it byte-identical, a scan rereads it (series strings become name and sequence), and an unwritable file keeps its previous content while the item keeps the new values, both for a media update and for a scan's own write.",
       "status": "unverified",
       "source": [
         "server/models/LibraryItem.js:614-711",

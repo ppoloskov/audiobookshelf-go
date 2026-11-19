@@ -111,8 +111,8 @@ func sourceScenarios() []harness.Scenario {
 		},
 		{
 			Requirement: subReq, Invariant: subPrecedence, Case: "edge", State: "changed", Assertion: "ebook-only-item-scans-with-ebook-metadata",
-			Sources: []string{"server/scanner/BookScanner.js:743-770", "server/scanner/AbsMetadataFileScanner.js:20-51"},
-			Claim:   "An item whose only media is an ebook imports with the epub as ebookFile and no audio file, and scanning it again answers UPDATED or UPTODATE while keeping the title stored in its metadata.json.",
+			Sources: []string{"server/scanner/BookScanner.js:743-770", "server/scanner/BookScanner.js:660-700", "server/scanner/AbsMetadataFileScanner.js:20-51"},
+			Claim:   "An item whose only media is an epub imports with the epub as ebookFile and no audio file and takes its title \"Ebook Only\" and language \"en\" from the epub (audioMetatags falls back to the ebook because there are no audio files, overriding the folder title), while the author stays the folder name \"Ebook Author\" because the epub's dc:creator has no opf:role; a rescan keeps those values.",
 			Run: func(t *testing.T, e *harness.Env) {
 				library := e.IDs["library"]
 				stageFolder(t, e, "ebook-only", "audiobooks/Ebook Author/Ebook Only Item", func(dir string) {
@@ -124,6 +124,13 @@ func sourceScenarios() []harness.Scenario {
 				if before.Media.EbookFile == nil || before.Media.EbookFile.EbookFormat != "epub" || len(before.Media.AudioFiles) != 0 || before.IsMissing {
 					t.Fatalf("ebook-only item = ebook %+v audio %d missing %v", before.Media.EbookFile, len(before.Media.AudioFiles), before.IsMissing)
 				}
+				if before.Media.Metadata.Title != "Ebook Only" {
+					t.Fatalf("imported title = %q, want the epub title Ebook Only", before.Media.Metadata.Title)
+				}
+				if ptrText(before.Media.Metadata.Language) != "en" {
+					t.Fatalf("imported language = %q, want the epub language en", ptrText(before.Media.Metadata.Language))
+				}
+				requireStrings(t, "imported authors", authorNames(before), []string{"Ebook Author"})
 				result := scanItem(t, e, id)
 				if result != "UPDATED" && result != "UPTODATE" {
 					t.Fatalf("item scan result = %q, want UPDATED or UPTODATE", result)
@@ -132,9 +139,15 @@ func sourceScenarios() []harness.Scenario {
 				if doc.Media.EbookFile == nil || doc.Media.EbookFile.EbookFormat != "epub" {
 					t.Fatalf("ebookFile after the scan = %+v, want the epub", doc.Media.EbookFile)
 				}
-				if doc.Media.Metadata.Title != before.Media.Metadata.Title {
-					t.Fatalf("title = %q, want the stored %q", doc.Media.Metadata.Title, before.Media.Metadata.Title)
+				if doc.Media.Metadata.Title != "Ebook Only" {
+					t.Fatalf("title after the rescan = %q, want Ebook Only", doc.Media.Metadata.Title)
 				}
+				requireStrings(t, "authors after the rescan", authorNames(doc), []string{"Ebook Author"})
+				stored := readSidecar[bookMetadata](t, e, id)
+				if stored.Title != "Ebook Only" || ptrText(stored.Language) != "en" {
+					t.Fatalf("sidecar title/language = %q/%q, want Ebook Only/en", stored.Title, ptrText(stored.Language))
+				}
+				requireStrings(t, "sidecar authors", stored.Authors, []string{"Ebook Author"})
 			},
 		},
 	}

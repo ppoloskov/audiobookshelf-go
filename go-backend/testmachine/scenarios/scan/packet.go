@@ -16,6 +16,8 @@ func Packet() harness.Packet {
 	scenarios = append(scenarios, scannerScenarios()...)
 	scenarios = append(scenarios, scannerExtraScenarios()...)
 	scenarios = append(scenarios, sourceScenarios()...)
+	// The race scenario creates its own library and leaves it behind.
+	scenarios = append(scenarios, raceScenarios()...)
 	scenarios = append(scenarios, schedulingScenarios()...)
 	// Last: the cancel scenario stages a large library and leaves it behind.
 	scenarios = append(scenarios, cancelScenarios()...)

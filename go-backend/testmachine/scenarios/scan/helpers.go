@@ -68,16 +68,22 @@ func libraryScanStamp(t *testing.T, e *harness.Env, libraryID string) string {
 	return stamp
 }
 
+// libraryScanPath is the scan route the web client calls: it always sends the
+// force query, 0 for a plain scan (client/store/libraries.js:76), and upstream
+// only treats the exact value 1 as forced (server/controllers/LibraryController.js:1272).
+func libraryScanPath(libraryID string, force bool) string {
+	if force {
+		return "/api/libraries/" + libraryID + "/scan?force=1"
+	}
+	return "/api/libraries/" + libraryID + "/scan?force=0"
+}
+
 // libraryScan posts a library scan and waits until the library recorded the
 // completed scan, so a following assertion is not raced by the asynchronous scan.
 func libraryScan(t *testing.T, e *harness.Env, libraryID string, force bool) {
 	t.Helper()
 	before := libraryScanStamp(t, e, libraryID)
-	path := "/api/libraries/" + libraryID + "/scan"
-	if force {
-		path += "?force=1"
-	}
-	resp := e.Post(t, e.Token(t, "root"), path, nil)
+	resp := e.Post(t, e.Token(t, "root"), libraryScanPath(libraryID, force), nil)
 	wantStatus(t, "library scan", resp, http.StatusOK)
 	harness.Eventually(t, scanTimeout, "the library scan to finish", func() bool {
 		return libraryScanStamp(t, e, libraryID) != before
@@ -138,6 +144,42 @@ func itemIDByRelPath(t *testing.T, e *harness.Env, relPath string) string {
 	}
 	id, _ := rows[0]["id"].(string)
 	return id
+}
+
+// itemScanState is the persisted identity and scan timestamp of one item, so a
+// scenario can prove that a scan moves neither the id of a relative path nor
+// the item's own lastScan stamp.
+type itemScanState struct {
+	ID       string
+	RelPath  string
+	LastScan any // the DATE column text, or nil for a never-scanned row
+}
+
+// itemScanStates reads every item of a library ordered by relPath.
+func itemScanStates(t *testing.T, e *harness.Env, libraryID string) []itemScanState {
+	t.Helper()
+	rows := e.Rows(t, "SELECT id, relPath, lastScan FROM libraryItems WHERE libraryId = ? ORDER BY relPath", libraryID)
+	states := make([]itemScanState, 0, len(rows))
+	for _, row := range rows {
+		id, _ := row["id"].(string)
+		relPath, _ := row["relPath"].(string)
+		states = append(states, itemScanState{ID: id, RelPath: relPath, LastScan: row["lastScan"]})
+	}
+	return states
+}
+
+// requireSameItemScans fails unless both lists carry the same items: equal
+// count, the same id for every relPath, and an unchanged lastScan stamp.
+func requireSameItemScans(t *testing.T, what string, got, want []itemScanState) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("%s: %d items, want the %d stored ones", what, len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("%s: item %d = %+v, want %+v", what, i, got[i], want[i])
+		}
+	}
 }
 
 // readFile reads a file of the install.

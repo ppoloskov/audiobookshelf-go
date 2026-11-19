@@ -64,7 +64,7 @@
     {
       "id": "INV-SCAN-AUDIO-001",
       "class": "shape",
-      "contract": "Audio files of a book carry the probed fields (path, ext, ext-derived format and codec, duration, ino) and are ordered by disc then track with 1-based index; a CD01/CD02 folder pair is one item ordered by disc; the book's chapters follow that order with cumulative offsets; a folder whose only audio file cannot be probed becomes no item.",
+      "contract": "Audio files of a book carry the probed fields (path, ext, ext-derived format and codec, duration, ino) and are ordered by disc then track with 1-based index; a CD01/CD02 folder pair is one item ordered by disc; the book's chapters follow that order with ids 0..n-1 where start equals the cumulative duration of the preceding files and end equals start plus the file's probed duration (within 1e-6); a folder whose only audio file cannot be probed becomes no item.",
       "status": "unverified",
       "source": [
         "server/scanner/AudioFileScanner.js:52-100",
@@ -91,7 +91,8 @@
         "server/scanner/LibraryScanner.js:169-200"
       ],
       "tests": [
-        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/book-without-media-is-missing"
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/book-without-media-is-missing",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/book-with-unprobeable-audio-is-missing"
       ],
       "evidence": [],
       "exceptions": []
@@ -134,7 +135,7 @@
     {
       "id": "INV-SCAN-PRECEDENCE-001",
       "class": "precedence",
-      "contract": "The library's persisted metadataPrecedence is applied by a forced scan and re-persisted unchanged in extraData.lastScanMetadataPrecedence on every completed scan; with absMetadata first the folder title wins for title and authors while values only the sidecar supplied (series) remain; an item whose only media is an ebook falls back to the ebook metadata source and scans without losing its stored title.",
+      "contract": "The library's persisted metadataPrecedence is applied by a forced scan and re-persisted unchanged in extraData.lastScanMetadataPrecedence on every completed scan; with absMetadata first the folder title wins for title and authors while values only the sidecar supplied (series) remain; an item whose only media is an ebook takes the title and language that the parsed opf supplies from the parsed ebook metadata through the audioMetatags source (no audio file: the epub's dc:title overrides the folder title) while an author without an opf:role stays the folder-derived name, and a rescan keeps those values.",
       "status": "unverified",
       "source": [
         "server/scanner/BookScanner.js:660-700",
@@ -151,14 +152,16 @@
     {
       "id": "INV-SCAN-EVENTS-001",
       "class": "state_transition",
-      "contract": "A scan that adds books emits items_added events whose payloads are arrays of expanded items (id and media.metadata.title) of at most ten items each, delivering every new item exactly once, to every authenticated socket whose user can access the library, and to no socket of a user restricted to another library and to no unauthenticated socket.",
+      "contract": "A scan that changes books emits items_added (new items) and items_updated (rescanned items) events whose payloads are arrays of expanded items (id and media.metadata.title) of at most ten items each, delivering every item exactly once, to every authenticated socket whose user can access the library, and to no socket of a user restricted to another library and to no unauthenticated socket; twelve updated items arrive as the chunks of ten and two.",
       "status": "unverified",
       "source": [
-        "server/scanner/LibraryScanner.js:224-281",
+        "server/scanner/LibraryScanner.js:185-281",
         "server/SocketAuthority.js:97-131"
       ],
       "tests": [
-        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-events-filter-by-library-access"
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-events-filter-by-library-access",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/items-added-events-are-chunked",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/items-updated-events-are-chunked"
       ],
       "evidence": [],
       "exceptions": [
@@ -212,6 +215,23 @@
       "exceptions": []
     },
     {
+      "id": "INV-SCAN-STALE-ROW-001",
+      "class": "state_transition",
+      "contract": "A library scan loads every item row once after discovery and processes that snapshot; when it rescans an item whose library files changed, checkLibraryItemData saves the libraryFiles array it loaded, so a write that lands on the same item through another route while the scan runs (here: deleting one audio file of a two-file book) is overwritten by the snapshot - the deleted file is stored again as a library file although it no longer exists, while the media row keeps the live delete's audio file list.",
+      "status": "unverified",
+      "source": [
+        "server/scanner/LibraryScanner.js:161-171",
+        "server/scanner/LibraryItemScanData.js:182-276",
+        "server/scanner/BookScanner.js:390-430",
+        "server/controllers/LibraryItemController.js:1012-1060"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-overwrites-live-item-write"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
       "id": "INV-SCAN-COVER-001",
       "class": "state_transition",
       "contract": "Image library files set the item cover: adding a cover.jpg to an item folder without a cover sets media.coverPath to that file on the next scan, renaming it moves coverPath to the new file and deleting it clears coverPath; audio that gains attached cover art has that art extracted as the item cover.",
@@ -251,16 +271,18 @@
     "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/embedded-cover-art-becomes-item-cover",
     "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/identity-survives-folder-rename",
     "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/items-added-events-are-chunked",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/items-updated-events-are-chunked",
     "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/podcast-import-and-episode-changes",
     "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/precedence-snapshot-applied-by-forced-scan",
     "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-events-filter-by-library-access",
     "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-missing-library-folder-flags-all-items",
+    "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-overwrites-live-item-write",
     "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/sidecar-written-with-item-not-inside-it",
     "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/watcher-scans-a-new-book",
     "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/ebook-only-item-scans-with-ebook-metadata"
   ],
   "evidence": [
-    "go-backend/testmachine/scenarios/scan: 13 upstream scenarios, all passing in two consecutive full packet runs"
+    "go-backend/testmachine/scenarios/scan: 23 upstream scenarios, all passing in two consecutive full packet runs"
   ],
   "exceptions": [
     "OverDrive MediaMarkers chapters cannot be produced from this pin's ffprobe JSON path (recorded limitation).",

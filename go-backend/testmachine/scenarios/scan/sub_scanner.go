@@ -2,6 +2,7 @@ package scan
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -167,7 +168,7 @@ func scannerScenarios() []harness.Scenario {
 		{
 			Requirement: subReq, Invariant: subAudio, Case: "edge", State: "changed", Assertion: "audio-disc-order-and-chapters",
 			Sources: []string{"server/scanner/AudioFileScanner.js:52-100", "server/scanner/AudioFileScanner.js:495-573", "server/objects/files/AudioFile.js"},
-			Claim:   "The CD01/CD02 book's two files are ordered by disc number and index 1/2, carry the probed mp3 fields, and produce two chapters whose offsets are the cumulative durations in that order.",
+			Claim:   "The CD01/CD02 book's two files are ordered by disc number and index 1/2, carry the probed mp3 fields, and produce two chapters whose ids are 0/1 and whose start and end equal the cumulative probed durations in that order.",
 			Run: func(t *testing.T, e *harness.Env) {
 				doc := itemDocument(t, e, itemIDByRelPath(t, e, "Discovery Author/Disc Book"))
 				if len(doc.Media.AudioFiles) != 2 {
@@ -193,13 +194,10 @@ func scannerScenarios() []harness.Scenario {
 				start := 0.0
 				for i, file := range doc.Media.AudioFiles {
 					chapter := doc.Media.Chapters[i]
-					if chapter.ID != i || chapter.Start < start-1e-6 || chapter.End < start {
-						t.Fatalf("chapter %d = %+v after %.6f", i, chapter, start)
+					if chapter.ID != i || math.Abs(chapter.Start-start) > 1e-6 || math.Abs(chapter.End-(start+file.Duration)) > 1e-6 {
+						t.Fatalf("chapter %d = %+v, want the offsets %.6f to %.6f of its probed audio file", i, chapter, start, start+file.Duration)
 					}
 					start += file.Duration
-					if chapter.End < start-1e-6 {
-						t.Fatalf("chapter %d ends at %.6f, want at least %.6f", i, chapter.End, start)
-					}
 				}
 			},
 		},

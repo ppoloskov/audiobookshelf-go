@@ -70,11 +70,16 @@ func libraryScenarios() []harness.Scenario {
 	return []harness.Scenario{
 		{
 			Requirement: libScanReq, Invariant: libScanResponse, Case: "normal", State: "initial", Assertion: "library-scan-records-completion",
-			Sources: []string{libScanSrc, libScannerSrc, "server/scanner/LibraryScanner.js:94-104"},
-			Claim:   "An admin scan answers 200 and, when it completes, moves the library's lastScan strictly forward, stamps lastScanVersion 2.37.2 and persists the configured metadata precedence in extraData while the item rows keep their ids and titles.",
+			Sources: []string{libScanSrc, libScannerSrc, "server/scanner/LibraryScanner.js:94-104", "server/scanner/LibraryScanner.js:169-200"},
+			Claim:   "An admin scan answers 200 and, when it completes, moves the library's lastScan strictly forward, stamps lastScanVersion 2.37.2 and persists the configured metadata precedence in extraData while every item whose files did not change keeps its id, title and own lastScan stamp.",
 			Run: func(t *testing.T, e *harness.Env) {
 				library := e.IDs["library"]
+				// A scan of the copied install can rewrite file timestamps on its
+				// first pass; settle the library so this scan's effects are measured
+				// on unchanged files.
+				scanThenAdvanced(t, e, library, false)
 				before := itemTitles(t, e, library)
+				beforeItems := itemScanStates(t, e, library)
 				scanThenAdvanced(t, e, library, false)
 				doc := libraryDocumentOf(t, e, library)
 				if doc.LastScanVersion == nil || *doc.LastScanVersion != "2.37.2" {
@@ -82,39 +87,43 @@ func libraryScenarios() []harness.Scenario {
 				}
 				requireStrings(t, "persisted precedence", lastScanPrecedence(t, e, library), defaultPrecedence)
 				requireStrings(t, "item titles", itemTitles(t, e, library), before)
+				requireSameItemScans(t, "item ids and lastScan after the scan", itemScanStates(t, e, library), beforeItems)
 			},
 		},
 		{
 			Requirement: libScanReq, Invariant: libScanResponse, Case: "normal", State: "repeat", Assertion: "library-scan-repeat-is-stable",
-			Sources: []string{libScanSrc, libScannerSrc},
-			Claim:   "A second scan of an unchanged library answers 200, moves lastScan strictly forward again, adds no item and leaves every item's lastScan timestamp unchanged.",
+			Sources: []string{libScanSrc, libScannerSrc, "server/scanner/LibraryScanner.js:169-200"},
+			Claim:   "A second scan of an unchanged library answers 200, moves the library's lastScan strictly forward again, adds no item and leaves every item's id, relative path and lastScan timestamp unchanged.",
 			Run: func(t *testing.T, e *harness.Env) {
 				library := e.IDs["library"]
 				before := itemTitles(t, e, library)
-				var itemLastScan int64
-				if len(before) > 0 {
-					itemLastScan = itemDocument(t, e, itemIDByTitle(t, e, library, before[0])).LastScan
-				}
+				beforeItems := itemScanStates(t, e, library)
 				scanThenAdvanced(t, e, library, false)
 				requireStrings(t, "item titles", itemTitles(t, e, library), before)
-				if len(before) > 0 {
-					if got := itemDocument(t, e, itemIDByTitle(t, e, library, before[0])).LastScan; got != itemLastScan {
-						t.Fatalf("repeat scan moved the item lastScan from %d to %d", itemLastScan, got)
-					}
-				}
+				requireSameItemScans(t, "item ids and lastScan after the repeat scan", itemScanStates(t, e, library), beforeItems)
 			},
 		},
 		{
 			Requirement: libScanReq, Invariant: libScanForce, Case: "edge", State: "changed", Assertion: "library-scan-without-force-skips-unread-sidecar",
-			Sources: []string{libScanSrc, "server/scanner/LibraryScanner.js:169-222"},
-			Claim:   "A plain scan does not reread a metadata.json stored outside the library tree, so an edit there leaves the item title unchanged while the library records the scan.",
+			Sources: []string{libScanSrc, "server/scanner/LibraryScanner.js:169-222", "server/controllers/LibraryController.js:1272", "client/store/libraries.js:76"},
+			Claim:   "The plain scan the web client sends (?force=0) does not reread a metadata.json stored outside the library tree, so an edit there leaves the item title unchanged while the library records the scan.",
 			Run: func(t *testing.T, e *harness.Env) {
 				library, middle := e.IDs["library"], e.IDs["saga2"]
 				stored := itemDocument(t, e, middle).Media.Metadata.Title
 				writeSidecar(t, e, middle, map[string]any{"title": "Unforced Sidecar"})
-				scanThenAdvanced(t, e, library, false)
+				// The request is the one the web client sends for a plain scan:
+				// the force query is present and 0 (client/store/libraries.js:76).
+				before := libraryDocumentOf(t, e, library)
+				stamp := libraryScanStamp(t, e, library)
+				wantStatus(t, "unforced scan", e.Post(t, e.Token(t, "root"), libraryScanPath(library, false), nil), http.StatusOK)
+				harness.Eventually(t, scanTimeout, "the unforced scan to finish", func() bool {
+					return libraryScanStamp(t, e, library) != stamp
+				})
+				if after := libraryDocumentOf(t, e, library); before.LastScan == nil || after.LastScan == nil || *after.LastScan <= *before.LastScan {
+					t.Fatalf("lastScan = %v, want strictly after %v", after.LastScan, before.LastScan)
+				}
 				if got := itemDocument(t, e, middle).Media.Metadata.Title; got != stored {
-					t.Fatalf("title after a plain scan = %q, want the stored title %q", got, stored)
+					t.Fatalf("title after a ?force=0 scan = %q, want the stored title %q", got, stored)
 				}
 			},
 		},

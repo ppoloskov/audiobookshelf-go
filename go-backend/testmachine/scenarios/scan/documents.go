@@ -50,6 +50,14 @@ type podcastMetadata struct {
 	PodcastType    *string  `json:"podcastType"`
 }
 
+// podcastSidecarKeys is the key set PodcastScanner.saveMetadataFile writes,
+// sorted (server/scanner/PodcastScanner.js:441-457).
+var podcastSidecarKeys = []string{
+	"asin", "author", "description", "explicit", "feedURL", "genres", "imageURL",
+	"itunesArtistId", "itunesId", "itunesPageURL", "language", "podcastType",
+	"releaseDate", "tags", "title",
+}
+
 // chapter is one chapter object of a book and of metadata.json.
 type chapter struct {
 	ID    int     `json:"id"`

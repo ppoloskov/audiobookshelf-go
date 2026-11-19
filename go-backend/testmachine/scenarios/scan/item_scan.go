@@ -28,8 +28,8 @@ func itemScenarios() []harness.Scenario {
 	return []harness.Scenario{
 		{
 			Requirement: itemScanReq, Invariant: itemScanMetadata, Case: "normal", State: "initial", Assertion: "item-scan-applies-edited-sidecar",
-			Sources: []string{itemScanSrc, itemRescanSrc, absSidecarSrc, "server/scanner/BookScanner.js:230-262"},
-			Claim:   "Scanning an item rereads its metadata/items/<id>/metadata.json, applies title, authors and series from it, creates the unknown author and series rows and answers {result:\"UPDATED\"}.",
+			Sources: []string{itemScanSrc, itemRescanSrc, absSidecarSrc, "server/scanner/BookScanner.js:230-262", "server/scanner/BookScanner.js:264-272"},
+			Claim:   "Scanning an item rereads its metadata/items/<id>/metadata.json, applies title, authors and series from it, creates the unknown author row and the unknown series row with its sequence, and answers {result:\"UPDATED\"}.",
 			Run: func(t *testing.T, e *harness.Env) {
 				// The packet changes library files; its own scans must be the only
 				// processor of those changes (the fixture ships the watcher on).
@@ -39,7 +39,7 @@ func itemScenarios() []harness.Scenario {
 				writeSidecar(t, e, novel, map[string]any{
 					"title":     "Item Scan Novel",
 					"authors":   []string{"Ada Example", "Scan Coauthor"},
-					"series":    []string{"Long Saga #5"},
+					"series":    []string{"Scan Fresh Saga #2"},
 					"genres":    []string{"Fiction", "Adventure"},
 					"tags":      []string{"Scan Tag"},
 					"narrators": []string{"Scan Narrator"},
@@ -52,27 +52,27 @@ func itemScenarios() []harness.Scenario {
 					t.Fatalf("title = %q, want the sidecar title", doc.Media.Metadata.Title)
 				}
 				requireStrings(t, "authors", authorNames(doc), []string{"Ada Example", "Scan Coauthor"})
-				requireStrings(t, "series", seriesNames(doc), []string{"Long Saga #5"})
+				requireStrings(t, "series", seriesNames(doc), []string{"Scan Fresh Saga #2"})
 				requireStrings(t, "genres", doc.Media.Metadata.Genres, []string{"Fiction", "Adventure"})
 				requireStrings(t, "tags", doc.Media.Tags, []string{"Scan Tag"})
 				requireStrings(t, "narrators", doc.Media.Metadata.Narrators, []string{"Scan Narrator"})
 				if e.Count(t, "SELECT COUNT(*) FROM authors WHERE name = 'Scan Coauthor' AND libraryId = ?", e.IDs["library"]) != 1 {
 					t.Fatal("the unknown author row was not created")
 				}
-				if e.Count(t, "SELECT COUNT(*) FROM series WHERE name = 'Long Saga' AND libraryId = ?", e.IDs["library"]) != 1 {
-					t.Fatal("linking the existing series must not create a second series row")
+				if e.Count(t, "SELECT COUNT(*) FROM series WHERE name = 'Scan Fresh Saga' AND libraryId = ?", e.IDs["library"]) != 1 {
+					t.Fatal("the unknown series row was not created exactly once")
 				}
 				rows := e.Rows(t, `SELECT bs.sequence AS sequence FROM bookSeries bs JOIN series s ON s.id = bs.seriesId
-					JOIN libraryItems li ON li.mediaId = bs.bookId WHERE li.id = ? AND s.name = 'Long Saga'`, novel)
-				if len(rows) != 1 || rows[0]["sequence"] != "5" {
-					t.Fatalf("bookSeries sequence rows = %v, want one row with sequence 5", rows)
+					JOIN libraryItems li ON li.mediaId = bs.bookId WHERE li.id = ? AND s.name = 'Scan Fresh Saga'`, novel)
+				if len(rows) != 1 || rows[0]["sequence"] != "2" {
+					t.Fatalf("bookSeries sequence rows = %v, want one row with sequence 2", rows)
 				}
 				stored := readSidecar[bookMetadata](t, e, novel)
 				if stored.Title != "Item Scan Novel" {
 					t.Fatalf("rewritten sidecar title = %q, want Item Scan Novel", stored.Title)
 				}
 				requireStrings(t, "rewritten sidecar authors", stored.Authors, []string{"Ada Example", "Scan Coauthor"})
-				requireStrings(t, "rewritten sidecar series", stored.Series, []string{"Long Saga #5"})
+				requireStrings(t, "rewritten sidecar series", stored.Series, []string{"Scan Fresh Saga #2"})
 			},
 		},
 		{
@@ -143,36 +143,71 @@ func itemScenarios() []harness.Scenario {
 		},
 		{
 			Requirement: itemScanReq, Invariant: itemScanMetadata, Case: "normal", State: "changed", Assertion: "item-scan-applies-podcast-sidecar",
-			Sources: []string{itemScanSrc, "server/scanner/AbsMetadataFileScanner.js:57-84", "server/scanner/PodcastScanner.js:207-224"},
-			Claim:   "Scanning a podcast item rereads metadata/items/<id>/metadata.json, applies the podcast keys title, author and genres, answers {result:\"UPDATED\"} and rewrites the sidecar with the podcast key set.",
+			Sources: []string{itemScanSrc, "server/scanner/AbsMetadataFileScanner.js:57-84", "server/scanner/PodcastScanner.js:207-224", "server/scanner/PodcastScanner.js:425-459"},
+			Claim:   "Scanning a podcast item rereads metadata/items/<id>/metadata.json, applies the podcast keys including the author \"Sidecar Host\", answers {result:\"UPDATED\"} and rewrites the sidecar with exactly the fifteen podcast keys of the writer.",
 			Run: func(t *testing.T, e *harness.Env) {
 				podcast := e.IDs["podcast"]
 				writeSidecar(t, e, podcast, map[string]any{
-					"title":       "Sidecar Cast",
-					"author":      "Sidecar Host",
-					"genres":      []string{"Technology", "Science"},
-					"podcastType": "serial",
+					"title":          "Sidecar Cast",
+					"author":         "Sidecar Host",
+					"description":    "Sidecar description.",
+					"releaseDate":    "2024-02-03",
+					"genres":         []string{"Technology", "Science"},
+					"feedURL":        "http://127.0.0.1/sidecar-feed.xml",
+					"imageURL":       "http://127.0.0.1/sidecar-image.jpg",
+					"itunesPageURL":  "http://127.0.0.1/podcast",
+					"itunesId":       "123456789",
+					"itunesArtistId": "987654321",
+					"asin":           "B00SIDECAR",
+					"language":       "en",
+					"explicit":       true,
+					"podcastType":    "serial",
+					"tags":           []string{"Sidecar Tag"},
 				})
 				if got := scanItem(t, e, podcast); got != "UPDATED" {
 					t.Fatalf("podcast item scan result = %q, want UPDATED", got)
 				}
 				doc := itemDocument(t, e, podcast)
-				if doc.Media.Metadata.Title != "Sidecar Cast" {
-					t.Fatalf("podcast title = %q, want Sidecar Cast", doc.Media.Metadata.Title)
+				meta := doc.Media.Metadata
+				if meta.Title != "Sidecar Cast" {
+					t.Fatalf("podcast title = %q, want Sidecar Cast", meta.Title)
+				}
+				if ptrText(meta.Author) != "Sidecar Host" {
+					t.Fatalf("podcast author = %q, want Sidecar Host", ptrText(meta.Author))
+				}
+				requireStrings(t, "podcast genres", meta.Genres, []string{"Technology", "Science"})
+				requireStrings(t, "podcast tags", doc.Media.Tags, []string{"Sidecar Tag"})
+				// Podcast.oldMetadataToJSON carries no asin (server/models/Podcast.js:402-418),
+				// so the item document proves the other applied keys and the sidecar below
+				// proves asin.
+				if ptrText(meta.Description) != "Sidecar description." || ptrText(meta.ReleaseDate) != "2024-02-03" ||
+					ptrText(meta.FeedURL) != "http://127.0.0.1/sidecar-feed.xml" || ptrText(meta.ImageURL) != "http://127.0.0.1/sidecar-image.jpg" ||
+					ptrText(meta.ItunesPageURL) != "http://127.0.0.1/podcast" || ptrText(meta.ItunesID) != "123456789" ||
+					ptrText(meta.ItunesArtistID) != "987654321" || ptrText(meta.Language) != "en" {
+					t.Fatalf("podcast metadata = %+v, want the applied sidecar values", meta)
+				}
+				if !meta.Explicit || ptrText(meta.PodcastType) != "serial" {
+					t.Fatalf("podcast explicit/type = %v/%q, want true/serial", meta.Explicit, ptrText(meta.PodcastType))
 				}
 				body := readFile(t, sidecarPath(e, podcast))
 				var stored podcastMetadata
 				if err := json.Unmarshal(body, &stored); err != nil {
 					t.Fatalf("rewritten podcast sidecar: %v", err)
 				}
-				if stored.Title != "Sidecar Cast" || stored.PodcastType == nil || *stored.PodcastType != "serial" {
-					t.Fatalf("rewritten podcast sidecar = %+v, want the applied title and podcastType", stored)
+				requireStrings(t, "rewritten podcast keys", sidecarKeys(t, e, podcast), podcastSidecarKeys)
+				if stored.Title != "Sidecar Cast" || ptrText(stored.Author) != "Sidecar Host" || ptrText(stored.PodcastType) != "serial" {
+					t.Fatalf("rewritten podcast sidecar = %+v, want the applied title, author and podcastType", stored)
 				}
 				requireStrings(t, "rewritten podcast genres", stored.Genres, []string{"Technology", "Science"})
-				for _, key := range sidecarKeys(t, e, podcast) {
-					if key == "authors" || key == "chapters" || key == "abridged" {
-						t.Fatalf("podcast sidecar must not hold the book key %q", key)
-					}
+				requireStrings(t, "rewritten podcast tags", stored.Tags, []string{"Sidecar Tag"})
+				if ptrText(stored.Description) != "Sidecar description." || ptrText(stored.ReleaseDate) != "2024-02-03" ||
+					ptrText(stored.FeedURL) != "http://127.0.0.1/sidecar-feed.xml" || ptrText(stored.ImageURL) != "http://127.0.0.1/sidecar-image.jpg" ||
+					ptrText(stored.ItunesPageURL) != "http://127.0.0.1/podcast" || ptrText(stored.ItunesID) != "123456789" ||
+					ptrText(stored.ItunesArtistID) != "987654321" || ptrText(stored.ASIN) != "B00SIDECAR" || ptrText(stored.Language) != "en" {
+					t.Fatalf("rewritten podcast sidecar = %+v, want every applied value", stored)
+				}
+				if !stored.Explicit {
+					t.Fatalf("rewritten podcast sidecar explicit = %v, want true", stored.Explicit)
 				}
 			},
 		},

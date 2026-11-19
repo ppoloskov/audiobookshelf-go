@@ -51,7 +51,8 @@ func wantSidecarMatchesItem(t *testing.T, e *harness.Env, itemID string, doc ite
 			t.Fatalf("sidecar chapter %d = %+v, want %+v", i, stored.Chapters[i], chapter)
 		}
 	}
-	if ptrText(stored.PublishedYear) != ptrText(doc.Media.Metadata.PublishedYear) ||
+	if ptrText(stored.Subtitle) != ptrText(doc.Media.Metadata.Subtitle) ||
+		ptrText(stored.PublishedYear) != ptrText(doc.Media.Metadata.PublishedYear) ||
 		ptrText(stored.PublishedDate) != ptrText(doc.Media.Metadata.PublishedDate) ||
 		ptrText(stored.Publisher) != ptrText(doc.Media.Metadata.Publisher) ||
 		ptrText(stored.Description) != ptrText(doc.Media.Metadata.Description) ||

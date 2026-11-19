@@ -221,7 +221,7 @@ func scannerExtraScenarios() []harness.Scenario {
 		{
 			Requirement: subReq, Invariant: subMissing, Case: "error", State: "failure", Assertion: "book-with-unprobeable-audio-is-missing",
 			Sources: []string{"server/scanner/BookScanner.js:175-207", "server/scanner/AudioFileScanner.js:160-180"},
-			Claim:   "A book whose remaining audio file cannot be probed and which has no ebook is flagged missing by the scan, and the flag clears when a probeable file returns.",
+			Claim:   "A book whose remaining audio file cannot be probed and which has no ebook is flagged missing by the scan, and the restore scan clears the stored isMissing flag when a probeable file returns.",
 			Run: func(t *testing.T, e *harness.Env) {
 				library := e.IDs["library"]
 				id := itemIDByRelPath(t, e, "Sidecar Author/Sidecar Book")
@@ -242,11 +242,79 @@ func scannerExtraScenarios() []harness.Scenario {
 					if got := scanItem(t, e, id); got != "UPDATED" {
 						t.Fatalf("restore scan result = %q, want UPDATED", got)
 					}
+					if itemDocument(t, e, id).IsMissing {
+						t.Fatal("the restore scan did not clear the stored isMissing flag")
+					}
+					if e.Count(t, "SELECT COUNT(*) FROM libraryItems WHERE id = ? AND isMissing = 1", id) != 0 {
+						t.Fatal("the restored item row is still flagged missing")
+					}
 				}()
 				libraryScan(t, e, library, false)
 				if !itemDocument(t, e, id).IsMissing {
 					t.Fatal("the book whose only audio file failed probing is not flagged missing")
 				}
+				if e.Count(t, "SELECT COUNT(*) FROM libraryItems WHERE id = ? AND isMissing = 1", id) != 1 {
+					t.Fatal("the item row is not flagged missing")
+				}
+			},
+		},
+		{
+			Requirement: subReq, Invariant: subEvents, Case: "edge", State: "changed", Assertion: "items-updated-events-are-chunked",
+			Sources: []string{"server/scanner/LibraryScanner.js:185-240", "server/SocketAuthority.js:112-131"},
+			Claim:   "A scan that updates twelve books delivers every one of them exactly once in items_updated events of at most ten items each, with the expanded title, to the root and listener sockets and to no socket of a user restricted to another library or of an unauthenticated client.",
+			Run: func(t *testing.T, e *harness.Env) {
+				library := e.IDs["library"]
+				const count = 12
+				source := filepath.Join(e.Install, "chunk-update-source.mp3")
+				stripCopy(t, fixtureAudio(e, "audiobooks/Zed Disposable/Hard Delete Me/Hard Delete Me.mp3"), source)
+				for i := 0; i < count; i++ {
+					name := "Chunk Update " + itoaSmall(i)
+					stageFolder(t, e, "chunk-update-"+itoaSmall(i), "audiobooks/Chunk Update Author/"+name, func(dir string) {
+						copyFile(t, source, filepath.Join(dir, name+".mp3"))
+					})
+				}
+				libraryScan(t, e, library, false) // add the twelve with a plain scan
+				changed := filepath.Join(e.Install, "chunk-update-changed.mp3")
+				stripCopy(t, fixtureAudio(e, "audiobooks/Terry Fixture/Long Saga/Book 1 - The Beginning/01 - Part 1.mp3"), changed)
+				audio, err := os.ReadFile(changed)
+				if err != nil {
+					t.Fatalf("read %s: %v", changed, err)
+				}
+				byID := make(map[string]string, count)
+				for i := 0; i < count; i++ {
+					name := "Chunk Update " + itoaSmall(i)
+					byID[itemIDByRelPath(t, e, "Chunk Update Author/"+name)] = name
+					// Replace the audio bytes so the next scan sees a modified file
+					// and rescans the item instead of only checking it.
+					writeFile(t, filepath.Join(e.Media, "audiobooks/Chunk Update Author", name, name+".mp3"), audio)
+				}
+				root := e.Socket(t, e.Token(t, "root"))
+				listener := e.Socket(t, e.Token(t, "listener"))
+				other := e.Socket(t, createLibraryUser(t, e, "scan-chunk-update-user"))
+				anonymous := e.Socket(t, "")
+				marks := []int{root.Mark(), listener.Mark(), other.Mark(), anonymous.Mark()}
+				task := libraryScanTask(t, e, root, library, false)
+				if task.Data.ScanResults.Updated != count {
+					t.Fatalf("scan counters = %+v, want %d updated", task.Data.ScanResults, count)
+				}
+				sizes, seen := chunkedItemsUpdated(t, root.Events()[marks[0]:], byID)
+				if len(sizes) != 2 || sizes[0] != 10 || sizes[1] != 2 {
+					t.Fatalf("items_updated chunk sizes = %v, want [10 2]", sizes)
+				}
+				for id, times := range seen {
+					if times != 1 {
+						t.Fatalf("item %s was delivered %d times", id, times)
+					}
+				}
+				if len(seen) != count {
+					t.Fatalf("items_updated delivered %d distinct items, want %d", len(seen), count)
+				}
+				listenerSeen := deliveredItemIDs(t, listener.Events()[marks[1]:])
+				if !slices.Equal(sortedItemIDs(listenerSeen), sortedItemIDs(seen)) {
+					t.Fatalf("listener received %v, want the same items as root %v", sortedItemIDs(listenerSeen), sortedItemIDs(seen))
+				}
+				other.None(t, marks[2], "items_updated", absentWindow, nil)
+				anonymous.None(t, marks[3], "items_updated", absentWindow, nil)
 			},
 		},
 		{
@@ -347,3 +415,78 @@ func sameDay(epochMillis int64, date string) bool {
 
 // itoaSmall renders a non-negative small integer.
 func itoaSmall(value int) string { return strconv.Itoa(value) }
+
+// itemsUpdatedEntry is one expanded item of an items_updated payload.
+type itemsUpdatedEntry struct {
+	ID    string `json:"id"`
+	Media struct {
+		Metadata struct {
+			Title string `json:"title"`
+		} `json:"metadata"`
+	} `json:"media"`
+}
+
+// itemsUpdatedPayload decodes one items_updated event into its expanded items.
+func itemsUpdatedPayload(t *testing.T, event harness.Event) []itemsUpdatedEntry {
+	t.Helper()
+	if len(event.Args) != 1 {
+		t.Fatalf("%s has %d arguments, want 1", event.Name, len(event.Args))
+	}
+	var payload []itemsUpdatedEntry
+	if err := json.Unmarshal(event.Args[0], &payload); err != nil {
+		t.Fatalf("items_updated payload: %v", err)
+	}
+	return payload
+}
+
+// chunkedItemsUpdated decodes a socket's items_updated events: it returns the
+// item count of every event and the delivery count per item id, failing on an
+// item outside want or an expanded title that differs from the stored one.
+func chunkedItemsUpdated(t *testing.T, events []harness.Event, want map[string]string) ([]int, map[string]int) {
+	t.Helper()
+	var sizes []int
+	counts := make(map[string]int, len(want))
+	for _, event := range events {
+		if event.Name != "items_updated" {
+			continue
+		}
+		payload := itemsUpdatedPayload(t, event)
+		sizes = append(sizes, len(payload))
+		for _, entry := range payload {
+			title, ok := want[entry.ID]
+			if !ok {
+				t.Fatalf("items_updated carried the unexpected item %s", entry.ID)
+			}
+			if entry.Media.Metadata.Title != title {
+				t.Fatalf("items_updated title of %s = %q, want %q", entry.ID, entry.Media.Metadata.Title, title)
+			}
+			counts[entry.ID]++
+		}
+	}
+	return sizes, counts
+}
+
+// deliveredItemIDs counts the items_updated deliveries per item id of a socket.
+func deliveredItemIDs(t *testing.T, events []harness.Event) map[string]int {
+	t.Helper()
+	counts := make(map[string]int)
+	for _, event := range events {
+		if event.Name != "items_updated" {
+			continue
+		}
+		for _, entry := range itemsUpdatedPayload(t, event) {
+			counts[entry.ID]++
+		}
+	}
+	return counts
+}
+
+// sortedItemIDs lists the keys of a delivery count map sorted.
+func sortedItemIDs(counts map[string]int) []string {
+	ids := make([]string, 0, len(counts))
+	for id := range counts {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	return ids
+}

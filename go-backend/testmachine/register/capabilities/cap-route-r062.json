@@ -68,12 +68,13 @@
     {
       "id": "INV-R062-SIDECAR-001",
       "class": "state_transition",
-      "contract": "Every item scan rereads metadata/items/<id>/metadata.json: for a book it applies title, authors, series and chapters (chapters renumbered from 0 with start/end untouched) and creates unknown author and series rows with their sequence; for a podcast it applies title, author, genres and podcastType; in both cases the scanner rewrites the sidecar with the canonical key set of the media type.",
+      "contract": "Every item scan rereads metadata/items/<id>/metadata.json: for a book it applies title, authors, series and chapters (chapters renumbered from 0 with start/end untouched) and creates the unknown author and series rows with their sequence; for a podcast it applies title, author, genres, tags, description, releaseDate, feedURL, imageURL, itunesPageURL, itunesId, itunesArtistId, asin, language, explicit and podcastType; in both cases the scanner rewrites the sidecar with the canonical key set of the media type (seventeen book keys, fifteen podcast keys).",
       "status": "unverified",
       "source": [
         "server/scanner/AbsMetadataFileScanner.js:20-84",
         "server/scanner/BookScanner.js:230-262",
-        "server/scanner/PodcastScanner.js:207-224"
+        "server/scanner/PodcastScanner.js:207-224",
+        "server/scanner/PodcastScanner.js:425-459"
       ],
       "tests": [
         "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/item-scan-applies-edited-sidecar",
