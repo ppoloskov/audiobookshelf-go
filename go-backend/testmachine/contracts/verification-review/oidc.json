@@ -1,8 +1,8 @@
 {
   "packet": "oidc",
-  "reviewer": "independent re-review, 2026-11-19, deepseek-v4.1-flash:1017",
+  "reviewer": "independent re-review (final), 2026-11-19, deepseek-v4.1-flash:1017",
   "scenario_digest": "5d5bb30a61ca8a677f87a19f7f0f95944b5945336b80e5c44cc39d3aa5e95be0",
-  "requirements_digest": "3c9cf0089d146a42d2df8aa4171cdd8f77a2884142cb01cb26836fd9f0c34956",
+  "requirements_digest": "a0c8761449dea6664d3e1352fcae483e92f711d806afd8827a3e95c0dddd5e75",
   "required_tuples": [
     {
       "requirement": "sub-oidc-auth",
@@ -756,7 +756,5 @@
       "reason": "confirmed: no OIDC route or strategy method implements a force/hard/override/refresh mode (Auth.js:362-523, OidcAuthStrategy.js)."
     }
   ],
-  "open_findings": [
-    "route-r003 record: cap-route-r003.json INV-R003-MOBILE-REPLAY-001 still carries the exception \"The body text is asserted because it is the only client-visible denial besides the status; no client parses it.\", but mobile-redirect-replay-400-changes-nothing no longer asserts a body and the contract no longer names one. Delete or rewrite the stale exception so the record does not claim an out-of-contract assertion."
-  ]
+  "open_findings": []
 }
