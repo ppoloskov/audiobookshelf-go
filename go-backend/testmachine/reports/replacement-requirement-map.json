@@ -43,7 +43,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r000.json": "0487359f55208128451b08448e259cf2263fe3f87125baf40db384e39fabd561",
     "go-backend/testmachine/register/capabilities/cap-route-r001.json": "15e21874ecb3798ba59d7ca2e0a63b2aeef49863216ed60c0462d6ccd11ba494",
     "go-backend/testmachine/register/capabilities/cap-route-r002.json": "e61c55bb18901507a0cb8b1dfea6f77cb4f8d1b99a96e544fed1db39e6568f40",
-    "go-backend/testmachine/register/capabilities/cap-route-r003.json": "fa62608de74c02041073f27409038b62bc4edde184f2f7ec8c998f452a2ae19d",
+    "go-backend/testmachine/register/capabilities/cap-route-r003.json": "189629978d46381f220f91419ba0b69a26161e19f3245db2f305a3ae60468a5e",
     "go-backend/testmachine/register/capabilities/cap-route-r004.json": "99661f31f75d2451062ab91665b4449953afdf17e5a1d9750f9eb32062ea7636",
     "go-backend/testmachine/register/capabilities/cap-route-r005.json": "63763eeb683aee4bc17fa94d2ef4922b269bcdaad028b7736f3fa5eba8b6075b",
     "go-backend/testmachine/register/capabilities/cap-route-r006.json": "78210a40a322c8a05b20b46d1db7c2d0995d0e021d4f95bacb2b8c0e0f6b4f36",
@@ -9373,8 +9373,7 @@
       "exceptions": [
         "force is not applicable: GET /auth/openid/mobile-redirect has no force, override or refresh mode.",
         "The exact ten-minute expiry boundary is unexecuted (see INV-R003-MOBILE-STATE-TTL-001) because the live route exposes neither the timer nor a clock.",
-        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle.",
-        "The body text is asserted because it is the only client-visible denial besides the status; no client parses it."
+        "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle."
       ]
     },
     {

@@ -1,8 +1,8 @@
 {
   "packet": "oidc",
-  "reviewer": "independent review, 2026-11-19, deepseek-v4.1-flash:1017",
-  "scenario_digest": "6ec9287259e524c041f3297bcfbbcb46d83ade5d72c8c1c7eef9855894734f8e",
-  "requirements_digest": "1a574685e21add60677a35ea735f53538b09a9d3d1e247e23eb07e37e8c6f8ef",
+  "reviewer": "independent re-review, 2026-11-19, deepseek-v4.1-flash:1017",
+  "scenario_digest": "5d5bb30a61ca8a677f87a19f7f0f95944b5945336b80e5c44cc39d3aa5e95be0",
+  "requirements_digest": "3c9cf0089d146a42d2df8aa4171cdd8f77a2884142cb01cb26836fd9f0c34956",
   "required_tuples": [
     {
       "requirement": "sub-oidc-auth",
@@ -75,6 +75,55 @@
         "server/models/User.js:230-256"
       ],
       "rationale": "An explicitly unverified email is denied with the login redirect, links nothing and creates no session."
+    },
+    {
+      "requirement": "sub-oidc-auth",
+      "invariant": "INV-OIDC-EMAIL-LINK-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "oidc-email-match-absent-email-verified-links",
+      "sources": [
+        "server/models/User.js:229-256",
+        "server/models/User.js:296-303"
+      ],
+      "rationale": "An absent email_verified claim is not false, so the email match links the existing user: id, username, email and type are kept, authOpenIDSub is added, one session exists and no user is created."
+    },
+    {
+      "requirement": "sub-oidc-auth",
+      "invariant": "INV-OIDC-EMAIL-LINK-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "oidc-email-match-no-email-denied",
+      "sources": [
+        "server/models/User.js:250-256",
+        "server/auth/OidcAuthStrategy.js:131-135"
+      ],
+      "rationale": "With email matching configured, a userinfo without an email is denied with the Unauthorized redirect even when a local user has the same username; nothing is linked, no session exists and the rows are unchanged."
+    },
+    {
+      "requirement": "sub-oidc-auth",
+      "invariant": "INV-OIDC-EMAIL-LINK-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "oidc-email-match-subject-already-linked-denied",
+      "sources": [
+        "server/models/User.js:242-248",
+        "server/auth/OidcAuthStrategy.js:131-135"
+      ],
+      "rationale": "A second subject whose email belongs to a user already linked to another sub is denied with Unauthorized; the original link and session are kept, the second subject stays unlinked and no user is added."
+    },
+    {
+      "requirement": "sub-oidc-auth",
+      "invariant": "INV-OIDC-EMAIL-LINK-001",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "oidc-username-match-links-unlinked-user",
+      "sources": [
+        "server/models/User.js:257-283",
+        "server/models/User.js:296-303",
+        "client/pages/config/authentication.vue:167-182"
+      ],
+      "rationale": "With MatchExistingBy=username, a mode the web client offers, preferred_username matching links the unlinked local user, keeps its id, username, email and type, adds authOpenIDSub and one session without creating a user."
     },
     {
       "requirement": "sub-oidc-auth",
@@ -708,10 +757,6 @@
     }
   ],
   "open_findings": [
-    "route-r002/sub-oidc-auth: Sources of oidc-auto-register-disabled-or-provider-failed-creates-nothing (account.go:57) and oidc-invalid-id-tokens-create-no-user (account.go:79) cite server/auth/OidcAuthStrategy.js:406-432, which is getEndSessionUrl; the provider-error/no-user branch they assert is server/Auth.js:406-447 (handleAuthError/passportCallback). Correct the path.",
-    "sub-oidc-auth INV-OIDC-ADVANCED-PERMS-001: the claim and record say the two permissions are reported in the login payload, but oidc-advanced-perms-claim-applies-to-user asserts only the users row and GET /api/me (the web callback returns no payload), so a server that persists them but sends stale permissions in the native login JSON passes. Add a native (or /login) flow with abs_perms and assert user.permissions in the 200 body, or drop the login-payload clause.",
-    "sub-oidc-auth INV-OIDC-EMAIL-LINK-001: only email_verified true and false run; the invariant's 'not false' also allows an absent email_verified, and the deliberate denials 'no email in userinfo' (User.js:248-252) and 'already linked to a different authOpenIDSub' (User.js:236-242, 270-276) are untested, as is authOpenIDMatchExistingBy=username (User.js:257-280), a mode the web client offers (client/pages/config/authentication.vue matchingExistingOptions). Add: absent email_verified links; no email answers Unauthorized with no link/session; a user linked to sub A logging in with sub B and the same email answers Unauthorized with sub A kept and no session; username mode links an unlinked username match.",
-    "route-r003/route-r004/flow-client-oidc-mobile-pkce: plain-text 400 bodies are pinned with requireBody \"No session\" in callback.go:204,347, account_flow.go:144,174 and flow.go:77 although no client contract reads that body (OWNERS: assert error text only where a client parses it), while the \"State parameter mismatch\" bodies named in INV-R003-MOBILE-REPLAY-001, INV-R003-MOBILE-VALIDATION-001, INV-R003-MOBILE-STATE-TTL-001 and INV-OIDC-MOBILE-REDIRECT-TTL-001 are never asserted. Apply one rule: drop the body assertions and the body strings from those invariants, or cite the client and assert both texts.",
-    "route-r004: the Claim of web-callback-provider-error-and-state-mismatch-denied says all three cases answer 302 /login?error=Unauthorized, but the token-endpoint-400 case correctly asserts error=Error in callback (Auth.js:426); the run contradicts its Claim. Split the sentence so the token rejection says Error in callback."
+    "route-r003 record: cap-route-r003.json INV-R003-MOBILE-REPLAY-001 still carries the exception \"The body text is asserted because it is the only client-visible denial besides the status; no client parses it.\", but mobile-redirect-replay-400-changes-nothing no longer asserts a body and the contract no longer names one. Delete or rewrite the stale exception so the record does not claim an out-of-contract assertion."
   ]
 }

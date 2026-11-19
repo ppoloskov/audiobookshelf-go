@@ -62,9 +62,7 @@
         "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-redirect-replay-400-changes-nothing"
       ],
       "evidence": [],
-      "exceptions": [
-        "The body text is asserted because it is the only client-visible denial besides the status; no client parses it."
-      ]
+      "exceptions": []
     },
     {
       "id": "INV-R003-MOBILE-VALIDATION-001",
