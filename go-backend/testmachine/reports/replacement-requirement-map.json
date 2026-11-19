@@ -6,7 +6,7 @@
   "proof": "Mapping only. No behavior tests executed by this renderer. Test references are assertion/discovery leads, not inferred full coverage.",
   "counts": {
     "requirements": 345,
-    "invariants": 836,
+    "invariants": 837,
     "route_sites": 226,
     "socket_sites": 165,
     "socket_names": 77,
@@ -36,7 +36,7 @@
     "go-backend/testmachine/register/capabilities/cap-flow-tools-job-lifecycle.json": "58d884439842456ee9aa81020c78561da5a22149c489f3fbda7f642c63741f04",
     "go-backend/testmachine/register/capabilities/cap-format-backup-archive.json": "492d6f95fab045d83681397fc2fa3eb401e7bcd2ab7e35d0d64aa1efcc7c41ff",
     "go-backend/testmachine/register/capabilities/cap-format-daily-logs.json": "1dc702be9f01b923cc901e25e65621f0b4af60d3c73d67bf67895a592f253e9f",
-    "go-backend/testmachine/register/capabilities/cap-format-metadata-json.json": "ed2690614fa9873650b02096c12454eba48eb43cd776cdaf47293afaf02fcc2d",
+    "go-backend/testmachine/register/capabilities/cap-format-metadata-json.json": "c2d9f31b7eb205d1369a9a48e4eda6c78c0aa815ca2e6f957056c68eec52dca9",
     "go-backend/testmachine/register/capabilities/cap-persisted-column-semantics.json": "ee5f345d6daac714e6c7cc364bd21033b6b23745706a4752bdd8e77facf930cd",
     "go-backend/testmachine/register/capabilities/cap-protocol-cors-basepath.json": "f7112864bdea052f4bfe97096b4e6053977c6fcad0062462d65a81c87fb2fec1",
     "go-backend/testmachine/register/capabilities/cap-protocol-ranges-cache.json": "b9b93426f961502c2f670953f61a70c9c3b858fd0518c58ed3ba19db863d4677",
@@ -78,7 +78,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r035.json": "dfc47c9895ad2bae82e632960587575f9ad60fe7eb704d424451ecef915bb48c",
     "go-backend/testmachine/register/capabilities/cap-route-r036.json": "63da996e270388b13eb13a39cd6edcb5e86378d77abd94a02c66970a95ac78c8",
     "go-backend/testmachine/register/capabilities/cap-route-r037.json": "94fa790147c8d0f28249b7b5278c10ce4e340c019d5d54a42f8c185ee8927967",
-    "go-backend/testmachine/register/capabilities/cap-route-r038.json": "e08ac2e1b766cdf1595f8a6fa9caf8cbae6e322fa5e34c242c79896dcce4f37f",
+    "go-backend/testmachine/register/capabilities/cap-route-r038.json": "897b32b62dda9569f16d5d4d1857f8976f9d7432f17651ec6950a7fc658b4818",
     "go-backend/testmachine/register/capabilities/cap-route-r039.json": "86a1e9729eb3001f566e18972d65a49f98e954398bbd9cbd1ccf1114be6a1a9e",
     "go-backend/testmachine/register/capabilities/cap-route-r040.json": "426635fc16b500aa684e88f2669e8839852465bfcaa4e13e7777b79bc16d5a0a",
     "go-backend/testmachine/register/capabilities/cap-route-r041.json": "e4c14a0dc4f2a9f970f36b3e5b44c9ebc31475b40fdf8bcf7951fb7dc405f708",
@@ -102,7 +102,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r059.json": "ba8797c8887adf8499f660491e467b2e706cc8ced448dad1005027909b87e35a",
     "go-backend/testmachine/register/capabilities/cap-route-r060.json": "80de4e278dc7460194b60fc4886ff8fe9b919311f65242fd2651a8864b3cab97",
     "go-backend/testmachine/register/capabilities/cap-route-r061.json": "0af1f55640530f180beabd21456d1c79e43f6d8c6008a09a6cf114acfc857cc7",
-    "go-backend/testmachine/register/capabilities/cap-route-r062.json": "817c721b9ec827c7bee3ff2e689c9664ccd91ae6db1a6135bddaae99509a9db0",
+    "go-backend/testmachine/register/capabilities/cap-route-r062.json": "23cc79302e655ff7e62216f87bbb501c56ad25a956ed9ae714e1d1bc4670ae19",
     "go-backend/testmachine/register/capabilities/cap-route-r063.json": "9557c692c54648c361f2275c1ea06e7bc118316b9b4d406503362137eae729e5",
     "go-backend/testmachine/register/capabilities/cap-route-r064.json": "ae106fbd179bfd56a0331b30423fa5dd310f90193f07aeae3f532eb3f7ff7439",
     "go-backend/testmachine/register/capabilities/cap-route-r065.json": "a1dfc8d380083c0fbaea8fa4960b098d68bbce2eb3f2203baaa5866a26e27cf2",
@@ -234,7 +234,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r191.json": "6a71678653f6dc0886476922c0e6b7efa0741dcc26969780adedf3302636577a",
     "go-backend/testmachine/register/capabilities/cap-route-r192.json": "90966ba090a362042a8e3cc8b1bfd7e089e3f5d3abcbe6cb7acdc114cd6cc9ae",
     "go-backend/testmachine/register/capabilities/cap-route-r193.json": "cee143f2931d0dfd829c5d99724a45e5f7742a5229937da671077924b22d452e",
-    "go-backend/testmachine/register/capabilities/cap-route-r194.json": "a563b4183bed2268f028f6f45e848728b22ab4ae98af81245e63751ae51e56df",
+    "go-backend/testmachine/register/capabilities/cap-route-r194.json": "9992c2885cd2b0f1f16ffd0a60503cb6938b9e3ec676a9b13ea6959740de2cb2",
     "go-backend/testmachine/register/capabilities/cap-route-r195.json": "faaed8754573d61ab146f3b4ee66c6d9397a44f1315cbb2069614ce6f8c48d2f",
     "go-backend/testmachine/register/capabilities/cap-route-r196.json": "3aed723308c949b6e5b4554c62e2a45cf89d7919c06d0246d05a6c329f096fa2",
     "go-backend/testmachine/register/capabilities/cap-route-r197.json": "5670466182cb8602f7dc776d46009fa2805d661fe9a592063c6c4ee45c382b48",
@@ -356,7 +356,7 @@
     "go-backend/testmachine/register/capabilities/cap-sub-oidc-auth.json": "6254ae99d8f92de6ce8b4b6ad2185045ba5a63f6046fbbe401feb14dcfd0c97f",
     "go-backend/testmachine/register/capabilities/cap-sub-podcast-download-queue.json": "d510152bb811b8660e74a49833dbe102c73461c1e4ca84a56c8fc45232df550f",
     "go-backend/testmachine/register/capabilities/cap-sub-realtime-socketio.json": "5b753c599279f231c40665896013def7cf385e791ac110fa45b382a4007e633e",
-    "go-backend/testmachine/register/capabilities/cap-sub-scanner-watcher.json": "8a972f888dace2a295abf92053033571d784e1f59e4bf41af77453ff03a1154e",
+    "go-backend/testmachine/register/capabilities/cap-sub-scanner-watcher.json": "d1a9ef38a056cd0029bd9efe675275e1106f678391f48f0225c7ef7f3b2d53eb",
     "go-backend/testmachine/register/capabilities/cap-sub-static-client.json": "ae8d6d13eee14efbfe7f15c3c56a9ac0cb5d8dd298542ffe3243bae7cc237545",
     "go-backend/testmachine/register/capabilities/cap-text-client-ordering.json": "3914110eede77d22317cd7de9b45c516ad385e53ea132bded25010c965d3384a"
   },
@@ -8433,7 +8433,7 @@
       "invariant": "INV-FORMAT-METADATA-JSON",
       "owner": "scan",
       "packet": "Q10",
-      "contract": "metadata.json is written at metadata/items/<id>/metadata.json (storeMetadataWithItem off) with exactly the canonical keys of the media type, the item's current values, explicit null/empty arrays for cleared values and \"name #sequence\" series strings; it is not a library file, a no-change update leaves it byte-identical, a scan rereads it (series strings become name and sequence), and an unwritable file keeps its previous content while the item keeps the new values, both for a media update and for a scan's own write.",
+      "contract": "metadata.json is written at metadata/items/<id>/metadata.json (storeMetadataWithItem off) with exactly the canonical keys of the media type, the item's current values including subtitle, explicit null/empty arrays for cleared values and \"name #sequence\" series strings; it is not a library file, a no-change update leaves it byte-identical, a scan rereads it (series strings become name and sequence), and an unwritable file keeps its previous content while the item keeps the new values, both for a media update and for a scan's own write.",
       "status": "unverified",
       "source": [
         "server/models/LibraryItem.js:614-711",
@@ -8465,7 +8465,7 @@
       },
       "exceptions": [
         "force is not applicable: the metadata writer has no force or override mode; it writes when an accepted media update changed something or a scan detected metadata changes.",
-        "The podcast key set is pinned through the podcast item scan (route-r062), which rewrites and rereads the podcast sidecar."
+        "The podcast key set is pinned through the podcast item scan (route-r062), which applies every value and asserts the exact fifteen-key sidecar it rewrites."
       ]
     },
     {
@@ -13115,7 +13115,7 @@
       "invariant": "INV-R038-RESPONSE-001",
       "owner": "scan",
       "packet": "Q10",
-      "contract": "An accepted scan answers 200 and runs asynchronously; when it completes it moves libraries.lastScan strictly forward, writes lastScanVersion 2.37.2 and extraData.lastScanMetadataPrecedence, without changing the ids or titles of items whose files did not change, and a scan after a new book folder appears adds exactly that one item.",
+      "contract": "An accepted scan answers 200 and runs asynchronously; when it completes it moves libraries.lastScan strictly forward, writes lastScanVersion 2.37.2 and extraData.lastScanMetadataPrecedence, without changing the ids, relative paths, titles or own lastScan stamps of items whose files did not change (also on a repeat scan), and a scan after a new book folder appears adds exactly that one item.",
       "status": "unverified",
       "source": [
         "server/controllers/LibraryController.js:1262-1275",
@@ -13151,11 +13151,12 @@
       "invariant": "INV-R038-FORCE-001",
       "owner": "scan",
       "packet": "Q10",
-      "contract": "A plain scan skips items without file changes, so an edited metadata/items/<id>/metadata.json is not reread; ?force=1 rescans every item, applies the edited sidecar and rewrites it.",
+      "contract": "A plain scan skips items without file changes, so an edited metadata/items/<id>/metadata.json is not reread; the web client always sends the force query (client/store/libraries.js:76) and only the exact value ?force=1 on its own rescans every item (req.query.force === '1'), so ?force=0 behaves as a plain scan and ?force=1 applies and rewrites the edited sidecar.",
       "status": "unverified",
       "source": [
-        "server/controllers/LibraryController.js:1273-1274",
-        "server/scanner/LibraryScanner.js:203-218"
+        "server/controllers/LibraryController.js:1272-1274",
+        "server/scanner/LibraryScanner.js:203-218",
+        "client/store/libraries.js:76"
       ],
       "tests": [
         "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/library-scan-without-force-skips-unread-sidecar",
@@ -15857,12 +15858,13 @@
       "invariant": "INV-R062-SIDECAR-001",
       "owner": "scan",
       "packet": "Q10",
-      "contract": "Every item scan rereads metadata/items/<id>/metadata.json: for a book it applies title, authors, series and chapters (chapters renumbered from 0 with start/end untouched) and creates unknown author and series rows with their sequence; for a podcast it applies title, author, genres and podcastType; in both cases the scanner rewrites the sidecar with the canonical key set of the media type.",
+      "contract": "Every item scan rereads metadata/items/<id>/metadata.json: for a book it applies title, authors, series and chapters (chapters renumbered from 0 with start/end untouched) and creates the unknown author and series rows with their sequence; for a podcast it applies title, author, genres, tags, description, releaseDate, feedURL, imageURL, itunesPageURL, itunesId, itunesArtistId, asin, language, explicit and podcastType; in both cases the scanner rewrites the sidecar with the canonical key set of the media type (seventeen book keys, fifteen podcast keys).",
       "status": "unverified",
       "source": [
         "server/scanner/AbsMetadataFileScanner.js:20-84",
         "server/scanner/BookScanner.js:230-262",
-        "server/scanner/PodcastScanner.js:207-224"
+        "server/scanner/PodcastScanner.js:207-224",
+        "server/scanner/PodcastScanner.js:425-459"
       ],
       "tests": [
         "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/item-scan-applies-edited-sidecar",
@@ -26750,7 +26752,7 @@
       "invariant": "INV-ROUTE-R194-CONTRACT",
       "owner": "metadata",
       "packet": "Q19",
-      "contract": "DELETE /api/custom-metadata-providers/:id as the admin answers 200 OK with body OK, removes the row and its list entry, leaves the other providers, and a following book search with that slug answers 200 with an empty array; deleting the same id again answers 404 with the rows unchanged.",
+      "contract": "DELETE /api/custom-metadata-providers/:id as the admin answers 200, removes the row and its list entry, leaves the other providers, and a following book search with that slug answers 200 with an empty array; deleting the same id again answers 404 with the rows unchanged. No response body is contracted: the web client branches on the status only.",
       "status": "unverified",
       "source": [
         "server/controllers/CustomMetadataProviderController.js:72-100",
@@ -35779,7 +35781,7 @@
       "invariant": "INV-SCAN-AUDIO-001",
       "owner": "scan",
       "packet": "Q10",
-      "contract": "Audio files of a book carry the probed fields (path, ext, ext-derived format and codec, duration, ino) and are ordered by disc then track with 1-based index; a CD01/CD02 folder pair is one item ordered by disc; the book's chapters follow that order with cumulative offsets; a folder whose only audio file cannot be probed becomes no item.",
+      "contract": "Audio files of a book carry the probed fields (path, ext, ext-derived format and codec, duration, ino) and are ordered by disc then track with 1-based index; a CD01/CD02 folder pair is one item ordered by disc; the book's chapters follow that order with ids 0..n-1 where start equals the cumulative duration of the preceding files and end equals start plus the file's probed duration (within 1e-6); a folder whose only audio file cannot be probed becomes no item.",
       "status": "unverified",
       "source": [
         "server/scanner/AudioFileScanner.js:52-100",
@@ -35825,7 +35827,8 @@
         "server/scanner/LibraryScanner.js:169-200"
       ],
       "tests": [
-        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/book-without-media-is-missing"
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/book-without-media-is-missing",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/book-with-unprobeable-audio-is-missing"
       ],
       "evidence": [],
       "cases": {
@@ -35927,7 +35930,7 @@
       "invariant": "INV-SCAN-PRECEDENCE-001",
       "owner": "scan",
       "packet": "Q10",
-      "contract": "The library's persisted metadataPrecedence is applied by a forced scan and re-persisted unchanged in extraData.lastScanMetadataPrecedence on every completed scan; with absMetadata first the folder title wins for title and authors while values only the sidecar supplied (series) remain; an item whose only media is an ebook falls back to the ebook metadata source and scans without losing its stored title.",
+      "contract": "The library's persisted metadataPrecedence is applied by a forced scan and re-persisted unchanged in extraData.lastScanMetadataPrecedence on every completed scan; with absMetadata first the folder title wins for title and authors while values only the sidecar supplied (series) remain; an item whose only media is an ebook takes the title and language that the parsed opf supplies from the parsed ebook metadata through the audioMetatags source (no audio file: the epub's dc:title overrides the folder title) while an author without an opf:role stays the folder-derived name, and a rescan keeps those values.",
       "status": "unverified",
       "source": [
         "server/scanner/BookScanner.js:660-700",
@@ -35964,14 +35967,16 @@
       "invariant": "INV-SCAN-EVENTS-001",
       "owner": "scan",
       "packet": "Q10",
-      "contract": "A scan that adds books emits items_added events whose payloads are arrays of expanded items (id and media.metadata.title) of at most ten items each, delivering every new item exactly once, to every authenticated socket whose user can access the library, and to no socket of a user restricted to another library and to no unauthenticated socket.",
+      "contract": "A scan that changes books emits items_added (new items) and items_updated (rescanned items) events whose payloads are arrays of expanded items (id and media.metadata.title) of at most ten items each, delivering every item exactly once, to every authenticated socket whose user can access the library, and to no socket of a user restricted to another library and to no unauthenticated socket; twelve updated items arrive as the chunks of ten and two.",
       "status": "unverified",
       "source": [
-        "server/scanner/LibraryScanner.js:224-281",
+        "server/scanner/LibraryScanner.js:185-281",
         "server/SocketAuthority.js:97-131"
       ],
       "tests": [
-        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-events-filter-by-library-access"
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-events-filter-by-library-access",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/items-added-events-are-chunked",
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/items-updated-events-are-chunked"
       ],
       "evidence": [],
       "cases": {
@@ -36079,6 +36084,43 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/cron-runs-a-library-scan"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "OverDrive MediaMarkers chapters cannot be produced from this pin's ffprobe JSON path (recorded limitation).",
+        "The watcher is asserted through its observable effect (a watcher-scan task and the imported item), never through a fixed delay; the packet disables the library watcher for its other file changes so no assertion depends on watcher timing.",
+        "Ebook-only items are grouped but not imported: owner-approved compatibility-stub exception (2026-10-30).",
+        "Series RSS-feed closure on a removed series is not wired to the Go RSS manager and is not asserted."
+      ]
+    },
+    {
+      "requirement": "sub-scanner-watcher",
+      "invariant": "INV-SCAN-STALE-ROW-001",
+      "owner": "scan",
+      "packet": "Q10",
+      "contract": "A library scan loads every item row once after discovery and processes that snapshot; when it rescans an item whose library files changed, checkLibraryItemData saves the libraryFiles array it loaded, so a write that lands on the same item through another route while the scan runs (here: deleting one audio file of a two-file book) is overwritten by the snapshot - the deleted file is stored again as a library file although it no longer exists, while the media row keeps the live delete's audio file list.",
+      "status": "unverified",
+      "source": [
+        "server/scanner/LibraryScanner.js:161-171",
+        "server/scanner/LibraryItemScanData.js:182-276",
+        "server/scanner/BookScanner.js:390-430",
+        "server/controllers/LibraryItemController.js:1012-1060"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/scan/run_test.go#TestReplacement/scan-overwrites-live-item-write"
       ],
       "evidence": [],
       "cases": {

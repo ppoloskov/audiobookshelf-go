@@ -4,7 +4,7 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "DELETE /api/custom-metadata-providers/:id is admin-only (401 without a token, 403 for a normal user, admin check before the id lookup; 404 for an unknown id as admin). For a stored id it answers 200 OK, deletes the row, sets every library whose provider is custom-<id> back to google (book mediaType) or itunes (podcast) and emits custom_metadata_provider_removed. A second delete is 404. A later search with the removed slug answers 200 with an empty array.",
+  "contract": "DELETE /api/custom-metadata-providers/:id is admin-only (401 without a token, 403 for a normal user, admin check before the id lookup; 404 for an unknown id as admin). For a stored id it answers 200, deletes the row, sets every library whose provider is custom-<id> back to google (book mediaType) or itunes (podcast) and emits custom_metadata_provider_removed. A second delete is 404. A later search with the removed slug answers 200 with an empty array.",
   "source": [
     "server/routers/ApiRouter.js:321",
     "server/controllers/CustomMetadataProviderController.js:72-100",
@@ -44,7 +44,7 @@
     {
       "id": "INV-ROUTE-R194-CONTRACT",
       "class": "shape",
-      "contract": "DELETE /api/custom-metadata-providers/:id as the admin answers 200 OK with body OK, removes the row and its list entry, leaves the other providers, and a following book search with that slug answers 200 with an empty array; deleting the same id again answers 404 with the rows unchanged.",
+      "contract": "DELETE /api/custom-metadata-providers/:id as the admin answers 200, removes the row and its list entry, leaves the other providers, and a following book search with that slug answers 200 with an empty array; deleting the same id again answers 404 with the rows unchanged. No response body is contracted: the web client branches on the status only.",
       "status": "unverified",
       "source": [
         "server/controllers/CustomMetadataProviderController.js:72-100",

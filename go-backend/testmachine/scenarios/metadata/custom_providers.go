@@ -129,14 +129,21 @@ func createProviderScenarios() []harness.Scenario {
 
 		scenario("route-r193", "INV-ROUTE-R193-URL-001", "edge", "changed", "create-accepts-loopback-and-private-urls",
 			[]string{customControllerSrc, validateUrlSrc},
-			"validateUrl only parses the string: POST /api/custom-metadata-providers accepts and stores a loopback URL and a private-range URL verbatim with 200 (no SSRF or scheme filtering), and deleting the two rows restores the table.",
+			"validateUrl only parses the string: POST /api/custom-metadata-providers accepts a loopback URL and a private-range URL with 200, stores each verbatim (no SSRF or scheme filtering), and deleting the two rows restores the table.",
 			func(t *testing.T, e *harness.Env) {
 				token := e.Token(t, "root")
 				stub := newProviderStub(t, map[string]any{"matches": []any{}})
 				loopback := createProvider(t, e, token, map[string]any{"name": "Loopback Provider", "url": stub.url(), "mediaType": "book"})
 				private := createProvider(t, e, token, map[string]any{"name": "Private Provider", "url": "http://192.168.1.10:8080", "mediaType": "book"})
-				requireEqual(t, "loopback url stored verbatim", loopback.URL, stub.url())
-				requireEqual(t, "private url stored verbatim", private.URL, "http://192.168.1.10:8080")
+				requireEqual(t, "loopback url echoed verbatim", loopback.URL, stub.url())
+				requireEqual(t, "private url echoed verbatim", private.URL, "http://192.168.1.10:8080")
+
+				loopbackRow := providerRow(t, e, loopback.ID)
+				requireProviderRow(t, loopbackRow, loopback)
+				requireEqual(t, "loopback url stored verbatim", loopbackRow["url"], stub.url())
+				privateRow := providerRow(t, e, private.ID)
+				requireProviderRow(t, privateRow, private)
+				requireEqual(t, "private url stored verbatim", privateRow["url"], "http://192.168.1.10:8080")
 				requireProviderCount(t, e, 5)
 
 				deleteProvider(t, e, token, loopback.ID)
@@ -153,7 +160,7 @@ func deleteProviderScenarios() []harness.Scenario {
 	return []harness.Scenario{
 		scenario("route-r194", "INV-ROUTE-R194-CONTRACT", "normal", "initial", "delete-provider-removes-row-and-search-result",
 			[]string{customRouterSrc, customControllerSrc, customAdapterSrc},
-			"DELETE /api/custom-metadata-providers/:id as the admin answers 200 OK, removes the row and its list entry, and a later book search with that slug answers 200 with an empty array, while the other providers remain.",
+			"DELETE /api/custom-metadata-providers/:id as the admin answers 200, removes the row and its list entry, and a later book search with that slug answers 200 with an empty array, while the other providers remain.",
 			func(t *testing.T, e *harness.Env) {
 				token := e.Token(t, "root")
 				stub := newProviderStub(t, stubMatches())
@@ -169,7 +176,6 @@ func deleteProviderScenarios() []harness.Scenario {
 
 				resp := e.Delete(t, token, "/api/custom-metadata-providers/"+provider.ID)
 				requireStatus(t, resp, http.StatusOK, "delete provider")
-				requireEqual(t, "delete body", string(resp.Body), "OK")
 				requireNoProviderRow(t, e, provider.ID)
 				requireProviderCount(t, e, 3)
 				for _, listed := range listProviders(t, e, token) {

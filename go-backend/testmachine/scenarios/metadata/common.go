@@ -291,8 +291,8 @@ func eventsNamed[T any](t *testing.T, s *harness.Socket, mark int, name string) 
 }
 
 // stubMatches is the fixed payload of the reusable search stub: it exercises
-// the adapter's type coercion, optional-field pruning, tag dedupe and series
-// validation along with the order the source preserves.
+// the adapter's type coercion, optional-field pruning, tag trimming/dedupe and
+// series validation along with the order the source preserves.
 func stubMatches() map[string]any {
 	return map[string]any{
 		"matches": []any{
@@ -308,7 +308,7 @@ func stubMatches() map[string]any {
 				"isbn":          "9780000000001",
 				"asin":          "B000000001",
 				"genres":        "fantasy, science fiction, fantasy",
-				"tags":          []any{"alpha", "alpha", "beta"},
+				"tags":          []any{" alpha ", "alpha", " beta "},
 				"series": []any{
 					map[string]any{"series": "Saga", "sequence": 2},
 					map[string]any{"series": 7},
