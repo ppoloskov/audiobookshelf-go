@@ -10,31 +10,34 @@ separate replacement assessment owns the Go comparison and rollback against
 Go-written data. [Delivery plan](ROADMAP.md#verification-delivery-plan)
 
 The machine lives under `go-backend/testmachine/` (consolidated 2026-11-18;
-see `testmachine/AUDIT.md` and `testmachine/PLAN.md`). Baseline ledger,
-measured at commits through `7fcd129f`: **all 18 built packets have zero
-scenario coverage gaps** — store 20, author 76, browse 91, tools 94,
-playback_sessions 78, server 61, item_write 94, playlists 86, collections 62,
-library_data 49, auth 100, user_progress 50, user_me 48, admin_settings 71,
-library_manage 57, user_admin 58, item_read 101, plus the earlier slices.
-Every landing passed upstream twice by its worker and once more by the
-architect. Three oracle-hardening checkers are machine-health gates now:
-route parity (226/226 upstream sites in Go, 0 missing), the Go fixture-overfit
-audit (0 findings) and the scenario-citation lint (2155 citations, 0 findings).
-
-Remaining coverage work is the 16 zero-scenario packets (wave N in
-`testmachine/PLAN.md`): backup, feeds, item_cover, launch, mail, metadata,
-notify, oidc, playback_streams, podcast_episodes, podcast_feed, protocol,
-realtime, scan, share, user_misc — realtime first. After those, the dominant
-obligation is wave R: per-packet review receipts (only `auth` is accepted;
-author's is malformed and predates its scenarios; every other packet's is
-absent or stale — the `-gaps` review lines are now almost the whole ledger),
-the independent whole-contract inventory receipt, then the certification run.
-Known recorded quirks for the later Go adjudication: upstream's API cache can
-replay another origin's CORS header; `backup_applied` carries one null
-argument; upstream re-saves pre-write libraryItems during a scan
-(`BookScanner.js:428`) so live-server issue flags can be lost mid-scan.
-GLM 5.3 Flash hit the provider 5-hour usage limit during wave G; workers
-continued on DeepSeek V4.1 Flash.
+see `testmachine/AUDIT.md` and `testmachine/PLAN.md`). Current ledger,
+measured at `4f442a44`: **2,041 declared scenarios across all 34 packets,
+binding every requirement, invariant and applicable facet in the
+register — verified by the absence of any non-review coverage line in
+the global `-gaps` run.** All landings passed upstream twice by their
+worker and once more by the architect. Three oracle-hardening checkers
+are machine-health gates: route parity (226/226 upstream sites in Go,
+0 missing), the Go fixture-overfit audit (0 findings) and the
+scenario-citation lint (3,650+ citations, 0 findings). The remaining
+507 gap lines are ALL review-side: packet review receipts (0 of 34
+accepted; author's is malformed; auth's went stale), scenario-reviewed
+confirmations and not-applicable confirmations. Wave R remains: the 34
+receipts, the independent whole-contract inventory receipt
+(`contracts/verification-inventory-review.json`), the upstream
+certification run, then the separate Go comparison. Eight recorded
+adjudication entries for the Go comparison: upstream's API cache can
+replay another origin's CORS header; `isbn=[object Object]` cover
+search; SSRF-permissive custom-provider URLs; the SMTP-reply leak to
+non-admins; multi-range requests answered with the full file as 200;
+backup apply without version or sqlite validation (bad archive swaps
+in and exits 1); DELETE cover never deletes the file; `type:null`
+normalizes to "info" on reload. Recorded upstream incidents pending
+R2 disposition: SocketAuthority's emitter has no permission filter
+(listeners without podcast access receive `episode_*`), ApiCacheManager
+does not invalidate queue/recent-episode routes, item deletion closes
+only one feed per entity. Worker budgets: opencode-go is weekly-capped;
+ollama-cloud hit an account session limit on 2026-11-19 — wave R waits
+for the next window or owner top-up.
 
 The earlier November 18 store slice added four upstream scenarios. Fresh init creates the
 26 named tables and seven triggers and preserves the new root identity and
