@@ -4,9 +4,15 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing cover_search_result: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "A search_covers from an authenticated socket runs a streaming book cover search. For each provider that produced at least one cover SocketAuthority emits one cover_search_result to the requesting socket alone with the fields {requestId (echoed), provider (the provider string the client sent), covers (that provider's unique cover URLs in match order), total (covers.length)}. A provider whose answer carries no cover emits no result, a custom provider is queried once at <url>/search with mediaType=book, the title and the author, and a rejected request emits no result.",
   "source": [
-    "server/SocketAuthority.js:400"
+    "server/SocketAuthority.js:400",
+    "server/SocketAuthority.js:374-411",
+    "server/managers/CoverSearchManager.js:117-160",
+    "server/managers/CoverSearchManager.js:222-241",
+    "server/finders/BookFinder.js:374-409",
+    "server/providers/CustomProviderAdapter.js:22-88",
+    "client/components/modals/item/tabs/Cover.vue:339-345"
   ],
   "implementation": [
     "go-backend/internal/metadata/covers.go"
@@ -17,24 +23,44 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/contracttest/cover_search_test.go:125#TestCoverSearchSocket"
+    "go-backend/internal/contracttest/cover_search_test.go:125#TestCoverSearchSocket",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-payload-and-audience",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-normal-user-allowed",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-repeat-request-id",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-duplicate-active-request-id",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-empty-covers-emit-none",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-follows-provider-change",
+    "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-rejected-requests-emit-none"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "force is not applicable: the streaming cover search has no force or override mode; it runs with the provider and flags the client sends."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-COVER-SEARCH-RESULT",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing cover_search_result: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "One search_covers for one custom provider emits exactly one cover_search_result to the requesting socket and none to another connection of the same user, another user's socket or an unauthenticated socket. The argument is exactly {requestId, provider, covers, total}: the requestId is echoed, provider is the requested provider string, covers holds the provider's cover URLs in match order with duplicates removed and empty ones omitted, and total equals len(covers). The provider is queried once at /search with mediaType=book, the client's title and author. A normal (non-admin) user may search: the handler requires authentication, not the admin role. An answer without covers (empty matches, missing matches array or malformed body) emits no result; a second search with a requestId that is still active is ignored and the provider is queried once; after the provider row is deleted its covers never reappear; and a request rejected for missing parameters or an unauthenticated socket emits no result and contacts no provider.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:400"
+        "server/SocketAuthority.js:400",
+        "server/SocketAuthority.js:374-411",
+        "server/managers/CoverSearchManager.js:117-160",
+        "server/managers/CoverSearchManager.js:222-241",
+        "server/finders/BookFinder.js:374-409",
+        "server/providers/CustomProviderAdapter.js:22-88",
+        "client/components/modals/item/tabs/Cover.vue:339-345"
       ],
       "tests": [
-        "go-backend/internal/contracttest/cover_search_test.go:125#TestCoverSearchSocket"
+        "go-backend/internal/contracttest/cover_search_test.go:125#TestCoverSearchSocket",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-payload-and-audience",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-normal-user-allowed",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-repeat-request-id",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-duplicate-active-request-id",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-empty-covers-emit-none",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-follows-provider-change",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-rejected-requests-emit-none"
       ],
       "evidence": [],
       "exceptions": []
@@ -44,7 +70,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

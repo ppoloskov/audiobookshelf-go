@@ -6,7 +6,7 @@
   "proof": "Mapping only. No behavior tests executed by this renderer. Test references are assertion/discovery leads, not inferred full coverage.",
   "counts": {
     "requirements": 345,
-    "invariants": 829,
+    "invariants": 836,
     "route_sites": 226,
     "socket_sites": 165,
     "socket_names": 77,
@@ -221,8 +221,8 @@
     "go-backend/testmachine/register/capabilities/cap-route-r178.json": "d02006f65952efd35b31d3c55e64f43bcda8b1fd2e8d126c7e912a981c6a2ec4",
     "go-backend/testmachine/register/capabilities/cap-route-r179.json": "e3497d0558dac54b83ba80da6853b0e910158bee277044fa649380fb81a5af74",
     "go-backend/testmachine/register/capabilities/cap-route-r180.json": "0684548261c6b3c622610e4cec7da01e65da01b5113054efe2a07b2872a8d252",
-    "go-backend/testmachine/register/capabilities/cap-route-r181.json": "17f2302d348859451004791dc21e1e01bc5a2ae73d2fc109bec24c4ac76dc328",
-    "go-backend/testmachine/register/capabilities/cap-route-r182.json": "19917365f721a8737d3b88c0065f1c70d64d04d0ea052087875dc3dd345ea8c8",
+    "go-backend/testmachine/register/capabilities/cap-route-r181.json": "b04d3fa2a5700b50374a2a659d1a13fd62c752afd1e1119a9c2fa65269c8c4cc",
+    "go-backend/testmachine/register/capabilities/cap-route-r182.json": "795693db4c389702e893901885404ecd96de3a4e7d75d15749ecfb024871a144",
     "go-backend/testmachine/register/capabilities/cap-route-r183.json": "1a4e3ad7dcdcf2fcde29ec12941d9830e04e080279f778b300e1eb4532fd4125",
     "go-backend/testmachine/register/capabilities/cap-route-r184.json": "23aa4334ed98cf32aa0b8fafcf05e1cb6242464591a247715e37467c2d8985d0",
     "go-backend/testmachine/register/capabilities/cap-route-r185.json": "cc7dec7f8da19803100e9d379503551cc64fb18b7796b6cc1f91452af5bb67f9",
@@ -237,13 +237,13 @@
     "go-backend/testmachine/register/capabilities/cap-route-r194.json": "a563b4183bed2268f028f6f45e848728b22ab4ae98af81245e63751ae51e56df",
     "go-backend/testmachine/register/capabilities/cap-route-r195.json": "faaed8754573d61ab146f3b4ee66c6d9397a44f1315cbb2069614ce6f8c48d2f",
     "go-backend/testmachine/register/capabilities/cap-route-r196.json": "3aed723308c949b6e5b4554c62e2a45cf89d7919c06d0246d05a6c329f096fa2",
-    "go-backend/testmachine/register/capabilities/cap-route-r197.json": "8729ef34331acb9a2bfd526e4a71bd2e1b8b39d2def57e4732d64f47359c9865",
-    "go-backend/testmachine/register/capabilities/cap-route-r198.json": "8e89b6c222cd1ca7b988658204c0ce1c584ae26eb8472f91d81ff867897ccb57",
+    "go-backend/testmachine/register/capabilities/cap-route-r197.json": "5670466182cb8602f7dc776d46009fa2805d661fe9a592063c6c4ee45c382b48",
+    "go-backend/testmachine/register/capabilities/cap-route-r198.json": "9f1bdebe3f4ac18a5255dbc5317fe14d7e6078bb0bafb6b8113e34e768676909",
     "go-backend/testmachine/register/capabilities/cap-route-r199.json": "f1929bd577ea7a1e493aeeb532ed73c5c3998f368979a40e4313d774bb9c92e7",
     "go-backend/testmachine/register/capabilities/cap-route-r200.json": "426582c26514433194ef47f04071c5f8d68d47236d5d1a07dd58c6eb3d0f3f7a",
     "go-backend/testmachine/register/capabilities/cap-route-r201.json": "1b9812b32b7e94a785f3dbfb4e3e3360eec56aaa1a0fcc934bbf2d43b4595287",
     "go-backend/testmachine/register/capabilities/cap-route-r202.json": "e6bc3b0f7536be0a48fc1184f78272c72b73a70659c893d229238c0f9c4d4ecc",
-    "go-backend/testmachine/register/capabilities/cap-route-r203.json": "14a5faeffa407be579a3dcafdb322fc154d2bb51f5d8bf5271607f2e70f37e25",
+    "go-backend/testmachine/register/capabilities/cap-route-r203.json": "1f5f98355e78a0c68a055998b0262222e29f5599942e4d6104ce6054350cd605",
     "go-backend/testmachine/register/capabilities/cap-route-r204.json": "92771c55eec7c2331b3779653303f53d3123a4a48a667ea14c76195c8e9c5b9e",
     "go-backend/testmachine/register/capabilities/cap-route-r205.json": "9663689dc3f0bc31073ca65ce2084d849f7767f46d8691eb4d1f6b9f3c63e394",
     "go-backend/testmachine/register/capabilities/cap-route-r206.json": "f14134762fc919e030c6d9d110f5dd55f98c0a51c30a647299fbfe8a4205738e",
@@ -257,8 +257,8 @@
     "go-backend/testmachine/register/capabilities/cap-route-r214.json": "d9191646e89128d8a6d948bc2035cc5b98a293549d84738e8171a9f14e728fa0",
     "go-backend/testmachine/register/capabilities/cap-route-r215.json": "147fb5bcc61690e8ea485766b88b5967f35c1736e3bbf415914527e41eb23a34",
     "go-backend/testmachine/register/capabilities/cap-route-r216.json": "87a2d7728d5fe033bfdbc49f6d0bcef4b1fdf417da1f456b154e81efdddf0d3a",
-    "go-backend/testmachine/register/capabilities/cap-route-r217.json": "9e4aaaaf812b1a620a6716b85fb12609328f2089b2717c9193c8735d34b7661c",
-    "go-backend/testmachine/register/capabilities/cap-route-r218.json": "517e80ff846fd5f8b3cb66724556c187edd6e8c6fafa08746351976adabeb4d4",
+    "go-backend/testmachine/register/capabilities/cap-route-r217.json": "08d269aba68bbedeb871dcf905b13c158a61f56771cd7fc4e2311802cc4607dd",
+    "go-backend/testmachine/register/capabilities/cap-route-r218.json": "7ebbff070ba84cb7744cb79c5cf3963e75462c1e712906bd00e6ee02753514a8",
     "go-backend/testmachine/register/capabilities/cap-route-r219.json": "9ebcc148f19308d3157f9035edff68f6453fa42d86b1246eebb4d378c92c5507",
     "go-backend/testmachine/register/capabilities/cap-route-r220.json": "80ad5815ebcc0c8ea4c4a8b082cce94c4fc68231e625de5c52b7eaedba6b338a",
     "go-backend/testmachine/register/capabilities/cap-route-r221.json": "55a685cc206e6798cac3d6518341a37056371c68ee9ee98b91a102e927dc6aee",
@@ -291,11 +291,11 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-collection-added.json": "613d743fcea56b7943aefbae9de20109a81555e61417c0805951e605cd79f2f1",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-collection-removed.json": "e33f32c5794da33c8300a949dea6bb21c63f0dcc31a71fbf1c3ced4a9f107abc",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-collection-updated.json": "2a6343dacf5857fb65e5febbefe149688e9354855cc8f6064bb597c4c3486f30",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-cover-search-cancelled.json": "928654ab98328a1cb45746053719e1a5907e3ff98691b7301bc0c3bfc2044182",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-cover-search-complete.json": "af4ae859d9bfab0de9dc41191aa646a5483e21e8170536b9fb61728adee9c3e7",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-cover-search-error.json": "8b9655f0b858ece974d3f672dea54034d3df24f71cafca8c9a1d6d7c7220955b",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-cover-search-provider-error.json": "53fa6b81e5dafabb8b2455b99ab29909931175c9b32ebeef793179071a8d7a51",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-cover-search-result.json": "843af3c016159ce2fd19f5aeb827650d78f1cb42d96d847a8f36a1bd8b2d0687",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-cover-search-cancelled.json": "2225bc52a979fd64e826fdef18fae9c0ccaeb3fd1458b9bd91059dc49fd064cb",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-cover-search-complete.json": "cdb764c29cca982e1ad3fe5f53f0afd33aad1f686e8c68ddf25a17289a48f7f3",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-cover-search-error.json": "77f834c30be6bb7d3e01226482085f179bdcd63f321c6135cfde6fae2a723dad",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-cover-search-provider-error.json": "80cfcaa7fda4d37e023947ed1ebec0c013a8b50e9832685b5250b63229ce4de0",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-cover-search-result.json": "3de536cb6207a7aa97e9ab9d392a8699658f392ca1ff03ce0a9256294d072afa",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-custom-metadata-provider-added.json": "73da496e5cc7275f7d7f2a6fcfc34cbfd2ece84cfd02dc6df160ca69b9c159b3",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-custom-metadata-provider-removed.json": "4fa3d919636c5ab4bfe736033a9fea26850c83562d5309393379face8bf2cbe9",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-episode-added.json": "bc751b33f69cd13e69fa725684f2f329e7c592d25d172cf78103fb7caa2480b6",
@@ -25710,13 +25710,15 @@
       "invariant": "INV-ROUTE-R181-ROUTE",
       "owner": "admin",
       "packet": "Q22",
-      "contract": "POST /cache/purge at server/routers/ApiRouter.js:296. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "The route requires an admin session: 401 without a token and 403 for a non-admin active user. A rejected call leaves the cache tree, library rows and metadata exactly as they were.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:296"
+        "server/routers/ApiRouter.js:296",
+        "server/controllers/CacheController.js:20-26"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-denied-changes-nothing"
       ],
       "evidence": [],
       "cases": {
@@ -25729,13 +25731,53 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the route has no force, hard or override parameter; every call purges the cache as it is.",
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "requirement": "route-r181",
+      "invariant": "INV-ROUTE-R181-PURGE",
+      "owner": "admin",
+      "packet": "Q22",
+      "contract": "A successful purge removes every file below metadata/cache (including the directory itself) and recreates the empty cache, covers, images and items directories; it also succeeds and recreates them when metadata/cache is missing. Files below metadata/items and libraryItems rows are unchanged, and a later purge removes cover and image entries an items-only purge kept.",
+      "status": "unverified",
+      "source": [
+        "server/managers/CacheManager.js:25-42,128-137",
+        "server/controllers/CacheController.js:20-26"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-removes-the-whole-cache",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-recreates-a-missing-cache-directory",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-removes-what-the-items-purge-keeps"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+        "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the route has no force, hard or override parameter; every call purges the cache as it is.",
         "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
       ]
     },
@@ -25744,13 +25786,14 @@
       "invariant": "INV-ROUTE-R181-REPEAT",
       "owner": "admin",
       "packet": "Q22",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "A repeated purge operates on the cache as it is at that moment: entries written between two calls are removed and no stale or duplicate cache state remains; the result is the same empty covers, images and items directories.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:296"
+        "server/managers/CacheManager.js:128-137"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-repeat-is-idempotent"
       ],
       "evidence": [],
       "cases": {
@@ -25763,13 +25806,14 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the route has no force, hard or override parameter; every call purges the cache as it is.",
         "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
       ]
     },
@@ -25778,13 +25822,15 @@
       "invariant": "INV-ROUTE-R182-ROUTE",
       "owner": "admin",
       "packet": "Q22",
-      "contract": "POST /cache/items/purge at server/routers/ApiRouter.js:297. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "The route requires an admin session: 401 without a token and 403 for a non-admin active user. A rejected call leaves the cache tree, library rows and metadata exactly as they were.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:297"
+        "server/routers/ApiRouter.js:297",
+        "server/controllers/CacheController.js:34-40"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/items-purge-denied-changes-nothing"
       ],
       "evidence": [],
       "cases": {
@@ -25797,13 +25843,52 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the route has no force, hard or override parameter; every call empties the item cache as it is.",
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "requirement": "route-r182",
+      "invariant": "INV-ROUTE-R182-PURGE",
+      "owner": "admin",
+      "packet": "Q22",
+      "contract": "A successful item purge removes the files below metadata/cache/items and recreates that directory empty (also when it is missing), while metadata/cache/covers and metadata/cache/images keep their entries and metadata/items and libraryItems rows are unchanged. An item cache file written after a purge is removed by the next purge.",
+      "status": "unverified",
+      "source": [
+        "server/managers/CacheManager.js:25-42,138-146"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/items-purge-keeps-cover-and-image-cache",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/items-purge-recreates-a-missing-items-directory",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/items-purge-follows-entries-written-later"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+        "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the route has no force, hard or override parameter; every call empties the item cache as it is.",
         "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
       ]
     },
@@ -25812,13 +25897,14 @@
       "invariant": "INV-ROUTE-R182-REPEAT",
       "owner": "admin",
       "packet": "Q22",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "Two item purges in a row answer 200 both times and leave the same empty items directory; the second one also removes an item cache file written between them, without touching cached covers or images.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:297"
+        "server/managers/CacheManager.js:138-146"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/items-purge-repeat-is-idempotent"
       ],
       "evidence": [],
       "cases": {
@@ -25831,13 +25917,14 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the route has no force, hard or override parameter; every call empties the item cache as it is.",
         "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
       ]
     },
@@ -26876,13 +26963,45 @@
       "invariant": "INV-ROUTE-R197-ROUTE",
       "owner": "admin",
       "packet": "Q22",
-      "contract": "GET /stats/year/:year at server/routers/ApiRouter.js:332. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "The route answers 401 without a token, 403 to a non-admin before the year is parsed (also for an invalid year), and 400 for a year that is not a number or is below 2000 or above 9999; 2000 and 9999 are accepted.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:332"
+        "server/controllers/StatsController.js:50-59,66-73"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/stats-year-rejects-callers-and-years",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/stats-year-empty-year-and-bounds"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": [
+        "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+        "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "requirement": "route-r197",
+      "invariant": "INV-ROUTE-R197-STATS",
+      "owner": "admin",
+      "packet": "Q22",
+      "contract": "The payload has exactly numListeningSessions, numBooksAdded, numAuthorsAdded, totalBooksAddedSize, totalBooksAddedDuration, booksAddedWithCovers, totalBooksSize, totalBooksDuration, totalListeningTime, numBooks, topAuthors, topNarrators and topGenres. For 2026 the fixture yields 7 sessions, 5 books, 3 authors, 670358 bytes added, 138 rounded seconds, the two item ids that have a cover, 65.4 seconds listened and the top lists Terry Fixture 49, Nora Narrator 9, Technology 17 and Fiction 12. totalBooksSize, totalBooksDuration and numBooks are the whole library for every year because the source year filter compares against the literal \":nextYear-01-01\", which every stored date sorts before; a year without items returns zeros and empty lists.",
+      "status": "unverified",
+      "source": [
+        "server/utils/queries/adminStats.js:69-170"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/stats-year-reports-the-fixture-year",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/stats-year-empty-year-and-bounds"
       ],
       "evidence": [],
       "cases": {
@@ -26904,13 +27023,45 @@
       "invariant": "INV-ROUTE-R198-ROUTE",
       "owner": "admin",
       "packet": "Q22",
-      "contract": "GET /stats/server at server/routers/ApiRouter.js:333. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "The route answers 401 without a token and 403 to a non-admin active user.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:333"
+        "server/controllers/StatsController.js:66-73"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/stats-server-rejects-non-admins"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": [
+        "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+        "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "requirement": "route-r198",
+      "invariant": "INV-ROUTE-R198-STATS",
+      "owner": "admin",
+      "packet": "Q22",
+      "contract": "The payload has exactly books, podcasts and total, each with exactly totalSize, numItems and numAudioFiles as numbers. The fixture yields books 670358/5/6, podcasts 219867/1/3 and total 890225/6/9, and the same payload on a repeat read and with unrelated query parameters.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/StatsController.js:23-48",
+        "server/utils/queries/adminStats.js:181-216"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/stats-server-reports-the-fixture-totals",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/stats-server-repeated-reads-agree"
       ],
       "evidence": [],
       "cases": {
@@ -27211,13 +27362,14 @@
       "invariant": "INV-ROUTE-R203-ROUTE",
       "owner": "admin",
       "packet": "Q22",
-      "contract": "POST /upload at server/routers/ApiRouter.js:346. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "Rejections come in the source order: 401 without a token; 403 when the user cannot upload, before the body is read; 400 without a file or without string library, folder and title; 404 for an unknown library; 403 when the user cannot access the library (404 still wins for an unknown library); 404 when the folder is not one of the library folders. A rejected upload writes no file or directory and changes no row.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:346"
+        "server/controllers/MiscController.js:37-73"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/upload-rejects-callers-and-bodies"
       ],
       "evidence": [],
       "cases": {
@@ -27230,13 +27382,54 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the route has no force, hard or override parameter; a repeated upload overwrites the destination derived from the title and file name.",
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "requirement": "route-r203",
+      "invariant": "INV-ROUTE-R203-WRITE",
+      "owner": "admin",
+      "packet": "Q22",
+      "contract": "A successful upload writes each file with its exact bytes below <folder>/<author>/<series>/<title>/ for a book library (absent author or series are skipped) and below <folder>/<title>/ for a podcast library, creating the directories; the title is sanitized (\":\" becomes \" - \") and the directory part of a file name is dropped by the multipart parser. The response is 200 and the upload creates no library item synchronously; a later upload of the same title with a series goes to its own directory and leaves the earlier files.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:75-104",
+        "server/utils/fileUtils.js:360-420",
+        "server/libs/busboy/types/multipart.js:299-325"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/upload-book-writes-the-library-folder",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/upload-podcast-uses-the-title-only-and-sanitizes",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/upload-second-series-keeps-the-first-file"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+        "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the route has no force, hard or override parameter; a repeated upload overwrites the destination derived from the title and file name.",
         "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
       ]
     },
@@ -27245,13 +27438,14 @@
       "invariant": "INV-ROUTE-R203-REPEAT",
       "owner": "admin",
       "packet": "Q22",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "Uploading the same title and file name twice answers 200 both times and leaves one file at the same path with the second content (the move overwrites), with no duplicate directory or file.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:346"
+        "server/controllers/MiscController.js:92-104"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/upload-repeat-overwrites-one-file"
       ],
       "evidence": [],
       "cases": {
@@ -27264,13 +27458,14 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the route has no force, hard or override parameter; a repeated upload overwrites the destination derived from the title and file name.",
         "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
       ]
     },
@@ -28738,13 +28933,16 @@
       "invariant": "INV-ROUTE-R217-ROUTE",
       "owner": "admin",
       "packet": "Q22",
-      "contract": "POST /watcher/update at server/routers/ApiRouter.js:360. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "The route answers 401 without a token, 403 to a non-admin before the body is checked, and 400 when libraryId, path or type is missing, when type is not add, unlink or rename, or when a rename has no oldPath. An unknown library id, a path outside every library folder and an ignored dotfile still answer 200 and queue no scan task.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:360"
+        "server/controllers/MiscController.js:579-614",
+        "server/Watcher.js:268-310"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/watcher-update-rejects-callers-and-bodies",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/watcher-update-ignores-changes-it-cannot-watch"
       ],
       "evidence": [],
       "cases": {
@@ -28757,13 +28955,54 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the route has no force, hard or override parameter.",
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "requirement": "route-r217",
+      "invariant": "INV-ROUTE-R217-NOTIFY",
+      "owner": "admin",
+      "packet": "Q22",
+      "contract": "A queued change emits task_started (action watcher-scan, data.libraryId and data.libraryName, title key MessageTaskScanningFileChanges and the library name as substitution, not finished) to every authenticated socket, admin or not; the task is listed by GET /api/tasks for that library, and when the debounce elapses the scanner emits task_finished with the same id, no failure, zero added, updated and removed files, and no library row changes.",
+      "status": "unverified",
+      "source": [
+        "server/Watcher.js:268-348",
+        "server/managers/TaskManager.js:17-37",
+        "server/scanner/LibraryScanner.js:374-440",
+        "client/layouts/default.vue:452-462"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/watcher-update-notifies-every-socket-and-the-scanner",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/watcher-update-rename-notifies-again"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+        "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the route has no force, hard or override parameter.",
         "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
       ]
     },
@@ -28772,13 +29011,14 @@
       "invariant": "INV-ROUTE-R217-REPEAT",
       "owner": "admin",
       "packet": "Q22",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "Posting the same change twice answers 200 both times and queues exactly one watcher-scan task for the library.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:360"
+        "server/Watcher.js:268-330"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/watcher-update-repeat-queues-one-task"
       ],
       "evidence": [],
       "cases": {
@@ -28791,13 +29031,14 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the route has no force, hard or override parameter.",
         "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
       ]
     },
@@ -28806,13 +29047,46 @@
       "invariant": "INV-ROUTE-R218-ROUTE",
       "owner": "admin",
       "packet": "Q22",
-      "contract": "GET /logger-data at server/routers/ApiRouter.js:361. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "The route answers 401 without a token and 403 to a non-admin active user.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:361"
+        "server/controllers/MiscController.js:777-782"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/logger-data-rejects-non-admins"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": [
+        "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+        "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
+        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "requirement": "route-r218",
+      "invariant": "INV-ROUTE-R218-LISTING",
+      "owner": "admin",
+      "packet": "Q22",
+      "contract": "The payload has exactly currentDailyLogs as a non-empty JSON array whose entries have exactly timestamp (a YYYY-MM-DD HH:mm:ss.SSS string, non-decreasing), source, message, levelName and level (a positive number). It lists only the running server's current daily log: all entries share one day, the fixture's older 2026-11-03 log is absent, two reads return the same prefix, and an error logged after a read appears at the end with levelName ERROR and level 4.",
+      "status": "unverified",
+      "source": [
+        "server/managers/LogManager.js:179-183",
+        "server/objects/DailyLog.js:29-72",
+        "server/Logger.js:72-92"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/logger-data-lists-the-current-daily-log",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/logger-data-lists-only-one-day"
       ],
       "evidence": [],
       "cases": {
@@ -30744,14 +31018,25 @@
       "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-CANCELLED",
       "owner": "metadata",
       "packet": "Q19",
-      "contract": "Socket.IO outgoing cover_search_cancelled: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "cancel_cover_search for an active requestId emits exactly one cover_search_cancelled {requestId} to the cancelling socket and none to another connection of the same user, another user's socket or an unauthenticated socket. After the cancellation the slow provider's answer arrives but produces no cover_search_result, cover_search_complete or cover_search_provider_error for that search. A cancelled requestId can start and complete a new search against another provider, while the cancelled provider's late answer still produces no result. Cancelling a completed requestId, a second cancellation of the same requestId, an unknown or empty requestId, an absent requestId, and a cancellation from an unauthenticated socket each emit no cover_search_cancelled and no error, and an unauthenticated cancellation does not abort an authenticated socket's active search, which still delivers its result and complete. A cancellation leaves the provider rows unchanged.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:449"
+        "server/SocketAuthority.js:449",
+        "server/SocketAuthority.js:432-451",
+        "server/SocketAuthority.js:195-198",
+        "server/managers/CoverSearchManager.js:78-88",
+        "server/managers/CoverSearchManager.js:117-160",
+        "client/components/modals/item/tabs/Cover.vue:378-387"
       ],
       "tests": [
         "go-backend/internal/contracttest/cover_search_test.go:148#TestCoverSearchCancel",
-        "go-backend/internal/metadata/metadata_test.go:393#TestCancelCoverSearch"
+        "go-backend/internal/metadata/metadata_test.go:393#TestCancelCoverSearch",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-cancel-active-search",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-cancel-completed-search-emits-none",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-cancel-unknown-request-id",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-cancel-unauthenticated-ignored",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-cancel-frees-request-id",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-cancel-late-answer-emits-nothing"
       ],
       "evidence": [],
       "cases": {
@@ -30764,11 +31049,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "force is not applicable: cancelling has no force or override variant; it either finds an active requestId or does nothing.",
+        "Cancelling another user's requestId is not asserted: the web client only cancels its own currentSearchRequestId, and upstream scopes cancellation by requestId alone, so a cross-user assertion would pin an authorization gap no client relies on."
       ]
     },
     {
@@ -30776,15 +31062,24 @@
       "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-COMPLETE",
       "owner": "metadata",
       "packet": "Q19",
-      "contract": "Socket.IO outgoing cover_search_complete: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "One search_covers emits exactly one cover_search_complete to the requesting socket and none to another connection of the same user, another user's socket or an unauthenticated socket. The argument is exactly {requestId} and it arrives after that search's cover_search_result events. Each further search emits its own complete, including a requestId reused after its previous search completed. A search whose provider returned no covers still completes exactly once with no result, a search for a provider row that was deleted before it ran still completes, and a finder-level provider failure emits cover_search_provider_error and then completes with no result. A search rejected for missing parameters or an unauthenticated socket emits cover_search_error and no complete, and a cancelled search never completes.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:411"
+        "server/SocketAuthority.js:411",
+        "server/SocketAuthority.js:405-411",
+        "server/managers/CoverSearchManager.js:34-73",
+        "server/managers/CoverSearchManager.js:117-160",
+        "client/components/modals/item/tabs/Cover.vue:346-351"
       ],
       "tests": [
         "go-backend/internal/contracttest/cover_search_test.go:125#TestCoverSearchSocket",
         "go-backend/internal/contracttest/cover_search_test.go:148#TestCoverSearchCancel",
-        "go-backend/internal/metadata/metadata_test.go:323#TestFindersReturnTypedResults"
+        "go-backend/internal/metadata/metadata_test.go:323#TestFindersReturnTypedResults",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-complete-payload-and-ordering",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-complete-each-search",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-complete-without-results",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-complete-not-after-rejection",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-complete-after-provider-error"
       ],
       "evidence": [],
       "cases": {
@@ -30797,11 +31092,11 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "force is not applicable: a search has no force or override mode, so there is no separate complete variant to exercise."
       ]
     },
     {
@@ -30809,15 +31104,24 @@
       "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-ERROR",
       "owner": "metadata",
       "packet": "Q19",
-      "contract": "Socket.IO outgoing cover_search_error: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "A search_covers without a title emits exactly one cover_search_error to the requesting socket with {requestId, error} (requestId echoed, error non-empty), and none of cover_search_result, cover_search_complete or cover_search_provider_error. A search_covers from an unauthenticated socket emits cover_search_error to that socket and to no authenticated socket. When the payload has no requestId the event carries only error; an empty requestId is echoed as an empty string, and an empty but present title is rejected the same way as an absent one. Repeating an invalid request emits an error each time. An invalid request after a successful search emits only its own error and no result. Rejected requests contact no provider, add no row and leave a following valid search working.",
       "status": "unverified",
       "source": [
         "server/SocketAuthority.js:378",
         "server/SocketAuthority.js:389",
-        "server/SocketAuthority.js:426"
+        "server/SocketAuthority.js:426",
+        "server/SocketAuthority.js:374-430",
+        "server/managers/CoverSearchManager.js:34-73",
+        "client/components/modals/item/tabs/Cover.vue:352-358"
       ],
       "tests": [
-        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked"
+        "go-backend/internal/realtime/hub_test.go:479#TestClientActionsAreTypedAndChecked",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-error-missing-title",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-error-unauthenticated",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-error-request-id-echo",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-error-repeat-same-request-id",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-error-after-successful-search",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-error-rejected-search-changes-nothing"
       ],
       "evidence": [],
       "cases": {
@@ -30830,11 +31134,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "force is not applicable: the refusal pre-checks have no force or override mode.",
+        "The error text is not pinned: no client parses it (the web client logs data.error and shows a generic toast), so the scenarios assert a non-empty string and the echoed requestId.",
+        "The third emit site (server/SocketAuthority.js:424-429, a rejected CoverSearchManager.startSearch) is defensive and unreachable through the socket API in v2.37.2: startSearch catches every search error inside its own try/catch, so no scenario triggers it."
       ]
     },
     {
@@ -30842,12 +31148,24 @@
       "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-PROVIDER-ERROR",
       "owner": "metadata",
       "packet": "Q19",
-      "contract": "Socket.IO outgoing cover_search_provider_error: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "A search whose finder call fails for one provider emits exactly one cover_search_provider_error to the requesting socket with {requestId, provider, error}: requestId echoed, provider the requested provider string, error a non-empty string, followed by cover_search_complete with no cover_search_result. The event is not broadcast to another connection of the same user, another user's socket or an unauthenticated socket. The requested provider name is echoed verbatim, including an unknown slug and a regional audible provider. Each failing search emits its own event and complete, and a failure after a successful search reports only its own requestId without repeating or adding a result. A request rejected for invalid parameters or an unauthenticated socket emits cover_search_error and no provider error. A custom provider's HTTP 500 emits no provider error, no result and one complete while the provider rows stay unchanged.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:416"
+        "server/SocketAuthority.js:416",
+        "server/SocketAuthority.js:374-430",
+        "server/managers/CoverSearchManager.js:117-160",
+        "server/finders/BookFinder.js:374-400",
+        "server/finders/BookFinder.js:205-216",
+        "client/components/modals/item/tabs/Cover.vue:360-363"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-provider-error-reports-failing-provider",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-provider-error-not-for-rejections",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-provider-error-names-requested-provider",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-provider-error-each-request",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-provider-error-after-successful-search",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-provider-error-custom-failure-is-silent"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -30859,11 +31177,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "force is not applicable: a provider failure has no force or override mode.",
+        "The only offline-reachable trigger is a finder-level exception: a non-string title makes BookFinder.search throw before it contacts any provider. A custom provider answering HTTP 500 is swallowed by getCustomProviderResults and emits no provider error, which the failure scenario asserts instead of inventing an HTTP failure event.",
+        "The error text is not pinned: the web client only logs data.error, so the scenarios assert a non-empty string, the echoed requestId and the requested provider name."
       ]
     },
     {
@@ -30871,13 +31191,26 @@
       "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-RESULT",
       "owner": "metadata",
       "packet": "Q19",
-      "contract": "Socket.IO outgoing cover_search_result: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: socket-local; inspect source recipient. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "One search_covers for one custom provider emits exactly one cover_search_result to the requesting socket and none to another connection of the same user, another user's socket or an unauthenticated socket. The argument is exactly {requestId, provider, covers, total}: the requestId is echoed, provider is the requested provider string, covers holds the provider's cover URLs in match order with duplicates removed and empty ones omitted, and total equals len(covers). The provider is queried once at /search with mediaType=book, the client's title and author. A normal (non-admin) user may search: the handler requires authentication, not the admin role. An answer without covers (empty matches, missing matches array or malformed body) emits no result; a second search with a requestId that is still active is ignored and the provider is queried once; after the provider row is deleted its covers never reappear; and a request rejected for missing parameters or an unauthenticated socket emits no result and contacts no provider.",
       "status": "unverified",
       "source": [
-        "server/SocketAuthority.js:400"
+        "server/SocketAuthority.js:400",
+        "server/SocketAuthority.js:374-411",
+        "server/managers/CoverSearchManager.js:117-160",
+        "server/managers/CoverSearchManager.js:222-241",
+        "server/finders/BookFinder.js:374-409",
+        "server/providers/CustomProviderAdapter.js:22-88",
+        "client/components/modals/item/tabs/Cover.vue:339-345"
       ],
       "tests": [
-        "go-backend/internal/contracttest/cover_search_test.go:125#TestCoverSearchSocket"
+        "go-backend/internal/contracttest/cover_search_test.go:125#TestCoverSearchSocket",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-payload-and-audience",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-normal-user-allowed",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-repeat-request-id",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-duplicate-active-request-id",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-empty-covers-emit-none",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-follows-provider-change",
+        "go-backend/testmachine/scenarios/metadata/run_test.go#TestReplacement/cover-result-rejected-requests-emit-none"
       ],
       "evidence": [],
       "cases": {
@@ -30890,11 +31223,11 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "force is not applicable: the streaming cover search has no force or override mode; it runs with the provider and flags the client sends."
       ]
     },
     {
