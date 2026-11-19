@@ -1,0 +1,943 @@
+{
+  "packet": "metadata",
+  "reviewer": "independent review, 2026-11-19, deepseek-v4.1-flash:1017",
+  "scenario_digest": "029f433f669cf022cb0cd8a141a860ea8524eb3060205599f697085bf09b94f2",
+  "requirements_digest": "0bc4352cfe11010360eac7c1a472c95a54cfd8de1315fac3627d599ab0d175b5",
+  "required_tuples": [
+    {
+      "requirement": "route-r180",
+      "invariant": "INV-ROUTE-R180-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "providers-static-catalogue",
+      "sources": [
+        "server/routers/ApiRouter.js:284-291",
+        "server/controllers/SearchController.js:220-231",
+        "client/store/scanners.js:26-57"
+      ],
+      "rationale": "The fixture catalogue returns exactly the 14 built-in book providers, best + the 15 built-in cover providers + all, and itunes only for podcasts, each with its display name and in source order."
+    },
+    {
+      "requirement": "route-r180",
+      "invariant": "INV-ROUTE-R180-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "providers-requires-auth",
+      "sources": [
+        "server/Server.js:354",
+        "server/routers/ApiRouter.js:284-291"
+      ],
+      "rationale": "The provider catalogue is readable only with a token; without one it is 401."
+    },
+    {
+      "requirement": "route-r192",
+      "invariant": "INV-ROUTE-R192-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "custom-providers-list-empty",
+      "sources": [
+        "server/routers/ApiRouter.js:316-321",
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "client/pages/config/item-metadata-utils/custom-metadata-providers.vue:50-62"
+      ],
+      "rationale": "As the admin on the fixture state the list is 200 {providers: []}."
+    },
+    {
+      "requirement": "route-r192",
+      "invariant": "INV-ROUTE-R192-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "custom-providers-list-auth",
+      "sources": [
+        "server/Server.js:354",
+        "server/controllers/CustomMetadataProviderController.js:24-122"
+      ],
+      "rationale": "The admin list is 401 without a token and 403 for both non-admin fixture users."
+    },
+    {
+      "requirement": "route-r180",
+      "invariant": "INV-ROUTE-R180-CUSTOM-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "providers-merge-custom-by-media-type",
+      "sources": [
+        "server/controllers/SearchController.js:220-231",
+        "server/controllers/SearchController.js:85-231",
+        "server/models/CustomMetadataProvider.js:96-103"
+      ],
+      "rationale": "A non-admin still reads the catalogue, and each stored custom provider is appended only under its mediaType: book ones after the built-ins and before all."
+    },
+    {
+      "requirement": "route-r192",
+      "invariant": "INV-ROUTE-R192-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "custom-providers-list-created-rows",
+      "sources": [
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/models/CustomMetadataProvider.js:96-103",
+        "client/components/tables/CustomMetadataProviderTable.vue:20-70"
+      ],
+      "rationale": "The admin list returns one serialised model row per stored provider with id, name, mediaType, url, authHeaderValue and parseable timestamps, and no slug."
+    },
+    {
+      "requirement": "route-r175",
+      "invariant": "INV-ROUTE-R175-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "covers-custom-provider-ordered-deduplicated",
+      "sources": [
+        "server/routers/ApiRouter.js:284-291",
+        "server/controllers/SearchController.js:85-231",
+        "server/finders/BookFinder.js:608-640",
+        "server/providers/CustomProviderAdapter.js:21-145",
+        "client/components/modals/item/tabs/Match.vue:400-430"
+      ],
+      "rationale": "A custom-provider cover search queries the provider once with mediaType=book, the title and the author, and returns that provider's covers in match order, deduplicated, skipping coverless matches."
+    },
+    {
+      "requirement": "route-r175",
+      "invariant": "INV-ROUTE-R175-REJECT-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "covers-auth-and-title-required",
+      "sources": [
+        "server/Server.js:354",
+        "server/controllers/SearchController.js:85-231",
+        "server/utils/index.js:326-343"
+      ],
+      "rationale": "Cover search is 401 without a token, 400 for a missing title on the book and the podcast path, and 400 when provider is repeated as an array."
+    },
+    {
+      "requirement": "route-r175",
+      "invariant": "INV-ROUTE-R175-REJECT-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "covers-empty-title-chains-answer-empty",
+      "sources": [
+        "server/controllers/SearchController.js:85-231",
+        "server/finders/BookFinder.js:374-409",
+        "server/finders/BookFinder.js:608-640",
+        "server/finders/PodcastFinder.js:15-25"
+      ],
+      "rationale": "With an empty title the all, best and an unknown provider answer 200 with results [] and a podcast cover search answers 200 with results null."
+    },
+    {
+      "requirement": "route-r176",
+      "invariant": "INV-ROUTE-R176-CONTRACT",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "books-custom-provider-projection",
+      "sources": [
+        "server/routers/ApiRouter.js:284-291",
+        "server/controllers/SearchController.js:85-231",
+        "server/finders/BookFinder.js:374-409",
+        "server/finders/BookFinder.js:205-216",
+        "server/providers/CustomProviderAdapter.js:21-145",
+        "client/components/cards/ItemUploadCard.vue:180-200"
+      ],
+      "rationale": "A custom-provider book search sends the stored Authorization header and one mediaType/query/author request, and returns the adapter's projection in match order: numbers and arrays stringified, unparsable or non-string fields and empty series omitted, tags deduped, invalid series dropped, allowed description HTML kept."
+    },
+    {
+      "requirement": "route-r176",
+      "invariant": "INV-ROUTE-R176-REJECT-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "books-auth-not-found-and-validation-order",
+      "sources": [
+        "server/Server.js:354",
+        "server/controllers/SearchController.js:85-231",
+        "server/controllers/SearchController.js:47-54",
+        "server/utils/index.js:326-343"
+      ],
+      "rationale": "Book search is 401 without a token, 404 for an unknown library item id, and validates provider and title (length over 1000, arrays) with 400 before the item lookup."
+    },
+    {
+      "requirement": "route-r176",
+      "invariant": "INV-ROUTE-R176-DEGRADE-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "books-empty-title-and-provider-degrades",
+      "sources": [
+        "server/finders/BookFinder.js:374-409",
+        "server/controllers/SearchController.js:85-231",
+        "server/providers/CustomProviderAdapter.js:21-145"
+      ],
+      "rationale": "Book searches that cannot produce a result (absent title, unknown custom slug, malformed provider body, closed provider address) all answer 200 with an empty array."
+    },
+    {
+      "requirement": "route-r177",
+      "invariant": "INV-ROUTE-R177-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "podcast-auth-and-term-validation",
+      "sources": [
+        "server/Server.js:354",
+        "server/controllers/SearchController.js:85-231",
+        "server/utils/index.js:326-343",
+        "client/pages/library/_library/podcast/search.vue:160-175"
+      ],
+      "rationale": "Podcast search is 401 without a token and 400 for an absent or array term."
+    },
+    {
+      "requirement": "route-r177",
+      "invariant": "INV-ROUTE-R177-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "podcast-empty-term-is-null",
+      "sources": [
+        "server/controllers/SearchController.js:85-231",
+        "server/finders/PodcastFinder.js:15-25"
+      ],
+      "rationale": "An empty podcast term answers 200 with a JSON null body and reaches no external host."
+    },
+    {
+      "requirement": "route-r178",
+      "invariant": "INV-ROUTE-R178-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "authors-auth-and-q-validation",
+      "sources": [
+        "server/Server.js:354",
+        "server/controllers/SearchController.js:85-231",
+        "server/utils/index.js:326-343"
+      ],
+      "rationale": "Author search is 401 without a token and 400 for an absent or array q."
+    },
+    {
+      "requirement": "route-r178",
+      "invariant": "INV-ROUTE-R178-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "authors-empty-q-is-null",
+      "sources": [
+        "server/controllers/SearchController.js:85-231",
+        "server/finders/AuthorFinder.js:25-35"
+      ],
+      "rationale": "An empty author q answers 200 with a JSON null body and reaches no external host."
+    },
+    {
+      "requirement": "route-r179",
+      "invariant": "INV-ROUTE-R179-CONTRACT",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "chapters-auth-and-asin-required",
+      "sources": [
+        "server/Server.js:354",
+        "server/controllers/SearchController.js:85-231",
+        "server/utils/index.js:260-263",
+        "client/pages/audiobook/_id/chapters.vue:781-790"
+      ],
+      "rationale": "Chapter search is 401 without a token and answers 200 with {error: Invalid ASIN, stringKey: MessageInvalidAsin} for a missing asin instead of a 4xx."
+    },
+    {
+      "requirement": "route-r179",
+      "invariant": "INV-ROUTE-R179-CONTRACT",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "chapters-invalid-asin-formats",
+      "sources": [
+        "server/controllers/SearchController.js:85-231",
+        "server/utils/index.js:260-263",
+        "client/pages/audiobook/_id/chapters.vue:781-790"
+      ],
+      "rationale": "Empty, short, nine-character, non-alphanumeric and array ASINs each answer 200 with the Invalid ASIN body the web client turns into a string."
+    },
+    {
+      "requirement": "route-r193",
+      "invariant": "INV-ROUTE-R193-CONTRACT",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "create-first-provider",
+      "sources": [
+        "server/routers/ApiRouter.js:316-321",
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/models/CustomMetadataProvider.js:96-103",
+        "client/components/modals/AddCustomMetadataProviderModal.vue:70-95"
+      ],
+      "rationale": "An admin create answers 200 with the created provider (id, name, mediaType, the url verbatim, authHeaderValue, RFC 3339 timestamps at or after the request, no slug) and persists exactly that row."
+    },
+    {
+      "requirement": "route-r193",
+      "invariant": "INV-ROUTE-R193-CONTRACT",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "create-repeat-adds-second-row",
+      "sources": [
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/models/CustomMetadataProvider.js:96-103"
+      ],
+      "rationale": "Posting the same body again answers 200 with a different id and keeps two rows, so create is not idempotent."
+    },
+    {
+      "requirement": "route-r193",
+      "invariant": "INV-ROUTE-R193-CONTRACT",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "create-podcast-provider-and-empty-auth",
+      "sources": [
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/models/CustomMetadataProvider.js:96-103",
+        "server/controllers/SearchController.js:220-231"
+      ],
+      "rationale": "mediaType is stored exactly as sent and an empty authHeaderValue is stored NULL."
+    },
+    {
+      "requirement": "route-r193",
+      "invariant": "INV-ROUTE-R193-REJECT-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "create-rejections-change-nothing",
+      "sources": [
+        "server/Server.js:354",
+        "server/routers/ApiRouter.js:316-321",
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/utils/index.js:233-241",
+        "client/components/modals/AddCustomMetadataProviderModal.vue:70-95"
+      ],
+      "rationale": "Create is 401 without a token, 403 for a non-admin, 400 Invalid request body for a missing name, url or mediaType or an empty url, and 400 Invalid url for a non-URL, adding no row."
+    },
+    {
+      "requirement": "route-r193",
+      "invariant": "INV-ROUTE-R193-URL-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "create-accepts-loopback-and-private-urls",
+      "sources": [
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/utils/index.js:233-241"
+      ],
+      "rationale": "validateUrl only parses: a loopback and a private-range URL are accepted with 200 and echoed verbatim by the create response (the stored row's url is not read: finding 1)."
+    },
+    {
+      "requirement": "route-r194",
+      "invariant": "INV-ROUTE-R194-CONTRACT",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "delete-provider-removes-row-and-search-result",
+      "sources": [
+        "server/routers/ApiRouter.js:316-321",
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/providers/CustomProviderAdapter.js:21-145"
+      ],
+      "rationale": "A delete removes the row and its list entry, and a following book search with that slug answers 200 with an empty array."
+    },
+    {
+      "requirement": "route-r194",
+      "invariant": "INV-ROUTE-R194-CONTRACT",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "delete-repeat-is-404",
+      "sources": [
+        "server/routers/ApiRouter.js:316-321",
+        "server/controllers/CustomMetadataProviderController.js:24-122"
+      ],
+      "rationale": "Deleting the same id again answers 404 and leaves the other provider rows intact."
+    },
+    {
+      "requirement": "route-r194",
+      "invariant": "INV-ROUTE-R194-FALLBACK-001",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "delete-provider-falls-libraries-back",
+      "sources": [
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/models/CustomMetadataProvider.js:96-103",
+        "server/routers/ApiRouter.js:284-291"
+      ],
+      "rationale": "Deleting the provider a book and a podcast library use sets their provider columns to google and itunes without changing their name or mediaType."
+    },
+    {
+      "requirement": "route-r194",
+      "invariant": "INV-ROUTE-R194-EDGE-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "delete-last-provider-of-a-media-type",
+      "sources": [
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/controllers/SearchController.js:220-231"
+      ],
+      "rationale": "Deleting the last custom podcast provider answers 200, leaves podcasts as only itunes and books with the remaining custom book provider."
+    },
+    {
+      "requirement": "route-r194",
+      "invariant": "INV-ROUTE-R194-REJECT-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "delete-rejections-change-nothing",
+      "sources": [
+        "server/Server.js:354",
+        "server/routers/ApiRouter.js:316-321",
+        "server/controllers/CustomMetadataProviderController.js:24-122"
+      ],
+      "rationale": "Delete is 401 without a token, 403 for a non-admin even for an unknown id (admin check first) and 404 for an unknown id as admin, and removes no row."
+    },
+    {
+      "requirement": "socket-outgoing-custom-metadata-provider-added",
+      "invariant": "INV-SOCKET-OUTGOING-CUSTOM-METADATA-PROVIDER-ADDED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "added-event-authorized-audience-payload",
+      "sources": [
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/SocketAuthority.js:49-60",
+        "server/models/CustomMetadataProvider.js:96-103"
+      ],
+      "rationale": "A create emits exactly one custom_metadata_provider_added with {id, name, mediaType, slug custom-<id>} to every authenticated socket and none to an unauthenticated socket."
+    },
+    {
+      "requirement": "socket-outgoing-custom-metadata-provider-added",
+      "invariant": "INV-SOCKET-OUTGOING-CUSTOM-METADATA-PROVIDER-ADDED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "added-event-every-connection-of-a-user",
+      "sources": [
+        "server/SocketAuthority.js:49-60",
+        "server/controllers/CustomMetadataProviderController.js:24-122"
+      ],
+      "rationale": "Two connections of one user each receive the added event, and an unauthenticated socket receives none."
+    },
+    {
+      "requirement": "socket-outgoing-custom-metadata-provider-added",
+      "invariant": "INV-SOCKET-OUTGOING-CUSTOM-METADATA-PROVIDER-ADDED",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "added-event-each-create",
+      "sources": [
+        "server/SocketAuthority.js:49-60",
+        "server/controllers/CustomMetadataProviderController.js:24-122"
+      ],
+      "rationale": "Two creates emit two added events in request order, each carrying its own provider's id and slug."
+    },
+    {
+      "requirement": "socket-outgoing-custom-metadata-provider-added",
+      "invariant": "INV-SOCKET-OUTGOING-CUSTOM-METADATA-PROVIDER-ADDED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "added-event-after-a-removal",
+      "sources": [
+        "server/SocketAuthority.js:49-60",
+        "server/controllers/CustomMetadataProviderController.js:24-122"
+      ],
+      "rationale": "After a create and a removal, a new create emits exactly one added event for the new provider."
+    },
+    {
+      "requirement": "socket-outgoing-custom-metadata-provider-added",
+      "invariant": "INV-SOCKET-OUTGOING-CUSTOM-METADATA-PROVIDER-ADDED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "added-event-rejected-create-emits-none",
+      "sources": [
+        "server/SocketAuthority.js:49-60",
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/Server.js:354"
+      ],
+      "rationale": "A create rejected with 400 Invalid url or 403 emits no added event to any socket and adds no row."
+    },
+    {
+      "requirement": "socket-outgoing-custom-metadata-provider-removed",
+      "invariant": "INV-SOCKET-OUTGOING-CUSTOM-METADATA-PROVIDER-REMOVED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "removed-event-authorized-audience-payload",
+      "sources": [
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/SocketAuthority.js:49-60",
+        "server/models/CustomMetadataProvider.js:96-103"
+      ],
+      "rationale": "A delete emits exactly one custom_metadata_provider_removed with the pre-delete client JSON {id, name, mediaType, slug} to every authenticated socket and none to an unauthenticated socket."
+    },
+    {
+      "requirement": "socket-outgoing-custom-metadata-provider-removed",
+      "invariant": "INV-SOCKET-OUTGOING-CUSTOM-METADATA-PROVIDER-REMOVED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "removed-event-every-connection-of-a-user",
+      "sources": [
+        "server/SocketAuthority.js:49-60",
+        "server/controllers/CustomMetadataProviderController.js:24-122"
+      ],
+      "rationale": "Two connections of one user each receive the removed event, and an unauthenticated socket receives none."
+    },
+    {
+      "requirement": "socket-outgoing-custom-metadata-provider-removed",
+      "invariant": "INV-SOCKET-OUTGOING-CUSTOM-METADATA-PROVIDER-REMOVED",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "removed-event-second-delete-emits-none",
+      "sources": [
+        "server/SocketAuthority.js:49-60",
+        "server/controllers/CustomMetadataProviderController.js:24-122"
+      ],
+      "rationale": "A repeated delete of the same id answers 404 and emits no second removed event."
+    },
+    {
+      "requirement": "socket-outgoing-custom-metadata-provider-removed",
+      "invariant": "INV-SOCKET-OUTGOING-CUSTOM-METADATA-PROVIDER-REMOVED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "removed-event-while-library-used",
+      "sources": [
+        "server/SocketAuthority.js:49-60",
+        "server/controllers/CustomMetadataProviderController.js:24-122"
+      ],
+      "rationale": "Deleting a provider a library uses still emits its original client JSON and falls the library back to google."
+    },
+    {
+      "requirement": "socket-outgoing-custom-metadata-provider-removed",
+      "invariant": "INV-SOCKET-OUTGOING-CUSTOM-METADATA-PROVIDER-REMOVED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "removed-event-rejected-delete-emits-none",
+      "sources": [
+        "server/SocketAuthority.js:49-60",
+        "server/controllers/CustomMetadataProviderController.js:24-122",
+        "server/Server.js:354"
+      ],
+      "rationale": "A 403 delete and a 404 delete emit no removed event to any socket and leave the provider rows unchanged."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-result",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-RESULT",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "cover-result-payload-and-audience",
+      "sources": [
+        "server/SocketAuthority.js:195-198",
+        "server/SocketAuthority.js:370-430",
+        "server/managers/CoverSearchManager.js:117-160",
+        "server/managers/CoverSearchManager.js:222-241",
+        "client/components/modals/item/tabs/Cover.vue:339-375"
+      ],
+      "rationale": "One search_covers emits exactly one cover_search_result {requestId, provider, covers, total} to the requesting socket alone, with the covers in match order deduplicated and the provider queried once with mediaType/title/author."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-result",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-RESULT",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "cover-result-normal-user-allowed",
+      "sources": [
+        "server/SocketAuthority.js:195-198",
+        "server/SocketAuthority.js:370-430",
+        "client/components/modals/item/tabs/Cover.vue:378-424"
+      ],
+      "rationale": "A normal (non-admin) authenticated user may run a cover search and receives its result and complete, while another user's socket receives neither."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-result",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-RESULT",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "cover-result-repeat-request-id",
+      "sources": [
+        "server/SocketAuthority.js:370-430",
+        "server/managers/CoverSearchManager.js:34-73",
+        "server/managers/CoverSearchManager.js:117-160"
+      ],
+      "rationale": "A requestId reused after its search completed runs a second search that emits its own result and provider request."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-result",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-RESULT",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "cover-result-duplicate-active-request-id",
+      "sources": [
+        "server/managers/CoverSearchManager.js:34-73",
+        "server/managers/CoverSearchManager.js:117-160"
+      ],
+      "rationale": "A search_covers bearing the requestId of an active search is ignored: one result, one complete and one provider request."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-result",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-RESULT",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "cover-result-empty-covers-emit-none",
+      "sources": [
+        "server/managers/CoverSearchManager.js:117-160",
+        "server/managers/CoverSearchManager.js:222-241",
+        "server/finders/BookFinder.js:205-216",
+        "server/providers/CustomProviderAdapter.js:22-88"
+      ],
+      "rationale": "A provider answer with empty matches or without a matches array emits no cover_search_result and still completes once."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-result",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-RESULT",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "cover-result-follows-provider-change",
+      "sources": [
+        "server/managers/CoverSearchManager.js:117-160",
+        "server/finders/BookFinder.js:205-216",
+        "server/providers/CustomProviderAdapter.js:22-88"
+      ],
+      "rationale": "After a provider is deleted and another created, a search reports only the new provider's covers and the deleted provider's stub sees no further request."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-result",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-RESULT",
+      "case": "error",
+      "state": "failure",
+      "assertion": "cover-result-rejected-requests-emit-none",
+      "sources": [
+        "server/SocketAuthority.js:370-430",
+        "server/managers/CoverSearchManager.js:117-160"
+      ],
+      "rationale": "A missing-title and an unauthenticated search each answer cover_search_error, emit no result to any socket, contact no provider and change no row."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-complete",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-COMPLETE",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "cover-complete-payload-and-ordering",
+      "sources": [
+        "server/SocketAuthority.js:370-430",
+        "server/managers/CoverSearchManager.js:34-73",
+        "client/components/modals/item/tabs/Cover.vue:339-375"
+      ],
+      "rationale": "One search emits exactly one cover_search_complete {requestId} to the requesting socket alone, after its result."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-complete",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-COMPLETE",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "cover-complete-each-search",
+      "sources": [
+        "server/managers/CoverSearchManager.js:34-73",
+        "server/managers/CoverSearchManager.js:117-160",
+        "client/components/modals/item/tabs/Cover.vue:339-375"
+      ],
+      "rationale": "Three searches, including one reusing a completed requestId, emit three completes in request order after each result."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-complete",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-COMPLETE",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "cover-complete-without-results",
+      "sources": [
+        "server/managers/CoverSearchManager.js:34-73",
+        "server/managers/CoverSearchManager.js:117-160",
+        "server/finders/BookFinder.js:205-216"
+      ],
+      "rationale": "A search with no covers, including a provider row deleted before the search, still emits one complete and no result."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-complete",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-COMPLETE",
+      "case": "error",
+      "state": "failure",
+      "assertion": "cover-complete-not-after-rejection",
+      "sources": [
+        "server/SocketAuthority.js:370-430",
+        "server/managers/CoverSearchManager.js:34-73"
+      ],
+      "rationale": "Rejected searches emit cover_search_error and no complete to any socket and contact no provider."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-complete",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-COMPLETE",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "cover-complete-after-provider-error",
+      "sources": [
+        "server/managers/CoverSearchManager.js:117-160",
+        "server/managers/CoverSearchManager.js:34-73",
+        "server/finders/BookFinder.js:374-400"
+      ],
+      "rationale": "A finder-level failure emits cover_search_provider_error and then exactly one complete with no result."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-error",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-ERROR",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "cover-error-missing-title",
+      "sources": [
+        "server/SocketAuthority.js:370-430",
+        "client/components/modals/item/tabs/Cover.vue:339-375"
+      ],
+      "rationale": "A search_covers without a title emits one cover_search_error with the requestId echoed and a non-empty error, no result, complete or provider error, and no provider contact."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-error",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-ERROR",
+      "case": "error",
+      "state": "initial",
+      "assertion": "cover-error-unauthenticated",
+      "sources": [
+        "server/SocketAuthority.js:370-430",
+        "client/components/modals/item/tabs/Cover.vue:339-375"
+      ],
+      "rationale": "A search_covers from an unauthenticated socket emits cover_search_error with the echoed requestId to that socket only and contacts no provider."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-error",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-ERROR",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "cover-error-request-id-echo",
+      "sources": [
+        "server/SocketAuthority.js:370-430"
+      ],
+      "rationale": "An absent requestId yields an error object with only error, an empty requestId is echoed as an empty string, and an empty title is rejected like an absent one."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-error",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-ERROR",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "cover-error-repeat-same-request-id",
+      "sources": [
+        "server/SocketAuthority.js:370-430"
+      ],
+      "rationale": "Repeating the same invalid request emits an error each time with the same requestId."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-error",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-ERROR",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "cover-error-after-successful-search",
+      "sources": [
+        "server/SocketAuthority.js:370-430",
+        "server/managers/CoverSearchManager.js:117-160"
+      ],
+      "rationale": "An invalid request after a successful search emits only its own error, no result and no extra provider request."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-error",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-ERROR",
+      "case": "error",
+      "state": "failure",
+      "assertion": "cover-error-rejected-search-changes-nothing",
+      "sources": [
+        "server/SocketAuthority.js:370-430",
+        "server/managers/CoverSearchManager.js:34-73"
+      ],
+      "rationale": "Rejected searches emit no result, complete, provider error or cancelled to any socket, contact no provider, change no row, and a later valid search still returns a result and completes."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-provider-error",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-PROVIDER-ERROR",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "cover-provider-error-reports-failing-provider",
+      "sources": [
+        "server/SocketAuthority.js:370-430",
+        "server/managers/CoverSearchManager.js:117-160",
+        "server/finders/BookFinder.js:374-400",
+        "client/components/modals/item/tabs/Cover.vue:339-375"
+      ],
+      "rationale": "A failing finder call emits exactly one cover_search_provider_error {requestId, provider, error} to the requesting socket alone, then a complete with no result."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-provider-error",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-PROVIDER-ERROR",
+      "case": "error",
+      "state": "initial",
+      "assertion": "cover-provider-error-not-for-rejections",
+      "sources": [
+        "server/SocketAuthority.js:370-430"
+      ],
+      "rationale": "Rejected searches emit cover_search_error and never cover_search_provider_error to any socket."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-provider-error",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-PROVIDER-ERROR",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "cover-provider-error-names-requested-provider",
+      "sources": [
+        "server/managers/CoverSearchManager.js:117-160",
+        "server/finders/BookFinder.js:374-400"
+      ],
+      "rationale": "The provider-error's provider is the requested string, including an unknown slug and a regional audible provider."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-provider-error",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-PROVIDER-ERROR",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "cover-provider-error-each-request",
+      "sources": [
+        "server/SocketAuthority.js:370-430",
+        "server/managers/CoverSearchManager.js:117-160"
+      ],
+      "rationale": "Two failing searches emit two provider-error events with their own requestIds, each followed by its own complete."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-provider-error",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-PROVIDER-ERROR",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "cover-provider-error-after-successful-search",
+      "sources": [
+        "server/SocketAuthority.js:370-430",
+        "server/managers/CoverSearchManager.js:117-160"
+      ],
+      "rationale": "A failure after a successful custom-provider search reports only its own requestId and adds no result or provider request."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-provider-error",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-PROVIDER-ERROR",
+      "case": "error",
+      "state": "failure",
+      "assertion": "cover-provider-error-custom-failure-is-silent",
+      "sources": [
+        "server/finders/BookFinder.js:205-216",
+        "server/providers/CustomProviderAdapter.js:22-88",
+        "server/managers/CoverSearchManager.js:117-160"
+      ],
+      "rationale": "A custom provider answering HTTP 500 emits no provider error and no result, exactly one complete, and leaves the provider rows unchanged."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-cancelled",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-CANCELLED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "cover-cancel-active-search",
+      "sources": [
+        "server/SocketAuthority.js:432-451",
+        "server/managers/CoverSearchManager.js:78-88",
+        "server/managers/CoverSearchManager.js:117-160",
+        "client/components/modals/item/tabs/Cover.vue:378-424"
+      ],
+      "rationale": "Cancelling an active search emits one cover_search_cancelled {requestId} to the cancelling socket alone, and the late provider answer produces no result, complete or provider error."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-cancelled",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-CANCELLED",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "cover-cancel-completed-search-emits-none",
+      "sources": [
+        "server/managers/CoverSearchManager.js:78-88",
+        "server/SocketAuthority.js:432-451"
+      ],
+      "rationale": "Cancelling a completed requestId, and cancelling it a second time, emits no cover_search_cancelled."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-cancelled",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-CANCELLED",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "cover-cancel-unknown-request-id",
+      "sources": [
+        "server/managers/CoverSearchManager.js:78-88",
+        "server/SocketAuthority.js:432-451"
+      ],
+      "rationale": "Unknown, empty, null and absent requestIds each emit no cover_search_cancelled and no error."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-cancelled",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-CANCELLED",
+      "case": "error",
+      "state": "initial",
+      "assertion": "cover-cancel-unauthenticated-ignored",
+      "sources": [
+        "server/SocketAuthority.js:432-451",
+        "server/SocketAuthority.js:195-198"
+      ],
+      "rationale": "An unauthenticated cancellation emits nothing and does not abort the authenticated socket's active search, which still delivers its result and complete."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-cancelled",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-CANCELLED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "cover-cancel-frees-request-id",
+      "sources": [
+        "server/managers/CoverSearchManager.js:78-88",
+        "server/managers/CoverSearchManager.js:117-160",
+        "server/managers/CoverSearchManager.js:34-73"
+      ],
+      "rationale": "A cancelled requestId starts and completes a new search against another provider, and the cancelled provider's late answer still produces no result."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-cancelled",
+      "invariant": "INV-SOCKET-OUTGOING-COVER-SEARCH-CANCELLED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "cover-cancel-late-answer-emits-nothing",
+      "sources": [
+        "server/managers/CoverSearchManager.js:78-88",
+        "server/SocketAuthority.js:432-451",
+        "server/managers/CoverSearchManager.js:117-160"
+      ],
+      "rationale": "One cover_search_cancelled, then no event of any kind on any socket after the slow provider's late answer, and the provider rows stay unchanged."
+    }
+  ],
+  "not_applicable": [
+    {
+      "requirement": "route-r177",
+      "facet": "normal",
+      "reason": "confirmed: PodcastFinder.search with a non-empty term calls iTunes.searchPodcasts at the fixed host https://itunes.apple.com/search (server/providers/iTunes.js:58); no deterministic offline assertion of the result parsing exists."
+    },
+    {
+      "requirement": "route-r178",
+      "facet": "normal",
+      "reason": "confirmed: AuthorFinder.findAuthorByName delegates to Audnexus, whose baseUrl is the fixed host https://api.audnex.us (server/providers/Audnexus.js:24,52); the success body cannot be produced offline."
+    },
+    {
+      "requirement": "route-r179",
+      "facet": "normal",
+      "reason": "confirmed: a valid 10-char ASIN reaches Audnexus.getChaptersByASIN on https://api.audnex.us/books/<asin>/chapters (server/providers/Audnexus.js:155); chapters and the not-found answer need that host."
+    },
+    {
+      "requirement": "route-r193",
+      "facet": "force",
+      "reason": "confirmed: CustomMetadataProviderController.create has no force/overwrite parameter; every accepted POST inserts a new UUID row (server/controllers/CustomMetadataProviderController.js:38-65)."
+    },
+    {
+      "requirement": "route-r194",
+      "facet": "force",
+      "reason": "confirmed: delete destroys the row found by the :id param and has no force/hard mode (server/controllers/CustomMetadataProviderController.js:72-100)."
+    },
+    {
+      "requirement": "socket-outgoing-custom-metadata-provider-added",
+      "facet": "force",
+      "reason": "confirmed: the event is emitted once per successful create after the insert; there is no force/override variant (server/controllers/CustomMetadataProviderController.js:55-64)."
+    },
+    {
+      "requirement": "socket-outgoing-custom-metadata-provider-removed",
+      "facet": "force",
+      "reason": "confirmed: the event is emitted once per successful delete after destroy and the library fallback update; no force/override variant exists (server/controllers/CustomMetadataProviderController.js:76-99)."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-result",
+      "facet": "force",
+      "reason": "confirmed: SocketAuthority.handleCoverSearch and CoverSearchManager.startSearch take only the client payload; there is no force or override mode (server/SocketAuthority.js:374-411, server/managers/CoverSearchManager.js:34-73)."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-complete",
+      "facet": "force",
+      "reason": "confirmed: completion follows the same payload with no force/override mode; a cancelled search simply skips onComplete (server/managers/CoverSearchManager.js:34-73)."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-error",
+      "facet": "force",
+      "reason": "confirmed: the two refusal pre-checks and the startSearch rejection path have no force or override mode (server/SocketAuthority.js:374-430)."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-provider-error",
+      "facet": "force",
+      "reason": "confirmed: the per-provider error callback is driven only by a finder exception; there is no force or override mode (server/managers/CoverSearchManager.js:117-160)."
+    },
+    {
+      "requirement": "socket-outgoing-cover-search-cancelled",
+      "facet": "force",
+      "reason": "confirmed: cancelSearch either aborts the stored requestId or returns false; no force/override variant (server/managers/CoverSearchManager.js:78-88)."
+    }
+  ],
+  "open_findings": [
+    "route-r193 create-accepts-loopback-and-private-urls: INV-ROUTE-R193-URL-001 says each URL is \"stored verbatim\", but the scenario only asserts the 200 and the url echoed by the create response; it never reads the persisted row (providerRow/e.Rows) for the loopback or the private id before deleting them, so a server that returns the url but writes a different value passes. Add providerRow assertions for both ids (as create-first-provider does).",
+    "route-r194 delete-provider-removes-row-and-search-result: the scenario asserts the literal response body \"OK\" (custom_providers.go:172) from res.sendStatus(200). No client parses that body (CustomMetadataProviderTable.vue:54 branches on the status only), so this pins Express's status message rather than a client-visible contract; assert the 200 and drop the body, and adjust the record's \"body OK\" wording.",
+    "route-r176 books-custom-provider-projection: the Claim says \"tags trimmed and deduped\", but the stub's tags are [\"alpha\",\"alpha\",\"beta\"] with no surrounding whitespace, so only dedupe is proven; genres prove trimming while tags do not. Use tags like [\" alpha \",\"alpha\",\" beta \"] to prove the trim."
+  ]
+}
