@@ -83,7 +83,7 @@ func binaryScenarios() []harness.Scenario {
 		{
 			Requirement: "runtime-binary", Invariant: "INV-RUNTIME-BINARY-REFUSED-001", Case: "error", State: "stateless", Assertion: "binary-refuses-corrupt-config",
 			Sources: []string{"index.js:46", "server/Server.js:188", "server/Database.js:180-192"},
-			Claim:   "A corrupt absdatabase.sqlite makes the boot exit non-zero without serving HTTP and leaves the supplied database bytes unchanged.",
+			Claim:   "A corrupt absdatabase.sqlite makes the boot exit non-zero without serving HTTP, leaves the supplied database bytes unchanged and creates no SQLite journal, wal or shm file beside it.",
 			Run: func(t *testing.T, e *harness.Env) {
 				configDir := t.TempDir()
 				database := filepath.Join(configDir, "absdatabase.sqlite")
@@ -107,17 +107,22 @@ func binaryScenarios() []harness.Scenario {
 				if got := readFile(t, database); string(got) != string(corrupt) {
 					t.Fatalf("corrupt database was modified: %q", got)
 				}
-				if names := dirNames(t, own.Config); len(names) != 0 {
-					t.Fatalf("failed boot wrote into the install config dir: %v", names)
+				// The child runs with CONFIG_PATH set to configDir, so that tree is
+				// what the refused boot touches. Upstream still creates the empty
+				// migrations/ directory before the corrupt database is read
+				// (MigrationManager.init), but it must not persist a SQLite journal.
+				for _, suffix := range []string{"-journal", "-wal", "-shm"} {
+					requireAbsent(t, database+suffix, "SQLite sidecar "+filepath.Base(database+suffix))
 				}
 			},
 		},
 		{
 			Requirement: "runtime-binary", Invariant: "INV-RUNTIME-BINARY-REFUSED-001", Case: "error", State: "stateless", Assertion: "binary-refuses-bad-config-path",
 			Sources: []string{"index.js:46", "server/Server.js:121-126"},
-			Claim:   "A CONFIG_PATH that is a regular file exits non-zero without serving HTTP and leaves both the file and the install config directory unchanged.",
+			Claim:   "A CONFIG_PATH that is a regular file exits non-zero without serving HTTP, leaves the supplied file's bytes unchanged and creates no file beside it.",
 			Run: func(t *testing.T, e *harness.Env) {
-				configFile := filepath.Join(t.TempDir(), "config")
+				supplied := t.TempDir()
+				configFile := filepath.Join(supplied, "config")
 				content := []byte("not a directory")
 				if err := os.WriteFile(configFile, content, 0o600); err != nil {
 					t.Fatalf("write config file: %v", err)
@@ -138,8 +143,10 @@ func binaryScenarios() []harness.Scenario {
 				if got := readFile(t, configFile); string(got) != string(content) {
 					t.Fatalf("the CONFIG_PATH file was modified: %q", got)
 				}
-				if names := dirNames(t, own.Config); len(names) != 0 {
-					t.Fatalf("failed boot wrote into the install config dir: %v", names)
+				// Nothing may appear beside the supplied file: not a config tree,
+				// not a database, not a sidecar.
+				if names := dirNames(t, supplied); !slices.Equal(names, []string{"config"}) {
+					t.Fatalf("refused bad-path boot left %v beside the supplied CONFIG_PATH file, want only config", names)
 				}
 			},
 		},

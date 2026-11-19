@@ -2,15 +2,59 @@ package launch
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
 	"audiobookshelf-compat/testmachine/scenarios/harness"
 )
+
+// nuxtScriptPattern finds the bundled script the retained client's entry
+// document loads (client/dist/index.html script tags, e.g.
+// /audiobookshelf/_nuxt/6446b40.js), returning it base-relative.
+var nuxtScriptPattern = regexp.MustCompile(`<script[^>]+src="[^"]*(_nuxt/[A-Za-z0-9][A-Za-z0-9._-]*\.js)"`)
+
+// requireEntryDocument asserts a response is the retained client's Nuxt entry
+// document and returns the bundled script path it names, so the caller can
+// request a real asset instead of accepting any HTML page.
+func requireEntryDocument(t *testing.T, resp harness.Response, what string) string {
+	t.Helper()
+	requireStatus(t, resp, http.StatusOK, what)
+	if contentType := resp.Header.Get("Content-Type"); !strings.HasPrefix(contentType, "text/html") {
+		t.Fatalf("%s content type = %q, want text/html", what, contentType)
+	}
+	if !strings.Contains(string(resp.Body), `id="__nuxt"`) {
+		t.Fatalf("%s did not serve the Nuxt entry document: %.200q", what, resp.Body)
+	}
+	match := nuxtScriptPattern.FindStringSubmatch(string(resp.Body))
+	if match == nil {
+		t.Fatalf("%s entry document names no /_nuxt/<hash>.js script: %.200q", what, resp.Body)
+	}
+	return "/" + match[1]
+}
+
+// requireBundledScript asserts the client asset referenced by the entry
+// document is served as JavaScript, not as an HTML fallback page.
+func requireBundledScript(t *testing.T, resp harness.Response, what string) {
+	t.Helper()
+	requireStatus(t, resp, http.StatusOK, what)
+	if contentType := resp.Header.Get("Content-Type"); !strings.Contains(contentType, "javascript") {
+		t.Fatalf("%s content type = %q, want javascript: %.80q", what, contentType, resp.Body)
+	}
+	if len(resp.Body) == 0 {
+		t.Fatalf("%s served an empty script body", what)
+	}
+	if strings.Contains(string(resp.Body), `id="__nuxt"`) {
+		t.Fatalf("%s served the client entry document instead of a script", what)
+	}
+}
 
 // launchStatus is the GET /status body the boot code reads (server/Server.js:384-399).
 type launchStatus struct {
@@ -136,4 +180,16 @@ func readFile(t *testing.T, path string) []byte {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	return data
+}
+
+// requireAbsent asserts that path was not created.
+func requireAbsent(t *testing.T, path, what string) {
+	t.Helper()
+	_, err := os.Lstat(path)
+	switch {
+	case err == nil:
+		t.Fatalf("refused boot created %s at %s", what, path)
+	case !errors.Is(err, fs.ErrNotExist):
+		t.Fatalf("stat %s: %v", path, err)
+	}
 }

@@ -266,7 +266,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r223.json": "de45070adb3e9bcad4bb9fd7871b66654ba7b8c549a4cb3b3ac66d16fddf6ca7",
     "go-backend/testmachine/register/capabilities/cap-route-r224.json": "ade01fc2ce2d7cdc18b3e0da08943bd0a676330429d74d18b2d6d536026df524",
     "go-backend/testmachine/register/capabilities/cap-route-r225.json": "ca80539961b732e5f2af1ea2ba850e513787b5f292a2bc08859a919585cd11bf",
-    "go-backend/testmachine/register/capabilities/cap-runtime-binary.json": "8a91e1a4928a62d2cc8aa1608369b19f93b2bd399909fca3165b459a06a426b3",
+    "go-backend/testmachine/register/capabilities/cap-runtime-binary.json": "dfe172b23a3d0f1875813a29618d22f181c256be544c265f888ad0d74554e8ab",
     "go-backend/testmachine/register/capabilities/cap-runtime-configuration.json": "4bfd5a1ee4f6ed22ec6c963d1fb503867fa4b4242a9bd9e07e97ead821bcd032",
     "go-backend/testmachine/register/capabilities/cap-runtime-lifecycle.json": "9cec1dc587a20f1f0d1c7437a97b56cd94da1db031c787c5962f2ad7610d6ab2",
     "go-backend/testmachine/register/capabilities/cap-scan-precedence-timeline.json": "3b783e7bccdff6107b4c193aefcd33cdacb2a43825f819d084c4bb2f2afa07f9",
@@ -29706,7 +29706,7 @@
       "invariant": "INV-RUNTIME-BINARY-REFUSED-001",
       "owner": "config",
       "packet": "Q26",
-      "contract": "A corrupt absdatabase.sqlite or a CONFIG_PATH that is a regular file exits non-zero, answers no HTTP and leaves the supplied bytes and the install config directory unchanged; an unwritable METADATA_PATH never becomes HTTP-ready and creates no files in that tree.",
+      "contract": "A corrupt absdatabase.sqlite or a CONFIG_PATH that is a regular file exits non-zero, answers no HTTP, leaves the supplied database bytes unchanged and creates no database or SQLite sidecar files (-journal/-wal/-shm) in the supplied tree (upstream creates an empty migrations/ directory first, which no client reads); an unwritable METADATA_PATH never becomes HTTP-ready and creates no files in that tree.",
       "status": "unverified",
       "source": [
         "index.js:46-47",

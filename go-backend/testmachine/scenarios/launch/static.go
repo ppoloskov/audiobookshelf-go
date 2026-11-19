@@ -15,13 +15,10 @@ func staticScenarios() []harness.Scenario {
 		{
 			Requirement: "sub-static-client", Invariant: "INV-client-browser-001", Case: "normal", State: "stateless", Assertion: "client-index-and-assets-served",
 			Sources: []string{"index.js:55-56", "server/Server.js:407-414"},
-			Claim:   "The retained client serves the entry document, a known client route's fallback and a bundled asset without authentication at the configured base path.",
+			Claim:   "The retained client serves the entry document, a known client route's identical entry fallback and a bundled /_nuxt script without authentication at the configured base path.",
 			Run: func(t *testing.T, e *harness.Env) {
 				entry := e.Get(t, "", "/")
-				requireStatus(t, entry, http.StatusOK, "GET /")
-				if !strings.HasPrefix(entry.Header.Get("Content-Type"), "text/html") || len(entry.Body) == 0 {
-					t.Fatalf("client entry = %q body %.80q", entry.Header.Get("Content-Type"), entry.Body)
-				}
+				assetPath := requireEntryDocument(t, entry, "GET /")
 				if e.IDs["library"] == "" {
 					t.Fatal("fixture library id is missing")
 				}
@@ -30,11 +27,8 @@ func staticScenarios() []harness.Scenario {
 				if string(route.Body) != string(entry.Body) {
 					t.Fatal("a known client route did not serve the entry document")
 				}
-				asset := e.Get(t, "", "/favicon.ico")
-				requireStatus(t, asset, http.StatusOK, "GET /favicon.ico")
-				if len(asset.Body) == 0 || strings.HasPrefix(asset.Header.Get("Content-Type"), "text/html") {
-					t.Fatalf("client asset = %q body %.40q", asset.Header.Get("Content-Type"), asset.Body)
-				}
+				asset := e.Get(t, "", assetPath)
+				requireBundledScript(t, asset, "GET "+assetPath)
 			},
 		},
 		{
@@ -57,7 +51,7 @@ func staticScenarios() []harness.Scenario {
 		{
 			Requirement: "sub-static-client", Invariant: "INV-F06-REVIEW-CLOSURE-001", Case: "edge", State: "stateless", Assertion: "client-prefixed-base-serves-index",
 			Sources: []string{"index.js:50", "server/Server.js:55-63", "server/Server.js:323-334", "server/Server.js:407-414"},
-			Claim:   "At a non-default ROUTER_BASE_PATH the client entry document and its bundled assets are served under that prefix.",
+			Claim:   "At a non-default ROUTER_BASE_PATH the client entry document and the bundled /_nuxt script it names are served under that prefix.",
 			Run: func(t *testing.T, e *harness.Env) {
 				const custom = "/client-prefix"
 				own := harness.Start(t, harness.Options{
@@ -68,15 +62,9 @@ func staticScenarios() []harness.Scenario {
 				prefixed := own.URL + custom
 				waitPing(t, "prefixed ping", prefixed+"/ping")
 				entry := directGet(t, prefixed+"/")
-				requireStatus(t, entry, http.StatusOK, "GET prefixed /")
-				if !strings.HasPrefix(entry.Header.Get("Content-Type"), "text/html") || len(entry.Body) == 0 {
-					t.Fatalf("prefixed client entry = %q body %.80q", entry.Header.Get("Content-Type"), entry.Body)
-				}
-				asset := directGet(t, prefixed+"/favicon.ico")
-				requireStatus(t, asset, http.StatusOK, "GET prefixed /favicon.ico")
-				if len(asset.Body) == 0 || strings.HasPrefix(asset.Header.Get("Content-Type"), "text/html") {
-					t.Fatalf("prefixed client asset = %q body %.40q", asset.Header.Get("Content-Type"), asset.Body)
-				}
+				assetPath := requireEntryDocument(t, entry, "GET prefixed /")
+				asset := directGet(t, prefixed+assetPath)
+				requireBundledScript(t, asset, "GET prefixed "+assetPath)
 			},
 		},
 	}

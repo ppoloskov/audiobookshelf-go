@@ -55,7 +55,7 @@
     {
       "id": "INV-RUNTIME-BINARY-REFUSED-001",
       "class": "transaction",
-      "contract": "A corrupt absdatabase.sqlite or a CONFIG_PATH that is a regular file exits non-zero, answers no HTTP and leaves the supplied bytes and the install config directory unchanged; an unwritable METADATA_PATH never becomes HTTP-ready and creates no files in that tree.",
+      "contract": "A corrupt absdatabase.sqlite or a CONFIG_PATH that is a regular file exits non-zero, answers no HTTP, leaves the supplied database bytes unchanged and creates no database or SQLite sidecar files (-journal/-wal/-shm) in the supplied tree (upstream creates an empty migrations/ directory first, which no client reads); an unwritable METADATA_PATH never becomes HTTP-ready and creates no files in that tree.",
       "status": "unverified",
       "source": [
         "index.js:46-47",
