@@ -1,800 +1,755 @@
 {
   "packet": "author",
-  "reviewer": "independent review, 2026-11-15, claude-sonnet-5-5",
-  "scenario_digest": "54395fff47ccdb286aafd3125e5af88c936676785c6d6c4fecff6f83a64eb1b3",
-  "requirements_digest": "002644a634d67f5f4e3c5e93a0e29ec82fef4b61dd2e81c4625b4f05e3ebf4a4",
+  "reviewer": "independent review, 2026-11-19, hy4-flash-free",
+  "scenario_digest": "3bba2f02e79b37d8c91836d9fc7553659f3d4be44cb8a1c983323b6a31260505",
+  "requirements_digest": "bed236114f7b636ed1aaa5faeffea3766057e882360d5c83c31d18540a3a7352",
   "required_tuples": [
-    {
-      "requirement": "route-r133",
-      "invariant": "INV-ROUTE-R133-AUTH",
-      "case": "error",
-      "state": "failure",
-      "assertion": "delete-denied-changes-nothing: DELETE /api/authors/:id is 401 without a token, 404 for an unknown author or an inaccessible library, and 403 for users without delete permission (update permission is not enough); the author, its book links and events stay unchanged.",
-      "sources": [
-        "server/controllers/AuthorController.js:427-442",
-        "server/Auth.js:322"
-      ],
-      "rationale": "DELETE /api/authors/:id is 401 without a token, 404 for an unknown author or an inaccessible library, and 403 for users without delete permission (update permission is not enough); the author, its book links and events stay unchanged."
-    },
-    {
-      "requirement": "route-r133",
-      "invariant": "INV-ROUTE-R133-CONTRACT",
-      "case": "normal",
-      "state": "initial",
-      "assertion": "delete-author-unlinks-books: DELETE /api/authors/:id answers 200, deletes the author and its book links but keeps the books, removes the author from their metadata.json, and sends author_removed with the full author JSON to every client.",
-      "sources": [
-        "server/controllers/AuthorController.js:233-258"
-      ],
-      "rationale": "DELETE /api/authors/:id answers 200, deletes the author and its book links but keeps the books, removes the author from their metadata.json, and sends author_removed with the full author JSON to every client."
-    },
-    {
-      "requirement": "route-r133",
-      "invariant": "INV-ROUTE-R133-DELETE",
-      "case": "edge",
-      "state": "changed",
-      "assertion": "delete-author-with-image-purges-cache: Deleting an author who has an image purges its resized cache and leaves the stored image file on disk.",
-      "sources": [
-        "server/controllers/AuthorController.js:233-258",
-        "server/managers/CacheManager.js:100-112"
-      ],
-      "rationale": "Deleting an author who has an image purges its resized cache and leaves the stored image file on disk."
-    },
-    {
-      "requirement": "route-r133",
-      "invariant": "INV-ROUTE-R133-DELETE",
-      "case": "error",
-      "state": "repeat",
-      "assertion": "delete-author-twice: Deleting an author that was already deleted answers 404 and sends no event.",
-      "sources": [
-        "server/controllers/AuthorController.js:428-429"
-      ],
-      "rationale": "Deleting an author that was already deleted answers 404 and sends no event."
-    },
-    {
-      "requirement": "socket-outgoing-author-added",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-ADDED",
-      "case": "normal",
-      "state": "changed",
-      "assertion": "author-added-by-item-update: Adding a new author name to a book through PATCH /api/items/:id/media creates the author and sends author_added with the author JSON (no numBooks) to every client, and none for the author already on the book.",
-      "sources": [
-        "server/models/Book.js:466-472",
-        "server/controllers/LibraryItemController.js:251-267"
-      ],
-      "rationale": "Adding a new author name to a book through PATCH /api/items/:id/media creates the author and sends author_added with the author JSON (no numBooks) to every client, and none for the author already on the book."
-    },
-    {
-      "requirement": "socket-outgoing-author-added",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-ADDED",
-      "case": "edge",
-      "state": "repeat",
-      "assertion": "author-added-not-repeated: Repeating the same item update, which changes nothing, sends neither author_added nor author_updated.",
-      "sources": [
-        "server/models/Book.js:441-476",
-        "server/controllers/LibraryItemController.js:231-267"
-      ],
-      "rationale": "Repeating the same item update, which changes nothing, sends neither author_added nor author_updated."
-    },
-    {
-      "requirement": "socket-outgoing-author-added",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-ADDED",
-      "case": "error",
-      "state": "failure",
-      "assertion": "author-added-denied-update-sends-nothing: An item update refused with 403 (user without update permission) creates no author and sends no author event.",
-      "sources": [
-        "server/controllers/LibraryItemController.js:186-200"
-      ],
-      "rationale": "An item update refused with 403 (user without update permission) creates no author and sends no author event."
-    },
-    {
-      "requirement": "socket-outgoing-author-updated",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-UPDATED",
-      "case": "normal",
-      "state": "changed",
-      "assertion": "author-updated-existing-author-added-to-book: Adding an existing author to a book through an item update sends author_updated with the author JSON and the new numBooks to every client.",
-      "sources": [
-        "server/models/Book.js:473-475"
-      ],
-      "rationale": "Adding an existing author to a book through an item update sends author_updated with the author JSON and the new numBooks to every client."
-    },
-    {
-      "requirement": "socket-outgoing-author-added",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-ADDED",
-      "case": "edge",
-      "state": "changed",
-      "assertion": "author-added-not-sent-for-existing-author: Adding an author that already exists to a book sends author_updated for it and no author_added.",
-      "sources": [
-        "server/models/Book.js:466-475"
-      ],
-      "rationale": "Adding an author that already exists to a book sends author_updated for it and no author_added."
-    },
-    {
-      "requirement": "socket-outgoing-authors-num-books-updated",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHORS-NUM-BOOKS-UPDATED",
-      "case": "error",
-      "state": "failure",
-      "assertion": "num-books-not-sent-by-item-update: Changing the authors of a book through the API (author_updated is sent) does not send authors_num_books_updated; only the scanner does.",
-      "sources": [
-        "server/scanner/BookScanner.js:905-930",
-        "server/models/Book.js:441-476"
-      ],
-      "rationale": "Changing the authors of a book through the API (author_updated is sent) does not send authors_num_books_updated; only the scanner does."
-    },
-    {
-      "requirement": "socket-outgoing-author-updated",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-UPDATED",
-      "case": "edge",
-      "state": "changed",
-      "assertion": "author-updated-author-removed-from-one-book: Removing an author from one of several books sends author_updated with the remaining numBooks and no author_removed.",
-      "sources": [
-        "server/models/Book.js:455-463",
-        "server/controllers/LibraryItemController.js:254-258"
-      ],
-      "rationale": "Removing an author from one of several books sends author_updated with the remaining numBooks and no author_removed."
-    },
-    {
-      "requirement": "socket-outgoing-author-removed",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-REMOVED",
-      "case": "normal",
-      "state": "initial",
-      "assertion": "author-removed-last-book-removed-by-item-update: Removing an author without asin, description and image from its only book through an item update deletes the author and sends author_removed {id, libraryId} to every client.",
-      "sources": [
-        "server/routers/ApiRouter.js:472-523",
-        "server/controllers/LibraryItemController.js:254-258"
-      ],
-      "rationale": "Removing an author without asin, description and image from its only book through an item update deletes the author and sends author_removed {id, libraryId} to every client."
-    },
-    {
-      "requirement": "socket-outgoing-author-removed",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-REMOVED",
-      "case": "edge",
-      "state": "changed",
-      "assertion": "author-removed-not-sent-for-author-with-description: An author with a description that loses its last book is kept: no author_removed is sent and the row stays.",
-      "sources": [
-        "server/routers/ApiRouter.js:478-496"
-      ],
-      "rationale": "An author with a description that loses its last book is kept: no author_removed is sent and the row stays."
-    },
-    {
-      "requirement": "socket-outgoing-author-removed",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-REMOVED",
-      "case": "normal",
-      "state": "changed",
-      "assertion": "author-removed-by-item-delete: Deleting the library item that is the only book of an author deletes the author and sends author_removed {id, libraryId}.",
-      "sources": [
-        "server/controllers/LibraryItemController.js:114-150",
-        "server/routers/ApiRouter.js:472-523"
-      ],
-      "rationale": "Deleting the library item that is the only book of an author deletes the author and sends author_removed {id, libraryId}."
-    },
-    {
-      "requirement": "socket-outgoing-author-updated",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-UPDATED",
-      "case": "normal",
-      "state": "initial",
-      "assertion": "author-updated-by-patch: A PATCH that changes an author sends author_updated with the whole author JSON, numBooks and the new updatedAt to every client.",
-      "sources": [
-        "server/controllers/AuthorController.js:189-218"
-      ],
-      "rationale": "A PATCH that changes an author sends author_updated with the whole author JSON, numBooks and the new updatedAt to every client."
-    },
-    {
-      "requirement": "socket-outgoing-author-updated",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-UPDATED",
-      "case": "edge",
-      "state": "repeat",
-      "assertion": "author-updated-not-sent-for-noop-patch: Repeating a PATCH that changes nothing sends no author_updated.",
-      "sources": [
-        "server/controllers/AuthorController.js:182-189"
-      ],
-      "rationale": "Repeating a PATCH that changes nothing sends no author_updated."
-    },
-    {
-      "requirement": "socket-outgoing-author-updated",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-UPDATED",
-      "case": "error",
-      "state": "failure",
-      "assertion": "author-updated-not-sent-for-denied-patch: A PATCH refused with 403 or 400 sends no author_updated.",
-      "sources": [
-        "server/controllers/AuthorController.js:435-438",
-        "server/controllers/AuthorController.js:104-107"
-      ],
-      "rationale": "A PATCH refused with 403 or 400 sends no author_updated."
-    },
-    {
-      "requirement": "socket-outgoing-author-removed",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-REMOVED",
-      "case": "normal",
-      "state": "changed",
-      "assertion": "author-removed-by-author-delete-full-payload: DELETE /api/authors/:id sends author_removed with the full author JSON (id, name, libraryId, timestamps), unlike the sweep paths that send only id and libraryId.",
-      "sources": [
-        "server/controllers/AuthorController.js:252"
-      ],
-      "rationale": "DELETE /api/authors/:id sends author_removed with the full author JSON (id, name, libraryId, timestamps), unlike the sweep paths that send only id and libraryId."
-    },
-    {
-      "requirement": "socket-outgoing-author-removed",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-REMOVED",
-      "case": "error",
-      "state": "failure",
-      "assertion": "author-removed-not-sent-for-denied-delete: A DELETE refused with 403 or 404 sends no author_removed and keeps the author.",
-      "sources": [
-        "server/controllers/AuthorController.js:432-434"
-      ],
-      "rationale": "A DELETE refused with 403 or 404 sends no author_removed and keeps the author."
-    },
-    {
-      "requirement": "socket-outgoing-author-added",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-ADDED",
-      "case": "normal",
-      "state": "initial",
-      "assertion": "author-added-by-scan: Scanning a new book whose folder names an unknown author creates the author and sends author_added with the author JSON (no numBooks) to every connected client.",
-      "sources": [
-        "server/scanner/BookScanner.js:604",
-        "server/SocketAuthority.js:57-65"
-      ],
-      "rationale": "Scanning a new book whose folder names an unknown author creates the author and sends author_added with the author JSON (no numBooks) to every connected client."
-    },
-    {
-      "requirement": "socket-outgoing-authors-num-books-updated",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHORS-NUM-BOOKS-UPDATED",
-      "case": "normal",
-      "state": "initial",
-      "assertion": "num-books-after-scan-adds-books: A scan that adds books to existing authors sends one authors_num_books_updated {libraryId, authors:[{id,numBooks}]} to every client with the new book count of each such author and no author_added for them.",
-      "sources": [
-        "server/scanner/BookScanner.js:225-232,484-494,905-930",
-        "server/scanner/LibraryItemScanner.js:84-86",
-        "server/scanner/LibraryScanner.js:284"
-      ],
-      "rationale": "A scan that adds books to existing authors sends one authors_num_books_updated {libraryId, authors:[{id,numBooks}]} to every client with the new book count of each such author and no author_added for them."
-    },
-    {
-      "requirement": "socket-outgoing-authors-num-books-updated",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHORS-NUM-BOOKS-UPDATED",
-      "case": "edge",
-      "state": "changed",
-      "assertion": "num-books-omits-new-authors: A scan that only adds a book of a brand-new author sends author_added and no authors_num_books_updated.",
-      "sources": [
-        "server/scanner/BookScanner.js:225-262,484-494,905-930"
-      ],
-      "rationale": "A scan that only adds a book of a brand-new author sends author_added and no authors_num_books_updated."
-    },
-    {
-      "requirement": "socket-outgoing-authors-num-books-updated",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHORS-NUM-BOOKS-UPDATED",
-      "case": "normal",
-      "state": "repeat",
-      "assertion": "num-books-after-second-scan: Each later scan that adds another book of the same author sends a new authors_num_books_updated with the increased count, listing only the changed authors.",
-      "sources": [
-        "server/scanner/BookScanner.js:484-494,905-930"
-      ],
-      "rationale": "Each later scan that adds another book of the same author sends a new authors_num_books_updated with the increased count, listing only the changed authors."
-    },
-    {
-      "requirement": "socket-outgoing-authors-num-books-updated",
-      "invariant": "INV-SOCKET-OUTGOING-AUTHORS-NUM-BOOKS-UPDATED",
-      "case": "edge",
-      "state": "changed",
-      "assertion": "num-books-omits-authors-without-books: When a rescan unlinks a book from its only author and links it to another, authors_num_books_updated lists the receiving author with its new count and omits the author left without books.",
-      "sources": [
-        "server/scanner/BookScanner.js:905-930,432-433"
-      ],
-      "rationale": "When a rescan unlinks a book from its only author and links it to another, authors_num_books_updated lists the receiving author with its new count and omits the author left without books."
-    },
     {
       "requirement": "route-r131",
       "invariant": "INV-ROUTE-R131-CONTRACT",
       "case": "normal",
       "state": "stateless",
-      "assertion": "get-author-fields: GET /api/authors/:id returns the author with id, asin, name, description, imagePath, libraryId, addedAt and updatedAt (epoch ms equal to the row) and no numBooks, libraryItems or series.",
-      "sources": [
-        "server/controllers/AuthorController.js:40-87",
-        "server/models/Author.js:177-198"
-      ],
-      "rationale": "GET /api/authors/:id returns the author with id, asin, name, description, imagePath, libraryId, addedAt and updatedAt (epoch ms equal to the row) and no numBooks, libraryItems or series."
+      "assertion": "get-author-fields",
+      "sources": ["server/controllers/AuthorController.js:40-87", "server/models/Author.js:177-198"],
+      "rationale": "GET /api/authors/:id returns the exact toOldJSON shape with row timestamps in epoch ms, null and non-null string fields, and no numBooks/libraryItems/series."
     },
     {
       "requirement": "route-r131",
       "invariant": "INV-ROUTE-R131-ACCESS",
       "case": "normal",
       "state": "stateless",
-      "assertion": "get-author-needs-no-write-permission: A user without update, delete or upload permission can read an author (the permission checks apply to DELETE, PATCH and POST only).",
-      "sources": [
-        "server/Server.js:354",
-        "server/Auth.js:61-63",
-        "server/controllers/AuthorController.js:427-442"
-      ],
-      "rationale": "A user without update, delete or upload permission can read an author (the permission checks apply to DELETE, PATCH and POST only)."
+      "assertion": "get-author-needs-no-write-permission",
+      "sources": ["server/Server.js:354", "server/Auth.js:61-63", "server/controllers/AuthorController.js:427-442"],
+      "rationale": "Reading an author needs no update, delete or upload permission; the middleware checks those only for PATCH, POST and DELETE."
     },
     {
       "requirement": "route-r131",
       "invariant": "INV-ROUTE-R131-ITEMS",
       "case": "normal",
       "state": "stateless",
-      "assertion": "get-author-include-items: include=items adds libraryItems holding the minified items of every book of the author and no series key.",
-      "sources": [
-        "server/controllers/AuthorController.js:40-87"
-      ],
-      "rationale": "include=items adds libraryItems holding the minified items of every book of the author and no series key."
+      "assertion": "get-author-include-items",
+      "sources": ["server/controllers/AuthorController.js:40-87"],
+      "rationale": "include=items adds minified libraryItems of the author's books and no series key."
     },
     {
       "requirement": "route-r131",
       "invariant": "INV-ROUTE-R131-ITEMS",
       "case": "normal",
       "state": "stateless",
-      "assertion": "get-author-include-items-series: include=items,series adds series groups whose items carry metadata.series {id,name,nameIgnorePrefix,sequence} and are ordered by sequence.",
-      "sources": [
-        "server/controllers/AuthorController.js:40-87"
-      ],
-      "rationale": "include=items,series adds series groups whose items carry metadata.series {id,name,nameIgnorePrefix,sequence} and are ordered by sequence."
+      "assertion": "get-author-include-items-series",
+      "sources": ["server/controllers/AuthorController.js:40-87"],
+      "rationale": "include=items,series adds series groups whose items carry metadata.series {id,name,nameIgnorePrefix,sequence} ordered by sequence."
     },
     {
       "requirement": "route-r131",
       "invariant": "INV-ROUTE-R131-ITEMS",
       "case": "edge",
       "state": "stateless",
-      "assertion": "get-author-include-without-items: include=series without items, an empty include and an unknown include return the plain author JSON.",
-      "sources": [
-        "server/controllers/AuthorController.js:40-87"
-      ],
-      "rationale": "include=series without items, an empty include and an unknown include return the plain author JSON."
+      "assertion": "get-author-include-without-items",
+      "sources": ["server/controllers/AuthorController.js:40-87"],
+      "rationale": "include=series alone, an empty include and an unknown include add neither libraryItems nor series."
     },
     {
       "requirement": "route-r131",
       "invariant": "INV-ROUTE-R131-ACCESS",
       "case": "error",
       "state": "stateless",
-      "assertion": "get-author-unauthenticated: GET /api/authors/:id without a token or with an invalid token is rejected with 401.",
-      "sources": [
-        "server/Server.js:354",
-        "server/Auth.js:61-63",
-        "server/controllers/AuthorController.js:427-442"
-      ],
-      "rationale": "GET /api/authors/:id without a token or with an invalid token is rejected with 401."
+      "assertion": "get-author-unauthenticated",
+      "sources": ["server/Server.js:354", "server/Auth.js:61-63", "server/controllers/AuthorController.js:427-442"],
+      "rationale": "GET /api/authors/:id without a token or with an invalid token is 401."
     },
     {
       "requirement": "route-r131",
       "invariant": "INV-ROUTE-R131-ACCESS",
       "case": "error",
       "state": "stateless",
-      "assertion": "get-author-not-found: GET /api/authors/:id answers 404 for an id that is not an author, with a UUID or any other string.",
-      "sources": [
-        "server/Server.js:354",
-        "server/Auth.js:61-63",
-        "server/controllers/AuthorController.js:427-442"
-      ],
-      "rationale": "GET /api/authors/:id answers 404 for an id that is not an author, with a UUID or any other string."
+      "assertion": "get-author-not-found",
+      "sources": ["server/Server.js:354", "server/Auth.js:61-63", "server/controllers/AuthorController.js:427-442"],
+      "rationale": "An unknown id, UUID or otherwise, is 404 for GET."
     },
     {
       "requirement": "route-r131",
       "invariant": "INV-ROUTE-R131-ACCESS",
       "case": "error",
       "state": "stateless",
-      "assertion": "get-author-inaccessible-library: A user who cannot access the author's library gets 404, not the author.",
-      "sources": [
-        "server/Server.js:354",
-        "server/Auth.js:61-63",
-        "server/controllers/AuthorController.js:427-442"
-      ],
-      "rationale": "A user who cannot access the author's library gets 404, not the author."
+      "assertion": "get-author-inaccessible-library",
+      "sources": ["server/Server.js:354", "server/Auth.js:61-63", "server/controllers/AuthorController.js:427-442"],
+      "rationale": "A user without access to the author's library gets 404 even with include=items, while an authorised user still reads it."
     },
     {
-      "requirement": "route-r137",
-      "invariant": "INV-ROUTE-R137-AUTH",
-      "case": "error",
-      "state": "failure",
-      "assertion": "image-delete-denied-changes-nothing: DELETE /api/authors/:id/image is 401 without a token, 404 for an unknown author, and 403 for a user without delete permission (update permission is not enough); image, file and events stay unchanged.",
-      "sources": [
-        "server/controllers/AuthorController.js:427-442",
-        "server/Auth.js:322"
-      ],
-      "rationale": "DELETE /api/authors/:id/image is 401 without a token, 404 for an unknown author, and 403 for a user without delete permission (update permission is not enough); image, file and events stay unchanged."
-    },
-    {
-      "requirement": "route-r137",
-      "invariant": "INV-ROUTE-R137-CONTRACT",
-      "case": "normal",
-      "state": "initial",
-      "assertion": "image-delete-removes-file-and-cache: DELETE /api/authors/:id/image answers {author} with imagePath null, deletes the image file and the author's resized cache, clears the column and emits author_updated with numBooks.",
-      "sources": [
-        "server/controllers/AuthorController.js:313-329",
-        "server/managers/CoverManager.js:34-44",
-        "server/managers/CacheManager.js:100-112"
-      ],
-      "rationale": "DELETE /api/authors/:id/image answers {author} with imagePath null, deletes the image file and the author's resized cache, clears the column and emits author_updated with numBooks."
-    },
-    {
-      "requirement": "route-r137",
-      "invariant": "INV-ROUTE-R137-REMOVE",
-      "case": "error",
-      "state": "repeat",
-      "assertion": "image-delete-without-image-is-400: DELETE /api/authors/:id/image for an author without image (also repeated) answers 400 and emits nothing.",
-      "sources": [
-        "server/controllers/AuthorController.js:314-317"
-      ],
-      "rationale": "DELETE /api/authors/:id/image for an author without image (also repeated) answers 400 and emits nothing."
-    },
-    {
-      "requirement": "route-r137",
-      "invariant": "INV-ROUTE-R137-REMOVE",
+      "requirement": "route-r131",
+      "invariant": "INV-ROUTE-R131-ITEMS",
       "case": "edge",
-      "state": "changed",
-      "assertion": "image-delete-file-already-missing: When the image file is already gone from disk DELETE still succeeds and clears imagePath.",
-      "sources": [
-        "server/controllers/AuthorController.js:318-322",
-        "server/managers/CoverManager.js:34-44"
-      ],
-      "rationale": "When the image file is already gone from disk DELETE still succeeds and clears imagePath."
+      "state": "stateless",
+      "assertion": "get-author-items-item-tag-restrictions",
+      "sources": ["server/controllers/AuthorController.js:47", "server/utils/queries/libraryItemsBookFilters.js:13-30"],
+      "rationale": "include=items and the series groups show only books allowed by the user's item-tag rules in both allow and deny mode."
     },
     {
-      "requirement": "route-r135",
-      "invariant": "INV-ROUTE-R135-ERRORS",
-      "case": "error",
-      "state": "failure",
-      "assertion": "image-get-unavailable: GET /api/authors/:id/image answers 404 (resized or raw) for an unknown author or an author without image; a resized request for a non-UUID id or a format other than webp, jpeg or png is 400.",
-      "sources": [
-        "server/controllers/AuthorController.js:391-419",
-        "server/managers/CacheManager.js:155-186"
-      ],
-      "rationale": "GET /api/authors/:id/image answers 404 (resized or raw) for an unknown author or an author without image; a resized request for a non-UUID id or a format other than webp, jpeg or png is 400."
-    },
-    {
-      "requirement": "route-r135",
-      "invariant": "INV-ROUTE-R135-CONTRACT",
-      "case": "normal",
-      "state": "initial",
-      "assertion": "image-get-default-jpeg-400: Without Accept, format, width or height GET returns a JPEG of width 400 (aspect kept), written to metadata/cache/images/<id>_400.jpeg.",
-      "sources": [
-        "server/controllers/AuthorController.js:290-300",
-        "server/controllers/AuthorController.js:413-418",
-        "server/managers/CacheManager.js:97-112",
-        "server/managers/CacheManager.js:155-189",
-        "server/utils/index.js:62-65",
-        "server/utils/index.js:144-147"
-      ],
-      "rationale": "Without Accept, format, width or height GET returns a JPEG of width 400 (aspect kept), written to metadata/cache/images/<id>_400.jpeg."
-    },
-    {
-      "requirement": "route-r135",
-      "invariant": "INV-ROUTE-R135-RESIZE",
+      "requirement": "route-r131",
+      "invariant": "INV-ROUTE-R131-ITEMS",
       "case": "edge",
-      "state": "initial",
-      "assertion": "image-get-formats-and-sizes: format picks png, jpeg or webp (webp when Accept names image/webp or is */*), width and height resize (height-only keeps width 400), values above 4096 are clamped, and each result is cached as <id>_<width>[x<height>].<format>.",
-      "sources": [
-        "server/controllers/AuthorController.js:290-300",
-        "server/controllers/AuthorController.js:413-418",
-        "server/managers/CacheManager.js:97-112",
-        "server/managers/CacheManager.js:155-189",
-        "server/utils/index.js:62-65",
-        "server/utils/index.js:144-147"
-      ],
-      "rationale": "format picks png, jpeg or webp (webp when Accept names image/webp or is */*), width and height resize (height-only keeps width 400), values above 4096 are clamped, and each result is cached as <id>_<width>[x<height>].<format>."
+      "state": "stateless",
+      "assertion": "get-author-items-explicit-restriction",
+      "sources": ["server/controllers/AuthorController.js:47", "server/utils/queries/libraryItemsBookFilters.js:13-30"],
+      "rationale": "include=items and series hide explicit books from a user without explicit-content access while showing them to a user with access."
     },
     {
-      "requirement": "route-r135",
-      "invariant": "INV-ROUTE-R135-RESIZE",
-      "case": "normal",
-      "state": "repeat",
-      "assertion": "image-get-served-from-cache: A repeated request returns the same bytes from the existing cache file without rewriting it.",
-      "sources": [
-        "server/controllers/AuthorController.js:290-300",
-        "server/controllers/AuthorController.js:413-418",
-        "server/managers/CacheManager.js:97-112",
-        "server/managers/CacheManager.js:155-189",
-        "server/utils/index.js:62-65",
-        "server/utils/index.js:144-147"
-      ],
-      "rationale": "A repeated request returns the same bytes from the existing cache file without rewriting it."
-    },
-    {
-      "requirement": "route-r135",
-      "invariant": "INV-ROUTE-R135-ERRORS",
-      "case": "error",
-      "state": "failure",
-      "assertion": "image-get-invalid-format-creates-no-cache: A resized request with an unsupported format is 400 for an author who has an image and creates no cache file.",
-      "sources": [
-        "server/controllers/AuthorController.js:391-419",
-        "server/managers/CacheManager.js:155-186"
-      ],
-      "rationale": "A resized request with an unsupported format is 400 for an author who has an image and creates no cache file."
-    },
-    {
-      "requirement": "route-r135",
-      "invariant": "INV-ROUTE-R135-RAW",
-      "case": "normal",
-      "state": "initial",
-      "assertion": "image-get-raw-original: raw=1 returns the stored file unchanged with its image content type and creates no cache file.",
-      "sources": [
-        "server/controllers/AuthorController.js:391-411"
-      ],
-      "rationale": "raw=1 returns the stored file unchanged with its image content type and creates no cache file."
-    },
-    {
-      "requirement": "route-r135",
-      "invariant": "INV-ROUTE-R135-AUTH",
+      "requirement": "route-r131",
+      "invariant": "INV-ROUTE-R131-ITEMS",
       "case": "edge",
-      "state": "initial",
-      "assertion": "image-get-is-public: GET /api/authors/:id/image needs no authentication: it is served without a token, with an invalid bearer or query token, with a ?token= of a user, and to a user who cannot access the author's library.",
-      "sources": [
-        "server/Auth.js:20-37",
-        "server/Auth.js:45-51",
-        "server/Server.js:354"
-      ],
-      "rationale": "GET /api/authors/:id/image needs no authentication: it is served without a token, with an invalid bearer or query token, with a ?token= of a user, and to a user who cannot access the author's library."
-    },
-    {
-      "requirement": "route-r135",
-      "invariant": "INV-ROUTE-R135-RESIZE",
-      "case": "normal",
-      "state": "changed",
-      "assertion": "image-get-after-image-replaced: After a new image is uploaded the same resized request returns the new picture, not the cached old one.",
-      "sources": [
-        "server/controllers/AuthorController.js:290-300",
-        "server/controllers/AuthorController.js:413-418",
-        "server/managers/CacheManager.js:97-112",
-        "server/managers/CacheManager.js:155-189",
-        "server/utils/index.js:62-65",
-        "server/utils/index.js:144-147"
-      ],
-      "rationale": "After a new image is uploaded the same resized request returns the new picture, not the cached old one."
-    },
-    {
-      "requirement": "route-r135",
-      "invariant": "INV-ROUTE-R135-ERRORS",
-      "case": "error",
-      "state": "failure",
-      "assertion": "image-get-file-missing-on-disk: When the image file was removed from disk, raw and uncached resized requests answer 404.",
-      "sources": [
-        "server/controllers/AuthorController.js:391-419",
-        "server/managers/CacheManager.js:155-186"
-      ],
-      "rationale": "When the image file was removed from disk, raw and uncached resized requests answer 404."
-    },
-    {
-      "requirement": "route-r136",
-      "invariant": "INV-ROUTE-R136-AUTH",
-      "case": "error",
-      "state": "failure",
-      "assertion": "image-upload-denied-changes-nothing: POST /api/authors/:id/image is 401 without a token, 404 for an unknown author (also for users who may not update), 403 for a user without update permission and 403 for a user with update but without upload permission; nothing is downloaded or changed.",
-      "sources": [
-        "server/Server.js:354",
-        "server/Auth.js:61-63",
-        "server/controllers/AuthorController.js:267-271",
-        "server/controllers/AuthorController.js:427-442"
-      ],
-      "rationale": "POST /api/authors/:id/image is 401 without a token, 404 for an unknown author (also for users who may not update), 403 for a user without update permission and 403 for a user with update but without upload permission; nothing is downloaded or changed."
-    },
-    {
-      "requirement": "route-r136",
-      "invariant": "INV-ROUTE-R136-INPUT",
-      "case": "error",
-      "state": "initial",
-      "assertion": "image-upload-invalid-url-rejected: POST /api/authors/:id/image without a url, or with a url that is empty, not a string or does not start with http: or https:, is rejected with 400 and changes nothing.",
-      "sources": [
-        "server/controllers/AuthorController.js:272-288",
-        "server/finders/AuthorFinder.js:43-65",
-        "server/utils/fileUtils.js:298-357"
-      ],
-      "rationale": "POST /api/authors/:id/image without a url, or with a url that is empty, not a string or does not start with http: or https:, is rejected with 400 and changes nothing."
-    },
-    {
-      "requirement": "route-r136",
-      "invariant": "INV-ROUTE-R136-INPUT",
-      "case": "error",
-      "state": "failure",
-      "assertion": "image-upload-download-failure-rejected: When the download fails (HTTP error, non-image or SVG content type, unreachable host) POST /api/authors/:id/image answers 400 and leaves the author without image and without file.",
-      "sources": [
-        "server/controllers/AuthorController.js:272-288",
-        "server/finders/AuthorFinder.js:43-65",
-        "server/utils/fileUtils.js:298-357"
-      ],
-      "rationale": "When the download fails (HTTP error, non-image or SVG content type, unreachable host) POST /api/authors/:id/image answers 400 and leaves the author without image and without file."
-    },
-    {
-      "requirement": "route-r136",
-      "invariant": "INV-ROUTE-R136-CONTRACT",
-      "case": "normal",
-      "state": "initial",
-      "assertion": "image-upload-jpg-stored: POST /api/authors/:id/image downloads the image to metadata/authors/<id>.jpg, stores that path in imagePath, answers {author} with it and emits author_updated with numBooks to every client.",
-      "sources": [
-        "server/controllers/AuthorController.js:282-304",
-        "server/finders/AuthorFinder.js:43-65",
-        "server/models/Author.js:177-198",
-        "server/managers/CacheManager.js:97-112"
-      ],
-      "rationale": "POST /api/authors/:id/image downloads the image to metadata/authors/<id>.jpg, stores that path in imagePath, answers {author} with it and emits author_updated with numBooks to every client."
-    },
-    {
-      "requirement": "route-r136",
-      "invariant": "INV-ROUTE-R136-STORE",
-      "case": "edge",
-      "state": "changed",
-      "assertion": "image-upload-extension-rule: The stored file extension follows the url: a url ending in .png is stored as <id>.png (imagePath changes), any other url ends as <id>.jpg whatever the content type.",
-      "sources": [
-        "server/controllers/AuthorController.js:282-304",
-        "server/finders/AuthorFinder.js:43-65",
-        "server/models/Author.js:177-198",
-        "server/managers/CacheManager.js:97-112"
-      ],
-      "rationale": "The stored file extension follows the url: a url ending in .png is stored as <id>.png (imagePath changes), any other url ends as <id>.jpg whatever the content type."
-    },
-    {
-      "requirement": "route-r136",
-      "invariant": "INV-ROUTE-R136-STORE",
-      "case": "normal",
-      "state": "repeat",
-      "assertion": "image-upload-repeat-busts-cache: Uploading again to the same path keeps imagePath, purges the resized cache of the author and raises updatedAt even though no column value changed.",
-      "sources": [
-        "server/controllers/AuthorController.js:282-304",
-        "server/finders/AuthorFinder.js:43-65",
-        "server/models/Author.js:177-198",
-        "server/managers/CacheManager.js:97-112"
-      ],
-      "rationale": "Uploading again to the same path keeps imagePath, purges the resized cache of the author and raises updatedAt even though no column value changed."
-    },
-    {
-      "requirement": "route-r134",
-      "invariant": "INV-ROUTE-R134-AUTH",
-      "case": "error",
-      "state": "failure",
-      "assertion": "match-denied-changes-nothing: POST /api/authors/:id/match is 401 without a token, 404 for an unknown author (even for users who may not update) and 403 for a user without update permission; the author and events stay unchanged.",
-      "sources": [
-        "server/controllers/AuthorController.js:427-442",
-        "server/Auth.js:322"
-      ],
-      "rationale": "POST /api/authors/:id/match is 401 without a token, 404 for an unknown author (even for users who may not update) and 403 for a user without update permission; the author and events stay unchanged."
-    },
-    {
-      "requirement": "route-r134",
-      "invariant": "INV-ROUTE-R134-CONTRACT",
-      "case": "error",
-      "state": "initial",
-      "assertion": "match-no-result-is-404: A match request with no usable query (no q, empty q, an invalid asin) or a name the provider does not know answers 404 and changes nothing, with or without internet access.",
-      "sources": [
-        "server/controllers/AuthorController.js:337-347",
-        "server/finders/AuthorFinder.js:20-33",
-        "server/providers/Audnexus.js:47-60,100-125"
-      ],
-      "rationale": "A match request with no usable query (no q, empty q, an invalid asin) or a name the provider does not know answers 404 and changes nothing, with or without internet access."
-    },
-    {
-      "requirement": "route-r134",
-      "invariant": "INV-ROUTE-R134-NOMATCH",
-      "case": "edge",
-      "state": "repeat",
-      "assertion": "match-no-result-repeat: Repeating a no-result match request gives 404 again and the author keeps its asin and description.",
-      "sources": [
-        "server/controllers/AuthorController.js:345-347"
-      ],
-      "rationale": "Repeating a no-result match request gives 404 again and the author keeps its asin and description."
-    },
-    {
-      "requirement": "route-r132",
-      "invariant": "INV-ROUTE-R132-RENAME",
-      "case": "normal",
-      "state": "changed",
-      "assertion": "update-rename-author: Renaming an author stores the name and lastFirst, rewrites the author name in the metadata.json of each of its books, and sends author_updated with numBooks and items_updated with those books to every client.",
-      "sources": [
-        "server/controllers/AuthorController.js:111-114,182-218",
-        "server/models/Author.js:25-28"
-      ],
-      "rationale": "Renaming an author stores the name and lastFirst, rewrites the author name in the metadata.json of each of its books, and sends author_updated with numBooks and items_updated with those books to every client."
-    },
-    {
-      "requirement": "route-r132",
-      "invariant": "INV-ROUTE-R132-MERGE",
-      "case": "normal",
-      "state": "changed",
-      "assertion": "update-rename-merges-into-existing-author: Renaming an author to the exact name of another author in the library moves its books to that author, deletes the old author, answers {author: existing, merged:true}, and sends author_removed (full old author), author_updated (existing author with numBooks) and items_updated.",
-      "sources": [
-        "server/controllers/AuthorController.js:116-175",
-        "server/models/Author.js:70-95"
-      ],
-      "rationale": "Renaming an author to the exact name of another author in the library moves its books to that author, deletes the old author, answers {author: existing, merged:true}, and sends author_removed (full old author), author_updated (existing author with numBooks) and items_updated."
-    },
-    {
-      "requirement": "route-r132",
-      "invariant": "INV-ROUTE-R132-MERGE",
-      "case": "edge",
-      "state": "repeat",
-      "assertion": "update-merge-shared-book-and-bookless-author: Merging an author whose book already has the target author leaves one link (counts do not grow); merging an author without books sends author_removed and author_updated but no items_updated.",
-      "sources": [
-        "server/controllers/AuthorController.js:131-175"
-      ],
-      "rationale": "Merging an author whose book already has the target author leaves one link (counts do not grow); merging an author without books sends author_removed and author_updated but no items_updated."
+      "state": "stateless",
+      "assertion": "get-author-series-items-natural-sequence-order",
+      "sources": ["server/controllers/AuthorController.js:75-78", "server/controllers/AuthorController.js:15-17"],
+      "rationale": "Series items are ordered by natural numeric sequence (1.5, 2, 10), not by plain string order."
     },
     {
       "requirement": "route-r132",
       "invariant": "INV-ROUTE-R132-AUTH",
       "case": "error",
       "state": "failure",
-      "assertion": "update-denied-changes-nothing: PATCH /api/authors/:id is 401 without a token, 404 for an unknown author or one in an inaccessible library (before the permission check) and 403 for a user without update permission; nothing changes and no event is sent.",
-      "sources": [
-        "server/controllers/AuthorController.js:427-442",
-        "server/Auth.js:322"
-      ],
-      "rationale": "PATCH /api/authors/:id is 401 without a token, 404 for an unknown author or one in an inaccessible library (before the permission check) and 403 for a user without update permission; nothing changes and no event is sent."
+      "assertion": "update-denied-changes-nothing",
+      "sources": ["server/controllers/AuthorController.js:427-442", "server/Auth.js:322"],
+      "rationale": "PATCH is 401 unauthenticated, 404 for unknown/inaccessible library before 403 for missing update permission, and a rejection changes no row or event."
     },
     {
       "requirement": "route-r132",
       "invariant": "INV-ROUTE-R132-INPUT",
       "case": "error",
       "state": "initial",
-      "assertion": "update-invalid-payload-rejected: PATCH with no name, description or asin of type string or null (empty object, unknown keys, numbers, booleans, arrays, objects) is rejected with 400 and changes nothing.",
-      "sources": [
-        "server/controllers/AuthorController.js:96-107"
-      ],
-      "rationale": "PATCH with no name, description or asin of type string or null (empty object, unknown keys, numbers, booleans, arrays, objects) is rejected with 400 and changes nothing."
+      "assertion": "update-invalid-payload-rejected",
+      "sources": ["server/controllers/AuthorController.js:96-107"],
+      "rationale": "A body with no name/description/asin of string or null type is 400 and changes nothing."
     },
     {
       "requirement": "route-r132",
       "invariant": "INV-ROUTE-R132-CONTRACT",
       "case": "normal",
       "state": "initial",
-      "assertion": "update-description-and-asin: PATCH with description and asin answers {author, updated:true}, stores both, keeps name and lastFirst, raises updatedAt, and emits author_updated with numBooks to every client; a later read shows the values.",
-      "sources": [
-        "server/controllers/AuthorController.js:96-103,177-224",
-        "server/models/Author.js:190-200"
-      ],
-      "rationale": "PATCH with description and asin answers {author, updated:true}, stores both, keeps name and lastFirst, raises updatedAt, and emits author_updated with numBooks to every client; a later read shows the values."
+      "assertion": "update-description-and-asin",
+      "sources": ["server/controllers/AuthorController.js:96-103,177-224", "server/models/Author.js:190-200"],
+      "rationale": "A valid PATCH persists values, moves updatedAt forward, returns {author,updated:true} and emits author_updated with numBooks."
     },
     {
       "requirement": "route-r132",
       "invariant": "INV-ROUTE-R132-FIELDS",
       "case": "edge",
       "state": "repeat",
-      "assertion": "update-same-values-is-noop: Repeating the same PATCH, or sending the current name, answers 200 {updated:false}, leaves the row (including updatedAt) untouched and emits no event.",
-      "sources": [
-        "server/controllers/AuthorController.js:109-110,182-187,220-223"
-      ],
-      "rationale": "Repeating the same PATCH, or sending the current name, answers 200 {updated:false}, leaves the row (including updatedAt) untouched and emits no event."
+      "assertion": "update-same-values-is-noop",
+      "sources": ["server/controllers/AuthorController.js:109-110,182-187,220-223"],
+      "rationale": "A PATCH changing nothing answers {updated:false}, leaves the whole row including updatedAt intact and emits no event."
     },
     {
       "requirement": "route-r132",
       "invariant": "INV-ROUTE-R132-FIELDS",
       "case": "edge",
       "state": "changed",
-      "assertion": "update-null-and-empty-values: A null clears description and asin to NULL, an empty string is stored as an empty string, and keys of other types or other names (imagePath, libraryId) are ignored while the valid keys of the same request apply.",
-      "sources": [
-        "server/controllers/AuthorController.js:99-103,183-187"
-      ],
-      "rationale": "A null clears description and asin to NULL, an empty string is stored as an empty string, and keys of other types or other names (imagePath, libraryId) are ignored while the valid keys of the same request apply."
+      "assertion": "update-null-and-empty-values",
+      "sources": ["server/controllers/AuthorController.js:99-103,183-187"],
+      "rationale": "null clears a field to NULL, an empty string is stored, and keys outside name/description/asin are ignored while the valid keys apply."
+    },
+    {
+      "requirement": "route-r132",
+      "invariant": "INV-ROUTE-R132-AUTH",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "update-by-update-only-user",
+      "sources": ["server/controllers/AuthorController.js:435-438", "client/components/modals/authors/EditModal.vue"],
+      "rationale": "A non-admin with only update can PATCH (200, row changed, event sent); a delete-only user gets 403 and changes nothing."
     },
     {
       "requirement": "route-r132",
       "invariant": "INV-ROUTE-R132-FIELDS",
       "case": "edge",
       "state": "initial",
-      "assertion": "update-fills-missing-last-first: When an author row has no lastFirst, a PATCH that does not rename it stores lastFirst derived from the current name together with the requested change.",
-      "sources": [
-        "server/controllers/AuthorController.js:177-180",
-        "server/models/Author.js:25-28"
-      ],
-      "rationale": "When an author row has no lastFirst, a PATCH that does not rename it stores lastFirst derived from the current name together with the requested change."
+      "assertion": "update-fills-missing-last-first",
+      "sources": ["server/controllers/AuthorController.js:177-180", "server/models/Author.js:25-28"],
+      "rationale": "When lastFirst is absent, a PATCH that does not rename derives it from the current name together with the requested change."
+    },
+    {
+      "requirement": "route-r132",
+      "invariant": "INV-ROUTE-R132-RENAME",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "update-rename-author",
+      "sources": ["server/controllers/AuthorController.js:111-114,182-218", "server/models/Author.js:25-28"],
+      "rationale": "Renaming persists name and lastFirst, rewrites each book's metadata.json from its current authors, and emits author_updated with numBooks plus items_updated."
+    },
+    {
+      "requirement": "route-r132",
+      "invariant": "INV-ROUTE-R132-MERGE",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "update-rename-merges-into-existing-author",
+      "sources": ["server/controllers/AuthorController.js:116-175", "server/models/Author.js:70-95"],
+      "rationale": "An exact same-library name match moves books, deletes the old author, returns {author,merged:true} and emits author_removed (full), author_updated and items_updated."
+    },
+    {
+      "requirement": "route-r132",
+      "invariant": "INV-ROUTE-R132-MERGE",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "update-merge-shared-book-and-bookless-author",
+      "sources": ["server/controllers/AuthorController.js:131-175"],
+      "rationale": "Merging a book already linked to the target keeps one link (no count growth); merging a bookless author sends no items_updated."
+    },
+    {
+      "requirement": "route-r132",
+      "invariant": "INV-ROUTE-R132-MERGE",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "update-case-different-name-is-plain-rename",
+      "sources": ["server/controllers/AuthorController.js:116-128,177-218"],
+      "rationale": "A name differing only in case is a plain rename: both authors stay, author_updated is sent and author_removed is not."
+    },
+    {
+      "requirement": "route-r132",
+      "invariant": "INV-ROUTE-R132-MERGE",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "update-same-name-in-other-library-is-plain-rename",
+      "sources": ["server/controllers/AuthorController.js:116-128"],
+      "rationale": "An exact name match in another library is a plain rename: both authors stay and only author_updated is sent."
+    },
+    {
+      "requirement": "route-r133",
+      "invariant": "INV-ROUTE-R133-AUTH",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "delete-by-delete-only-user",
+      "sources": ["server/controllers/AuthorController.js:432-434", "client/components/modals/authors/EditModal.vue"],
+      "rationale": "A non-admin with only delete can delete an author (200, row gone, author_removed); an update-only user gets 403."
+    },
+    {
+      "requirement": "route-r133",
+      "invariant": "INV-ROUTE-R133-AUTH",
+      "case": "error",
+      "state": "failure",
+      "assertion": "delete-denied-changes-nothing",
+      "sources": ["server/controllers/AuthorController.js:427-442", "server/Auth.js:322"],
+      "rationale": "DELETE is 401 unauthenticated, 404 for unknown/inaccessible library, 403 without delete permission (update is not enough), with no row, link or event change."
+    },
+    {
+      "requirement": "route-r133",
+      "invariant": "INV-ROUTE-R133-CONTRACT",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "delete-author-unlinks-books",
+      "sources": ["server/controllers/AuthorController.js:233-258"],
+      "rationale": "DELETE 200 removes the author and its bookAuthors links, keeps the books, rewrites each metadata.json to remaining authors and emits full author_removed."
+    },
+    {
+      "requirement": "route-r133",
+      "invariant": "INV-ROUTE-R133-DELETE",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "delete-author-with-image-purges-cache",
+      "sources": ["server/controllers/AuthorController.js:233-258", "server/managers/CacheManager.js:100-112"],
+      "rationale": "Deleting an author with an image purges its resized cache but leaves the stored image file on disk."
+    },
+    {
+      "requirement": "route-r133",
+      "invariant": "INV-ROUTE-R133-DELETE",
+      "case": "error",
+      "state": "repeat",
+      "assertion": "delete-author-twice",
+      "sources": ["server/controllers/AuthorController.js:428-429"],
+      "rationale": "A second DELETE of an already deleted author is 404 and emits no event."
+    },
+    {
+      "requirement": "route-r134",
+      "invariant": "INV-ROUTE-R134-AUTH",
+      "case": "error",
+      "state": "failure",
+      "assertion": "match-denied-changes-nothing",
+      "sources": ["server/controllers/AuthorController.js:427-442", "server/Auth.js:322"],
+      "rationale": "match is 401 unauthenticated, 404 for unknown/inaccessible library (also for a user without update), 403 without update permission, with no row or event change."
+    },
+    {
+      "requirement": "route-r134",
+      "invariant": "INV-ROUTE-R134-CONTRACT",
+      "case": "error",
+      "state": "initial",
+      "assertion": "match-no-result-is-404",
+      "sources": ["server/controllers/AuthorController.js:337-347", "server/finders/AuthorFinder.js:20-33", "server/providers/Audnexus.js:47-60,100-125"],
+      "rationale": "No usable query or a name the provider does not know is 404 with no changes, deterministically offline."
+    },
+    {
+      "requirement": "route-r134",
+      "invariant": "INV-ROUTE-R134-NOMATCH",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "match-no-result-repeat",
+      "sources": ["server/controllers/AuthorController.js:345-347"],
+      "rationale": "A repeated no-result match answers 404 again and leaves asin and description unchanged."
+    },
+    {
+      "requirement": "route-r134",
+      "invariant": "INV-ROUTE-R134-AUTH",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "match-by-update-only-user",
+      "sources": ["server/controllers/AuthorController.js:435-438"],
+      "rationale": "A non-admin with only update reaches the match lookup (404 no match); a delete-only user gets 403."
+    },
+    {
+      "requirement": "route-r135",
+      "invariant": "INV-ROUTE-R135-ERRORS",
+      "case": "error",
+      "state": "failure",
+      "assertion": "image-get-unavailable",
+      "sources": ["server/controllers/AuthorController.js:391-419", "server/managers/CacheManager.js:155-186"],
+      "rationale": "404 for unknown/no-image author (raw and resized); 400 for a non-UUID id or unsupported format; no cache file is created."
+    },
+    {
+      "requirement": "route-r135",
+      "invariant": "INV-ROUTE-R135-CONTRACT",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "image-get-default-jpeg-400",
+      "sources": ["server/controllers/AuthorController.js:290-300", "server/controllers/AuthorController.js:413-418", "server/managers/CacheManager.js:97-112", "server/managers/CacheManager.js:155-189", "server/utils/index.js:62-65", "server/utils/index.js:144-147"],
+      "rationale": "With no parameters GET returns a 400-wide aspect-kept JPEG written to cache/images/<id>_400.jpeg."
+    },
+    {
+      "requirement": "route-r135",
+      "invariant": "INV-ROUTE-R135-RESIZE",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "image-get-formats-and-sizes",
+      "sources": ["server/controllers/AuthorController.js:290-300", "server/controllers/AuthorController.js:413-418", "server/managers/CacheManager.js:97-112", "server/managers/CacheManager.js:155-189", "server/utils/index.js:62-65", "server/utils/index.js:144-147"],
+      "rationale": "format/width/height/Accept select output, dimensions clamp at 4096, and each result is cached as <id>_<w>[x<h>].<format>."
+    },
+    {
+      "requirement": "route-r135",
+      "invariant": "INV-ROUTE-R135-RESIZE",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "image-get-served-from-cache",
+      "sources": ["server/controllers/AuthorController.js:290-300", "server/controllers/AuthorController.js:413-418", "server/managers/CacheManager.js:97-112", "server/managers/CacheManager.js:155-189", "server/utils/index.js:62-65", "server/utils/index.js:144-147"],
+      "rationale": "A repeat request returns the same bytes from the existing cache file without rewriting its modtime."
+    },
+    {
+      "requirement": "route-r135",
+      "invariant": "INV-ROUTE-R135-ERRORS",
+      "case": "error",
+      "state": "failure",
+      "assertion": "image-get-invalid-format-creates-no-cache",
+      "sources": ["server/controllers/AuthorController.js:391-419", "server/managers/CacheManager.js:155-186"],
+      "rationale": "An unsupported format is 400 for an image-bearing author and creates no cache file."
+    },
+    {
+      "requirement": "route-r135",
+      "invariant": "INV-ROUTE-R135-RAW",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "image-get-raw-original",
+      "sources": ["server/controllers/AuthorController.js:391-411"],
+      "rationale": "raw=1 returns the stored file unchanged with its image content type and creates no cache."
+    },
+    {
+      "requirement": "route-r135",
+      "invariant": "INV-ROUTE-R135-AUTH",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "image-get-is-public",
+      "sources": ["server/Auth.js:20-37", "server/Auth.js:45-51", "server/Server.js:354"],
+      "rationale": "GET image needs no authentication and ignores library access, bad bearer/query tokens and a restricted user's token."
+    },
+    {
+      "requirement": "route-r135",
+      "invariant": "INV-ROUTE-R135-RESIZE",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "image-get-after-image-replaced",
+      "sources": ["server/controllers/AuthorController.js:290-300", "server/controllers/AuthorController.js:413-418", "server/managers/CacheManager.js:97-112", "server/managers/CacheManager.js:155-189", "server/utils/index.js:62-65", "server/utils/index.js:144-147"],
+      "rationale": "After a new image upload the same resized request returns the new picture, not the cached old one."
+    },
+    {
+      "requirement": "route-r135",
+      "invariant": "INV-ROUTE-R135-ERRORS",
+      "case": "error",
+      "state": "failure",
+      "assertion": "image-get-file-missing-on-disk",
+      "sources": ["server/controllers/AuthorController.js:391-419", "server/managers/CacheManager.js:155-186"],
+      "rationale": "With the image file removed from disk, raw and uncached resized requests answer 404."
+    },
+    {
+      "requirement": "route-r136",
+      "invariant": "INV-ROUTE-R136-AUTH",
+      "case": "error",
+      "state": "failure",
+      "assertion": "image-upload-denied-changes-nothing",
+      "sources": ["server/Server.js:354", "server/Auth.js:61-63", "server/controllers/AuthorController.js:267-271", "server/controllers/AuthorController.js:427-442"],
+      "rationale": "POST image is 401 unauthenticated, 404 for unknown/inaccessible library, 403 without update or without upload permission, and downloads nothing."
+    },
+    {
+      "requirement": "route-r136",
+      "invariant": "INV-ROUTE-R136-INPUT",
+      "case": "error",
+      "state": "initial",
+      "assertion": "image-upload-invalid-url-rejected",
+      "sources": ["server/controllers/AuthorController.js:272-288", "server/finders/AuthorFinder.js:43-65", "server/utils/fileUtils.js:298-357"],
+      "rationale": "A missing, empty, non-string or non-http(s) url is 400 and changes nothing."
+    },
+    {
+      "requirement": "route-r136",
+      "invariant": "INV-ROUTE-R136-INPUT",
+      "case": "error",
+      "state": "failure",
+      "assertion": "image-upload-download-failure-rejected",
+      "sources": ["server/controllers/AuthorController.js:272-288", "server/finders/AuthorFinder.js:43-65", "server/utils/fileUtils.js:298-357"],
+      "rationale": "A failed download (HTTP error, non-image/svg content type, unreachable host) is 400 and leaves no image or file."
+    },
+    {
+      "requirement": "route-r136",
+      "invariant": "INV-ROUTE-R136-CONTRACT",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "image-upload-jpg-stored",
+      "sources": ["server/controllers/AuthorController.js:282-304", "server/finders/AuthorFinder.js:43-65", "server/models/Author.js:177-198", "server/managers/CacheManager.js:97-112"],
+      "rationale": "A successful upload downloads to metadata/authors/<id>.jpg, stores imagePath, returns {author} and emits author_updated with numBooks."
+    },
+    {
+      "requirement": "route-r136",
+      "invariant": "INV-ROUTE-R136-STORE",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "image-upload-extension-rule",
+      "sources": ["server/controllers/AuthorController.js:282-304", "server/finders/AuthorFinder.js:43-65", "server/models/Author.js:177-198", "server/managers/CacheManager.js:97-112"],
+      "rationale": "A .png url stores <id>.png and any other url stores <id>.jpg regardless of content type."
+    },
+    {
+      "requirement": "route-r136",
+      "invariant": "INV-ROUTE-R136-STORE",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "image-upload-repeat-busts-cache",
+      "sources": ["server/controllers/AuthorController.js:282-304", "server/finders/AuthorFinder.js:43-65", "server/models/Author.js:177-198", "server/managers/CacheManager.js:97-112"],
+      "rationale": "A repeat upload keeps imagePath, purges the resized cache and raises updatedAt even with no column change."
+    },
+    {
+      "requirement": "route-r136",
+      "invariant": "INV-ROUTE-R136-AUTH",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "image-upload-by-update-and-upload-user",
+      "sources": ["server/controllers/AuthorController.js:267-271,435-438"],
+      "rationale": "A non-admin with update and upload can upload (file and row set); upload-only or delete-only users get 403."
+    },
+    {
+      "requirement": "route-r137",
+      "invariant": "INV-ROUTE-R137-AUTH",
+      "case": "error",
+      "state": "failure",
+      "assertion": "image-delete-denied-changes-nothing",
+      "sources": ["server/controllers/AuthorController.js:427-442", "server/Auth.js:322"],
+      "rationale": "DELETE image is 401 unauthenticated, 404 unknown/inaccessible library, 403 without delete permission (update is not enough), with no image, file or event change."
+    },
+    {
+      "requirement": "route-r137",
+      "invariant": "INV-ROUTE-R137-CONTRACT",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "image-delete-removes-file-and-cache",
+      "sources": ["server/controllers/AuthorController.js:313-329", "server/managers/CoverManager.js:34-44", "server/managers/CacheManager.js:100-112"],
+      "rationale": "DELETE image answers {author} with imagePath null, deletes file and cache, clears the column and emits author_updated with numBooks."
+    },
+    {
+      "requirement": "route-r137",
+      "invariant": "INV-ROUTE-R137-REMOVE",
+      "case": "error",
+      "state": "repeat",
+      "assertion": "image-delete-without-image-is-400",
+      "sources": ["server/controllers/AuthorController.js:314-317"],
+      "rationale": "DELETE image for an author without an image (also repeated) is 400 and emits nothing."
+    },
+    {
+      "requirement": "route-r137",
+      "invariant": "INV-ROUTE-R137-REMOVE",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "image-delete-file-already-missing",
+      "sources": ["server/controllers/AuthorController.js:318-322", "server/managers/CoverManager.js:34-44"],
+      "rationale": "A missing file on disk does not prevent a successful DELETE image that clears imagePath."
+    },
+    {
+      "requirement": "route-r137",
+      "invariant": "INV-ROUTE-R137-AUTH",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "image-delete-by-delete-only-user",
+      "sources": ["server/controllers/AuthorController.js:432-434"],
+      "rationale": "A non-admin with only delete can remove an image (file and imagePath gone, event sent); update+upload without delete gets 403."
+    },
+    {
+      "requirement": "socket-outgoing-author-added",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-ADDED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "author-added-by-scan",
+      "sources": ["server/scanner/BookScanner.js:604", "server/SocketAuthority.js:57-65"],
+      "rationale": "Scanning a book of an unknown author creates it and emits author_added with its JSON (no numBooks) to every authenticated socket."
+    },
+    {
+      "requirement": "socket-outgoing-author-added",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-ADDED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "author-added-by-scan-metadata-update",
+      "sources": ["server/scanner/BookScanner.js:221-247"],
+      "rationale": "A rescan whose metadata.json adds a new author name creates and links it, emitting author_added (no numBooks), with none for the author already present."
+    },
+    {
+      "requirement": "socket-outgoing-author-added",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-ADDED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "author-added-by-item-update",
+      "sources": ["server/models/Book.js:466-472", "server/controllers/LibraryItemController.js:251-267"],
+      "rationale": "Adding a new author name via PATCH item media creates it and emits author_added (no numBooks), with none for the existing author."
+    },
+    {
+      "requirement": "socket-outgoing-author-added",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-ADDED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "author-added-not-repeated",
+      "sources": ["server/models/Book.js:441-476", "server/controllers/LibraryItemController.js:231-267"],
+      "rationale": "Repeating a no-change item update emits neither author_added nor author_updated."
+    },
+    {
+      "requirement": "socket-outgoing-author-added",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-ADDED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "author-added-denied-update-sends-nothing",
+      "sources": ["server/controllers/LibraryItemController.js:186-200"],
+      "rationale": "A 403-refused item update creates no author and sends no author event."
+    },
+    {
+      "requirement": "socket-outgoing-author-added",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-ADDED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "author-added-not-sent-for-existing-author",
+      "sources": ["server/models/Book.js:466-475"],
+      "rationale": "Adding an existing author emits author_updated for it, never author_added."
+    },
+    {
+      "requirement": "socket-outgoing-author-removed",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-REMOVED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "author-removed-last-book-removed-by-item-update",
+      "sources": ["server/routers/ApiRouter.js:472-523", "server/controllers/LibraryItemController.js:254-258"],
+      "rationale": "Removing an author without asin/description/image from its last book deletes it and emits author_removed {id,libraryId}."
+    },
+    {
+      "requirement": "socket-outgoing-author-removed",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-REMOVED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "author-removed-keeps-asin-and-image",
+      "sources": ["server/routers/ApiRouter.js:465-523"],
+      "rationale": "An author with an asin or an image keeps its row and stored values and emits no author_removed when it loses its last book."
+    },
+    {
+      "requirement": "socket-outgoing-author-removed",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-REMOVED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "author-removed-not-sent-for-author-with-description",
+      "sources": ["server/routers/ApiRouter.js:478-496"],
+      "rationale": "An author with a description loses its last book but is kept with no author_removed event."
+    },
+    {
+      "requirement": "socket-outgoing-author-removed",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-REMOVED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "author-removed-by-item-delete",
+      "sources": ["server/controllers/LibraryItemController.js:114-150", "server/routers/ApiRouter.js:472-523"],
+      "rationale": "Deleting the only book of an author deletes it and emits author_removed {id,libraryId}."
+    },
+    {
+      "requirement": "socket-outgoing-author-removed",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-REMOVED",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "author-removed-by-rescan",
+      "sources": ["server/scanner/BookScanner.js:240-262,935-975", "server/scanner/LibraryItemScanner.js:84-92"],
+      "rationale": "A rescan moving a book off its only author deletes that exact author and emits author_removed {id,libraryId} with its captured id."
+    },
+    {
+      "requirement": "socket-outgoing-author-removed",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-REMOVED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "author-removed-by-author-delete-full-payload",
+      "sources": ["server/controllers/AuthorController.js:252"],
+      "rationale": "DELETE /api/authors/:id emits the full author JSON in author_removed, unlike the sweep payloads."
+    },
+    {
+      "requirement": "socket-outgoing-author-removed",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-REMOVED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "author-removed-not-sent-for-denied-delete",
+      "sources": ["server/controllers/AuthorController.js:432-434"],
+      "rationale": "A DELETE refused with 403 or 404 sends no author_removed and keeps the author."
+    },
+    {
+      "requirement": "socket-outgoing-author-updated",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-UPDATED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "author-updated-existing-author-added-to-book",
+      "sources": ["server/models/Book.js:473-475"],
+      "rationale": "Adding an existing author to a book emits author_updated with the author JSON and its new numBooks."
+    },
+    {
+      "requirement": "socket-outgoing-author-updated",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-UPDATED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "author-updated-author-removed-from-one-book",
+      "sources": ["server/models/Book.js:455-463", "server/controllers/LibraryItemController.js:254-258"],
+      "rationale": "Removing an author from one of several books emits author_updated with the remaining numBooks and no author_removed."
+    },
+    {
+      "requirement": "socket-outgoing-author-updated",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-UPDATED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "author-updated-by-patch",
+      "sources": ["server/controllers/AuthorController.js:189-218", "server/SocketAuthority.js:57"],
+      "rationale": "A changing PATCH emits the full author_updated JSON with numBooks and a strictly forward updatedAt to every authenticated socket, including one without library access."
+    },
+    {
+      "requirement": "socket-outgoing-author-updated",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-UPDATED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "author-updated-not-sent-for-noop-patch",
+      "sources": ["server/controllers/AuthorController.js:182-189"],
+      "rationale": "A no-op PATCH emits no author_updated."
+    },
+    {
+      "requirement": "socket-outgoing-author-updated",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHOR-UPDATED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "author-updated-not-sent-for-denied-patch",
+      "sources": ["server/controllers/AuthorController.js:435-438", "server/controllers/AuthorController.js:104-107"],
+      "rationale": "A PATCH refused with 403 or 400 emits no author_updated."
+    },
+    {
+      "requirement": "socket-outgoing-authors-num-books-updated",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHORS-NUM-BOOKS-UPDATED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "num-books-after-scan-adds-books",
+      "sources": ["server/scanner/BookScanner.js:225-232,484-494,905-930", "server/scanner/LibraryItemScanner.js:84-86", "server/scanner/LibraryScanner.js:284"],
+      "rationale": "A scan adding books to existing authors emits one authors_num_books_updated {libraryId,authors:[{id,numBooks}]} with the new counts and no author_added for them."
+    },
+    {
+      "requirement": "socket-outgoing-authors-num-books-updated",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHORS-NUM-BOOKS-UPDATED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "num-books-omits-new-authors",
+      "sources": ["server/scanner/BookScanner.js:225-262,484-494,905-930"],
+      "rationale": "A scan that only adds a book of a brand-new author emits author_added and no authors_num_books_updated."
+    },
+    {
+      "requirement": "socket-outgoing-authors-num-books-updated",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHORS-NUM-BOOKS-UPDATED",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "num-books-after-second-scan",
+      "sources": ["server/scanner/BookScanner.js:484-494,905-930"],
+      "rationale": "Each later scan adding another book emits a fresh authors_num_books_updated with the increased count, listing only changed authors."
+    },
+    {
+      "requirement": "socket-outgoing-authors-num-books-updated",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHORS-NUM-BOOKS-UPDATED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "num-books-not-sent-by-item-update",
+      "sources": ["server/scanner/BookScanner.js:905-930", "server/models/Book.js:441-476"],
+      "rationale": "Changing an author's books through the item API emits author_updated but never authors_num_books_updated."
+    },
+    {
+      "requirement": "socket-outgoing-authors-num-books-updated",
+      "invariant": "INV-SOCKET-OUTGOING-AUTHORS-NUM-BOOKS-UPDATED",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "num-books-omits-authors-without-books",
+      "sources": ["server/scanner/BookScanner.js:905-930,432-433"],
+      "rationale": "A rescan unlinking a book lists only the receiving author with its new count, omitting the author left with no books."
     }
   ],
   "not_applicable": [
     {
+      "requirement": "route-r132",
+      "facet": "force",
+      "reason": "confirmed: the PATCH handler (server/controllers/AuthorController.js:96-224) has no force, hard or override mode."
+    },
+    {
+      "requirement": "route-r133",
+      "facet": "force",
+      "reason": "confirmed: the DELETE handler (server/controllers/AuthorController.js:233-258) has no force, hard or override mode."
+    },
+    {
       "requirement": "route-r134",
       "facet": "normal",
-      "reason": "external host: the success path (asin, image, description from the provider) runs only against api.audnex.us (server/providers/Audnexus.js:24); offline, authorisation, 404 for unknown author, request validation and the no-match 404 with no side effects are asserted (match-denied-changes-nothing, match-no-result-is-404, match-no-result-repeat). Provider errors are caught and give null, so the 404 holds offline and online."
+      "reason": "confirmed: the success branches take asin, image and description from Audnexus at the fixed external host api.audnex.us (server/providers/Audnexus.js:24); offline the authorisation, not-found, validation and no-match 404 with no side effects are asserted as error and edge scenarios."
     },
     {
       "requirement": "route-r134",
       "facet": "changed",
-      "reason": "external host: state-dependent branches (asin update, image only when none or asin changed, description) need api.audnex.us; the offline-deterministic outcome does not depend on author state."
+      "reason": "confirmed: state-dependent branches (asin/image/description updates) need the fixed external host api.audnex.us; the only offline-deterministic outcome, the no-match 404, does not depend on author state."
     },
     {
       "requirement": "route-r134",
       "facet": "force",
-      "reason": "confirmed: the route has no force mode (server/controllers/AuthorController.js:337-383)."
+      "reason": "confirmed: the match handler (server/controllers/AuthorController.js:337-383) has no force, hard or override mode."
+    },
+    {
+      "requirement": "route-r135",
+      "facet": "force",
+      "reason": "confirmed: the image handler (server/controllers/AuthorController.js:391-419) has no force or cache-refresh override; raw is an ordinary source-file response variant."
+    },
+    {
+      "requirement": "route-r136",
+      "facet": "force",
+      "reason": "confirmed: the image upload handler (server/controllers/AuthorController.js:267-304) has no force, hard or override mode."
+    },
+    {
+      "requirement": "route-r137",
+      "facet": "force",
+      "reason": "confirmed: the image delete handler (server/controllers/AuthorController.js:313-329) has no force, hard or override mode."
+    },
+    {
+      "requirement": "socket-outgoing-author-added",
+      "facet": "force",
+      "reason": "confirmed: author_added is an emitted event with no force, hard or override mode at its call sites."
+    },
+    {
+      "requirement": "socket-outgoing-author-removed",
+      "facet": "force",
+      "reason": "confirmed: author_removed is an emitted event with no force, hard or override mode at its call sites."
+    },
+    {
+      "requirement": "socket-outgoing-author-updated",
+      "facet": "force",
+      "reason": "confirmed: author_updated is an emitted event with no force, hard or override mode at its call sites."
+    },
+    {
+      "requirement": "socket-outgoing-authors-num-books-updated",
+      "facet": "force",
+      "reason": "confirmed: authors_num_books_updated is an emitted event with no force, hard or override mode at its call site (server/scanner/BookScanner.js:926)."
     }
   ],
-  "open_findings": [
-    "route-r134/route-r136/route-r137: the library-access rule (user without access to the author's library gets 404 from the shared middleware, before the permission check, AuthorController.js:428-430) is exercised only for GET, PATCH and DELETE /api/authors/:id; add a restricted-library user case to the denied scenarios of match, image upload and image delete (assert 404 and no change).",
-    "route-r132/r133/r136/r137: no positive authorisation case for a non-admin: every success is by root. Add a user with only update (PATCH, POST match, update+upload for POST image) and a user with only delete (DELETE author, DELETE image) who succeeds, so an admin-only or wrong-permission implementation fails (client EditModal.vue offers these by canUpdate/canDelete).",
-    "route-r131: GET ?include=items applies the user's restrictions (getFilteredLibraryItems: item tags allow and deny mode, explicit content; libraryItemsBookFilters.js:13-30) and no scenario uses a user with tag or explicit restrictions; add one for each rule showing libraryItems and series are filtered.",
-    "route-r131: series items are sorted by naturalSort on the sequence but the scenario only has sequences 1 and 2 (a plain string sort passes); add a series with sequences such as 2, 10 and 1.5 to pin the order.",
-    "route-r132: merge matching is exact-name (SQL = on name, same library) and no scenario shows a case-different name is a plain rename, nor that an author of the same name in another library is not merged; add both variants.",
-    "socket-outgoing-author-removed: author-removed-by-rescan matches any author_removed with the library id and then only checks that the payload id has no row, so a payload with another already-gone id passes; capture the id of 'Scan Gone' before the second scan and assert the event id equals it (also for the item-delete/item-update sweeps: the payload is {id, libraryId} only, assert no other client-read field is expected)."
-  ]
+  "open_findings": []
 }
