@@ -1,0 +1,213 @@
+{
+  "packet": "launch",
+  "reviewer": "independent review, 2026-11-19, deepseek-v4.1-flash:1017",
+  "scenario_digest": "2f3aa96d52b4ec2aa3113a4f0c59434d6718f11b21257a7745d6f85df3a8bb1c",
+  "requirements_digest": "dc9ea3e4fb52172e3a626427ee27fbad722b9a186770a720be398b1212fedf3a",
+  "required_tuples": [
+    {
+      "requirement": "sub-static-client",
+      "invariant": "INV-client-browser-001",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "client-index-and-assets-served",
+      "sources": ["index.js:55-56", "server/Server.js:407-414"],
+      "rationale": "The entry document, the index.html fallback for a known client route (identical bytes) and a bundled asset are served without authentication at the configured base path."
+    },
+    {
+      "requirement": "sub-static-client",
+      "invariant": "INV-F06-REVIEW-CLOSURE-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "client-missing-asset-no-fallback",
+      "sources": ["server/Server.js:411-414", "server/Server.js:432-437"],
+      "rationale": "A missing /_nuxt asset and the /_nuxt/ directory answer 404, and neither the entry document nor a directory listing (0180c66.js exists in client/dist/_nuxt) is returned."
+    },
+    {
+      "requirement": "sub-static-client",
+      "invariant": "INV-F06-REVIEW-CLOSURE-001",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "client-prefixed-base-serves-index",
+      "sources": ["index.js:50", "server/Server.js:55-63", "server/Server.js:323-334", "server/Server.js:407-414"],
+      "rationale": "With ROUTER_BASE_PATH=/client-prefix the entry document and an asset are served under that prefix without authentication."
+    },
+    {
+      "requirement": "client-device-acceptance",
+      "invariant": "INV-CLIENT-DEVICE-ACCEPTANCE",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "device-fresh-status-drives-setup",
+      "sources": ["client/pages/login.vue:266-270", "server/Server.js:384-400"],
+      "rationale": "A fresh install answers /ping and /status with isInit false and the exact ConfigPath/MetadataPath the process was started with."
+    },
+    {
+      "requirement": "client-device-acceptance",
+      "invariant": "INV-CLIENT-DEVICE-ACCEPTANCE",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "device-boot-status-stable-on-repeat",
+      "sources": ["server/Server.js:384-404", "client/pages/login.vue:266-270"],
+      "rationale": "On the initialized fixture install two /status reads are byte-identical with isInit true/app/version, /ping answers twice and two device logins both return an access token."
+    },
+    {
+      "requirement": "client-device-acceptance",
+      "invariant": "INV-CLIENT-DEVICE-ACCEPTANCE",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "device-init-changes-status-and-login",
+      "sources": ["client/pages/login.vue:162-165", "server/Server.js:377-383", "server/Server.js:384-400"],
+      "rationale": "POST /init on a fresh install returns 200, flips /status from isInit false with paths to isInit true without paths, and the new root credentials return a token that /api/me resolves to that username."
+    },
+    {
+      "requirement": "client-device-acceptance",
+      "invariant": "INV-CLIENT-DEVICE-ACCEPTANCE",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "device-status-public-with-stale-token",
+      "sources": ["server/Server.js:384-404", "client/pages/login.vue:266-270"],
+      "rationale": "GET /status stays 200 with an identical body for an unauthenticated and a stale-bearer request, and the public GET route also answers HEAD /ping with 200 and an empty body."
+    },
+    {
+      "requirement": "client-device-acceptance",
+      "invariant": "INV-CLIENT-DEVICE-ACCEPTANCE-FAILURE-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "device-wrong-password-no-session",
+      "sources": ["server/Auth.js:322", "server/auth/LocalAuthStrategy.js:90-96", "client/pages/login.vue:212-218"],
+      "rationale": "A fixture user's login with a wrong password is 401 and the users and sessions row counts are unchanged."
+    },
+    {
+      "requirement": "runtime-configuration",
+      "invariant": "INV-RUNTIME-CONFIGURATION",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "port-env-overrides-default",
+      "sources": ["index.js:44", "server/Server.js:475-478"],
+      "rationale": "The process is launched with only PORT in the environment (the harness never passes --port), the selected port is not 3333, and /ping answers on it."
+    },
+    {
+      "requirement": "runtime-configuration",
+      "invariant": "INV-RUNTIME-CONFIGURATION",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "flag-port-overrides-env",
+      "sources": ["index.js:44", "server/Server.js:475-478"],
+      "rationale": "With PORT naming one port and --port another, /ping answers on the flag-selected port and (when the ports differ) the environment-selected port refuses connections."
+    },
+    {
+      "requirement": "runtime-configuration",
+      "invariant": "INV-RUNTIME-CONFIGURATION",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "flag-paths-override-env-shown-in-status",
+      "sources": ["index.js:41-42", "index.js:46-47", "server/Server.js:83-84", "server/Server.js:395-397"],
+      "rationale": "With CONFIG_PATH/METADATA_PATH in the environment and --config/--metadata flags pointing elsewhere, a fresh /status reports exactly the flag directories and not the environment CONFIG_PATH."
+    },
+    {
+      "requirement": "runtime-configuration",
+      "invariant": "INV-RUNTIME-CONFIGURATION",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "host-flag-overrides-invalid-env",
+      "sources": ["index.js:45", "server/Server.js:475-478"],
+      "rationale": "HOST=999.999.999.999 alone exits non-zero and answers no HTTP, while the same environment with --host 127.0.0.1 serves /ping on loopback."
+    },
+    {
+      "requirement": "runtime-configuration",
+      "invariant": "INV-RUNTIME-CONFIGURATION-BASEPATH-001",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "router-base-path-from-env",
+      "sources": ["index.js:50", "server/Server.js:55-63", "server/Server.js:323-334", "server/Server.js:401"],
+      "rationale": "ROUTER_BASE_PATH=/launch-prefix makes /launch-prefix/ping and /launch-prefix/status serve the boot contract while the default /audiobookshelf/ping no longer answers."
+    },
+    {
+      "requirement": "runtime-configuration",
+      "invariant": "INV-RUNTIME-CONFIGURATION-REJECT-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "port-out-of-range-refused",
+      "sources": ["index.js:44", "server/Server.js:475-478"],
+      "rationale": "PORT=99999 exits non-zero without answering /ping, and a later normal boot of the same fresh install serves /ping."
+    },
+    {
+      "requirement": "runtime-configuration",
+      "invariant": "INV-RUNTIME-CONFIGURATION-NONNUM-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "port-nonnumeric-has-no-tcp-listener",
+      "sources": ["index.js:44", "server/Server.js:475-478"],
+      "rationale": "PORT set to a filesystem path never serves the TCP /ping liveness answer on the harness port within the readiness window (upstream binds a named socket instead)."
+    },
+    {
+      "requirement": "runtime-configuration",
+      "invariant": "INV-RUNTIME-CONFIGURATION",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "config-restart-preserves-boot-contract",
+      "sources": ["index.js:44-50", "server/Server.js:384-404"],
+      "rationale": "A restart on the same install and options answers /status with an identical body and /ping 200, before and after."
+    },
+    {
+      "requirement": "runtime-binary",
+      "invariant": "INV-RUNTIME-BINARY",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "binary-boots-and-serves-boot-contract",
+      "sources": ["index.js:55-56", "server/Server.js:180-258", "server/Server.js:384-405"],
+      "rationale": "One fresh boot serves /ping {success:true}, /status isInit false with app audiobookshelf and serverVersion 2.37.2, an HTML entry document at / and 401 from the auth-gated /api/libraries."
+    },
+    {
+      "requirement": "runtime-binary",
+      "invariant": "INV-RUNTIME-BINARY",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "binary-reopens-existing-install-identity",
+      "sources": ["index.js:46-55", "server/Server.js:180-220", "server/Server.js:384-400"],
+      "rationale": "A second process on the same fixture tree serves /ping, isInit true, the identical sorted library ids and user count, and the stored root user can still log in."
+    },
+    {
+      "requirement": "runtime-binary",
+      "invariant": "INV-RUNTIME-BINARY-REFUSED-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "binary-refuses-corrupt-config",
+      "sources": ["index.js:46", "server/Server.js:188", "server/Database.js:180-192"],
+      "rationale": "A garbage absdatabase.sqlite makes the boot exit non-zero without answering /ping, and the supplied database bytes are unchanged."
+    },
+    {
+      "requirement": "runtime-binary",
+      "invariant": "INV-RUNTIME-BINARY-REFUSED-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "binary-refuses-bad-config-path",
+      "sources": ["index.js:46", "server/Server.js:121-126"],
+      "rationale": "A CONFIG_PATH that is a regular file makes the boot exit non-zero without answering /ping, and the supplied file bytes are unchanged."
+    },
+    {
+      "requirement": "runtime-binary",
+      "invariant": "INV-RUNTIME-BINARY-REFUSED-001",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "binary-unwritable-metadata-never-ready",
+      "sources": ["index.js:47", "server/Server.js:124-126", "server/Server.js:198-204"],
+      "rationale": "A 0500 METADATA_PATH never answers /ping within the readiness window and the directory stays empty."
+    }
+  ],
+  "not_applicable": [
+    {
+      "requirement": "runtime-configuration",
+      "facet": "force",
+      "reason": "confirmed: the launch configuration is read once at process start (index.js:41-50) and the option table (index.js:1-10) has no force/hard flag; nothing re-applies or overrides a live configuration."
+    },
+    {
+      "requirement": "client-device-acceptance",
+      "facet": "force",
+      "reason": "confirmed: neither the init route (server/Server.js:377-383) nor the local login route (server/Auth.js:322) takes a force/hard parameter, and the client's boot/login calls (client/pages/login.vue:164-165, 208-217) send none."
+    }
+  ],
+  "open_findings": [
+    "runtime-binary: binary-refuses-corrupt-config and binary-refuses-bad-config-path assert `dirNames(own.Config)` as the unchanged install config directory, but the child is launched with CONFIG_PATH set to the supplied path, so own.Config is never touched and the check cannot fail (probed: both install/config leaves stay empty while the refused boot still creates metadata/logs and metadata/streams). Assert the supplied CONFIG_PATH tree instead - for the corrupt case only the database file itself (no -journal/-wal/-shm), for the bad-path case only the CONFIG_PATH regular file - or drop the unchanged-tree clause from the claim and from INV-RUNTIME-BINARY-REFUSED-001.",
+    "sub-static-client: client-index-and-assets-served and client-prefixed-base-serves-index identify the entry document only as '200, text/html, non-empty' and the asset as favicon.ico, so a placeholder page plus a favicon passes while no /_nuxt/* asset is ever served (the sibling scenario already knows the marker). Pin the retained build: the entry body contains `id=\"__nuxt\"` and a `/_nuxt/<hash>.js` reference, and request a real bundled asset (client/dist/_nuxt/0180c66.js) instead of, or in addition to, favicon.ico."
+  ]
+}
