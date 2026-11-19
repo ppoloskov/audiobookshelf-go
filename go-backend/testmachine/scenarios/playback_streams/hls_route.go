@@ -147,11 +147,12 @@ func hlsScenarios() []harness.Scenario {
 			}),
 
 		scenario("route-r219", "INV-R219-RESET-001", "normal", "changed", "hls-backward-segment-restarts-stream",
-			[]string{hlsRouterSrc, hlsStreamSrc, streamResetSrc},
-			"Requesting a segment before the start offset answers 404 and emits stream_reset, after which the retranscode serves the requested segment from the new start.",
+			[]string{hlsRouterSrc, hlsStreamSrc, streamResetSrc, socketClientSrc},
+			"Requesting output-1 of a session resumed at 44 s answers 404 and broadcasts stream_reset {startTime 6, streamId} to the watching owner, after which the retranscode from the beginning serves output-0 and output-1 non-empty.",
 			func(t *testing.T, e *harness.Env) {
 				user := createUser(t, e, "hls-reset-user")
 				setProgress(t, e, user, e.IDs["novel"], 44, novelDuration)
+				a := watch(t, e, user, "finisher")
 				doc := startStream(t, e, user, e.IDs["novel"], "", "hls-reset")
 				if doc.StartTime != 44 {
 					t.Fatalf("start time %v, want the resume position 44", doc.StartTime)
@@ -165,20 +166,25 @@ func hlsScenarios() []harness.Scenario {
 				harness.Eventually(t, 30*time.Second, "the first produced segment", func() bool {
 					return getHLS(t, e, doc.ID, "output-2.ts", nil).Status == http.StatusOK
 				})
-				before := getHLS(t, e, doc.ID, "output-0.ts", nil)
+				// Segment 1 is before the start number 2, so its reset start
+				// time is 6 s – truthy, unlike the silent segment 0 reset.
+				before := getHLS(t, e, doc.ID, "output-1.ts", nil)
 				requireStatus(t, before, http.StatusNotFound, "segment before the start offset")
-				waitSegment(t, e, doc.ID, 0)
-				after := getHLS(t, e, doc.ID, "output-0.ts", nil)
-				requireStatus(t, after, http.StatusOK, "segment after the reset")
-				if len(after.Body) == 0 {
-					t.Fatal("retranscoded first segment is empty")
+				payload := eventFirst[resetDoc](t, a.owner1, a.marks[0], "stream_reset", 10*time.Second)
+				requireEqual(t, "stream_reset payload", payload, resetDoc{StartTime: segmentLength, StreamID: doc.ID})
+				eventFirst[resetDoc](t, a.owner2, a.marks[1], "stream_reset", 10*time.Second)
+				for _, number := range []int{0, 1} {
+					after := waitSegment(t, e, doc.ID, number)
+					if len(after) == 0 {
+						t.Fatalf("retranscoded segment %d is empty", number)
+					}
 				}
 				closeQuietly(t, e, user.Token, doc.ID)
 			}),
 
 		scenario("route-r219", "INV-R219-FILE-001", "edge", "initial", "hls-ac3-item-transcodes",
 			[]string{hlsRouterSrc, streamStartSrc},
-			"An AC3 audiobook is transcoded with its bitrate and channel count and serves its playlist and first segment like any other item.",
+			"An AC3 (.mka) audiobook is transcoded through the HLS path and serves a 200 playlist and a non-empty first segment.",
 			func(t *testing.T, e *harness.Env) {
 				quietWatchers(t, e)
 				item := newAudiobook(t, e, "AC3 Stream", "AC3 Stream.mka", transcodeToAC3(t, e))
@@ -193,7 +199,7 @@ func hlsScenarios() []harness.Scenario {
 			}),
 
 		scenario("route-r219", "INV-R219-CLOSED-001", "edge", "changed", "hls-files-gone-after-close",
-			[]string{hlsRouterSrc, streamCloseSrc, sessionManager},
+			[]string{hlsRouterSrc, streamCloseSrc, sessionRemoveSrc},
 			"After the session is closed the playlist and the segments answer 404 and the stream folder no longer exists.",
 			func(t *testing.T, e *harness.Env) {
 				listener := fixtureActor(t, e, "listener")

@@ -41,11 +41,13 @@
     {
       "id": "INV-SOCKET-OUTGOING-STREAM-CLOSED",
       "class": "shape",
-      "contract": "Closing a transcoded session answers 200, removes the metadata/streams/<id> folder and persists the playback session row when listening time was synced, emits stream_closed with the session id exactly once on both sockets of the owner and on no admin or other-user socket.",
+      "contract": "Closing a transcoded session answers 200, removes the metadata/streams/<id> folder and persists the playback session row with timeListening 7 when a 2 s sync and a 5 s close sync are sent, emits stream_closed with the session id exactly once on both sockets of the owner and on no admin or other-user socket.",
       "status": "unverified",
       "source": [
         "server/objects/Stream.js:358-379",
         "server/managers/PlaybackSessionManager.js:421-431",
+        "server/managers/PlaybackSessionManager.js:387-390",
+        "server/objects/PlaybackSession.js:238-249",
         "server/SocketAuthority.js:67-78"
       ],
       "tests": [

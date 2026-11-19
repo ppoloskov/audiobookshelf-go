@@ -51,7 +51,7 @@ func trackScenarios() []harness.Scenario {
 
 		scenario("route-r225", "INV-R225-RANGE-001", "edge", "repeat", "public-track-ranges-and-repeat",
 			[]string{getTrackSrc, audioTrackSrc, webPlayerSrc},
-			"Every track index serves its own file, a byte range answers 206 with exactly those bytes and a repeated request returns the same bytes.",
+			"Every track index serves its own file, a byte range answers 206 with exactly those bytes and an identical range request on track 2 issued twice returns the same bytes both times.",
 			func(t *testing.T, e *harness.Env) {
 				listener := fixtureActor(t, e, "listener")
 				doc := startDirect(t, e, listener, e.IDs["saga1"], "", "track-range", "audio/mpeg")
@@ -73,10 +73,19 @@ func trackScenarios() []harness.Scenario {
 				}
 
 				second := mediaFile(t, e, filepath.Join(saga1AudioPath, saga1Files[1]))
-				repeat := e.Do(t, harness.Request{Path: trackPath(doc.ID, 2), Header: map[string]string{"Range": "bytes=0-1023"}})
-				requireStatus(t, repeat, http.StatusPartialContent, "track repeat range")
-				if string(repeat.Body) != string(second[:1024]) {
-					t.Fatalf("repeated range returned %d bytes, want the first 1024 of %s", len(repeat.Body), saga1Files[1])
+				request := harness.Request{Path: trackPath(doc.ID, 2), Header: map[string]string{"Range": "bytes=0-1023"}}
+				var firstRepeat []byte
+				for i := 0; i < 2; i++ {
+					repeat := e.Do(t, request)
+					requireStatus(t, repeat, http.StatusPartialContent, fmt.Sprintf("track repeat range %d", i+1))
+					if string(repeat.Body) != string(second[:1024]) {
+						t.Fatalf("repeated range %d returned %d bytes, want the first 1024 of %s", i+1, len(repeat.Body), saga1Files[1])
+					}
+					if i == 0 {
+						firstRepeat = repeat.Body
+					} else if string(repeat.Body) != string(firstRepeat) {
+						t.Fatal("the two identical range requests returned different bytes")
+					}
 				}
 
 				closeQuietly(t, e, listener.Token, doc.ID)
@@ -155,7 +164,7 @@ func trackScenarios() []harness.Scenario {
 			}),
 
 		scenario("route-r225", "INV-R225-CLOSED-001", "normal", "changed", "public-track-gone-after-close",
-			[]string{getTrackSrc, sessionManager},
+			[]string{getTrackSrc, sessionRemoveSrc},
 			"After the session is closed a track request answers 404.",
 			func(t *testing.T, e *harness.Env) {
 				listener := fixtureActor(t, e, "listener")

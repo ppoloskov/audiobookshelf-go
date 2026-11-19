@@ -21,7 +21,10 @@ func readyScenarios() []harness.Scenario {
 				doc := startStream(t, e, user, e.IDs["saga1"], "", "ready-normal")
 				eventFirst[streamOpenDoc](t, a.owner1, a.marks[0], "stream_open", 15*time.Second)
 				a.settleAll(t)
-				a.requireNobody(t, "stream_ready", 1500*time.Millisecond)
+				// Stream.js:222-230 emits stream_ready only from the 2 s
+				// segment-check loop, so listen past one whole interval: a
+				// server that leaves the loop running cannot pass by chance.
+				a.requireNobody(t, "stream_ready", 3000*time.Millisecond)
 				closeQuietly(t, e, user.Token, doc.ID)
 			}),
 
@@ -78,7 +81,9 @@ func readyScenarios() []harness.Scenario {
 				doc := startStream(t, e, user, item, "", "ready-failure")
 				eventFirst[errorDoc](t, a.owner1, a.marks[0], "stream_error", 15*time.Second)
 				a.settleAll(t)
-				a.requireNobody(t, "stream_ready", 500*time.Millisecond)
+				// Same two-second interval as the normal-completion case:
+				// cover the tick that a still-running loop would use.
+				a.requireNobody(t, "stream_ready", 3000*time.Millisecond)
 				closeQuietly(t, e, user.Token, doc.ID)
 			}),
 	}

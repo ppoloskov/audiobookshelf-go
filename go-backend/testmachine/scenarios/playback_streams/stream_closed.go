@@ -14,8 +14,8 @@ import (
 func closedScenarios() []harness.Scenario {
 	return []harness.Scenario{
 		scenario("socket-outgoing-stream-closed", "INV-SOCKET-OUTGOING-STREAM-CLOSED", "normal", "initial", "stream-closed-on-session-close",
-			[]string{streamCloseSrc, sessionManager, "server/routers/ApiRouter.js:243", socketClientSrc, webSocketSrc},
-			"Closing a transcoded session with the official clients' final sync payload answers 200, persists the session row with its listening time, removes the stream folder and emits stream_closed with the session id once on both owner sockets and on no admin or other-user socket.",
+			[]string{streamCloseSrc, sessionCloseSrc, listeningTimeSrc, "server/routers/ApiRouter.js:243", socketClientSrc, webSocketSrc},
+			"Closing a transcoded session with the official clients' final sync payload answers 200, persists the session row with timeListening 7 (2 s sync + 5 s close sync), removes the stream folder and emits stream_closed with the session id once on both owner sockets and on no admin or other-user socket.",
 			func(t *testing.T, e *harness.Env) {
 				user := createUser(t, e, "closed-initial-user")
 				a := watch(t, e, user, "finisher")
@@ -30,9 +30,10 @@ func closedScenarios() []harness.Scenario {
 					t.Fatalf("stream_closed payload %q, want the session id %q", id, doc.ID)
 				}
 				rows := e.Rows(t, "SELECT timeListening FROM playbackSessions WHERE id = ?", doc.ID)
-				if len(rows) != 1 || rows[0]["timeListening"] == nil {
-					t.Fatalf("closing a streamed session with a final sync did not persist it: %v", rows)
+				if len(rows) != 1 {
+					t.Fatalf("closing a streamed session with a final sync did not persist one row: %v", rows)
 				}
+				requireEqual(t, "timeListening", rows[0]["timeListening"], 7)
 				harness.Eventually(t, 10*time.Second, "the stream folder to disappear", func() bool {
 					return !streamFolderExists(e, doc.ID)
 				})
@@ -62,7 +63,7 @@ func closedScenarios() []harness.Scenario {
 			}),
 
 		scenario("socket-outgoing-stream-closed", "INV-SOCKET-OUTGOING-STREAM-CLOSED-SILENT-001", "edge", "changed", "stream-closed-not-for-direct-play",
-			[]string{streamCloseSrc, sessionManager},
+			[]string{streamCloseSrc, sessionCloseSrc},
 			"Closing a direct-play session emits no stream_closed (it has no stream) while the owner still receives user_session_closed.",
 			func(t *testing.T, e *harness.Env) {
 				user := createUser(t, e, "closed-direct-user")
@@ -80,7 +81,7 @@ func closedScenarios() []harness.Scenario {
 			}),
 
 		scenario("socket-outgoing-stream-closed", "INV-SOCKET-OUTGOING-STREAM-CLOSED-SILENT-001", "normal", "repeat", "stream-closed-once",
-			[]string{streamCloseSrc, sessionManager},
+			[]string{streamCloseSrc, sessionCloseSrc, sessionRemoveSrc},
 			"Closing an already closed session answers 404 and emits no second stream_closed.",
 			func(t *testing.T, e *harness.Env) {
 				user := createUser(t, e, "closed-repeat-user")

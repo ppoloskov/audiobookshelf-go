@@ -40,7 +40,7 @@
     {
       "id": "INV-R219-FILE-001",
       "class": "shape",
-      "contract": "GET /hls/:stream/output.m3u8 of an open transcoded session answers 200 without a bearer token as application/vnd.apple.mpegurl with a VOD playlist (#EXTM3U, version 3, target duration 6, media sequence 0, end list) that lists output-0.ts through output-10.ts for The Beginning; GET of output-0.ts answers 200 as video/mp2t with Accept-Ranges: bytes, and the same request with the owner's token returns identical bytes. An AC3 audiobook also transcodes (with its bitrate and channel options) and serves its playlist and first segment.",
+      "contract": "GET /hls/:stream/output.m3u8 of an open transcoded session answers 200 without a bearer token as application/vnd.apple.mpegurl with a VOD playlist (#EXTM3U, version 3, target duration 6, media sequence 0, end list) that lists output-0.ts through output-10.ts for The Beginning; GET of output-0.ts answers 200 as video/mp2t with Accept-Ranges: bytes, and the same request with the owner's token returns identical bytes. An AC3 (.mka) audiobook also transcodes and serves a 200 playlist and a non-empty first segment; the ffmpeg bitrate/channel options of Stream.js:278-283 are not externally observable and are not asserted.",
       "status": "unverified",
       "source": [
         "server/routers/HlsRouter.js:48-96",
@@ -88,12 +88,14 @@
     {
       "id": "INV-R219-RESET-001",
       "class": "state_transition",
-      "contract": "For a session started at 44 s the playlist still lists every segment from segment 0 while the transcode starts at segment 2; requesting the missing output-0.ts answers 404 and restarts the transcode from the beginning, after which output-0.ts is served.",
+      "contract": "For a session started at 44 s the playlist still lists every segment from segment 0 while the transcode starts at segment 2; requesting the missing output-1.ts answers 404, broadcasts stream_reset {startTime: 6, streamId} to the watching owner and restarts the transcode from the beginning, after which output-0.ts and output-1.ts are served non-empty. (Requesting segment 0 instead returns a falsy start time and is silent, proven by INV-SOCKET-OUTGOING-STREAM-RESET-TRIGGER-001.)",
       "status": "unverified",
       "source": [
         "server/routers/HlsRouter.js:78-92",
+        "server/routers/HlsRouter.js:84-90",
         "server/objects/Stream.js:125-145",
-        "server/objects/Stream.js:397-414"
+        "server/objects/Stream.js:397-414",
+        "server/SocketAuthority.js:67-78"
       ],
       "tests": [
         "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-backward-segment-restarts-stream"

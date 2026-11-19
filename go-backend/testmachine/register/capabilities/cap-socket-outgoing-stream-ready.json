@@ -33,7 +33,7 @@
   ],
   "exceptions": [
     "force is not applicable: the event has no force/refresh trigger; it can only come from a segment check after a reset.",
-    "Normal completion clears the segment check and therefore emits no stream_ready; the positive path needs a reset whose retranscode finishes before the delayed check starts. Both are asserted; no scenario waits for the timer to be reached by a normally completed transcode.",
+    "Normal completion clears the segment check and therefore emits no stream_ready; the positive path needs a reset whose retranscode finishes before the delayed check starts. Both silence scenarios listen for 3 s on every audience socket — past the 2 s segment-check interval (server/objects/Stream.js:222-230) — so a still-running loop cannot pass by chance.",
     "The accepted playback lifecycle packet supplies scoped evidence and documents that stream_ready is not part of normal completion; its Go differences are deliberately not asserted here."
   ],
   "stateful": true,

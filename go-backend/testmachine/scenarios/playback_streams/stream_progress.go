@@ -18,7 +18,7 @@ func progressScenarios() []harness.Scenario {
 	return []harness.Scenario{
 		scenario("socket-outgoing-stream-progress", "INV-SOCKET-OUTGOING-STREAM-PROGRESS", "normal", "initial", "stream-progress-payload",
 			[]string{streamStartSrc, streamCheckSrc, webPlayerSrc},
-			"A transcoded book sends stream_progress first as {percent \"0%\", chunks [], numSegments 0} and, on the first segment check with segments, as {percent \"100.00%\", chunks [\"0-10\"], numSegments 11} on both owner sockets only.",
+			"A transcoded book sends stream_progress first as {percent \"0%\", chunks [], numSegments 0} and, on the first segment check with segments, as {percent \"100.00%\", chunks [\"0-10\"], numSegments 11} on both owner sockets, and on neither the admin nor another user's socket.",
 			func(t *testing.T, e *harness.Env) {
 				own := harness.Start(t, harness.Options{Env: slowFFmpegEnv(t)})
 				user := createUser(t, own, "progress-initial-user")
@@ -27,22 +27,35 @@ func progressScenarios() []harness.Scenario {
 
 				zero := eventFirst[progressDoc](t, a.owner1, a.marks[0], "stream_progress", 10*time.Second)
 				requireEqual(t, "initial progress", zero, progressDoc{Stream: doc.ID, Percent: "0%", Chunks: []any{}, NumSegments: 0})
+				zero2 := eventFirst[progressDoc](t, a.owner2, a.marks[1], "stream_progress", 10*time.Second)
+				requireEqual(t, "initial progress on owner 2", zero2, zero)
 
-				var real []progressDoc
-				harness.Eventually(t, 15*time.Second, "a segment-check progress payload", func() bool {
+				var real, real2 []progressDoc
+				harness.Eventually(t, 15*time.Second, "a segment-check progress payload on both owners", func() bool {
 					real = nil
+					real2 = nil
 					for _, event := range eventsNamed[progressDoc](t, a.owner1, a.marks[0], "stream_progress") {
 						if event.NumSegments != 0 {
 							real = append(real, event)
 						}
 					}
-					return len(real) > 0
+					for _, event := range eventsNamed[progressDoc](t, a.owner2, a.marks[1], "stream_progress") {
+						if event.NumSegments != 0 {
+							real2 = append(real2, event)
+						}
+					}
+					return len(real) > 0 && len(real2) > 0
 				})
-				requireEqual(t, "segment progress", real[0], progressDoc{Stream: doc.ID, Percent: "100.00%", Chunks: []any{"0-10"}, NumSegments: saga1Segments})
+				want := progressDoc{Stream: doc.ID, Percent: "100.00%", Chunks: []any{"0-10"}, NumSegments: saga1Segments}
+				requireEqual(t, "segment progress", real[0], want)
+				requireEqual(t, "segment progress on owner 2", real2[0], want)
 				eventFirst[streamOpenDoc](t, a.owner2, a.marks[1], "stream_open", 10*time.Second)
 				a.settleAll(t)
 				if got := eventsNamed[streamOpenDoc](t, a.admin, a.marks[2], "stream_open"); len(got) != 0 {
 					t.Fatalf("admin socket got stream_open: %+v", got)
+				}
+				if got := eventsNamed[progressDoc](t, a.admin, a.marks[2], "stream_progress"); len(got) != 0 {
+					t.Fatalf("admin socket got stream_progress: %+v", got)
 				}
 				if got := eventsNamed[progressDoc](t, a.other, a.marks[3], "stream_progress"); len(got) != 0 {
 					t.Fatalf("another user's socket got stream_progress: %+v", got)
