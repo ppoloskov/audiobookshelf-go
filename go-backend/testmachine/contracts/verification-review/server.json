@@ -1,8 +1,8 @@
 {
   "packet": "server",
-  "reviewer": "independent review, 2026-11-19, deepseek-v4.1-flash:1017",
-  "scenario_digest": "d99cd1fce18e079bd92b2ed149919476af17407f393eeb58b8a5dd7a9db50468",
-  "requirements_digest": "42c8c6a929d9708748ddba7b294fdc7a30fbb091505e96334a1d4d41386836b8",
+  "reviewer": "independent re-review, 2026-11-19, deepseek-v4.1-flash:1017",
+  "scenario_digest": "a22e668e95b8db1904fe97f45799bd3ab4193162ad6020e1cab7912c3e1a15e2",
+  "requirements_digest": "560f70cc5123f0bce9c8c131bec74ca444effff9257c4337bef9b536c437c7b6",
   "required_tuples": [
     {
       "requirement": "route-r011",
@@ -92,7 +92,7 @@
       "state": "stateless",
       "assertion": "spa-client-routes-serve-entry",
       "sources": ["server/Server.js:410-437"],
-      "rationale": "/, /library/:id, /library/:id/search, /item/:id, /author/:id, /config/users/:id, /collection/:id and /playlist/:id answer 200 text/html with the same unauthenticated entry document."
+      "rationale": "/ and all 21 listed client routes (with both optional bookshelf and series segment variants, 23 requests) answer 200 text/html with bytes identical to / without authentication."
     },
     {
       "requirement": "route-r014",
@@ -101,7 +101,7 @@
       "state": "stateless",
       "assertion": "spa-missing-asset-404-no-listing",
       "sources": ["server/Server.js:412-414", "server/Server.js:432-437"],
-      "rationale": "/favicon.ico is served with a non-empty non-entry body while a missing asset and a directory path answer 404 without the SPA fallback or a listing."
+      "rationale": "/favicon.ico answers 200 with media type image/x-icon and a non-empty body carrying no __nuxt marker, while a missing asset and a directory path answer 404 without the SPA fallback or a listing."
     },
     {
       "requirement": "route-r014",
@@ -146,7 +146,7 @@
       "state": "stateless",
       "assertion": "libraries-list-and-conditional",
       "sources": ["server/routers/ApiRouter.js:68", "server/managers/ApiCacheManager.js:79-115"],
-      "rationale": "GET /api/libraries returns the two fixture libraries with their folders, repeats the body and ETag, answers 304 to a matching If-None-Match with an empty body and still answers a random sort."
+      "rationale": "GET /api/libraries returns the two fixture libraries with name, media type and folders, repeats the same body and ETag, and answers 304 to a matching If-None-Match with an empty body."
     },
     {
       "requirement": "route-r016",
@@ -236,7 +236,7 @@
       "state": "failure",
       "assertion": "public-image-exception-boundary",
       "sources": ["server/Auth.js:21", "server/Auth.js:36-52", "server/routers/ApiRouter.js:112-128", "server/controllers/LibraryItemController.js:401-433", "server/controllers/LibraryItemController.js:1121-1154"],
-      "rationale": "The unauthenticated cover read answers 200, the ebook route answers 401 without and with an invalid token and returns no file bytes, and unknown item/author image ids answer 404 rather than 401."
+      "rationale": "The unauthenticated cover read answers 200, while the ebook route answers 401 without and with an invalid token even when the request carries Origin: capacitor://localhost and the full CORS grant is present on the refusal, and unknown item/author image ids answer 404."
     },
     {
       "requirement": "runtime-lifecycle",
@@ -263,7 +263,7 @@
       "state": "failure",
       "assertion": "shutdown-refuses-requests-not-half-graph",
       "sources": ["server/Server.js:276-288", "server/Server.js:562-570"],
-      "rationale": "After SIGINT /ping no longer succeeds, the sqlite database file remains and the next boot serves ping again."
+      "rationale": "After SIGINT a plain GET /ping gets no HTTP response at all (any 404/500 answer fails), the sqlite database file remains and the next boot serves ping again."
     },
     {
       "requirement": "runtime-lifecycle",
@@ -272,7 +272,7 @@
       "state": "repeat",
       "assertion": "restart-closes-open-sockets-and-welcomes-new",
       "sources": ["server/Server.js:276-288", "server/SocketAuthority.js:168-200"],
-      "rationale": "A socket connected after a restart authenticates, subscribes and receives the log event for a following ping while the HTTP API still serves."
+      "rationale": "After a restart a newly connected socket authenticates, subscribes with set_log_listener and receives the log event for a ping while /ping still serves."
     },
     {
       "requirement": "runtime-lifecycle",
@@ -281,7 +281,7 @@
       "state": "repeat",
       "assertion": "repeated-restart-cycles-keep-serving",
       "sources": ["server/Server.js:180-258", "server/Server.js:562-570"],
-      "rationale": "Two restarts, a shutdown and another restart keep serving ping and the committed library name, including with scannerDisableWatcher toggled."
+      "rationale": "Two restarts, a SIGINT shutdown and another restart keep serving ping with the committed library name, also after toggling scannerDisableWatcher on and off."
     },
     {
       "requirement": "runtime-lifecycle",
@@ -299,7 +299,7 @@
       "state": "failure",
       "assertion": "failed-boot-exits-without-partial-install",
       "sources": ["server/Server.js:180-200", "index.js:19-56"],
-      "rationale": "A boot with CONFIG_PATH naming a regular file exits non-zero, /ping does not succeed, the file is unchanged and the install config directory stays empty."
+      "rationale": "A boot with CONFIG_PATH naming a regular file exits non-zero, gets no HTTP response on /ping, leaves the file's bytes unchanged, and creates no database in the otherwise empty install config directory."
     },
     {
       "requirement": "cap-event-log",
@@ -611,15 +611,5 @@
       "reason": "confirmed: BackupManager apply has no force/override variant; an archive is applied or rejected."
     }
   ],
-  "open_findings": [
-    "route-r014: spa-client-routes-serve-entry claims and the invariant requires 'every listed client route', but only /, /library/:id, /library/:id/search, /library/:id/bookshelf[/:id], /library/:id/series, /item/:id, /author/:id, /config/users/:id, /collection/:id and /playlist/:id are exercised; /audiobook/:id/{chapters,edit,manage}, /library/:lib/{authors,narrators,stats}, /library/:lib/podcast/{search,latest,download-queue}, /config/users/:id/sessions, /config/item-metadata-utils/:id and /share/:slug (11 of the 21 Server.js:414-436 routes) are not requested, so a server that omits them still passes.",
-    "route-r014: spa-missing-asset-404-no-listing only checks that /favicon.ico's Content-Type is not exactly 'text/html; charset=UTF-8'; upstream sends image/x-icon and the entry document text/html; charset=UTF-8 (verified on the pinned server), so serving the SPA entry (or any 200 bytes) with 'text/html; charset=utf-8' still passes. Assert the icon MIME (image/x-icon) or the fixture file's bytes, otherwise the 'existing asset is served with its own type' element is unproven.",
-    "route-r016: libraries-list-and-conditional claims 'serves a random sort without the cache' but asserts only 200 and two entries, which a cache hit returns identically; the element is unobservable and is not in INV-ROUTE-R016-CACHE. Drop the clause or make the bypass observable.",
-    "route-r016: the invariant and libraries-user-isolation-and-write-freshness cite server/controllers/LibraryController.js:74-90, which is create() validation; findAll (the accessible-library filter the scenario proves) is LibraryController.js:188-205. Fix the record and scenario source.",
-    "protocol-cors-basepath: public-image-exception-boundary claims the ebook answers 401 'even with the mobile CORS grant pre-added' (INV-PROTOCOL-CORS-BASEPATH-PUBLIC-001), but both ebook requests carry no Origin header, so the grant is never present; send Origin: capacitor://localhost (pinned server still answers 401) to prove the grant does not open the ebook route.",
-    "runtime-lifecycle: INV-RUNTIME-LIFECYCLE-RESTART-001 says 'a repeated shutdown call keep serving', which contradicts Server.js:227-236 (a second SIGINT exits immediately); repeated-restart-cycles-keep-serving's second Env.Stop is a local no-op (harness/server.go:277-281 returns when no process) and never signals the server. Remove the repeated-shutdown clause or observe a real repeated signal.",
-    "runtime-lifecycle: restart-closes-open-sockets-and-welcomes-new claims 'a restart closes an authenticated socket connection', but Env.Stop closes e.sockets client-side before SIGINT (harness/server.go:284-289), so the old socket's server-side closure is never observed; only the new socket's auth+log delivery is asserted. Narrow the claim or assert the old socket's disconnect before the harness closes it.",
-    "runtime-lifecycle: shutdown-refuses-requests-not-half-graph (and failed-boot-exits-without-partial-install) use getUnavailable, which returns nil only for status 200 and os.ErrInvalid for any other HTTP answer (scenarios/server/lifecycle.go:16-27); a half-shutdown server that still listens and answers 404/500 therefore passes as 'refusing connections'. Require a transport error (no HTTP response).",
-    "runtime-lifecycle: failed-boot-exits-without-partial-install claims the install's config and metadata directories are untouched, but only dirNames(t, broken.Config) is asserted; the metadata directory named in the Claim is never inspected."
-  ]
+  "open_findings": []
 }
