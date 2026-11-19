@@ -4,12 +4,15 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/libraries/:id/recent-episodes dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:92, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"GET /api/libraries/{id}/recent-episodes\", httpx.Handler(h.recentEpisodes)). Current assertion anchor(s): TestLibraryRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "GET /api/libraries/:id/recent-episodes answers the podcast library's episodes newest first, filtered by the requesting user's finished progress, explicit access and tag permissions.",
   "source": [
     "server/routers/ApiRouter.js:92",
-    "go-backend/internal/podcast/podcast.go",
-    "go-backend/internal/podcast/podcast.go:126",
-    "server/controllers/LibraryController.js:1475"
+    "client/pages/library/_library/podcast/latest.vue:250",
+    "server/controllers/LibraryController.js:1278-1300",
+    "server/controllers/LibraryController.js:1475-1498",
+    "server/models/PodcastEpisode.js:193-238",
+    "server/utils/queries/libraryItemsPodcastFilters.js:16-41",
+    "server/utils/queries/libraryItemsPodcastFilters.js:506-558"
   ],
   "implementation": [
     "go-backend/internal/podcast/podcast.go:126"
@@ -21,34 +24,64 @@
   },
   "stateful": false,
   "tests": [
-    "go-backend/internal/podcast/podcast_test.go:619#TestLibraryRoutes"
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/recent-episodes-newest-first-and-paginated",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/recent-episodes-hide-finished-and-explicit",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/recent-episodes-tag-filters",
+    "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/recent-episodes-rejections-change-nothing"
   ],
   "evidence": [],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "normal, error and edge facets are covered by the listed scenarios.",
+    "The response body has no total key; the web client reads payload.total as undefined. Only limit and page are asserted."
   ],
   "invariants": [
     {
       "id": "INV-ROUTE-R039-CONTRACT",
       "class": "shape",
-      "contract": "GET /api/libraries/:id/recent-episodes dispatches to the pinned TS handler LibraryController.middleware (ApiRouter.js:92, server/controllers/LibraryController.js:1475) and Go registration mux.Handle(\"GET /api/libraries/{id}/recent-episodes\", httpx.Handler(h.recentEpisodes)). Current assertion anchor(s): TestLibraryRoutes. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "GET /api/libraries/:id/recent-episodes answers {episodes, limit, page} where limit and page are numbers from the query (both 0 by default), episodes are the library's podcast episodes ordered by publishedAt descending from the page offset, each with the old expanded episode JSON (libraryItemId, podcastId, id, title, description, enclosure, guid, pubDate, audioFile, audioTrack with contentUrl /api/items/<item>/file/<ino>, publishedAt, addedAt, updatedAt, size, duration), libraryId and a podcast object whose episodes array is empty; a limit of 0 or an absent limit returns no episodes.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:92",
-        "go-backend/internal/podcast/podcast.go",
-        "go-backend/internal/podcast/podcast.go:126",
-        "server/controllers/LibraryController.js:1475"
+        "server/controllers/LibraryController.js:1278-1300",
+        "server/utils/queries/libraryItemsPodcastFilters.js:506-558",
+        "server/models/PodcastEpisode.js:193-238",
+        "client/pages/library/_library/podcast/latest.vue:250"
       ],
       "tests": [
-        "go-backend/internal/podcast/podcast_test.go:619#TestLibraryRoutes"
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/recent-episodes-newest-first-and-paginated"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R039-PERMS-001",
+      "status": "unverified",
+      "class": "permission",
+      "contract": "Recent episodes exclude every episode the requesting user has finished and, for a user without explicit-content access, every episode of an explicit podcast; with item tag permissions, a deny-mode user whose selected tags include an item tag and an allow-mode user whose selected tags do not include one get no episodes of that podcast, while an allow-mode user whose selected tags include one does.",
+      "source": [
+        "server/utils/queries/libraryItemsPodcastFilters.js:16-41",
+        "server/utils/queries/libraryItemsPodcastFilters.js:506-558"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/recent-episodes-hide-finished-and-explicit",
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/recent-episodes-tag-filters"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-ROUTE-R039-AUTH-001",
+      "status": "unverified",
+      "class": "authorisation",
+      "contract": "GET /api/libraries/:id/recent-episodes answers 401 without a token, 403 for a user without access to the library (before query validation), 404 for a book library and for an unknown library, and 400 for a negative limit or a fractional page; a rejected request changes no row.",
+      "source": [
+        "server/controllers/LibraryController.js:1475-1498"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/podcast_episodes/run_test.go#TestReplacement/recent-episodes-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }
