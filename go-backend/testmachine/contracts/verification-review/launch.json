@@ -1,8 +1,8 @@
 {
   "packet": "launch",
-  "reviewer": "independent review, 2026-11-19, deepseek-v4.1-flash:1017",
-  "scenario_digest": "2f3aa96d52b4ec2aa3113a4f0c59434d6718f11b21257a7745d6f85df3a8bb1c",
-  "requirements_digest": "dc9ea3e4fb52172e3a626427ee27fbad722b9a186770a720be398b1212fedf3a",
+  "reviewer": "independent re-review, 2026-11-19, deepseek-v4.1-flash:1017",
+  "scenario_digest": "014bdbef1893a2a23159c183beecfd345c9b8d5a15817e1286a098566740aa88",
+  "requirements_digest": "0e3dde2126c39a4ef8b2bece764cc421aedeb41ebbc2b65b85837918b9237784",
   "required_tuples": [
     {
       "requirement": "sub-static-client",
@@ -11,7 +11,7 @@
       "state": "stateless",
       "assertion": "client-index-and-assets-served",
       "sources": ["index.js:55-56", "server/Server.js:407-414"],
-      "rationale": "The entry document, the index.html fallback for a known client route (identical bytes) and a bundled asset are served without authentication at the configured base path."
+      "rationale": "The entry document contains id=\"__nuxt\" and names a real /_nuxt/<hash>.js that is served as JavaScript without authentication, a known client route returns the identical entry bytes, all at the configured base path."
     },
     {
       "requirement": "sub-static-client",
@@ -29,7 +29,7 @@
       "state": "stateless",
       "assertion": "client-prefixed-base-serves-index",
       "sources": ["index.js:50", "server/Server.js:55-63", "server/Server.js:323-334", "server/Server.js:407-414"],
-      "rationale": "With ROUTER_BASE_PATH=/client-prefix the entry document and an asset are served under that prefix without authentication."
+      "rationale": "With ROUTER_BASE_PATH=/client-prefix the entry document (id=\"__nuxt\", naming a /_nuxt/<hash>.js) and that script, served as JavaScript, are both fetched successfully under the prefix without authentication."
     },
     {
       "requirement": "client-device-acceptance",
@@ -173,7 +173,7 @@
       "state": "stateless",
       "assertion": "binary-refuses-corrupt-config",
       "sources": ["index.js:46", "server/Server.js:188", "server/Database.js:180-192"],
-      "rationale": "A garbage absdatabase.sqlite makes the boot exit non-zero without answering /ping, and the supplied database bytes are unchanged."
+      "rationale": "A garbage absdatabase.sqlite makes the boot exit non-zero without answering /ping, the supplied database bytes are unchanged, and no -journal/-wal/-shm sidecar appears beside it."
     },
     {
       "requirement": "runtime-binary",
@@ -182,7 +182,7 @@
       "state": "stateless",
       "assertion": "binary-refuses-bad-config-path",
       "sources": ["index.js:46", "server/Server.js:121-126"],
-      "rationale": "A CONFIG_PATH that is a regular file makes the boot exit non-zero without answering /ping, and the supplied file bytes are unchanged."
+      "rationale": "A CONFIG_PATH that is a regular file makes the boot exit non-zero without answering /ping, the supplied file's bytes are unchanged and its containing directory still lists exactly [config]."
     },
     {
       "requirement": "runtime-binary",
@@ -206,8 +206,5 @@
       "reason": "confirmed: neither the init route (server/Server.js:377-383) nor the local login route (server/Auth.js:322) takes a force/hard parameter, and the client's boot/login calls (client/pages/login.vue:164-165, 208-217) send none."
     }
   ],
-  "open_findings": [
-    "runtime-binary: binary-refuses-corrupt-config and binary-refuses-bad-config-path assert `dirNames(own.Config)` as the unchanged install config directory, but the child is launched with CONFIG_PATH set to the supplied path, so own.Config is never touched and the check cannot fail (probed: both install/config leaves stay empty while the refused boot still creates metadata/logs and metadata/streams). Assert the supplied CONFIG_PATH tree instead - for the corrupt case only the database file itself (no -journal/-wal/-shm), for the bad-path case only the CONFIG_PATH regular file - or drop the unchanged-tree clause from the claim and from INV-RUNTIME-BINARY-REFUSED-001.",
-    "sub-static-client: client-index-and-assets-served and client-prefixed-base-serves-index identify the entry document only as '200, text/html, non-empty' and the asset as favicon.ico, so a placeholder page plus a favicon passes while no /_nuxt/* asset is ever served (the sibling scenario already knows the marker). Pin the retained build: the entry body contains `id=\"__nuxt\"` and a `/_nuxt/<hash>.js` reference, and request a real bundled asset (client/dist/_nuxt/0180c66.js) instead of, or in addition to, favicon.ico."
-  ]
+  "open_findings": []
 }
