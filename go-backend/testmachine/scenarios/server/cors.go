@@ -191,15 +191,18 @@ func (s *suite) corsScenarios() []harness.Scenario {
 		{
 			Requirement: "protocol-cors-basepath", Invariant: "INV-PROTOCOL-CORS-BASEPATH-PUBLIC-001", Case: "error", State: "failure", Assertion: "public-image-exception-boundary",
 			Sources: []string{"server/Auth.js:21", "server/Auth.js:36-52", "server/routers/ApiRouter.js:100-110", "server/controllers/LibraryItemController.js:401-433", "server/controllers/LibraryItemController.js:1121-1154"},
-			Claim:   "The unauthenticated cover and author-image exceptions never expose an ebook: cover reads work without a token, while ebook downloads answer 401 even with the mobile CORS grant pre-added, and unknown image ids answer 404.",
+			Claim:   "The unauthenticated cover and author-image exceptions never expose an ebook: cover reads work without a token, while ebook downloads answer 401 even when the mobile CORS grant covers the request, and unknown image ids answer 404.",
 			Run: func(t *testing.T, e *harness.Env) {
 				requireStatus(t, e.Get(t, "", cover(e)), http.StatusOK, "public cover read")
 				for _, request := range []harness.Request{
-					{Path: "/api/items/" + e.IDs["ebook"] + "/ebook"},
-					{Path: "/api/items/" + e.IDs["ebook"] + "/ebook", Token: "not-a-token"},
+					{Path: "/api/items/" + e.IDs["ebook"] + "/ebook", Header: map[string]string{"Origin": capacitorOrigin}},
+					{Path: "/api/items/" + e.IDs["ebook"] + "/ebook", Token: "not-a-token", Header: map[string]string{"Origin": capacitorOrigin}},
 				} {
 					resp := e.Do(t, request)
 					requireStatus(t, resp, http.StatusUnauthorized, "unauthenticated ebook download")
+					// The CORS middleware grants the ebook path before auth, so the
+					// grant is present on the refusal and must not open the route.
+					requireCORS(t, resp, capacitorOrigin, "ebook download with the mobile grant")
 					if len(resp.Body) != 0 && resp.Body[0] == 'P' {
 						t.Fatalf("unauthenticated ebook download returned file bytes: %.40q", resp.Body)
 					}

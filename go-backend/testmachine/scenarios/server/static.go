@@ -1,6 +1,7 @@
 package server
 
 import (
+	"mime"
 	"net/http"
 	"strings"
 	"testing"
@@ -13,21 +14,38 @@ func (s *suite) spaScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r014", Invariant: "INV-ROUTE-R014-SPA", Case: "normal", State: "stateless", Assertion: "spa-client-routes-serve-entry",
 			Sources: []string{"server/Server.js:410-437"},
-			Claim:   "Without REACT_CLIENT_PATH the bundled Nuxt client is served: / and every listed client route answer 200 text/html with the same entry document, without authentication.",
+			Claim:   "Without REACT_CLIENT_PATH the bundled Nuxt client is served: / and all 21 listed client routes (including the optional bookshelf and series segments) answer 200 text/html with the same entry document, without authentication.",
 			Run: func(t *testing.T, e *harness.Env) {
 				entry := e.Get(t, "", "/")
 				requireStatus(t, entry, http.StatusOK, "GET /")
 				if !strings.HasPrefix(entry.Header.Get("Content-Type"), "text/html") || len(entry.Body) == 0 {
 					t.Fatalf("GET / = %q body %.80q, want the HTML entry document", entry.Header.Get("Content-Type"), entry.Body)
 				}
+				library, item := e.IDs["library"], e.IDs["saga1"]
 				for _, path := range []string{
-					"/library/" + e.IDs["library"],
-					"/library/" + e.IDs["library"] + "/search",
-					"/item/" + e.IDs["saga1"],
-					"/author/" + e.IDs["library"],
+					"/item/" + item,
+					"/author/" + item,
+					"/audiobook/" + item + "/chapters",
+					"/audiobook/" + item + "/edit",
+					"/audiobook/" + item + "/manage",
+					"/library/" + library,
+					"/library/" + library + "/search",
+					"/library/" + library + "/bookshelf",
+					"/library/" + library + "/bookshelf/2",
+					"/library/" + library + "/authors",
+					"/library/" + library + "/narrators",
+					"/library/" + library + "/stats",
+					"/library/" + library + "/series",
+					"/library/" + library + "/series/2",
+					"/library/" + library + "/podcast/search",
+					"/library/" + library + "/podcast/latest",
+					"/library/" + library + "/podcast/download-queue",
 					"/config/users/" + e.IDs["listener"],
+					"/config/users/" + e.IDs["listener"] + "/sessions",
+					"/config/item-metadata-utils/" + item,
 					"/collection/" + e.IDs["collection"],
 					"/playlist/" + e.IDs["playlist"],
+					"/share/a-shared-slug",
 				} {
 					resp := e.Get(t, "", path)
 					requireStatus(t, resp, http.StatusOK, "GET "+path)
@@ -47,8 +65,12 @@ func (s *suite) spaScenarios() []harness.Scenario {
 			Run: func(t *testing.T, e *harness.Env) {
 				asset := e.Get(t, "", "/favicon.ico")
 				requireStatus(t, asset, http.StatusOK, "GET /favicon.ico")
-				if len(asset.Body) == 0 || asset.Header.Get("Content-Type") == "text/html; charset=UTF-8" {
-					t.Fatalf("GET /favicon.ico = %q body %.40q, want the icon bytes", asset.Header.Get("Content-Type"), asset.Body)
+				mediaType, _, err := mime.ParseMediaType(asset.Header.Get("Content-Type"))
+				if err != nil || mediaType != "image/x-icon" {
+					t.Fatalf("GET /favicon.ico Content-Type = %q (%v), want image/x-icon", asset.Header.Get("Content-Type"), err)
+				}
+				if len(asset.Body) == 0 || strings.Contains(string(asset.Body), `id="__nuxt"`) {
+					t.Fatalf("GET /favicon.ico body %.40q, want the icon bytes rather than the entry document", asset.Body)
 				}
 				for _, path := range []string{"/_nuxt/does-not-exist.js", "/_nuxt/"} {
 					resp := e.Get(t, "", path)

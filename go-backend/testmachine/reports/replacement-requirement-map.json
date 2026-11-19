@@ -56,7 +56,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r013.json": "cb64a6bb1292df5d99fc57b3b2aa75622a7e52c1e16714b2d40d38fef0ac223d",
     "go-backend/testmachine/register/capabilities/cap-route-r014.json": "b51c21f7a28eb19014906dd30344b8653a78f46dbc4cd7da3c5adbac7c25dedb",
     "go-backend/testmachine/register/capabilities/cap-route-r015.json": "738b510659a64ac6a1f18959a7b44114e877ccea075de29599b64782ff371494",
-    "go-backend/testmachine/register/capabilities/cap-route-r016.json": "956792efbd86d02b4a9f115135ad1b55fa9899cf09b563aa32269100b1b18b40",
+    "go-backend/testmachine/register/capabilities/cap-route-r016.json": "711a6113c18b0aeb0fddb040567b7753395c7025ceaf35821e167ef5c4a6b8ab",
     "go-backend/testmachine/register/capabilities/cap-route-r017.json": "b99314e8a34f63a565fc690a620c9ad06c8ba349216eca970c70770cabc7bccc",
     "go-backend/testmachine/register/capabilities/cap-route-r018.json": "9eee98725a2c43c048965dee611b44cb5d58d5f6518f3d2ccd251512c435b1f3",
     "go-backend/testmachine/register/capabilities/cap-route-r019.json": "95aa7cd863d066b96551f0dcee4dcc2683575d43b1012ae21ccebcb5a00071ff",
@@ -259,7 +259,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r216.json": "87a2d7728d5fe033bfdbc49f6d0bcef4b1fdf417da1f456b154e81efdddf0d3a",
     "go-backend/testmachine/register/capabilities/cap-route-r217.json": "08d269aba68bbedeb871dcf905b13c158a61f56771cd7fc4e2311802cc4607dd",
     "go-backend/testmachine/register/capabilities/cap-route-r218.json": "7ebbff070ba84cb7744cb79c5cf3963e75462c1e712906bd00e6ee02753514a8",
-    "go-backend/testmachine/register/capabilities/cap-route-r219.json": "9ebcc148f19308d3157f9035edff68f6453fa42d86b1246eebb4d378c92c5507",
+    "go-backend/testmachine/register/capabilities/cap-route-r219.json": "3e3add64eb3778306cc5ba7cde1704e2b83adfe776b005061277985f6b848dfe",
     "go-backend/testmachine/register/capabilities/cap-route-r220.json": "80ad5815ebcc0c8ea4c4a8b082cce94c4fc68231e625de5c52b7eaedba6b338a",
     "go-backend/testmachine/register/capabilities/cap-route-r221.json": "55a685cc206e6798cac3d6518341a37056371c68ee9ee98b91a102e927dc6aee",
     "go-backend/testmachine/register/capabilities/cap-route-r222.json": "1d471c9672855fd09c3c3c3f29419a0365ec78469f1f1b7320c95472a5c3684a",
@@ -268,7 +268,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r225.json": "ca80539961b732e5f2af1ea2ba850e513787b5f292a2bc08859a919585cd11bf",
     "go-backend/testmachine/register/capabilities/cap-runtime-binary.json": "dfe172b23a3d0f1875813a29618d22f181c256be544c265f888ad0d74554e8ab",
     "go-backend/testmachine/register/capabilities/cap-runtime-configuration.json": "4bfd5a1ee4f6ed22ec6c963d1fb503867fa4b4242a9bd9e07e97ead821bcd032",
-    "go-backend/testmachine/register/capabilities/cap-runtime-lifecycle.json": "9cec1dc587a20f1f0d1c7437a97b56cd94da1db031c787c5962f2ad7610d6ab2",
+    "go-backend/testmachine/register/capabilities/cap-runtime-lifecycle.json": "99626aa6a66e9a661139bcdea7ecffb10b0462cc8541da226bff77b4bcbd79db",
     "go-backend/testmachine/register/capabilities/cap-scan-precedence-timeline.json": "3b783e7bccdff6107b4c193aefcd33cdacb2a43825f819d084c4bb2f2afa07f9",
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-auth.json": "34a606a00858db8437a3eb34cf0ea3940340e5fef20756e6f8e877f2ff001d1c",
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-cancel-cover-search.json": "9d9e41a3e32fd0a89ee3b070c9820243299341f9e548c06a182dce087ed12347",
@@ -327,11 +327,11 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-series-updated.json": "7638b0eb35d9044b083f25c42e256cb329d46bd8962d245a77c3aa852527cad1",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-share-closed.json": "fc36b45a6d0526c58a8fc034be5674479b5d8c9cef92c2db1f36e1cdbbdc0f0a",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-share-open.json": "676fe3e16acc75fab5e32748f83d6ad030c9b683e488c6b7e2433f9cac1228de",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-closed.json": "f09a48b82cb2fc22f6cf84e6c6174343851358342b47da2f3ee9dc47eab397d7",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-closed.json": "90ef487c6076e8ce2d25b921c271618b20864348c15e2d31f783c792cdc35720",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-error.json": "18f36f1db68761ec902936b299b764acbf1910304104eebe5e66d1a038e26a52",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-open.json": "ab467f7d0047eea8f3f72e45306f9e56e9e25c4982c30556ff96d6d37c7681e7",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-progress.json": "bb06e95cdd993044bfe634f84871a3f9081894c2b6a2db84411ca6f8ef3603ca",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-ready.json": "9f49ca24ca2d2f4a490c331cc699644b8d92e13d6378a54124e267ae8c85fc93",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-ready.json": "f67d2be04c24acbf6e7dc484a24138bbe3107697a6d355e319d79e93ee3cf7a1",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-reset.json": "4b73c36cd0a6e10145f01b2a69d4d5387b6b01d9d3b662fc2f3b658f6ee31970",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-finished.json": "c78c66151f94bb579fa720fc700b0f1cd6c3df848303feacc129156db6b99a95",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-progress.json": "6c87be4ae40d91dcc79322073fdb17fc5747e796aa940282ed2ee18fe0142bda",
@@ -10385,7 +10385,7 @@
       "source": [
         "server/routers/ApiRouter.js:68",
         "server/managers/ApiCacheManager.js:79-115",
-        "server/controllers/LibraryController.js:74-90"
+        "server/controllers/LibraryController.js:188-205"
       ],
       "tests": [
         "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET",
@@ -29107,7 +29107,7 @@
       "invariant": "INV-R219-FILE-001",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "GET /hls/:stream/output.m3u8 of an open transcoded session answers 200 without a bearer token as application/vnd.apple.mpegurl with a VOD playlist (#EXTM3U, version 3, target duration 6, media sequence 0, end list) that lists output-0.ts through output-10.ts for The Beginning; GET of output-0.ts answers 200 as video/mp2t with Accept-Ranges: bytes, and the same request with the owner's token returns identical bytes. An AC3 audiobook also transcodes (with its bitrate and channel options) and serves its playlist and first segment.",
+      "contract": "GET /hls/:stream/output.m3u8 of an open transcoded session answers 200 without a bearer token as application/vnd.apple.mpegurl with a VOD playlist (#EXTM3U, version 3, target duration 6, media sequence 0, end list) that lists output-0.ts through output-10.ts for The Beginning; GET of output-0.ts answers 200 as video/mp2t with Accept-Ranges: bytes, and the same request with the owner's token returns identical bytes. An AC3 (.mka) audiobook also transcodes and serves a 200 playlist and a non-empty first segment; the ffmpeg bitrate/channel options of Stream.js:278-283 are not externally observable and are not asserted.",
       "status": "unverified",
       "source": [
         "server/routers/HlsRouter.js:48-96",
@@ -29209,12 +29209,14 @@
       "invariant": "INV-R219-RESET-001",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "For a session started at 44 s the playlist still lists every segment from segment 0 while the transcode starts at segment 2; requesting the missing output-0.ts answers 404 and restarts the transcode from the beginning, after which output-0.ts is served.",
+      "contract": "For a session started at 44 s the playlist still lists every segment from segment 0 while the transcode starts at segment 2; requesting the missing output-1.ts answers 404, broadcasts stream_reset {startTime: 6, streamId} to the watching owner and restarts the transcode from the beginning, after which output-0.ts and output-1.ts are served non-empty. (Requesting segment 0 instead returns a falsy start time and is silent, proven by INV-SOCKET-OUTGOING-STREAM-RESET-TRIGGER-001.)",
       "status": "unverified",
       "source": [
         "server/routers/HlsRouter.js:78-92",
+        "server/routers/HlsRouter.js:84-90",
         "server/objects/Stream.js:125-145",
-        "server/objects/Stream.js:397-414"
+        "server/objects/Stream.js:397-414",
+        "server/SocketAuthority.js:67-78"
       ],
       "tests": [
         "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-backward-segment-restarts-stream"
@@ -29917,7 +29919,7 @@
       "invariant": "INV-RUNTIME-LIFECYCLE-RESTART-001",
       "owner": "server",
       "packet": "Q27",
-      "contract": "Restarting on the same install serves committed library state again, repeated restarts and a repeated shutdown call keep serving, and boot removes UUID-named orphan stream directories while leaving other names and committed data.",
+      "contract": "Restarting on the same install serves committed library state again, two consecutive restarts and a later shutdown/restart keep serving with scannerDisableWatcher toggled, and boot removes UUID-named orphan stream directories while leaving other names and committed data.",
       "status": "unverified",
       "source": [
         "server/Server.js:180-258",
@@ -29954,7 +29956,7 @@
       "invariant": "INV-RUNTIME-LIFECYCLE-FAILURE-001",
       "owner": "server",
       "packet": "Q27",
-      "contract": "A boot with CONFIG_PATH naming a regular file exits non-zero, answers no HTTP, and leaves the install config directory empty and the file unchanged.",
+      "contract": "A boot with CONFIG_PATH naming a regular file exits non-zero, answers no HTTP, leaves the file unchanged, leaves the install config directory empty and creates no database.",
       "status": "unverified",
       "source": [
         "server/Server.js:180-200",
@@ -32791,11 +32793,13 @@
       "invariant": "INV-SOCKET-OUTGOING-STREAM-CLOSED",
       "owner": "playback",
       "packet": "Q08",
-      "contract": "Closing a transcoded session answers 200, removes the metadata/streams/<id> folder and persists the playback session row when listening time was synced, emits stream_closed with the session id exactly once on both sockets of the owner and on no admin or other-user socket.",
+      "contract": "Closing a transcoded session answers 200, removes the metadata/streams/<id> folder and persists the playback session row with timeListening 7 when a 2 s sync and a 5 s close sync are sent, emits stream_closed with the session id exactly once on both sockets of the owner and on no admin or other-user socket.",
       "status": "unverified",
       "source": [
         "server/objects/Stream.js:358-379",
         "server/managers/PlaybackSessionManager.js:421-431",
+        "server/managers/PlaybackSessionManager.js:387-390",
+        "server/objects/PlaybackSession.js:238-249",
         "server/SocketAuthority.js:67-78"
       ],
       "tests": [
@@ -33141,7 +33145,7 @@
       },
       "exceptions": [
         "force is not applicable: the event has no force/refresh trigger; it can only come from a segment check after a reset.",
-        "Normal completion clears the segment check and therefore emits no stream_ready; the positive path needs a reset whose retranscode finishes before the delayed check starts. Both are asserted; no scenario waits for the timer to be reached by a normally completed transcode.",
+        "Normal completion clears the segment check and therefore emits no stream_ready; the positive path needs a reset whose retranscode finishes before the delayed check starts. Both silence scenarios listen for 3 s on every audience socket \u2014 past the 2 s segment-check interval (server/objects/Stream.js:222-230) \u2014 so a still-running loop cannot pass by chance.",
         "The accepted playback lifecycle packet supplies scoped evidence and documents that stream_ready is not part of normal completion; its Go differences are deliberately not asserted here."
       ]
     },
@@ -33177,7 +33181,7 @@
       },
       "exceptions": [
         "force is not applicable: the event has no force/refresh trigger; it can only come from a segment check after a reset.",
-        "Normal completion clears the segment check and therefore emits no stream_ready; the positive path needs a reset whose retranscode finishes before the delayed check starts. Both are asserted; no scenario waits for the timer to be reached by a normally completed transcode.",
+        "Normal completion clears the segment check and therefore emits no stream_ready; the positive path needs a reset whose retranscode finishes before the delayed check starts. Both silence scenarios listen for 3 s on every audience socket \u2014 past the 2 s segment-check interval (server/objects/Stream.js:222-230) \u2014 so a still-running loop cannot pass by chance.",
         "The accepted playback lifecycle packet supplies scoped evidence and documents that stream_ready is not part of normal completion; its Go differences are deliberately not asserted here."
       ]
     },

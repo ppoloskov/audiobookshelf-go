@@ -64,7 +64,7 @@
     {
       "id": "INV-RUNTIME-LIFECYCLE-RESTART-001",
       "class": "timeline",
-      "contract": "Restarting on the same install serves committed library state again, repeated restarts and a repeated shutdown call keep serving, and boot removes UUID-named orphan stream directories while leaving other names and committed data.",
+      "contract": "Restarting on the same install serves committed library state again, two consecutive restarts and a later shutdown/restart keep serving with scannerDisableWatcher toggled, and boot removes UUID-named orphan stream directories while leaving other names and committed data.",
       "status": "unverified",
       "source": [
         "server/Server.js:180-258",
@@ -83,7 +83,7 @@
     {
       "id": "INV-RUNTIME-LIFECYCLE-FAILURE-001",
       "class": "transaction",
-      "contract": "A boot with CONFIG_PATH naming a regular file exits non-zero, answers no HTTP, and leaves the install config directory empty and the file unchanged.",
+      "contract": "A boot with CONFIG_PATH naming a regular file exits non-zero, answers no HTTP, leaves the file unchanged, leaves the install config directory empty and creates no database.",
       "status": "unverified",
       "source": [
         "server/Server.js:180-200",

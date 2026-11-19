@@ -40,7 +40,7 @@
       "source": [
         "server/routers/ApiRouter.js:68",
         "server/managers/ApiCacheManager.js:79-115",
-        "server/controllers/LibraryController.js:74-90"
+        "server/controllers/LibraryController.js:188-205"
       ],
       "tests": [
         "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET",

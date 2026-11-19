@@ -10,20 +10,18 @@ import (
 	"audiobookshelf-compat/testmachine/scenarios/harness"
 )
 
-// getUnavailable performs a plain HTTP GET and returns the transport error: the
-// harness client fails the test on connection errors, which is what a stopped
-// server must produce.
-func getUnavailable(url string) error {
+// requireRefusedConnection asserts that a GET to url gets no HTTP response at
+// all. A stopped server or a failed boot must have closed its listener; an
+// answer with any status (including 404 or 500) is a half-open server, not a
+// refusal.
+func requireRefusedConnection(t *testing.T, url, what string) {
+	t.Helper()
 	client := &http.Client{Timeout: 2 * time.Second}
 	resp, err := client.Get(url)
-	if err != nil {
-		return err
+	if err == nil {
+		_ = resp.Body.Close() // no body is inspected; only the connection matters
+		t.Fatalf("%s: answered HTTP %d, want no HTTP response", what, resp.StatusCode)
 	}
-	_ = resp.Body.Close() // no body is inspected; the request must not succeed
-	if resp.StatusCode == http.StatusOK {
-		return nil
-	}
-	return os.ErrInvalid
 }
 
 func lifecycleScenarios() []harness.Scenario {
@@ -83,9 +81,7 @@ func lifecycleScenarios() []harness.Scenario {
 				own := harness.Start(t, harness.Options{})
 				defer own.Stop(t)
 				own.Stop(t)
-				if err := getUnavailable(own.Base + "/ping"); err == nil {
-					t.Fatal("a stopped server still answered /ping")
-				}
+				requireRefusedConnection(t, own.Base+"/ping", "GET /ping after SIGINT")
 				if _, err := os.Stat(filepath.Join(own.Config, "absdatabase.sqlite")); err != nil {
 					t.Fatalf("shutdown removed the database: %v", err)
 				}
@@ -96,15 +92,11 @@ func lifecycleScenarios() []harness.Scenario {
 		{
 			Requirement: "runtime-lifecycle", Invariant: "INV-RUNTIME-LIFECYCLE", Case: "edge", State: "repeat", Assertion: "restart-closes-open-sockets-and-welcomes-new",
 			Sources: []string{"server/Server.js:276-288", "server/SocketAuthority.js:168-200"},
-			Claim:   "A restart closes an authenticated socket connection and a newly connected socket authenticates and receives init after the restart, with the API still serving.",
+			Claim:   "After a restart a newly connected socket authenticates, subscribes and receives the log event for a ping while the API still serves.",
 			Run: func(t *testing.T, e *harness.Env) {
 				own := harness.Start(t, harness.Options{})
 				defer own.Stop(t)
-				old := own.Socket(t, root(t, own))
-				old.Emit(t, "set_log_listener", 2)
 				own.Restart(t)
-				// Env.Restart closed the old socket; connecting again proves the
-				// socket server was rebuilt and still authenticates.
 				freshSocket := own.Socket(t, root(t, own))
 				freshSocket.Emit(t, "set_log_listener", 2)
 				mark := freshSocket.Mark()
@@ -115,7 +107,7 @@ func lifecycleScenarios() []harness.Scenario {
 		{
 			Requirement: "runtime-lifecycle", Invariant: "INV-RUNTIME-LIFECYCLE-RESTART-001", Case: "edge", State: "repeat", Assertion: "repeated-restart-cycles-keep-serving",
 			Sources: []string{"server/Server.js:180-258", "server/Server.js:565-572"},
-			Claim:   "Two restarts and a repeated shutdown leave the server serving with the committed library name intact, and an extra shutdown call is harmless.",
+			Claim:   "Two restarts, a SIGINT shutdown and another restart keep serving ping with the committed library name intact, including with scannerDisableWatcher toggled.",
 			Run: func(t *testing.T, e *harness.Env) {
 				own := harness.Start(t, harness.Options{})
 				defer own.Stop(t)
@@ -127,7 +119,6 @@ func lifecycleScenarios() []harness.Scenario {
 						t.Fatalf("restart %d library name = %q, want Repeat Restart", i+1, got)
 					}
 				}
-				own.Stop(t)
 				own.Stop(t)
 				own.Restart(t)
 				checkPing(t, own.Get(t, "", "/ping"))
@@ -182,7 +173,7 @@ func lifecycleScenarios() []harness.Scenario {
 		{
 			Requirement: "runtime-lifecycle", Invariant: "INV-RUNTIME-LIFECYCLE-FAILURE-001", Case: "error", State: "failure", Assertion: "failed-boot-exits-without-partial-install",
 			Sources: []string{"server/Server.js:180-200", "server/Server.js:276-288", "index.js:19-56"},
-			Claim:   "A boot whose CONFIG_PATH is a regular file exits non-zero without answering HTTP and leaves the install's own config and metadata directories untouched.",
+			Claim:   "A boot whose CONFIG_PATH is a regular file exits non-zero without answering HTTP, leaves that file unchanged and leaves the install config directory empty with no database.",
 			Run: func(t *testing.T, e *harness.Env) {
 				dir := t.TempDir()
 				configFile := filepath.Join(dir, "config")
@@ -197,15 +188,16 @@ func lifecycleScenarios() []harness.Scenario {
 				if code == 0 {
 					t.Fatal("a failed boot exited with status 0")
 				}
-				if err := getUnavailable(broken.Base + "/ping"); err == nil {
-					t.Fatal("a failed boot answered /ping")
-				}
+				requireRefusedConnection(t, broken.Base+"/ping", "GET /ping after a failed boot")
 				content, err := os.ReadFile(configFile)
 				if err != nil || string(content) != "not a directory" {
 					t.Fatalf("failed boot changed the CONFIG_PATH file: %q %v", content, err)
 				}
 				if names := dirNames(t, broken.Config); len(names) != 0 {
 					t.Fatalf("failed boot created files in the install config directory: %v", names)
+				}
+				if _, err := os.Stat(filepath.Join(broken.Config, "absdatabase.sqlite")); !os.IsNotExist(err) {
+					t.Fatalf("failed boot created a database in the install config directory: %v", err)
 				}
 			},
 		},

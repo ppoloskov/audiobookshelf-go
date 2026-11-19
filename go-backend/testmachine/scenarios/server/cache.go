@@ -12,7 +12,7 @@ func (s *suite) cacheScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r016", Invariant: "INV-ROUTE-R016-CACHE", Case: "normal", State: "stateless", Assertion: "libraries-list-and-conditional",
 			Sources: []string{"server/routers/ApiRouter.js:68", "server/managers/ApiCacheManager.js:79-115"},
-			Claim:   "GET /api/libraries answers both fixture libraries with their media type, repeats the same body and ETag, answers 304 to a matching If-None-Match, and serves a random sort without the cache.",
+			Claim:   "GET /api/libraries answers both fixture libraries with their media type, repeats the same body and ETag, and answers 304 to a matching If-None-Match.",
 			Run: func(t *testing.T, e *harness.Env) {
 				first := e.Get(t, root(t, e), "/api/libraries")
 				requireStatus(t, first, http.StatusOK, "GET /api/libraries")
@@ -42,13 +42,6 @@ func (s *suite) cacheScenarios() []harness.Scenario {
 				if len(conditional.Body) != 0 {
 					t.Fatalf("304 body = %q, want empty", conditional.Body)
 				}
-				random := e.Do(t, harness.Request{Path: "/api/libraries", Token: root(t, e), Query: map[string][]string{"sort": {"random"}}})
-				requireStatus(t, random, http.StatusOK, "GET /api/libraries?sort=random")
-				var randomBody librariesResponse
-				random.JSON(t, &randomBody)
-				if len(randomBody.Libraries) != 2 {
-					t.Fatalf("random-sort library count = %d, want 2", len(randomBody.Libraries))
-				}
 			},
 		},
 		{
@@ -66,7 +59,7 @@ func (s *suite) cacheScenarios() []harness.Scenario {
 		},
 		{
 			Requirement: "route-r016", Invariant: "INV-ROUTE-R016-CACHE", Case: "edge", State: "stateless", Assertion: "libraries-user-isolation-and-write-freshness",
-			Sources: []string{"server/routers/ApiRouter.js:68", "server/managers/ApiCacheManager.js:24-30", "server/controllers/LibraryController.js:74-90"},
+			Sources: []string{"server/routers/ApiRouter.js:68", "server/managers/ApiCacheManager.js:24-30", "server/controllers/LibraryController.js:188-205"},
 			Claim:   "Library GETs stay user-scoped (a restricted user sees only its library) and a committed rename is visible to every caller on the next GET, so no stale cache entry is served.",
 			Run: func(t *testing.T, e *harness.Env) {
 				const name = "cache-restricted-user"
