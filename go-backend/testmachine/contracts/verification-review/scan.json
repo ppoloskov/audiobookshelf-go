@@ -1,6 +1,6 @@
 {
   "packet": "scan",
-  "reviewer": "independent review, 2026-11-19, deepseek-v4.1-flash:1017",
+  "reviewer": "independent re-review, 2026-11-20, deepseek-v4.1-flash:1017",
   "scenario_digest": "d3cb967928cbb92d4f6e73a683922e221b0e755f962e5a30980ef4b24dbdabcc",
   "requirements_digest": "459fac1fa7504d5a234ff0ca6c177cfed659fe1b3601a24f609d94e7c2d5d4ea",
   "required_tuples": [
@@ -75,9 +75,10 @@
         "server/controllers/LibraryItemController.js:860-877",
         "server/scanner/LibraryItemScanner.js:29-76",
         "server/scanner/AbsMetadataFileScanner.js:20-51",
-        "server/scanner/BookScanner.js:230-262"
+        "server/scanner/BookScanner.js:230-262",
+        "server/scanner/BookScanner.js:264-272"
       ],
-      "rationale": "Scanning an item rereads its metadata/items/<id>/metadata.json, applies title, authors and series from it, creates the unknown author and series rows and answers {result:\"UPDATED\"}."
+      "rationale": "Scanning an item rereads its sidecar and applies title, authors, the unknown series \"Scan Fresh Saga #2\" with sequence 2, creating the unknown author and series rows exactly once, and answers {result:\"UPDATED\"}; the rewritten sidecar carries the same values."
     },
     {
       "requirement": "route-r062",
@@ -115,9 +116,10 @@
       "sources": [
         "server/controllers/LibraryItemController.js:860-877",
         "server/scanner/AbsMetadataFileScanner.js:57-84",
-        "server/scanner/PodcastScanner.js:207-224"
+        "server/scanner/PodcastScanner.js:207-224",
+        "server/scanner/PodcastScanner.js:425-459"
       ],
-      "rationale": "Scanning a podcast item rereads metadata/items/<id>/metadata.json, applies the podcast keys title, author and genres, answers {result:\"UPDATED\"} and rewrites the sidecar with the podcast key set."
+      "rationale": "Scanning a podcast item applies all fifteen sidecar keys including author \"Sidecar Host\" and answers {result:\"UPDATED\"}; the rewritten sidecar holds exactly the fifteen podcast keys with the asin (Podcast.oldMetadataToJSON omits asin from the item document)."
     },
     {
       "requirement": "route-r062",
@@ -141,9 +143,10 @@
       "sources": [
         "server/controllers/LibraryController.js:1262-1275",
         "server/scanner/LibraryScanner.js:51-135",
-        "server/scanner/LibraryScanner.js:94-104"
+        "server/scanner/LibraryScanner.js:94-104",
+        "server/scanner/LibraryScanner.js:169-200"
       ],
-      "rationale": "An admin scan answers 200 and, when it completes, moves the library's lastScan strictly forward, stamps lastScanVersion 2.37.2 and persists the configured metadata precedence in extraData while the item rows keep their ids and titles."
+      "rationale": "An admin scan answers 200 and, when it completes, moves lastScan strictly forward, stamps lastScanVersion 2.37.2 and persists the configured metadata precedence in extraData while every unchanged item keeps its id, relative path, title and own lastScan stamp."
     },
     {
       "requirement": "route-r038",
@@ -153,9 +156,10 @@
       "assertion": "library-scan-repeat-is-stable",
       "sources": [
         "server/controllers/LibraryController.js:1262-1275",
-        "server/scanner/LibraryScanner.js:51-135"
+        "server/scanner/LibraryScanner.js:51-135",
+        "server/scanner/LibraryScanner.js:169-200"
       ],
-      "rationale": "A second scan of an unchanged library answers 200, moves lastScan strictly forward again, adds no item and leaves every item's lastScan timestamp unchanged."
+      "rationale": "A second unchanged scan answers 200, moves the library lastScan strictly forward again, adds no item and leaves every item's id, relative path and lastScan timestamp unchanged."
     },
     {
       "requirement": "route-r038",
@@ -165,9 +169,11 @@
       "assertion": "library-scan-without-force-skips-unread-sidecar",
       "sources": [
         "server/controllers/LibraryController.js:1262-1275",
+        "server/controllers/LibraryController.js:1272",
+        "client/store/libraries.js:76",
         "server/scanner/LibraryScanner.js:169-222"
       ],
-      "rationale": "A plain scan does not reread a metadata.json stored outside the library tree, so an edit there leaves the item title unchanged while the library records the scan."
+      "rationale": "The web client's plain request (?force=0) does not reread a metadata.json stored outside the library tree, so the item title is unchanged while the library records the scan by advancing lastScan."
     },
     {
       "requirement": "route-r038",
@@ -218,7 +224,7 @@
         "server/models/LibraryItem.js:614-711",
         "server/controllers/LibraryItemController.js:269-286"
       ],
-      "rationale": "A media update writes metadata/items/<id>/metadata.json with exactly the seventeen book keys, the values of the item document and the book key set (no podcast keys); the file is not one of the item's library files."
+      "rationale": "A media update writes metadata/items/<id>/metadata.json with exactly the seventeen book keys including the stored subtitle, the values of the item document and the book key set (no podcast keys); the file is not one of the item's library files."
     },
     {
       "requirement": "format-metadata-json",
@@ -307,7 +313,7 @@
         "server/utils/generators/abmetadataGenerator.js:85-118",
         "server/scanner/BookScanner.js:230-262"
       ],
-      "rationale": "A sidecar whose null and empty values are skipped applies its non-empty title and leaves the fields only the sidecar supplied (series, genres, chapters, publishedYear) at their stored values, while authors are re-derived from the folder because folderStructure supplies them."
+      "rationale": "A sidecar whose null and empty values (including an empty tags array) are skipped applies its non-empty title and leaves the fields only the sidecar supplied (series, genres, tags, chapters, publishedYear) at their stored values, while authors are re-derived from the folder because folderStructure supplies them."
     },
     {
       "requirement": "scan-precedence-timeline",
@@ -443,7 +449,7 @@
         "server/scanner/BookScanner.js:175-207",
         "server/scanner/AudioFileScanner.js:160-180"
       ],
-      "rationale": "A book whose remaining audio file cannot be probed and which has no ebook is flagged missing by the scan, and the flag clears when a probeable file returns."
+      "rationale": "A book whose remaining audio file cannot be probed and which has no ebook is flagged missing in the row and API by the scan; a restore scan answers UPDATED and clears the stored isMissing flag."
     },
     {
       "requirement": "sub-scanner-watcher",
@@ -468,6 +474,18 @@
         "server/SocketAuthority.js:112-131"
       ],
       "rationale": "A scan that adds twelve books delivers every new item in items_added events of at most ten items each, and no item is delivered twice."
+    },
+    {
+      "requirement": "sub-scanner-watcher",
+      "invariant": "INV-SCAN-EVENTS-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "items-updated-events-are-chunked",
+      "sources": [
+        "server/scanner/LibraryScanner.js:185-240",
+        "server/SocketAuthority.js:112-131"
+      ],
+      "rationale": "A scan that updates twelve books delivers every one exactly once as items_updated chunks of 10 and 2 carrying the expanded title, to the root and listener sockets and to neither a user restricted to another library nor an anonymous socket."
     },
     {
       "requirement": "scan-precedence-timeline",
@@ -514,9 +532,10 @@
       "assertion": "ebook-only-item-scans-with-ebook-metadata",
       "sources": [
         "server/scanner/BookScanner.js:743-770",
+        "server/scanner/BookScanner.js:660-700",
         "server/scanner/AbsMetadataFileScanner.js:20-51"
       ],
-      "rationale": "An item whose only media is an ebook imports with the epub as ebookFile and no audio file, and scanning it again answers UPDATED or UPTODATE while keeping the title stored in its metadata.json."
+      "rationale": "An ebook-only item imports as one epub item with no audio and takes title \"Ebook Only\" and language \"en\" from the parsed opf while the author stays the folder-derived \"Ebook Author\" (the dc:creator has no opf:role); a rescan keeps those values and the sidecar stores them."
     },
     {
       "requirement": "sub-scanner-watcher",
@@ -580,7 +599,7 @@
         "server/scanner/AudioFileScanner.js:495-573",
         "server/objects/files/AudioFile.js"
       ],
-      "rationale": "The CD01/CD02 book's two files are ordered by disc number and index 1/2, carry the probed mp3 fields, and produce two chapters whose offsets are the cumulative durations in that order."
+      "rationale": "The CD01/CD02 book's two files are ordered by disc number and index 1/2, carry the probed mp3 fields, and produce two chapters ids 0/1 whose start and end equal the cumulative probed durations to 1e-6."
     },
     {
       "requirement": "sub-scanner-watcher",
@@ -677,6 +696,20 @@
         "server/scanner/BookScanner.js:455-458"
       ],
       "rationale": "A folder whose only audio file cannot be probed becomes no library item and the scan still completes, while the other items of the library keep their rows."
+    },
+    {
+      "requirement": "sub-scanner-watcher",
+      "invariant": "INV-SCAN-STALE-ROW-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "scan-overwrites-live-item-write",
+      "sources": [
+        "server/scanner/LibraryScanner.js:161-171",
+        "server/scanner/LibraryItemScanData.js:182-276",
+        "server/scanner/BookScanner.js:390-430",
+        "server/controllers/LibraryItemController.js:1012-1060"
+      ],
+      "rationale": "A scan that loaded the item rows before a live DELETE of one audio file of a two-file book re-saves the loaded libraryFiles array, so the deleted file is stored again as a library file while books.audioFiles keeps only the surviving file."
     }
   ],
   "not_applicable": [
@@ -696,18 +729,5 @@
       "reason": "confirmed: LibraryItem.saveMetadataFile and BookScanner.saveMetadataFile write the sidecar only after an accepted media change or a scan that detected changes; neither has a force/override mode (server/models/LibraryItem.js:614-711, server/scanner/BookScanner.js:825-901)."
     }
   ],
-  "open_findings": [
-    "scan-precedence-timeline/sub-scanner-watcher: no scenario pins the known quirk that BookScanner.js:425-429 re-saves the libraryItem instances LibraryScanner loaded at the start of the scan, so a live write to the same row during the scan can be overwritten; a Go rewrite that preserves the live write passes while upstream loses it. Add a scenario that starts a scan, writes an affected item field through a live route mid-scan, and asserts the upstream outcome, or record the quirk as an explicit exception in the record.",
-    "sub-scanner-watcher: the contract names 'chunked items_added/items_updated events', but no scenario asserts items_updated at all; only items_added is covered (items-added-events-are-chunked, scan-events-filter-by-library-access). Add a library scan that updates ten or more items and asserts items_updated chunk size, no duplicate delivery and the same audience filter (server/scanner/LibraryScanner.js:224-240).",
-    "route-r038: library-scan-without-force-skips-unread-sidecar sends no force parameter. The web client always sends ?force=0 for a plain scan (client/store/libraries.js:76) and upstream compares req.query.force === '1' (server/controllers/LibraryController.js:1272), so a server that treats any present value as force passes. Request ?force=0 and assert the sidecar is still skipped.",
-    "route-r038: library-scan-records-completion and library-scan-repeat-is-stable compare only item titles, while INV-R038-RESPONSE-001 requires the item ids to stay unchanged and the repeat Claim says every item's lastScan stays unchanged (only the first item is checked). Capture relPath->id and each item's lastScan before the scan and compare after.",
-    "scan-precedence-timeline/sub-scanner-watcher: audio-disc-order-and-chapters verifies the chapter offsets only as lower bounds (Start >= expected-delta, End >= cumulative), so a server returning e.g. (0,20),(20,20) for two 10 s files passes. Assert chapter.Start and chapter.End equal the cumulative duration within 1e-6, as chapters-removal-rebuilds-offsets does.",
-    "sub-scanner-watcher: ebook-only-item-scans-with-ebook-metadata never asserts an ebook-derived value. The staged folder is 'Ebook Author/Ebook Only Item' but the epub's title/creator are 'Ebook Only'/'Ada Example', so a server that ignores ebook metadata entirely (folder title survives before and after) passes. Assert the literal title/author after the import and after the rescan.",
-    "route-r062: item-scan-applies-podcast-sidecar writes author 'Sidecar Host' but never asserts it on the item or the rewritten sidecar, and the 'exact canonical podcast key set' the invariant requires is not pinned (only title, podcastType, genres and the absence of authors/chapters/abridged are checked), so a scanner dropping the author or a writer omitting feedURL/imageURL/itunes*/releaseDate/asin/language passes. Assert the applied author and all fifteen podcast keys.",
-    "scan-precedence-timeline: precedence-absent-and-empty-keep-values never writes an empty tags array, so the tags skip branch of AbsMetadataFileScanner.js:38 that INV-SCAN-PRECEDENCE-ABSENT-001 names is unproven; add \"tags\": [] to the empty sidecar and assert the stored tags survive.",
-    "format-metadata-json: wantSidecarMatchesItem compares every scalar except subtitle, so metadata-json-written-by-media-update passes a writer that emits \"subtitle\": null while the item's subtitle is 'Format Subtitle' (INV-FORMAT-METADATA-JSON requires the current values). Compare the stored subtitle with the item metadata.",
-    "sub-scanner-watcher: book-with-unprobeable-audio-is-missing claims the missing flag clears when a probeable file returns, but the deferred restore only requires the scan result UPDATED; it never asserts isMissing is false. Assert the cleared flag after the restore scan.",
-    "route-r062: item-scan-applies-edited-sidecar claims it 'creates the unknown author and series rows', but 'Long Saga' already exists in the fixture and the scenario asserts it is not duplicated; only the author row is created. Either use an unknown series and assert the new row and sequence, or narrow the Claim to linking the existing series.",
-    "sub-scanner-watcher: the requirement records are incomplete: book-with-unprobeable-audio-is-missing is not listed under INV-SCAN-MISSING-001 and items-added-events-are-chunked is not listed under INV-SCAN-EVENTS-001 in cap-sub-scanner-watcher.json, although both scenarios declare those invariants. Add the two run_test.go references to the matching invariant tests lists."
-  ]
+  "open_findings": []
 }
