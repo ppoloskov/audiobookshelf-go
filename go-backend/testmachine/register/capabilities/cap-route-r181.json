@@ -4,9 +4,11 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "POST /cache/purge at server/routers/ApiRouter.js:296. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "POST /api/cache/purge (admin and up) answers 200 and deletes the whole metadata/cache directory, then recreates the empty cache, covers, images and items directories. Cache files are disposable: item metadata and library rows stay untouched, and a purge still works when the cache directory is missing.",
   "source": [
-    "server/routers/ApiRouter.js:296"
+    "server/routers/ApiRouter.js:296",
+    "server/controllers/CacheController.js:20-26",
+    "server/managers/CacheManager.js:25-42,128-137"
   ],
   "implementation": [
     "go-backend/internal/admin/admin.go"
@@ -18,32 +20,60 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/admin/admin_test.go"
+    "go-backend/internal/admin/admin_test.go",
+    "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-removes-the-whole-cache",
+    "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-recreates-a-missing-cache-directory",
+    "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-repeat-is-idempotent",
+    "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-removes-what-the-items-purge-keeps",
+    "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-denied-changes-nothing"
   ],
   "evidence": [],
   "exceptions": [
     "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
     "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+    "force is not applicable: the route has no force, hard or override parameter; every call purges the cache as it is."
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "invariants": [
     {
       "id": "INV-ROUTE-R181-ROUTE",
       "class": "shape",
-      "contract": "POST /cache/purge at server/routers/ApiRouter.js:296. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "The route requires an admin session: 401 without a token and 403 for a non-admin active user. A rejected call leaves the cache tree, library rows and metadata exactly as they were.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:296"
+        "server/routers/ApiRouter.js:296",
+        "server/controllers/CacheController.js:20-26"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-denied-changes-nothing"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R181-PURGE",
+      "class": "state",
+      "contract": "A successful purge removes every file below metadata/cache (including the directory itself) and recreates the empty cache, covers, images and items directories; it also succeeds and recreates them when metadata/cache is missing. Files below metadata/items and libraryItems rows are unchanged, and a later purge removes cover and image entries an items-only purge kept.",
+      "status": "unverified",
+      "source": [
+        "server/managers/CacheManager.js:25-42,128-137",
+        "server/controllers/CacheController.js:20-26"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-removes-the-whole-cache",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-recreates-a-missing-cache-directory",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-removes-what-the-items-purge-keeps"
       ],
       "evidence": [],
       "exceptions": [
@@ -53,13 +83,14 @@
     {
       "id": "INV-ROUTE-R181-REPEAT",
       "class": "repeat_operation",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "A repeated purge operates on the cache as it is at that moment: entries written between two calls are removed and no stale or duplicate cache state remains; the result is the same empty covers, images and items directories.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:296"
+        "server/managers/CacheManager.js:128-137"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/cache-purge-repeat-is-idempotent"
       ],
       "evidence": [],
       "exceptions": [

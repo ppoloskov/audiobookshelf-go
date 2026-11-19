@@ -100,6 +100,17 @@ func decode(resp harness.Response) any {
 // unchanged records database rows and the media and metadata trees around a read-only rejection.
 func unchanged(t *testing.T, e *harness.Env) func() {
 	t.Helper()
+	return unchangedExcept(t, e, "logs") // rejections are logged; diagnostic logs are not product state
+}
+
+// unchangedExcept is unchanged with further metadata subdirectories excluded.
+// An upload stages multipart files in metadata/tmp before the route runs.
+func unchangedExcept(t *testing.T, e *harness.Env, skip ...string) func() {
+	t.Helper()
+	excluded := make(map[string]bool, len(skip))
+	for _, name := range skip {
+		excluded[filepath.Join(e.Metadata, name)] = true
+	}
 	snapshot := func() any {
 		tables := e.Rows(t, "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
 		rows := make(map[string][]string)
@@ -123,8 +134,7 @@ func unchanged(t *testing.T, e *harness.Env) func() {
 				if err != nil {
 					return err
 				}
-				// Rejections are logged; diagnostic logs are not product state.
-				if path == filepath.Join(e.Metadata, "logs") {
+				if excluded[path] {
 					return filepath.SkipDir
 				}
 				if entry.Type().IsRegular() {

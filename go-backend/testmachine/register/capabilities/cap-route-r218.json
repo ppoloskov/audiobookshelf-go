@@ -4,9 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "GET /logger-data at server/routers/ApiRouter.js:361. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "GET /api/logger-data is admin-only and returns {currentDailyLogs}: the last 5000 entries of the running server's current daily log, which the log page reads as an array of {timestamp, source, message, levelName, level}.",
   "source": [
-    "server/routers/ApiRouter.js:361"
+    "server/routers/ApiRouter.js:361",
+    "server/controllers/MiscController.js:777-786",
+    "server/managers/LogManager.js:179-183",
+    "client/pages/config/log.vue:144-158"
   ],
   "implementation": [
     "go-backend/internal/admin/admin.go"
@@ -18,7 +21,10 @@
   },
   "stateful": false,
   "tests": [
-    "go-backend/internal/admin/admin_test.go"
+    "go-backend/internal/admin/admin_test.go",
+    "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/logger-data-lists-the-current-daily-log",
+    "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/logger-data-lists-only-one-day",
+    "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/logger-data-rejects-non-admins"
   ],
   "evidence": [],
   "exceptions": [
@@ -30,13 +36,34 @@
     {
       "id": "INV-ROUTE-R218-ROUTE",
       "class": "shape",
-      "contract": "GET /logger-data at server/routers/ApiRouter.js:361. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "The route answers 401 without a token and 403 to a non-admin active user.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:361"
+        "server/controllers/MiscController.js:777-782"
       ],
       "tests": [
-        "go-backend/internal/admin/admin_test.go"
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/logger-data-rejects-non-admins"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+      ]
+    },
+    {
+      "id": "INV-ROUTE-R218-LISTING",
+      "class": "shape",
+      "contract": "The payload has exactly currentDailyLogs as a non-empty JSON array whose entries have exactly timestamp (a YYYY-MM-DD HH:mm:ss.SSS string, non-decreasing), source, message, levelName and level (a positive number). It lists only the running server's current daily log: all entries share one day, the fixture's older 2026-11-03 log is absent, two reads return the same prefix, and an error logged after a read appears at the end with levelName ERROR and level 4.",
+      "status": "unverified",
+      "source": [
+        "server/managers/LogManager.js:179-183",
+        "server/objects/DailyLog.js:29-72",
+        "server/Logger.js:72-92"
+      ],
+      "tests": [
+        "go-backend/internal/admin/admin_test.go",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/logger-data-lists-the-current-daily-log",
+        "go-backend/testmachine/scenarios/admin_files/run_test.go#TestReplacement/logger-data-lists-only-one-day"
       ],
       "evidence": [],
       "exceptions": [
