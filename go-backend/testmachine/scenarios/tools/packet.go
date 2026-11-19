@@ -24,7 +24,7 @@ func Packet() harness.Packet {
 			{
 				Requirement: "route-r204", Invariant: "INV-ROUTE-R204-AUTH-001", Case: "error", State: "stateless", Assertion: "task-list-requires-authentication-not-admin",
 				Sources: []string{"server/Server.js:354", "server/routers/ApiRouter.js:347", "server/controllers/MiscController.js:116-129", "client/layouts/default.vue:578-590"},
-				Claim:   "An anonymous GET /api/tasks is rejected with 401 while an ordinary authenticated user, for whom the layout loads tasks, receives the same 200 body as an admin without changing any task.",
+				Claim:   "While a four-item batch runs, an anonymous GET /api/tasks is rejected with 401 while an ordinary authenticated user, for whom the layout loads tasks, receives the same non-empty running-task and queue projection as an admin without changing any task state.",
 				Run:     checkTasksAuthorisation,
 			},
 			{

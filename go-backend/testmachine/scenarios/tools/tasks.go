@@ -1,7 +1,9 @@
 package tools
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -120,25 +122,51 @@ func requireTaskAudioFiles(t *testing.T, e *harness.Env, item itemDocument, data
 
 // checkTasksAuthorisation proves the route is available to every authenticated
 // user the layout loads tasks for, refuses anonymous callers, and that reading
-// it changes no task state.
+// it changes no task state. It admits a real four-item batch first so both the
+// running task and the FIFO queue are non-empty for every comparison: the
+// multi-file saga is submitted first to keep the single running slot occupied
+// across the handful of reads (AudioMetadataManager.js:117-135), and the batch
+// is drained before the scenario returns so the next one starts from idle.
 func checkTasksAuthorisation(t *testing.T, e *harness.Env) {
 	t.Helper()
 	root := e.Token(t, "root")
+	socket := e.Socket(t, root) // connected before admission so the finish is observed
+	defer socket.Close()
+	mark := socket.Mark()
+	ids := []string{e.IDs["saga1"], e.IDs["novel"], e.IDs["saga2"], e.IDs["disposable"]}
+	wantStatus(t, submitBatch(t, e, root, ids, forceChapters()), 200)
+
 	before := tasksAt(t, e, root, "?include=queue")
+	requireSingleEmbedTask(t, before, ids) // both the running task and the queue are real
+	requireRunningTask(t, e, root, embedTasks(before)[0])
+
 	for _, path := range []string{"/api/tasks", "/api/tasks?include=queue"} {
 		wantStatus(t, e.Get(t, "", path), 401)
 	}
+
 	listener := tasksAt(t, e, e.Token(t, "listener"), "?include=queue")
-	if listener.QueuedTaskData == nil {
-		t.Fatalf("ordinary user response omits queuedTaskData: %s", rawTasks(t, listener))
-	}
-	if !slices.Equal(taskIDs(listener), taskIDs(before)) || !slices.Equal(queuedIDs(t, listener), queuedIDs(t, before)) {
-		t.Fatalf("ordinary user sees a different task list than the admin")
-	}
+	requireSameTaskProjection(t, listener, before)
+
 	after := tasksAt(t, e, root, "?include=queue")
-	if !slices.Equal(queuedIDs(t, after), queuedIDs(t, before)) || !slices.Equal(taskIDs(after), taskIDs(before)) {
-		t.Fatalf("reading tasks changed the task state: %s -> %s", rawTasks(t, before), rawTasks(t, after))
+	requireSameTaskProjection(t, after, before)
+
+	waitEmbedFinished(t, socket, mark, ids[len(ids)-1])
+}
+
+// requireSameTaskProjection compares two full decoded GET /api/tasks bodies.
+// The handler is a read-only projection (MiscController.js:116-129), so every
+// field the bundled layout reads must be identical across callers and reads.
+func requireSameTaskProjection(t *testing.T, got, want tasksDocument) {
+	t.Helper()
+	if reflect.DeepEqual(got, want) {
+		return
 	}
+	gotJSON, gotErr := json.Marshal(got)
+	wantJSON, wantErr := json.Marshal(want)
+	if gotErr != nil || wantErr != nil {
+		t.Fatalf("task projections differ (render failed): %v/%v", gotErr, wantErr)
+	}
+	t.Fatalf("task projection changed across GETs:\n got: %s\nwant: %s", gotJSON, wantJSON)
 }
 
 // checkTasksQueryShapes proves the optional include parameter: without it the

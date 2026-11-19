@@ -132,15 +132,6 @@ func embedTasks(doc tasksDocument) []taskDocument {
 	return tasks
 }
 
-// taskIDs lists the returned task ids in response order.
-func taskIDs(doc tasksDocument) []string {
-	ids := make([]string, len(doc.Tasks))
-	for i, task := range doc.Tasks {
-		ids[i] = task.ID
-	}
-	return ids
-}
-
 // queuedIDs returns the waiting embed item ids in queue order.
 func queuedIDs(t *testing.T, doc tasksDocument) []string {
 	t.Helper()
