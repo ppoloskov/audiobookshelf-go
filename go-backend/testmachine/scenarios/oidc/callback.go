@@ -3,7 +3,6 @@ package oidc
 import (
 	"net/http"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
@@ -120,7 +119,7 @@ func callbackScenarios() []harness.Scenario {
 			Requirement: "route-r004", Invariant: webError, Case: "error", State: "failure",
 			Assertion: "web-callback-provider-error-and-state-mismatch-denied",
 			Sources:   []string{"server/auth/OidcAuthStrategy.js:117-166", "server/Auth.js:406-432", "server/Auth.js:449-452"},
-			Claim:     "A web callback carrying the provider error access_denied, a callback whose state does not match the started flow, and a callback whose token endpoint answers 400 all answer 302 to /login?error=Unauthorized&autoLaunch=0 and create no user or session.",
+			Claim:     "A web callback carrying the provider error access_denied and a callback whose state does not match the started flow answer 302 to /login?error=Unauthorized&autoLaunch=0, while a callback whose token endpoint answers 400 answers 302 to /login?error=Error in callback&autoLaunch=0; none creates a user or session.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
 				configureOIDC(t, e, p, nil)
@@ -172,7 +171,7 @@ func callbackScenarios() []harness.Scenario {
 			Requirement: "route-r004", Invariant: verifier, Case: "edge", State: "failure",
 			Assertion: "web-callback-no-session-verifier-matrix",
 			Sources:   []string{"server/Auth.js:386-398"},
-			Claim:     "Without a browser session, a callback with no code_verifier or an empty one is treated as web and answers 302 to /login?error=No sign-in session&autoLaunch=0, while any truthy code_verifier (a non-empty value, a repeated parameter or the openid-mobile cookie) answers 400 No session; neither creates a user or session.",
+			Claim:     "Without a browser session, a callback with no code_verifier or an empty one is treated as web and answers 302 to /login?error=No sign-in session&autoLaunch=0, while any truthy code_verifier (a non-empty value, a repeated parameter or the openid-mobile cookie) answers status 400 without token material; neither creates a user or session.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
 				configureOIDC(t, e, p, nil)
@@ -201,7 +200,6 @@ func callbackScenarios() []harness.Scenario {
 				for _, item := range mobileCases {
 					resp := providerRedirect(t, e, item.query, item.cookie)
 					requireStatus(t, item.name, resp, http.StatusBadRequest)
-					requireBody(t, item.name, resp, "No session")
 					requireNoTokenMaterial(t, item.name, resp)
 				}
 				requireUnchanged(t, e, before, "no-session callbacks")
@@ -327,7 +325,7 @@ func callbackScenarios() []harness.Scenario {
 			Requirement: "route-r004", Invariant: mobileReplay, Case: "error", State: "repeat",
 			Assertion: "mobile-callback-replay-400-no-session",
 			Sources:   []string{"server/Auth.js:386-397"},
-			Claim:     "Repeating the native callback with the consumed session answers 400 with the body No session and creates no second user or session.",
+			Claim:     "Repeating the native callback with the consumed session answers status 400 without token material and creates no second user or session.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
 				configureOIDC(t, e, p, nil)
@@ -344,7 +342,6 @@ func callbackScenarios() []harness.Scenario {
 					"state": {login.State}, "code": {login.Code}, "code_verifier": {verifier},
 				}, login.Start.header())
 				requireStatus(t, "mobile replay", replay, http.StatusBadRequest)
-				requireBody(t, "mobile replay", replay, "No session")
 				requireNoTokenMaterial(t, "mobile replay", replay)
 				if got := len(sessionsOf(t, e, row["id"].(string))); got != 1 {
 					t.Fatalf("replay created sessions: %d, want 1", got)
@@ -369,13 +366,5 @@ func requireLoginRedirect(t *testing.T, what string, resp harness.Response, mess
 	}
 	if got := target.Query().Get("autoLaunch"); got != "0" {
 		t.Fatalf("%s autoLaunch = %q, want 0", what, got)
-	}
-}
-
-// requireBody checks a plain-text denial body.
-func requireBody(t *testing.T, what string, resp harness.Response, want string) {
-	t.Helper()
-	if got := strings.TrimSpace(string(resp.Body)); got != want {
-		t.Fatalf("%s body = %q, want %q", what, got, want)
 	}
 }

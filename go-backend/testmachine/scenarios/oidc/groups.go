@@ -123,7 +123,7 @@ func groupScenarios() []harness.Scenario {
 			Requirement: "sub-oidc-auth", Invariant: perms, Case: "normal", State: "changed",
 			Assertion: "oidc-advanced-perms-claim-applies-to-user",
 			Sources:   []string{"server/auth/OidcAuthStrategy.js:230-244", "server/models/User.js:953-1000"},
-			Claim:     "With authOpenIDAdvancedPermsClaim=abs_perms, a non-admin login whose claim disables canDownload and canAccessExplicitContent persists those two permission changes on the linked user (other defaults unchanged) and the login payload reports them.",
+			Claim:     "With authOpenIDAdvancedPermsClaim=abs_perms, a non-admin login whose claim disables canDownload and canAccessExplicitContent persists those two permission changes on the linked user (other defaults unchanged) and GET /api/me with its access token reports them.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
 				configureOIDC(t, e, p, map[string]any{"authOpenIDAdvancedPermsClaim": "abs_perms"})

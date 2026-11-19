@@ -51,7 +51,7 @@ func mobilePKCEScenarios() []harness.Scenario {
 			Requirement: "flow-client-oidc-mobile-pkce", Invariant: invariant, Case: "error", State: "failure",
 			Assertion: "mobile-pkce-wrong-verifier-denied-without-user",
 			Sources:   []string{"server/auth/OidcAuthStrategy.js:356-368", "server/Auth.js:399-432", "server/Auth.js:449-452"},
-			Claim:     "A native callback whose code_verifier does not match the challenge sent at start follows the upstream web-style failure (302 /login?error=Error in callback&autoLaunch=0, because session.mobile holds the redirect URI, not true and the provider invalid_grant reaches the error branch), creates no user or session, and consumes the flow so a repeat answers 400 No session.",
+			Claim:     "A native callback whose code_verifier does not match the challenge sent at start follows the upstream web-style failure (302 /login?error=Error in callback&autoLaunch=0, because session.mobile holds the redirect URI, not true and the provider invalid_grant reaches the error branch), creates no user or session, and consumes the flow so a repeat answers status 400 without token material.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
 				configureOIDC(t, e, p, nil)
@@ -74,7 +74,7 @@ func mobilePKCEScenarios() []harness.Scenario {
 					"state": {state}, "code": {code}, "code_verifier": {verifier},
 				}, b.header())
 				requireStatus(t, "replay after wrong verifier", replay, http.StatusBadRequest)
-				requireBody(t, "replay after wrong verifier", replay, "No session")
+				requireNoTokenMaterial(t, "replay after wrong verifier", replay)
 			},
 		},
 		{

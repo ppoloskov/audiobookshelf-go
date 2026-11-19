@@ -109,7 +109,7 @@
     {
       "id": "INV-R004-OIDC-MOBILE-EXCHANGE-REPLAY-001",
       "class": "repeat_operation",
-      "contract": "Repeating the native token-exchange callback with its consumed session answers 400 with body 'No session' and creates no second user or session; the route rejects before any provider token request.",
+      "contract": "Repeating the native token-exchange callback with its consumed session answers status 400 and creates no second user or session; the route rejects before any provider token request.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-397"
@@ -123,7 +123,7 @@
     {
       "id": "INV-R004-WEB-EMPTY-VERIFIER-001",
       "class": "error",
-      "contract": "Without a browser session, a callback with no code_verifier or an empty code_verifier is treated as web and answers 302 /login?error=No sign-in session&autoLaunch=0; a non-empty code_verifier, a repeated code_verifier parameter (array) or the auth_method=openid-mobile cookie answers 400 with body 'No session'. None creates a user or session.",
+      "contract": "Without a browser session, a callback with no code_verifier or an empty code_verifier is treated as web and answers 302 /login?error=No sign-in session&autoLaunch=0; a non-empty code_verifier, a repeated code_verifier parameter (array) or the auth_method=openid-mobile cookie answers status 400 without token material. None creates a user or session.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-398"

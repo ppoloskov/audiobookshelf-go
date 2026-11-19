@@ -42,7 +42,7 @@
     {
       "id": "INV-OIDC-EMAIL-LINK-001",
       "class": "state_transition",
-      "contract": "When authOpenIDMatchExistingBy=email and userinfo.email_verified is not false, the callback matches an active existing user by email: the user keeps its id, username, email, type and every existing extraData member, gains extraData.authOpenIDSub = userinfo.sub, and gets exactly one session. When email_verified is explicitly false the login is denied with the Unauthorized login redirect, links nothing and creates no session.",
+      "contract": "When authOpenIDMatchExistingBy=email and userinfo.email_verified is not false, the callback matches an active existing user by email: the user keeps its id, username, email, type and every existing extraData member, gains extraData.authOpenIDSub = userinfo.sub, and gets exactly one session. When email_verified is explicitly false, when the userinfo carries no email, or when the matched user already has a different authOpenIDSub, the login is denied with the Unauthorized login redirect, links nothing and creates no session. When authOpenIDMatchExistingBy=username, the mode the web client offers, an unlinked user whose username equals the userinfo preferred_username is linked the same way and keeps its fields.",
       "status": "unverified",
       "source": [
         "server/models/User.js:220-308",
@@ -50,7 +50,11 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-links-existing-user-and-keeps-fields",
-        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-unverified-email-denied"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-unverified-email-denied",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-absent-email-verified-links",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-no-email-denied",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-subject-already-linked-denied",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-username-match-links-unlinked-user"
       ],
       "evidence": [],
       "exceptions": [
@@ -131,7 +135,7 @@
     {
       "id": "INV-OIDC-MOBILE-TOKEN-EXCHANGE-001",
       "class": "state_transition",
-      "contract": "A successful native exchange with the app's PKCE verifier returns the API login payload with non-empty accessToken and refreshToken, persists exactly one linked user and one session whose refreshToken equals the returned value, and refreshes. Replaying the consumed callback answers 400 No session and creates no second user or session.",
+      "contract": "A successful native exchange with the app's PKCE verifier returns the API login payload with non-empty accessToken and refreshToken, persists exactly one linked user and one session whose refreshToken equals the returned value, and refreshes. Replaying the consumed callback answers status 400 and creates no second user or session.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-445",
@@ -149,7 +153,7 @@
     {
       "id": "INV-OIDC-MOBILE-INVALID-VERIFIER-001",
       "class": "error",
-      "contract": "After a valid native authorization and mobile redirect, a callback with an incorrect PKCE verifier follows the upstream web failure branch: 302 to /login?error=Error in callback&autoLaunch=0, because the strategy stores the mobile redirect URI string in session.mobile while Auth.js compares it with true and the provider's invalid_grant is an error rather than a plain failure. It creates no provider-linked user or session and consumes the flow, so a replay returns 400 No session.",
+      "contract": "After a valid native authorization and mobile redirect, a callback with an incorrect PKCE verifier follows the upstream web failure branch: 302 to /login?error=Error in callback&autoLaunch=0, because the strategy stores the mobile redirect URI string in session.mobile while Auth.js compares it with true and the provider's invalid_grant is an error rather than a plain failure. It creates no provider-linked user or session and consumes the flow, so a replay returns status 400.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:356-368",
@@ -204,7 +208,7 @@
     {
       "id": "INV-OIDC-MOBILE-REDIRECT-TTL-001",
       "class": "state_transition",
-      "contract": "The mobile redirect URI mapping is held in the strategy's LRU for ten minutes and each state is one-time; a consumed or never-issued state answers 400 State parameter mismatch with no Location and no credentials.",
+      "contract": "The mobile redirect URI mapping is held in the strategy's LRU for ten minutes and each state is one-time; a consumed or never-issued state answers status 400 with no Location and no credentials.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:18-22",
@@ -240,7 +244,7 @@
     {
       "id": "INV-OIDC-ADVANCED-PERMS-001",
       "class": "state_transition",
-      "contract": "With authOpenIDAdvancedPermsClaim=abs_perms, a non-admin login whose claim sets canDownload=false and canAccessExplicitContent=false persists exactly those permission changes on the linked user (other defaults unchanged) and reports them in the login payload and GET /api/me. An admin matched by email keeps its permissions. A userinfo without the configured claim is denied with the Unauthorized login redirect, and the user row auto-registered moments earlier is removed again: no user with that subject and no session remains.",
+      "contract": "With authOpenIDAdvancedPermsClaim=abs_perms, a non-admin login whose claim sets canDownload=false and canAccessExplicitContent=false persists exactly those permission changes on the linked user (other defaults unchanged), which GET /api/me then reports. An admin matched by email keeps its permissions. A userinfo without the configured claim is denied with the Unauthorized login redirect, and the user row auto-registered moments earlier is removed again: no user with that subject and no session remains.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:230-244",
@@ -346,6 +350,10 @@
     "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-auto-register-emits-user-added-to-admins-only",
     "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-links-existing-user-and-keeps-fields",
     "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-unverified-email-denied",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-absent-email-verified-links",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-no-email-denied",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-subject-already-linked-denied",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-username-match-links-unlinked-user",
     "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-repeat-web-login-reuses-user-adds-session",
     "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-group-claim-maps-admin-then-downgrades-user",
     "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-group-claim-missing-denied",

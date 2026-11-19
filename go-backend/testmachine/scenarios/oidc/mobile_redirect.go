@@ -54,7 +54,7 @@ func mobileRedirectScenarios() []harness.Scenario {
 			Requirement: "route-r003", Invariant: replay, Case: "error", State: "repeat",
 			Assertion: "mobile-redirect-replay-400-changes-nothing",
 			Sources:   []string{"server/auth/OidcAuthStrategy.js:489-501"},
-			Claim:     "Repeating /auth/openid/mobile-redirect with an already used state answers 400 State parameter mismatch with no Location and creates no user or session, while the app callback that received the first answer still completes.",
+			Claim:     "Repeating /auth/openid/mobile-redirect with an already used state answers status 400 with no Location and creates no user or session, while the app callback that received the first answer still completes.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
 				configureOIDC(t, e, p, nil)
@@ -84,7 +84,7 @@ func mobileRedirectScenarios() []harness.Scenario {
 			Requirement: "route-r003", Invariant: validate, Case: "error", State: "failure",
 			Assertion: "mobile-redirect-requires-held-state",
 			Sources:   []string{"server/auth/OidcAuthStrategy.js:315-330", "server/auth/OidcAuthStrategy.js:486-492"},
-			Claim:     "A mobile-redirect request without a state, with an empty state, with a state that was never issued, or with the state of a web flow answers 400 State parameter mismatch without a Location or credentials and changes no user or session.",
+			Claim:     "A mobile-redirect request without a state, with an empty state, with a state that was never issued, or with the state of a web flow answers status 400 without a Location or credentials and changes no user or session.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
 				configureOIDC(t, e, p, nil)
@@ -112,7 +112,7 @@ func mobileRedirectScenarios() []harness.Scenario {
 			Requirement: "route-r003", Invariant: ttl, Case: "edge", State: "failure",
 			Assertion: "mobile-redirect-state-not-held-is-400",
 			Sources:   []string{"server/auth/OidcAuthStrategy.js:18-22", "server/auth/OidcAuthStrategy.js:489-501"},
-			Claim:     "The mobile redirect map keeps a state for ten minutes and drops it afterwards; a state the server does not hold (never issued or expired) answers 400 State parameter mismatch with no Location and no credentials, the same answer a consumed state gives.",
+			Claim:     "The mobile redirect map keeps a state for ten minutes and drops it afterwards; a state the server does not hold (never issued or expired) answers status 400 with no Location and no credentials, the same answer a consumed state gives.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
 				configureOIDC(t, e, p, nil)

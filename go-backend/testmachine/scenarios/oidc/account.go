@@ -54,7 +54,7 @@ func accountScenarios() []harness.Scenario {
 		{
 			Requirement: "sub-oidc-auth", Invariant: webCallback, Case: "error", State: "failure",
 			Assertion: "oidc-auto-register-disabled-or-provider-failed-creates-nothing",
-			Sources:   []string{"server/auth/OidcAuthStrategy.js:137-146", "server/auth/OidcAuthStrategy.js:406-432"},
+			Sources:   []string{"server/auth/OidcAuthStrategy.js:137-146", "server/Auth.js:406-447"},
 			Claim:     "With authOpenIDAutoRegister off an unknown subject is denied, and a provider error denies the flow; both answer 302 to /login?error=Unauthorized&autoLaunch=0 and create no user or session.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
@@ -76,7 +76,7 @@ func accountScenarios() []harness.Scenario {
 		{
 			Requirement: "sub-oidc-auth", Invariant: idToken, Case: "error", State: "failure",
 			Assertion: "oidc-invalid-id-tokens-create-no-user",
-			Sources:   []string{"server/auth/OidcAuthStrategy.js:117-166", "server/auth/OidcAuthStrategy.js:406-432"},
+			Sources:   []string{"server/auth/OidcAuthStrategy.js:117-166", "server/Auth.js:406-447"},
 			Claim:     "A callback whose ID token has a broken signature, a foreign issuer, a foreign audience or an expired exp is denied with the login redirect and creates no user or session.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
@@ -246,6 +246,137 @@ func accountScenarios() []harness.Scenario {
 				admin.None(t, mark, "user_added", 500*time.Millisecond, nil)
 				refreshed := e.Do(t, harness.Request{Method: http.MethodPost, Path: "/auth/refresh", Header: map[string]string{"x-refresh-token": refresh}})
 				requireStatus(t, "refresh second session", refreshed, http.StatusOK)
+			},
+		},
+		{
+			Requirement: "sub-oidc-auth", Invariant: emailLink, Case: "edge", State: "changed",
+			Assertion: "oidc-email-match-absent-email-verified-links",
+			Sources:   []string{"server/models/User.js:229-256", "server/models/User.js:296-303"},
+			Claim:     "With authOpenIDMatchExistingBy=email, a provider answer whose email_verified claim is absent (neither true nor false) still matches the existing user by email: the callback keeps its id, username, email and type, adds authOpenIDSub and creates one session.",
+			Run: func(t *testing.T, e *harness.Env) {
+				p := mockProviderFor(t)
+				configureOIDC(t, e, p, map[string]any{"authOpenIDMatchExistingBy": "email"})
+				defer configureOIDC(t, e, p, nil)
+				id := createUser(t, e, map[string]any{
+					"username": "absent-verified-user", "password": "absent-verified-password",
+					"email": "absent-verified@example.org", "isActive": true,
+				})
+				before := userRow(t, e, id)
+				created := userCount(t, e)
+				userinfo := defaultUserinfo("absent-verified-sub", "absent-verified-provider", "absent-verified@example.org")
+				delete(userinfo, "email_verified")
+				login := loginWeb(t, e, p, e.Base+"/login", userinfo)
+				requireWebLoginAnswer(t, e, login, e.Base+"/login")
+				after := userRow(t, e, id)
+				if after == nil || after["id"] != id || after["username"] != before["username"] || after["email"] != before["email"] || after["type"] != before["type"] {
+					t.Fatalf("absent email_verified user = %v, before %v", after, before)
+				}
+				if got := columnJSON(t, after, "extraData")["authOpenIDSub"]; got != "absent-verified-sub" {
+					t.Fatalf("authOpenIDSub = %v", got)
+				}
+				if got := userCount(t, e); got != created {
+					t.Fatalf("the email match created a user: %d -> %d", created, got)
+				}
+				if sessions := sessionsOf(t, e, id); len(sessions) != 1 {
+					t.Fatalf("sessions = %v", sessions)
+				}
+			},
+		},
+		{
+			Requirement: "sub-oidc-auth", Invariant: emailLink, Case: "error", State: "failure",
+			Assertion: "oidc-email-match-no-email-denied",
+			Sources:   []string{"server/models/User.js:250-256", "server/auth/OidcAuthStrategy.js:131-135"},
+			Claim:     "With authOpenIDMatchExistingBy=email, a provider answer without an email is denied with the Unauthorized login redirect even when an unlinked local user with the same username exists: that user stays unlinked, gains no session and nothing else changes.",
+			Run: func(t *testing.T, e *harness.Env) {
+				p := mockProviderFor(t)
+				configureOIDC(t, e, p, map[string]any{"authOpenIDMatchExistingBy": "email"})
+				defer configureOIDC(t, e, p, nil)
+				id := createUser(t, e, map[string]any{
+					"username": "no-email-user", "password": "no-email-password", "isActive": true,
+				})
+				before := snapshotOf(t, e)
+				denied := loginWebDenied(t, e, p, map[string]any{
+					"sub": "no-email-sub", "preferred_username": "no-email-user", "name": "no-email-user",
+				})
+				requireLoginRedirect(t, "no email in userinfo", denied, "Unauthorized")
+				requireUnchanged(t, e, before, "no email in userinfo")
+				row := userRow(t, e, id)
+				if row == nil {
+					t.Fatal("the local user disappeared")
+				}
+				if got := columnJSON(t, row, "extraData")["authOpenIDSub"]; got != nil {
+					t.Fatalf("the denied login linked the user: %v", got)
+				}
+				if sessions := sessionsOf(t, e, id); len(sessions) != 0 {
+					t.Fatalf("the denied login created sessions: %v", sessions)
+				}
+			},
+		},
+		{
+			Requirement: "sub-oidc-auth", Invariant: emailLink, Case: "error", State: "failure",
+			Assertion: "oidc-email-match-subject-already-linked-denied",
+			Sources:   []string{"server/models/User.js:242-248", "server/auth/OidcAuthStrategy.js:131-135"},
+			Claim:     "With email matching configured, a login whose email belongs to a user already linked to a different subject is denied with the Unauthorized login redirect: the existing user keeps the original authOpenIDSub and its session, the new subject stays unlinked and the user count does not change.",
+			Run: func(t *testing.T, e *harness.Env) {
+				p := mockProviderFor(t)
+				configureOIDC(t, e, p, map[string]any{"authOpenIDMatchExistingBy": "email"})
+				defer configureOIDC(t, e, p, nil)
+				first := loginWeb(t, e, p, e.Base+"/login", defaultUserinfo("linked-first-sub", "linked-first-user", "linked-first@example.org"))
+				requireWebLoginAnswer(t, e, first, e.Base+"/login")
+				row := userRowBySub(t, e, "linked-first-sub")
+				if row == nil {
+					t.Fatal("the first login did not create the user")
+				}
+				id := row["id"].(string)
+				sessionsBefore := len(sessionsOf(t, e, id))
+				before := snapshotOf(t, e)
+				denied := loginWebDenied(t, e, p, defaultUserinfo("linked-second-sub", "linked-second-user", "linked-first@example.org"))
+				requireLoginRedirect(t, "second subject", denied, "Unauthorized")
+				requireUnchanged(t, e, before, "second subject")
+				after := userRow(t, e, id)
+				if after == nil {
+					t.Fatal("the linked user disappeared")
+				}
+				if got := columnJSON(t, after, "extraData")["authOpenIDSub"]; got != "linked-first-sub" {
+					t.Fatalf("the denied login changed the link: %v", got)
+				}
+				if other := userRowBySub(t, e, "linked-second-sub"); other != nil {
+					t.Fatalf("the denied login linked the second subject: %v", other)
+				}
+				if got := len(sessionsOf(t, e, id)); got != sessionsBefore {
+					t.Fatalf("sessions = %d, want %d", got, sessionsBefore)
+				}
+			},
+		},
+		{
+			Requirement: "sub-oidc-auth", Invariant: emailLink, Case: "normal", State: "changed",
+			Assertion: "oidc-username-match-links-unlinked-user",
+			Sources:   []string{"server/models/User.js:257-283", "server/models/User.js:296-303", "client/pages/config/authentication.vue:167-182"},
+			Claim:     "With authOpenIDMatchExistingBy=username, the mode the web client offers as 'Match by username', a provider answer whose preferred_username equals an unlinked local user's username links that user: the row keeps its id, username, email and type, gains authOpenIDSub and gets one session, with no new user.",
+			Run: func(t *testing.T, e *harness.Env) {
+				p := mockProviderFor(t)
+				configureOIDC(t, e, p, map[string]any{"authOpenIDMatchExistingBy": "username"})
+				defer configureOIDC(t, e, p, nil)
+				id := createUser(t, e, map[string]any{
+					"username": "username-link-user", "password": "username-link-password", "isActive": true,
+				})
+				before := userRow(t, e, id)
+				created := userCount(t, e)
+				login := loginWeb(t, e, p, e.Base+"/login", defaultUserinfo("username-link-sub", "username-link-user", "username-link@example.org"))
+				requireWebLoginAnswer(t, e, login, e.Base+"/login")
+				after := userRow(t, e, id)
+				if after == nil || after["id"] != id || after["username"] != before["username"] || after["email"] != before["email"] || after["type"] != before["type"] {
+					t.Fatalf("username-matched user = %v, before %v", after, before)
+				}
+				if got := columnJSON(t, after, "extraData")["authOpenIDSub"]; got != "username-link-sub" {
+					t.Fatalf("authOpenIDSub = %v", got)
+				}
+				if got := userCount(t, e); got != created {
+					t.Fatalf("the username match created a user: %d -> %d", created, got)
+				}
+				if sessions := sessionsOf(t, e, id); len(sessions) != 1 {
+					t.Fatalf("sessions = %v", sessions)
+				}
 			},
 		},
 	}

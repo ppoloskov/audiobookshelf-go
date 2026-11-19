@@ -27,7 +27,7 @@
     "go-backend/testmachine/register/capabilities/cap-flow-client-feed-share.json": "83f9a7bd6e511cb5814c39b86a8f9fd127499eb0e320ddb971e1f6f7de26ca4d",
     "go-backend/testmachine/register/capabilities/cap-flow-client-list-ownership.json": "a27ce5456bb343276971e597cdcc3843331629a655d9d924deb663d308cef263",
     "go-backend/testmachine/register/capabilities/cap-flow-client-mobile-protocol.json": "338467cf5e87a6ebe3fce6850b7d76a0c862954d38c92afc5a997ec99d46c74b",
-    "go-backend/testmachine/register/capabilities/cap-flow-client-oidc-mobile-pkce.json": "913f62f59381331438e4bba63ef033d1f354b7d027f9136fc56434f64d96eeb7",
+    "go-backend/testmachine/register/capabilities/cap-flow-client-oidc-mobile-pkce.json": "b6b5814089b1ad9970829c30306a7a67878269edea96aa1e598247e2a7314368",
     "go-backend/testmachine/register/capabilities/cap-flow-client-permissions-ownership.json": "cb7f6a7efc801c77e111407f934bf4e865eb2067ae7f2d89d95e5744334acf4a",
     "go-backend/testmachine/register/capabilities/cap-flow-client-playback-session-sync.json": "6268cbabd78b08755676d269bfed9ae5fc4709967c5b09663e16474523f64937",
     "go-backend/testmachine/register/capabilities/cap-flow-mail-smtp-mime.json": "c06d24c06d0bf7b0ab0e3786a48fcf7f2a04e501a217bdecef6fbe520c778ccc",
@@ -43,8 +43,8 @@
     "go-backend/testmachine/register/capabilities/cap-route-r000.json": "0487359f55208128451b08448e259cf2263fe3f87125baf40db384e39fabd561",
     "go-backend/testmachine/register/capabilities/cap-route-r001.json": "15e21874ecb3798ba59d7ca2e0a63b2aeef49863216ed60c0462d6ccd11ba494",
     "go-backend/testmachine/register/capabilities/cap-route-r002.json": "e61c55bb18901507a0cb8b1dfea6f77cb4f8d1b99a96e544fed1db39e6568f40",
-    "go-backend/testmachine/register/capabilities/cap-route-r003.json": "56f95e1b759445d3e6f41fc8be708af3573e73bff8720548b9b13835dc8827b8",
-    "go-backend/testmachine/register/capabilities/cap-route-r004.json": "867b3216c0d6c66b973736e7132a520335fd52ee67f8f9c5b9450af3a947beb1",
+    "go-backend/testmachine/register/capabilities/cap-route-r003.json": "fa62608de74c02041073f27409038b62bc4edde184f2f7ec8c998f452a2ae19d",
+    "go-backend/testmachine/register/capabilities/cap-route-r004.json": "99661f31f75d2451062ab91665b4449953afdf17e5a1d9750f9eb32062ea7636",
     "go-backend/testmachine/register/capabilities/cap-route-r005.json": "63763eeb683aee4bc17fa94d2ef4922b269bcdaad028b7736f3fa5eba8b6075b",
     "go-backend/testmachine/register/capabilities/cap-route-r006.json": "78210a40a322c8a05b20b46d1db7c2d0995d0e021d4f95bacb2b8c0e0f6b4f36",
     "go-backend/testmachine/register/capabilities/cap-route-r007.json": "99ef381917b253f1106a1cb6f31944503cd447718395af21d6bbaaf5705592ac",
@@ -353,7 +353,7 @@
     "go-backend/testmachine/register/capabilities/cap-sub-database-schema.json": "197effbde241807b54bf83807e8a398d5a0d45ef92b8894d760e35a82f365ecf",
     "go-backend/testmachine/register/capabilities/cap-sub-destructive-cascades-w6.json": "ba59fc40ed8cf180d6e5a2c1d56c3b36f55db7bae34714cc950be4d9ae2de9ab",
     "go-backend/testmachine/register/capabilities/cap-sub-downloads.json": "f3c4b48cb2171af656d4d25a4c761f2448200fb9e3699327f86225291814cb73",
-    "go-backend/testmachine/register/capabilities/cap-sub-oidc-auth.json": "87c6b7f65e6cadd3eea60e581a7566827a7a016ed46dcb079b324cc3b8538e06",
+    "go-backend/testmachine/register/capabilities/cap-sub-oidc-auth.json": "6254ae99d8f92de6ce8b4b6ad2185045ba5a63f6046fbbe401feb14dcfd0c97f",
     "go-backend/testmachine/register/capabilities/cap-sub-podcast-download-queue.json": "d510152bb811b8660e74a49833dbe102c73461c1e4ca84a56c8fc45232df550f",
     "go-backend/testmachine/register/capabilities/cap-sub-realtime-socketio.json": "5b753c599279f231c40665896013def7cf385e791ac110fa45b382a4007e633e",
     "go-backend/testmachine/register/capabilities/cap-sub-scanner-watcher.json": "8a972f888dace2a295abf92053033571d784e1f59e4bf41af77453ff03a1154e",
@@ -7386,7 +7386,7 @@
       "invariant": "INV-FLOW-CLIENT-OIDC-MOBILE-PKCE-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "The official app's four calls (GET /auth/openid with response_type=code, redirect_uri audiobookshelf://oauth and an S256 code_challenge; the provider's authorization; GET /auth/openid/mobile-redirect; GET /auth/openid/callback with code_verifier) end in a 200 login payload whose access and refresh tokens authenticate, exactly one linked user and one session. The provider URL carries the app's code_challenge and redirect_uri=<origin>/auth/openid/mobile-redirect; omitting code_challenge_method defaults the provider URL to S256; the token request carries the app's verifier. A wrong, empty or repeated verifier follows the upstream web failure branch (302 /login?error=Error in callback&autoLaunch=0), creates no user or session and consumes the flow so a replay answers 400 No session. A second login for the same subject reuses the user row and adds a session.",
+      "contract": "The official app's four calls (GET /auth/openid with response_type=code, redirect_uri audiobookshelf://oauth and an S256 code_challenge; the provider's authorization; GET /auth/openid/mobile-redirect; GET /auth/openid/callback with code_verifier) end in a 200 login payload whose access and refresh tokens authenticate, exactly one linked user and one session. The provider URL carries the app's code_challenge and redirect_uri=<origin>/auth/openid/mobile-redirect; omitting code_challenge_method defaults the provider URL to S256; the token request carries the app's verifier. A wrong, empty or repeated verifier follows the upstream web failure branch (302 /login?error=Error in callback&autoLaunch=0), creates no user or session and consumes the flow so a replay answers status 400. A second login for the same subject reuses the user row and adds a session.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:256-281",
@@ -9348,7 +9348,7 @@
       "invariant": "INV-R003-MOBILE-REPLAY-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Repeating /auth/openid/mobile-redirect with an already consumed state answers 400 with body 'State parameter mismatch', no Location and no credentials, and creates no user or session; the app callback that received the first answer still completes into exactly one session because it reads the Express session, not the consumed redirect map entry.",
+      "contract": "Repeating /auth/openid/mobile-redirect with an already consumed state answers status 400 with no Location and no credentials, and creates no user or session; the app callback that received the first answer still completes into exactly one session because it reads the Express session, not the consumed redirect map entry.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:489-501"
@@ -9382,7 +9382,7 @@
       "invariant": "INV-R003-MOBILE-VALIDATION-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "A mobile-redirect request without a state, with an empty state, with a state that was never issued, or with the state of a web flow answers 400 State parameter mismatch without a Location or credentials and changes no user or session; an unlisted redirect_uri or absent code_challenge is denied with 400 already at start and no credentials.",
+      "contract": "A mobile-redirect request without a state, with an empty state, with a state that was never issued, or with the state of a web flow answers status 400 without a Location or credentials and changes no user or session; an unlisted redirect_uri or absent code_challenge is denied with 400 already at start and no credentials.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:252-281",
@@ -9419,7 +9419,7 @@
       "invariant": "INV-R003-MOBILE-STATE-TTL-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "The mobile redirect map holds each state for ten minutes (LRU ttl 10*60*1000, ttlAutopurge); a state the server does not hold because it was consumed or aged out answers 400 State parameter mismatch with no Location and no credentials.",
+      "contract": "The mobile redirect map holds each state for ten minutes (LRU ttl 10*60*1000, ttlAutopurge); a state the server does not hold because it was consumed or aged out answers status 400 with no Location and no credentials.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:18-22",
@@ -9599,7 +9599,7 @@
       "invariant": "INV-R004-OIDC-MOBILE-EXCHANGE-REPLAY-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Repeating the native token-exchange callback with its consumed session answers 400 with body 'No session' and creates no second user or session; the route rejects before any provider token request.",
+      "contract": "Repeating the native token-exchange callback with its consumed session answers status 400 and creates no second user or session; the route rejects before any provider token request.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-397"
@@ -9632,7 +9632,7 @@
       "invariant": "INV-R004-WEB-EMPTY-VERIFIER-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "Without a browser session, a callback with no code_verifier or an empty code_verifier is treated as web and answers 302 /login?error=No sign-in session&autoLaunch=0; a non-empty code_verifier, a repeated code_verifier parameter (array) or the auth_method=openid-mobile cookie answers 400 with body 'No session'. None creates a user or session.",
+      "contract": "Without a browser session, a callback with no code_verifier or an empty code_verifier is treated as web and answers 302 /login?error=No sign-in session&autoLaunch=0; a non-empty code_verifier, a repeated code_verifier parameter (array) or the auth_method=openid-mobile cookie answers status 400 without token material. None creates a user or session.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-398"
@@ -34920,7 +34920,7 @@
       "invariant": "INV-OIDC-EMAIL-LINK-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "When authOpenIDMatchExistingBy=email and userinfo.email_verified is not false, the callback matches an active existing user by email: the user keeps its id, username, email, type and every existing extraData member, gains extraData.authOpenIDSub = userinfo.sub, and gets exactly one session. When email_verified is explicitly false the login is denied with the Unauthorized login redirect, links nothing and creates no session.",
+      "contract": "When authOpenIDMatchExistingBy=email and userinfo.email_verified is not false, the callback matches an active existing user by email: the user keeps its id, username, email, type and every existing extraData member, gains extraData.authOpenIDSub = userinfo.sub, and gets exactly one session. When email_verified is explicitly false, when the userinfo carries no email, or when the matched user already has a different authOpenIDSub, the login is denied with the Unauthorized login redirect, links nothing and creates no session. When authOpenIDMatchExistingBy=username, the mode the web client offers, an unlinked user whose username equals the userinfo preferred_username is linked the same way and keeps its fields.",
       "status": "unverified",
       "source": [
         "server/models/User.js:220-308",
@@ -34928,7 +34928,11 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-links-existing-user-and-keeps-fields",
-        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-unverified-email-denied"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-unverified-email-denied",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-absent-email-verified-links",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-no-email-denied",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-subject-already-linked-denied",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-username-match-links-unlinked-user"
       ],
       "evidence": [],
       "cases": {
@@ -35105,7 +35109,7 @@
       "invariant": "INV-OIDC-MOBILE-TOKEN-EXCHANGE-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "A successful native exchange with the app's PKCE verifier returns the API login payload with non-empty accessToken and refreshToken, persists exactly one linked user and one session whose refreshToken equals the returned value, and refreshes. Replaying the consumed callback answers 400 No session and creates no second user or session.",
+      "contract": "A successful native exchange with the app's PKCE verifier returns the API login payload with non-empty accessToken and refreshToken, persists exactly one linked user and one session whose refreshToken equals the returned value, and refreshes. Replaying the consumed callback answers status 400 and creates no second user or session.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-445",
@@ -35142,7 +35146,7 @@
       "invariant": "INV-OIDC-MOBILE-INVALID-VERIFIER-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "After a valid native authorization and mobile redirect, a callback with an incorrect PKCE verifier follows the upstream web failure branch: 302 to /login?error=Error in callback&autoLaunch=0, because the strategy stores the mobile redirect URI string in session.mobile while Auth.js compares it with true and the provider's invalid_grant is an error rather than a plain failure. It creates no provider-linked user or session and consumes the flow, so a replay returns 400 No session.",
+      "contract": "After a valid native authorization and mobile redirect, a callback with an incorrect PKCE verifier follows the upstream web failure branch: 302 to /login?error=Error in callback&autoLaunch=0, because the strategy stores the mobile redirect URI string in session.mobile while Auth.js compares it with true and the provider's invalid_grant is an error rather than a plain failure. It creates no provider-linked user or session and consumes the flow, so a replay returns status 400.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:356-368",
@@ -35254,7 +35258,7 @@
       "invariant": "INV-OIDC-MOBILE-REDIRECT-TTL-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "The mobile redirect URI mapping is held in the strategy's LRU for ten minutes and each state is one-time; a consumed or never-issued state answers 400 State parameter mismatch with no Location and no credentials.",
+      "contract": "The mobile redirect URI mapping is held in the strategy's LRU for ten minutes and each state is one-time; a consumed or never-issued state answers status 400 with no Location and no credentials.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:18-22",
@@ -35328,7 +35332,7 @@
       "invariant": "INV-OIDC-ADVANCED-PERMS-001",
       "owner": "oidc",
       "packet": "Q06",
-      "contract": "With authOpenIDAdvancedPermsClaim=abs_perms, a non-admin login whose claim sets canDownload=false and canAccessExplicitContent=false persists exactly those permission changes on the linked user (other defaults unchanged) and reports them in the login payload and GET /api/me. An admin matched by email keeps its permissions. A userinfo without the configured claim is denied with the Unauthorized login redirect, and the user row auto-registered moments earlier is removed again: no user with that subject and no session remains.",
+      "contract": "With authOpenIDAdvancedPermsClaim=abs_perms, a non-admin login whose claim sets canDownload=false and canAccessExplicitContent=false persists exactly those permission changes on the linked user (other defaults unchanged), which GET /api/me then reports. An admin matched by email keeps its permissions. A userinfo without the configured claim is denied with the Unauthorized login redirect, and the user row auto-registered moments earlier is removed again: no user with that subject and no session remains.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:230-244",

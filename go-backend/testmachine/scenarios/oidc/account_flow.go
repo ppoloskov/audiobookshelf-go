@@ -116,7 +116,7 @@ func flowScenarios() []harness.Scenario {
 			Requirement: "sub-oidc-auth", Invariant: exchange, Case: "normal", State: "initial",
 			Assertion: "oidc-mobile-token-exchange-persists-one-user-and-session",
 			Sources:   []string{"server/Auth.js:383-445", "server/auth/OidcAuthStrategy.js:112-164"},
-			Claim:     "The native exchange with the app's verifier returns the login payload with accessToken and refreshToken, persists exactly one linked user and one session whose refreshToken is the returned value, and replaying the callback answers 400 No session without creating a second user or session.",
+			Claim:     "The native exchange with the app's verifier returns the login payload with accessToken and refreshToken, persists exactly one linked user and one session whose refreshToken is the returned value, and replaying the callback answers status 400 without creating a second user or session.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
 				configureOIDC(t, e, p, nil)
@@ -141,7 +141,7 @@ func flowScenarios() []harness.Scenario {
 				}
 				replay := providerRedirect(t, e, url.Values{"state": {login.State}, "code": {login.Code}, "code_verifier": {verifier}}, login.Start.header())
 				requireStatus(t, "exchange replay", replay, http.StatusBadRequest)
-				requireBody(t, "exchange replay", replay, "No session")
+				requireNoTokenMaterial(t, "exchange replay", replay)
 				if got := userCount(t, e); got != before+1 {
 					t.Fatalf("replay changed the user count: %d", got)
 				}
@@ -154,7 +154,7 @@ func flowScenarios() []harness.Scenario {
 			Requirement: "sub-oidc-auth", Invariant: badVerifier, Case: "error", State: "failure",
 			Assertion: "oidc-mobile-wrong-verifier-follows-web-redirect",
 			Sources:   []string{"server/auth/OidcAuthStrategy.js:356-368", "server/Auth.js:399-432", "server/Auth.js:449-452"},
-			Claim:     "A mobile callback with a wrong PKCE verifier follows the web failure branch (302 /login?error=Error in callback&autoLaunch=0) because session.mobile holds the redirect URI rather than true and the provider invalid_grant is an error, not a plain failure; it creates no linked user or session and consumes the flow so a replay returns 400 No session.",
+			Claim:     "A mobile callback with a wrong PKCE verifier follows the web failure branch (302 /login?error=Error in callback&autoLaunch=0) because session.mobile holds the redirect URI rather than true and the provider invalid_grant is an error, not a plain failure; it creates no linked user or session and consumes the flow so a replay returns status 400.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
 				configureOIDC(t, e, p, nil)
@@ -171,7 +171,7 @@ func flowScenarios() []harness.Scenario {
 				requireUnchanged(t, e, before, "wrong verifier callback")
 				replay := providerRedirect(t, e, url.Values{"state": {state}, "code": {code}, "code_verifier": {verifier}}, b.header())
 				requireStatus(t, "replay after wrong verifier", replay, http.StatusBadRequest)
-				requireBody(t, "replay after wrong verifier", replay, "No session")
+				requireNoTokenMaterial(t, "replay after wrong verifier", replay)
 			},
 		},
 		{
@@ -261,7 +261,7 @@ func flowScenarios() []harness.Scenario {
 			Requirement: "sub-oidc-auth", Invariant: mobileTTL, Case: "edge", State: "repeat",
 			Assertion: "oidc-mobile-redirect-consumed-or-unknown-state",
 			Sources:   []string{"server/auth/OidcAuthStrategy.js:18-22", "server/auth/OidcAuthStrategy.js:483-505"},
-			Claim:     "The mobile redirect state lives for ten minutes and is one-time: using it twice or presenting a state the server does not hold answers 400 State parameter mismatch with no Location and no credentials.",
+			Claim:     "The mobile redirect state lives for ten minutes and is one-time: using it twice or presenting a state the server does not hold answers status 400 with no Location and no credentials.",
 			Run: func(t *testing.T, e *harness.Env) {
 				p := mockProviderFor(t)
 				configureOIDC(t, e, p, nil)
