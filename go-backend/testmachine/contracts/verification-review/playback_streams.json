@@ -1,0 +1,437 @@
+{
+  "packet": "playback_streams",
+  "reviewer": "independent review, 2026-11-19, deepseek-v4.1-flash:1017",
+  "scenario_digest": "c7a6c745824dc25634bf6816ab7586c7b68b24a042cf5a6008c44dc1acbe8918",
+  "requirements_digest": "7ccdf201279fcd9ff966b92f0153df007cee0a1ea49d2b403ac2c8d0b10a1869",
+  "required_tuples": [
+    {
+      "requirement": "route-r219",
+      "invariant": "INV-R219-FILE-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "hls-playlist-and-first-segment",
+      "sources": ["server/routers/HlsRouter.js:48-96", "server/utils/generators/hlsPlaylistGenerator.js:9-18", "server/Server.js:353-356"],
+      "rationale": "Without a bearer token the live session's playlist is 200 as application/vnd.apple.mpegurl with the generator's VOD headers and output-0..10.ts, and output-0.ts is 200 video/mp2t with Accept-Ranges: bytes, non-empty, byte-identical with the owner's token, and a bytes=0-99 request returns 206 with exactly the first 100 bytes."
+    },
+    {
+      "requirement": "route-r219",
+      "invariant": "INV-R219-REJECT-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "hls-invalid-file-rejections-change-nothing",
+      "sources": ["server/routers/HlsRouter.js:60-77", "server/routers/HlsRouter.js:23-27"],
+      "rationale": "A .txt file, the concat file and a ../ path answer 400 and an unknown stream 404 (lookup before file validation), none emits stream_reset on any audience socket, and the live stream still serves output-0.ts."
+    },
+    {
+      "requirement": "route-r219",
+      "invariant": "INV-R219-RANGE-001",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "hls-repeat-and-beyond-eof-range",
+      "sources": ["server/routers/HlsRouter.js:94-95", "client/components/app/MediaPlayerContainer.vue:419-466"],
+      "rationale": "A repeated segment request returns identical bytes, bytes=1000-1999 answers 206 with Content-Range bytes 1000-1999/<size> and exactly those bytes, a range starting past the end answers 416 with bytes */<size>, and two later playlist requests agree."
+    },
+    {
+      "requirement": "route-r219",
+      "invariant": "INV-R219-RESET-001",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "hls-backward-segment-restarts-stream",
+      "sources": ["server/routers/HlsRouter.js:78-92", "server/objects/Stream.js:125-145", "server/objects/Stream.js:397-414"],
+      "rationale": "For a session started at 44 s the playlist still lists all 8 segments while only output-2 is produced, requesting output-0 answers 404 and restarts the transcode, after which output-0 is served non-empty."
+    },
+    {
+      "requirement": "route-r219",
+      "invariant": "INV-R219-FILE-001",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "hls-ac3-item-transcodes",
+      "sources": ["server/routers/HlsRouter.js:48-96", "server/objects/Stream.js:234-356"],
+      "rationale": "A scanned AC3 (.mka) audiobook is forced through the transcode and serves a 200 playlist and a non-empty first segment."
+    },
+    {
+      "requirement": "route-r219",
+      "invariant": "INV-R219-CLOSED-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "hls-files-gone-after-close",
+      "sources": ["server/routers/HlsRouter.js:48-56", "server/objects/Stream.js:358-379", "server/managers/PlaybackSessionManager.js:441-456"],
+      "rationale": "The stream folder exists while live; after a 200 close it is removed and both the playlist and output-0.ts answer 404."
+    },
+    {
+      "requirement": "route-r225",
+      "invariant": "INV-R225-FILE-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "public-track-direct-play-file",
+      "sources": ["server/routers/PublicRouter.js:21", "server/controllers/SessionController.js:279-336", "client/players/AudioTrack.js:1-37"],
+      "rationale": "Track 1 of a direct-play session is served without a bearer token as audio/mpeg with Accept-Ranges: bytes and the exact bytes of 01 - Part 1.mp3, and the m4b track of another session as audio/mp4 with its exact bytes."
+    },
+    {
+      "requirement": "route-r225",
+      "invariant": "INV-R225-RANGE-001",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "public-track-ranges-and-repeat",
+      "sources": ["server/controllers/SessionController.js:326-336", "client/players/AudioTrack.js:1-37"],
+      "rationale": "Tracks 1, 2 and 3 each serve their own file byte-exactly, bytes=2000-3999 answers 206 with Content-Range bytes 2000-3999/<size> and exactly those bytes, and a bytes=0-1023 request on track 2 returns its first 1024 bytes."
+    },
+    {
+      "requirement": "route-r225",
+      "invariant": "INV-R225-REJECT-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "public-track-rejections-change-nothing",
+      "sources": ["server/controllers/SessionController.js:279-313"],
+      "rationale": "An unparsable index answers 400 (also on an unknown session, proving the parse precedes lookup), index 0 of a book, index 4 and an unknown session answer 404, and the existing track still serves its exact bytes."
+    },
+    {
+      "requirement": "route-r225",
+      "invariant": "INV-R225-PODCAST-001",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "public-track-podcast-index-zero-fallback",
+      "sources": ["server/controllers/SessionController.js:305-310"],
+      "rationale": "For a podcast episode session both track/0 and track/1 answer 200 as audio/mpeg with the exact episode-3.mp3 bytes."
+    },
+    {
+      "requirement": "route-r225",
+      "invariant": "INV-R225-TRANSCODE-001",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "public-track-transcode-redirects",
+      "sources": ["server/controllers/SessionController.js:314-318", "server/managers/PlaybackSessionManager.js:321-322"],
+      "rationale": "A track request of a transcoded session answers 302 with Location /hls/<session>/output.m3u8, and that playlist is then served."
+    },
+    {
+      "requirement": "route-r225",
+      "invariant": "INV-R225-FILE-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "public-track-x-accel-redirect",
+      "sources": ["server/controllers/SessionController.js:279-336", "server/Server.js:86"],
+      "rationale": "With USE_X_ACCEL=/protected a dedicated server answers 204 with an empty body and X-Accel-Redirect /protected plus the percent-encoded absolute audio path."
+    },
+    {
+      "requirement": "route-r225",
+      "invariant": "INV-R225-CLOSED-001",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "public-track-gone-after-close",
+      "sources": ["server/controllers/SessionController.js:292-296", "server/managers/PlaybackSessionManager.js:441-456"],
+      "rationale": "Track 1 answers 200 while the session is open and 404 after it is closed."
+    },
+    {
+      "requirement": "socket-outgoing-stream-open",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-OPEN",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "stream-open-payload-and-audience",
+      "sources": ["server/objects/Stream.js:153-232", "server/objects/Stream.js:234-356", "server/objects/Stream.js:110-123", "server/SocketAuthority.js:67-78"],
+      "rationale": "Starting a transcoded book at 40 s emits exactly one stream_open on both owner sockets and none on the admin or another user's socket, with id, userId, the expanded book (media id, type, title), null episode, segmentLength 6, startTime 40, segmentStartNumber 1, the absolute playlist path, /hls URI and isTranscodeComplete false."
+    },
+    {
+      "requirement": "socket-outgoing-stream-open",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-OPEN",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "stream-open-podcast-episode",
+      "sources": ["server/objects/Stream.js:110-123", "server/objects/Stream.js:234-356", "server/managers/PlaybackSessionManager.js:313-364"],
+      "rationale": "A transcoded podcast episode emits one owner-only stream_open whose episode is the expanded ep3 and whose item mediaType is podcast, with the /hls playlist URI."
+    },
+    {
+      "requirement": "socket-outgoing-stream-open",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-OPEN-EMIT-001",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "stream-open-per-new-session",
+      "sources": ["server/objects/Stream.js:153-232", "server/managers/PlaybackSessionManager.js:313-364"],
+      "rationale": "A second play on the same device emits a new owner-only stream_open with the new session id, and the replaced session is gone (GET /api/session/<old> 404)."
+    },
+    {
+      "requirement": "socket-outgoing-stream-open",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-OPEN",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "stream-open-short-item-completion",
+      "sources": ["server/objects/Stream.js:234-356", "server/objects/Stream.js:110-123"],
+      "rationale": "A three-second item that finishes before the first segment check emits stream_open from the completion path with segmentStartNumber 0, isTranscodeComplete false and the /hls URI, and its segment is then served."
+    },
+    {
+      "requirement": "socket-outgoing-stream-open",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-OPEN-EMIT-001",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "stream-open-after-previous-stream-closed",
+      "sources": ["server/objects/Stream.js:153-232", "server/objects/Stream.js:358-379"],
+      "rationale": "After the previous session is closed, the next play of the same user emits one owner-only stream_open carrying only the new session id."
+    },
+    {
+      "requirement": "socket-outgoing-stream-open",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-OPEN-EMIT-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "stream-open-omitted-for-failed-stream",
+      "sources": ["server/objects/Stream.js:234-356", "server/objects/Stream.js:358-379"],
+      "rationale": "A transcode that fails on its input emits stream_error on both owner sockets and no stream_open on any of the four sockets."
+    },
+    {
+      "requirement": "socket-outgoing-stream-progress",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-PROGRESS",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "stream-progress-payload",
+      "sources": ["server/objects/Stream.js:234-356", "server/objects/Stream.js:153-232", "client/components/app/MediaPlayerContainer.vue:419-430"],
+      "rationale": "The first progress payload is exactly {stream, percent 0%, chunks [], numSegments 0} and the first check with segments is exactly {percent 100.00%, chunks [\"0-10\"], numSegments 11}; the other user's socket receives none."
+    },
+    {
+      "requirement": "socket-outgoing-stream-progress",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-PROGRESS-REPEAT-001",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "stream-progress-repeats-identical",
+      "sources": ["server/objects/Stream.js:218-232", "server/objects/Stream.js:203-212"],
+      "rationale": "Two or more segment-check payloads while the transcode runs are identical to the first, and the percent never decreases across the whole socket log."
+    },
+    {
+      "requirement": "socket-outgoing-stream-progress",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-PROGRESS",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "stream-progress-stops-after-completion",
+      "sources": ["server/objects/Stream.js:234-356", "server/objects/Stream.js:153-232"],
+      "rationale": "A transcode that completes before the first segment check emits exactly one progress payload (0%, no segments) and none after stream_open."
+    },
+    {
+      "requirement": "socket-outgoing-stream-progress",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-PROGRESS",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "stream-progress-single-segment-chunk",
+      "sources": ["server/objects/Stream.js:153-232", "client/components/app/MediaPlayerContainer.vue:419-430"],
+      "rationale": "A one-segment item reports chunks as the number 0 (not a range) with percent 100.00% and numSegments 1."
+    },
+    {
+      "requirement": "socket-outgoing-stream-progress",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-PROGRESS",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "stream-progress-chunk-gap",
+      "sources": ["server/objects/Stream.js:153-232", "client/components/app/MediaPlayerContainer.vue:419-430"],
+      "rationale": "With output-5 removed the next check reports percent 90.91% and chunks [\"0-4\", \"6-10\"] for numSegments 11."
+    },
+    {
+      "requirement": "socket-outgoing-stream-progress",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-PROGRESS-FAILURE-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "stream-progress-stops-after-error",
+      "sources": ["server/objects/Stream.js:318-339", "server/objects/Stream.js:358-379"],
+      "rationale": "A stream that fails on its input emits the initial zero progress, then stream_error, and no segment progress afterwards."
+    },
+    {
+      "requirement": "socket-outgoing-stream-ready",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-READY",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "stream-ready-not-emitted-on-normal-completion",
+      "sources": ["server/objects/Stream.js:218-232", "server/objects/Stream.js:341-353"],
+      "rationale": "A normally completed transcode emits stream_open and no stream_ready on any of the four audience sockets."
+    },
+    {
+      "requirement": "socket-outgoing-stream-ready",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-READY-RESET-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "stream-ready-after-fast-reset",
+      "sources": ["server/objects/Stream.js:298-312", "server/objects/Stream.js:218-232", "server/SocketAuthority.js:67-78"],
+      "rationale": "After a backward-segment reset stream_ready arrives once per owner socket with its single null argument and on neither the admin nor another user's socket."
+    },
+    {
+      "requirement": "socket-outgoing-stream-ready",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-READY-RESET-001",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "stream-ready-once-per-reset",
+      "sources": ["server/objects/Stream.js:298-312", "server/objects/Stream.js:218-232"],
+      "rationale": "Two resets of two different sessions each emit exactly one owner-only stream_ready with the null argument."
+    },
+    {
+      "requirement": "socket-outgoing-stream-ready",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-READY",
+      "case": "error",
+      "state": "failure",
+      "assertion": "stream-ready-not-emitted-for-failed-stream",
+      "sources": ["server/objects/Stream.js:234-356", "server/objects/Stream.js:358-379"],
+      "rationale": "A stream that fails on its input emits stream_error and no stream_ready on any audience socket."
+    },
+    {
+      "requirement": "socket-outgoing-stream-reset",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-RESET",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "stream-reset-backward-segment",
+      "sources": ["server/routers/HlsRouter.js:87", "server/objects/Stream.js:125-145", "server/SocketAuthority.js:51-65"],
+      "rationale": "Requesting output-1 before the start offset of a 44 s session answers 404 and broadcasts {startTime 6, streamId} exactly once to both owner sockets, the admin and another user."
+    },
+    {
+      "requirement": "socket-outgoing-stream-reset",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-RESET-TRIGGER-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "stream-reset-at-zero-is-silent",
+      "sources": ["server/routers/HlsRouter.js:78-92", "server/objects/Stream.js:125-145", "server/objects/Stream.js:397-401"],
+      "rationale": "Requesting missing segment 0 answers 404 with no stream_reset on any socket (the returned start time 0 is falsy) while the transcode is still restarted and output-0 is then served."
+    },
+    {
+      "requirement": "socket-outgoing-stream-reset",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-RESET-TRIGGER-001",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "stream-reset-distant-segment-and-guard",
+      "sources": ["server/routers/HlsRouter.js:78-92", "server/objects/Stream.js:125-145", "server/objects/Stream.js:397-401"],
+      "rationale": "A segment 33 beyond the furthest produced one answers 404 and broadcasts {startTime 240, streamId} once to every authorized socket, and a further miss during the reset answers 404 without a second event."
+    },
+    {
+      "requirement": "socket-outgoing-stream-reset",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-RESET-SILENT-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "stream-reset-silent-after-completion-and-close",
+      "sources": ["server/objects/Stream.js:125-145", "server/routers/HlsRouter.js:78-92"],
+      "rationale": "A miss on a completed transcode answers 404 with no stream_reset and output-0 still served; after close the segment answers 404 with no stream_reset."
+    },
+    {
+      "requirement": "socket-outgoing-stream-reset",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-RESET-SILENT-001",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "stream-reset-repeat-is-silent",
+      "sources": ["server/objects/Stream.js:125-145", "server/routers/HlsRouter.js:78-92"],
+      "rationale": "Two requests for the same missing segment of a completed transcode answer 404 twice with no stream_reset and output-10 still served."
+    },
+    {
+      "requirement": "socket-outgoing-stream-closed",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-CLOSED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "stream-closed-on-session-close",
+      "sources": ["server/objects/Stream.js:358-379", "server/managers/PlaybackSessionManager.js:421-431", "server/routers/ApiRouter.js:243", "server/SocketAuthority.js:67-78"],
+      "rationale": "Closing with the clients' final sync answers 200, persists the playbackSessions row, removes the stream folder, and emits stream_closed with the session id once on both owner sockets and neither the admin nor another user's socket."
+    },
+    {
+      "requirement": "socket-outgoing-stream-closed",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-CLOSED-SILENT-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "stream-closed-forbidden-close-changes-nothing",
+      "sources": ["server/routers/ApiRouter.js:243", "server/controllers/SessionController.js:344-352"],
+      "rationale": "A non-admin close of another user's session answers 403, no audience or intruder socket receives stream_closed, and the stream still serves output-0.ts."
+    },
+    {
+      "requirement": "socket-outgoing-stream-closed",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-CLOSED-SILENT-001",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "stream-closed-not-for-direct-play",
+      "sources": ["server/objects/Stream.js:358-379", "server/managers/PlaybackSessionManager.js:421-431"],
+      "rationale": "Closing a direct-play session delivers user_session_closed to the owner and no stream_closed on any of the four sockets."
+    },
+    {
+      "requirement": "socket-outgoing-stream-closed",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-CLOSED-SILENT-001",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "stream-closed-once",
+      "sources": ["server/objects/Stream.js:358-379", "server/managers/PlaybackSessionManager.js:421-456"],
+      "rationale": "The first close emits exactly one owner-only stream_closed; a second close answers 404 and emits no second event on any socket."
+    },
+    {
+      "requirement": "socket-outgoing-stream-error",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-ERROR",
+      "case": "normal",
+      "state": "failure",
+      "assertion": "stream-error-payload-and-audience",
+      "sources": ["server/objects/Stream.js:358-379", "server/objects/Stream.js:234-356", "server/SocketAuthority.js:67-78", "client/components/app/MediaPlayerContainer.vue:457-463"],
+      "rationale": "A failing transcode emits stream_error exactly once on both owner sockets only, with exactly the fields id (session) and error (a non-empty string), no stream_open or stream_closed, removes the folder and leaves the HLS route 404."
+    },
+    {
+      "requirement": "socket-outgoing-stream-error",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-ERROR-SILENT-001",
+      "case": "error",
+      "state": "initial",
+      "assertion": "stream-error-absent-on-success",
+      "sources": ["server/objects/Stream.js:234-356", "server/objects/Stream.js:358-379"],
+      "rationale": "A healthy transcode that completes and serves output-0.ts emits no stream_error on any audience socket."
+    },
+    {
+      "requirement": "socket-outgoing-stream-error",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-ERROR-SILENT-001",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "stream-error-repeat-is-silent",
+      "sources": ["server/objects/Stream.js:358-379", "server/routers/HlsRouter.js:48-56"],
+      "rationale": "Two further playlist and segment requests on the failed, removed stream answer 404 and emit no second stream_error."
+    },
+    {
+      "requirement": "socket-outgoing-stream-error",
+      "invariant": "INV-SOCKET-OUTGOING-STREAM-ERROR-SILENT-001",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "stream-error-targets-only-the-owner",
+      "sources": ["server/objects/Stream.js:318-339", "server/SocketAuthority.js:67-78"],
+      "rationale": "The failing owner's stream_error reaches neither socket of another user, whose own stream keeps serving output-0.ts."
+    }
+  ],
+  "not_applicable": [
+    {
+      "requirement": "route-r219",
+      "facet": "force",
+      "reason": "confirmed: the HLS router has one GET /:stream/:file handler and no query or body parameter; a request's behaviour comes only from the live stream and file state (server/routers/HlsRouter.js:21-98)."
+    },
+    {
+      "requirement": "route-r225",
+      "facet": "force",
+      "reason": "confirmed: getTrack takes only :id and :index and never reads a force/refresh parameter (server/controllers/SessionController.js:279-336)."
+    },
+    {
+      "requirement": "socket-outgoing-stream-open",
+      "facet": "force",
+      "reason": "confirmed: stream_open is emitted only by checkFiles once isClientInitialized is set and by the ffmpeg 'end' handler; nothing re-emits or forces it (server/objects/Stream.js:171-175, 344-349)."
+    },
+    {
+      "requirement": "socket-outgoing-stream-progress",
+      "facet": "force",
+      "reason": "confirmed: progress is emitted on the fixed 2000 ms interval started by startLoop and by no request (server/objects/Stream.js:218-232)."
+    },
+    {
+      "requirement": "socket-outgoing-stream-ready",
+      "facet": "force",
+      "reason": "confirmed: stream_ready is emitted only by the interval's isTranscodeComplete branch, reachable only after a reset whose startLoop runs late; there is no trigger endpoint (server/objects/Stream.js:218-232, 298-312)."
+    },
+    {
+      "requirement": "socket-outgoing-stream-reset",
+      "facet": "force",
+      "reason": "confirmed: a reset is invoked only from the HLS router's missing-segment path; the router has no force-reset parameter (server/routers/HlsRouter.js:78-92, server/objects/Stream.js:397-414)."
+    },
+    {
+      "requirement": "socket-outgoing-stream-closed",
+      "facet": "force",
+      "reason": "confirmed: closing is a single closeSession/removeSession path with no forced or soft variant; the close request has no body option (server/managers/PlaybackSessionManager.js:421-456)."
+    },
+    {
+      "requirement": "socket-outgoing-stream-error",
+      "facet": "force",
+      "reason": "confirmed: stream_error is emitted only from close(err.message) after a real ffmpeg failure; no route causes an error (server/objects/Stream.js:318-339, 358-379)."
+    }
+  ],
+  "open_findings": [
+    "route-r219 hls-backward-segment-restarts-stream: the Claim says the missing backward segment 'emits stream_reset', but no socket is connected in the scenario and it requests output-0, where upstream returns startTime 0 and the truthiness test at HlsRouter.js:88 emits nothing. Remove the event clause from the Claim (the event is proven by stream-reset-backward-segment) or request output-1 and assert the event.",
+    "route-r219 hls-ac3-item-transcodes: the Claim and INV-R219-FILE-001 say the AC3 item is transcoded 'with its bitrate and channel options', but the scenario only asserts a 200 playlist and a non-empty first segment. A direct ffmpeg probe with the packet's ffmpeg showed the same HLS command succeeds without -b:a/-ac, so a server that never passes those options passes. Reword the Claim/invariant to the observable obligation (an AC3 item transcodes and serves) or assert something that distinguishes the options.",
+    "route-r219 hls-files-gone-after-close, route-r225 public-track-gone-after-close and socket-outgoing-stream-closed stream-closed-on-session-close: Sources cite PlaybackSessionManager.js:313-364 (startSession), not the close path that removes the stream and session; cite 421-431/441-456 for the close behaviour.",
+    "route-r225 public-track-ranges-and-repeat: the Claim says 'a repeated request returns the same bytes', but only one bytes=0-1023 request is issued (compared with the file bytes), so repeatability is not proven. Issue the identical range request twice on track 2 and compare the responses.",
+    "socket-outgoing-stream-progress stream-progress-payload: the Claim says the progress reaches both owner sockets and only the owner, but only owner1's zero/segment payloads and the other user's silence are asserted; owner2 receiving stream_progress and the admin receiving none are not checked. Add owner2 receipt and admin/other silence for stream_progress (both the zero and the segment payload).",
+    "socket-outgoing-stream-ready stream-ready-not-emitted-on-normal-completion: the stream_ready silence window is 1.5 s, shorter than the 2 s segment-check interval that is the only mechanism that could emit it, so a server that keeps the loop and emits on the next tick passes. Wait longer than one interval (about 3 s) after stream_open; apply the same rule to the 500 ms window of stream-ready-not-emitted-for-failed-stream.",
+    "socket-outgoing-stream-closed stream-closed-on-session-close: timeListening is asserted only as non-null, while the 2 s sync plus the 5 s close sync make the persisted value deterministic (7 s, PlaybackSessionManager.js:387-390 addListeningTime). Assert the exact value."
+  ]
+}

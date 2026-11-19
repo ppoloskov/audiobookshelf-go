@@ -1,0 +1,625 @@
+{
+  "packet": "server",
+  "reviewer": "independent review, 2026-11-19, deepseek-v4.1-flash:1017",
+  "scenario_digest": "d99cd1fce18e079bd92b2ed149919476af17407f393eeb58b8a5dd7a9db50468",
+  "requirements_digest": "42c8c6a929d9708748ddba7b294fdc7a30fbb091505e96334a1d4d41386836b8",
+  "required_tuples": [
+    {
+      "requirement": "route-r011",
+      "invariant": "INV-ROUTE-R011-ROUTE",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "status-initialized-public-shape",
+      "sources": ["server/Server.js:384-399", "client/pages/login.vue"],
+      "rationale": "Public GET /status on the initialized fixture answers 200 with app audiobookshelf, serverVersion 2.37.2, isInit true, language en-us, authMethods [local], authFormData present and no ConfigPath/MetadataPath, identically on repetition."
+    },
+    {
+      "requirement": "route-r011",
+      "invariant": "INV-ROUTE-R011-ROUTE",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "status-wrong-method-and-credentials-ignored",
+      "sources": ["server/Server.js:384-399"],
+      "rationale": "An invalid bearer token does not change the public /status body and POST /status answers 404 because only router.get is registered."
+    },
+    {
+      "requirement": "route-r011",
+      "invariant": "INV-ROUTE-R011-ROUTE",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "status-uninitialized-paths",
+      "sources": ["server/Server.js:390-397"],
+      "rationale": "A cold uninitialised install answers isInit false with the actual ConfigPath and MetadataPath directories and an empty user table."
+    },
+    {
+      "requirement": "route-r012",
+      "invariant": "INV-ROUTE-R012-ROUTE",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "ping-value-and-repeat",
+      "sources": ["server/Server.js:401-404"],
+      "rationale": "GET /ping answers 200 with success true without credentials on every call."
+    },
+    {
+      "requirement": "route-r012",
+      "invariant": "INV-ROUTE-R012-ROUTE",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "ping-wrong-method-is-404",
+      "sources": ["server/Server.js:401"],
+      "rationale": "POST /ping is not registered and answers 404 while GET keeps succeeding."
+    },
+    {
+      "requirement": "route-r012",
+      "invariant": "INV-ROUTE-R012-ROUTE",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "ping-basepath-and-legacy",
+      "sources": ["server/Server.js:323-334", "server/Server.js:401"],
+      "rationale": "With ROUTER_BASE_PATH=/audiobookshelf the bare /ping is rewritten to the prefixed route and answers the same body."
+    },
+    {
+      "requirement": "route-r013",
+      "invariant": "INV-ROUTE-R013-ROUTE",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "health-value-and-repeat",
+      "sources": ["server/Server.js:405"],
+      "rationale": "GET /healthcheck answers 200 with the plain body OK without credentials on every call."
+    },
+    {
+      "requirement": "route-r013",
+      "invariant": "INV-ROUTE-R013-ROUTE",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "healthcheck-wrong-method-is-404",
+      "sources": ["server/Server.js:405"],
+      "rationale": "POST /healthcheck answers 404 because only the GET route exists."
+    },
+    {
+      "requirement": "route-r013",
+      "invariant": "INV-ROUTE-R013-ROUTE",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "healthcheck-head-and-query",
+      "sources": ["server/Server.js:405"],
+      "rationale": "HEAD /healthcheck answers 200 with an empty body and a query parameter does not change the OK answer."
+    },
+    {
+      "requirement": "route-r014",
+      "invariant": "INV-ROUTE-R014-SPA",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "spa-client-routes-serve-entry",
+      "sources": ["server/Server.js:410-437"],
+      "rationale": "/, /library/:id, /library/:id/search, /item/:id, /author/:id, /config/users/:id, /collection/:id and /playlist/:id answer 200 text/html with the same unauthenticated entry document."
+    },
+    {
+      "requirement": "route-r014",
+      "invariant": "INV-ROUTE-R014-SPA",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "spa-missing-asset-404-no-listing",
+      "sources": ["server/Server.js:412-414", "server/Server.js:432-437"],
+      "rationale": "/favicon.ico is served with a non-empty non-entry body while a missing asset and a directory path answer 404 without the SPA fallback or a listing."
+    },
+    {
+      "requirement": "route-r014",
+      "invariant": "INV-ROUTE-R014-SPA",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "spa-dynamic-variants-and-unknown-client-path",
+      "sources": ["server/Server.js:416-437"],
+      "rationale": "Query strings and the optional bookshelf/series segments serve the entry document while an unlisted client-shaped path answers 404."
+    },
+    {
+      "requirement": "route-r015",
+      "invariant": "INV-ROUTE-R015-ORDER",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "unmatched-api-404-with-token",
+      "sources": ["server/Server.js:346-355", "server/Server.js:437-467"],
+      "rationale": "Authenticated unmatched /api paths answer 404 and are never rewritten into the client entry document."
+    },
+    {
+      "requirement": "route-r015",
+      "invariant": "INV-ROUTE-R015-ORDER",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "unmatched-api-unauthenticated-401",
+      "sources": ["server/Server.js:354", "server/Auth.js:45-52"],
+      "rationale": "The /api auth gate answers 401 before route matching, so an unmatched path is not a 404 for an unauthenticated caller."
+    },
+    {
+      "requirement": "route-r015",
+      "invariant": "INV-ROUTE-R015-ORDER",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "registered-routes-not-shadowed",
+      "sources": ["server/Server.js:346-437", "server/Server.js:452"],
+      "rationale": "Registered routes keep their own status: /api/me 200, unknown method on /api/libraries 404, /ping public, /api/backups 401 unauthenticated; the terminal handler only exists with REACT_CLIENT_PATH."
+    },
+    {
+      "requirement": "route-r016",
+      "invariant": "INV-ROUTE-R016-CACHE",
+      "case": "normal",
+      "state": "stateless",
+      "assertion": "libraries-list-and-conditional",
+      "sources": ["server/routers/ApiRouter.js:68", "server/managers/ApiCacheManager.js:79-115"],
+      "rationale": "GET /api/libraries returns the two fixture libraries with their folders, repeats the body and ETag, answers 304 to a matching If-None-Match with an empty body and still answers a random sort."
+    },
+    {
+      "requirement": "route-r016",
+      "invariant": "INV-ROUTE-R016-CACHE",
+      "case": "error",
+      "state": "stateless",
+      "assertion": "libraries-requires-authentication",
+      "sources": ["server/Server.js:354", "server/routers/ApiRouter.js:68"],
+      "rationale": "GET /api/libraries answers 401 without a token and with an invalid token and changes no library row."
+    },
+    {
+      "requirement": "route-r016",
+      "invariant": "INV-ROUTE-R016-CACHE",
+      "case": "edge",
+      "state": "stateless",
+      "assertion": "libraries-user-isolation-and-write-freshness",
+      "sources": ["server/routers/ApiRouter.js:68", "server/managers/ApiCacheManager.js:24-30", "server/controllers/LibraryController.js:188-205"],
+      "rationale": "Library GETs are scoped to the caller's accessible libraries and a committed rename is visible to the root and restricted caller on the next GET."
+    },
+    {
+      "requirement": "protocol-cors-basepath",
+      "invariant": "INV-PROTOCOL-CORS-BASEPATH",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "cors-mobile-cover-and-ebook-origins",
+      "sources": ["server/Server.js:270-295", "client/components/covers/BookCover.vue", "go-backend/testmachine/contracts/clients/official-app.md"],
+      "rationale": "The unauthenticated item cover answers the Capacitor and localhost origins with the exact grant (echoed origin, all methods, headers *, credentials true) while serving the image, and the ebook route does the same with a token."
+    },
+    {
+      "requirement": "protocol-cors-basepath",
+      "invariant": "INV-PROTOCOL-CORS-BASEPATH",
+      "case": "error",
+      "state": "failure",
+      "assertion": "cors-unlisted-origin-and-path",
+      "sources": ["server/Server.js:283-294"],
+      "rationale": "An unlisted origin on the mobile cover path and the mobile origin on the non-mobile /api/libraries path receive no grant, while the cover is still served and the API still answers 401."
+    },
+    {
+      "requirement": "protocol-cors-basepath",
+      "invariant": "INV-PROTOCOL-CORS-BASEPATH",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "cors-preflight-mobile-cover",
+      "sources": ["server/Server.js:290-293"],
+      "rationale": "OPTIONS on the mobile cover path answers 200 OK with the grant for both mobile origins, and 401 without a grant for an unlisted origin or without an Origin header."
+    },
+    {
+      "requirement": "protocol-cors-basepath",
+      "invariant": "INV-PROTOCOL-CORS-BASEPATH-ROUTE-001",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "basepath-and-legacy-routes",
+      "sources": ["server/Server.js:323-334", "server/Server.js:346-355"],
+      "rationale": "Status, ping, an authenticated API route and a static asset answer the same status and body under /audiobookshelf and under their bare path through the legacy rewrite."
+    },
+    {
+      "requirement": "protocol-cors-basepath",
+      "invariant": "INV-PROTOCOL-CORS-BASEPATH",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "cors-mobile-cover-repeated",
+      "sources": ["server/Server.js:270-295"],
+      "rationale": "Three consecutive cover requests from the Capacitor origin return the same image bytes and the same complete grant."
+    },
+    {
+      "requirement": "protocol-cors-basepath",
+      "invariant": "INV-PROTOCOL-CORS-BASEPATH",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "cors-configured-origin-after-settings-change",
+      "sources": ["server/Server.js:283-294", "server/controllers/MiscController.js:139-170"],
+      "rationale": "After the admin adds an allowed origin, that origin receives the grant on /api/libraries while an unrelated origin receives none."
+    },
+    {
+      "requirement": "protocol-cors-basepath",
+      "invariant": "INV-PROTOCOL-CORS-BASEPATH",
+      "case": "edge",
+      "state": "force",
+      "assertion": "cors-allow-cors-force-override",
+      "sources": ["server/Server.js:71", "server/Server.js:283-293"],
+      "rationale": "With ALLOW_CORS=1 an arbitrary origin receives the grant on an ordinary API path and an ebook preflight answers 200 with the grant."
+    },
+    {
+      "requirement": "protocol-cors-basepath",
+      "invariant": "INV-PROTOCOL-CORS-BASEPATH-PUBLIC-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "public-image-exception-boundary",
+      "sources": ["server/Auth.js:21", "server/Auth.js:36-52", "server/routers/ApiRouter.js:112-128", "server/controllers/LibraryItemController.js:401-433", "server/controllers/LibraryItemController.js:1121-1154"],
+      "rationale": "The unauthenticated cover read answers 200, the ebook route answers 401 without and with an invalid token and returns no file bytes, and unknown item/author image ids answer 404 rather than 401."
+    },
+    {
+      "requirement": "runtime-lifecycle",
+      "invariant": "INV-RUNTIME-LIFECYCLE",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "cold-boot-fresh-install-serves-complete-graph",
+      "sources": ["server/Server.js:180-258", "server/Server.js:323-405", "index.js:19-56"],
+      "rationale": "A cold boot of an uninitialised install answers ping, uninitialised status, the client root and a 401 API with an empty user table, and creates metadata/streams and the config database."
+    },
+    {
+      "requirement": "runtime-lifecycle",
+      "invariant": "INV-RUNTIME-LIFECYCLE",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "boot-stop-restart-serves-and-persists",
+      "sources": ["server/Server.js:276-322", "server/Server.js:562-570"],
+      "rationale": "A SIGINT shutdown is graceful (the harness fails on SIGKILL) and a restart on the same install serves the committed library rename and status again."
+    },
+    {
+      "requirement": "runtime-lifecycle",
+      "invariant": "INV-RUNTIME-LIFECYCLE",
+      "case": "error",
+      "state": "failure",
+      "assertion": "shutdown-refuses-requests-not-half-graph",
+      "sources": ["server/Server.js:276-288", "server/Server.js:562-570"],
+      "rationale": "After SIGINT /ping no longer succeeds, the sqlite database file remains and the next boot serves ping again."
+    },
+    {
+      "requirement": "runtime-lifecycle",
+      "invariant": "INV-RUNTIME-LIFECYCLE",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "restart-closes-open-sockets-and-welcomes-new",
+      "sources": ["server/Server.js:276-288", "server/SocketAuthority.js:168-200"],
+      "rationale": "A socket connected after a restart authenticates, subscribes and receives the log event for a following ping while the HTTP API still serves."
+    },
+    {
+      "requirement": "runtime-lifecycle",
+      "invariant": "INV-RUNTIME-LIFECYCLE-RESTART-001",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "repeated-restart-cycles-keep-serving",
+      "sources": ["server/Server.js:180-258", "server/Server.js:562-570"],
+      "rationale": "Two restarts, a shutdown and another restart keep serving ping and the committed library name, including with scannerDisableWatcher toggled."
+    },
+    {
+      "requirement": "runtime-lifecycle",
+      "invariant": "INV-RUNTIME-LIFECYCLE-RESTART-001",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "restart-removes-orphan-playback-streams",
+      "sources": ["server/Server.js:177", "server/managers/PlaybackSessionManager.js:459-484"],
+      "rationale": "Boot removes a UUID-v4-named directory under metadata/streams, keeps a non-UUID directory and keeps the committed library rename."
+    },
+    {
+      "requirement": "runtime-lifecycle",
+      "invariant": "INV-RUNTIME-LIFECYCLE-FAILURE-001",
+      "case": "error",
+      "state": "failure",
+      "assertion": "failed-boot-exits-without-partial-install",
+      "sources": ["server/Server.js:180-200", "index.js:19-56"],
+      "rationale": "A boot with CONFIG_PATH naming a regular file exits non-zero, /ping does not succeed, the file is unchanged and the install config directory stays empty."
+    },
+    {
+      "requirement": "cap-event-log",
+      "invariant": "INV-CAP-EVENT-LOG",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "log-subscribed-admin-receives-shape",
+      "sources": ["server/Logger.js:72-90", "server/SocketAuthority.js:201-208", "client/pages/config/log.vue:85-130"],
+      "rationale": "One ping after an INFO subscription delivers exactly one log event with non-empty string timestamp/source/message, levelName INFO and level 2."
+    },
+    {
+      "requirement": "cap-event-log",
+      "invariant": "INV-CAP-EVENT-LOG",
+      "case": "error",
+      "state": "failure",
+      "assertion": "log-non-admin-subscription-rejected",
+      "sources": ["server/SocketAuthority.js:89-95", "server/SocketAuthority.js:201-208"],
+      "rationale": "An ordinary-user socket and an unauthenticated socket that send set_log_listener receive no log event for later log lines."
+    },
+    {
+      "requirement": "cap-event-log",
+      "invariant": "INV-CAP-EVENT-LOG",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "log-level-threshold",
+      "sources": ["server/Logger.js:83-87", "server/utils/constants.js:26-27"],
+      "rationale": "A WARN subscription filters an INFO line while an INFO subscription receives it, and both subscriptions receive a later WARN line."
+    },
+    {
+      "requirement": "cap-event-log",
+      "invariant": "INV-CAP-EVENT-LOG",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "log-no-events-before-subscription",
+      "sources": ["server/Logger.js:83-87", "server/SocketAuthority.js:201-208"],
+      "rationale": "An authenticated socket that never sent set_log_listener receives no log event for two pings."
+    },
+    {
+      "requirement": "cap-event-log",
+      "invariant": "INV-CAP-EVENT-LOG",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "log-resubscribe-single-delivery",
+      "sources": ["server/Logger.js:44-58"],
+      "rationale": "Three set_log_listener calls replace the entry: two pings deliver exactly two log events, not six."
+    },
+    {
+      "requirement": "cap-event-log",
+      "invariant": "INV-CAP-EVENT-LOG",
+      "case": "edge",
+      "state": "changed",
+      "assertion": "log-level-change-and-removal",
+      "sources": ["server/Logger.js:44-63", "server/SocketAuthority.js:209"],
+      "rationale": "Raising INFO to WARN stops INFO delivery, lowering it restores it, and remove_log_listener stops delivery entirely."
+    },
+    {
+      "requirement": "cap-event-log",
+      "invariant": "INV-CAP-EVENT-LOG",
+      "case": "error",
+      "state": "failure",
+      "assertion": "log-invalid-level-not-subscribed",
+      "sources": ["server/SocketAuthority.js:201-208", "server/utils/constants.js:19-27"],
+      "rationale": "Levels 7, \"2\" and 0.5 are rejected by the integer/known-level check and the admin socket receives no log event."
+    },
+    {
+      "requirement": "cap-flow-backup-restore-swap",
+      "invariant": "INV-CAP-FLOW-BACKUP-RESTORE-SWAP",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "backup-list-empty-at-start",
+      "sources": ["server/controllers/BackupController.js:20-33", "server/managers/BackupManager.js:30-63"],
+      "rationale": "The fixture install lists no backups, reports metadata/backups as the location, backupPathEnvSet false and an empty backup directory."
+    },
+    {
+      "requirement": "cap-flow-backup-restore-swap",
+      "invariant": "INV-CAP-FLOW-BACKUP-RESTORE-SWAP",
+      "case": "edge",
+      "state": "initial",
+      "assertion": "backup-list-shape-and-file",
+      "sources": ["server/controllers/BackupController.js:20-33", "server/objects/Backup.js:1-80", "server/managers/BackupManager.js:183-192"],
+      "rationale": "The created entry has a YYYY-MM-DDTHHmm id, key sqlite, version 2.37.2, id-based filename under backups/, the install backup directory, a current createdAt and fileSize equal to the only file on disk."
+    },
+    {
+      "requirement": "cap-flow-backup-restore-swap",
+      "invariant": "INV-CAP-FLOW-BACKUP-RESTORE-SWAP",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "backup-create-apply-restores-database",
+      "sources": ["server/managers/BackupManager.js:200-266", "server/controllers/BackupController.js:166-168"],
+      "rationale": "Applying a backup taken before a rename answers 200, reads back the pre-rename library name, keeps the backup listed and keeps the caller's token valid."
+    },
+    {
+      "requirement": "cap-flow-backup-restore-swap",
+      "invariant": "INV-CAP-FLOW-BACKUP-RESTORE-SWAP",
+      "case": "error",
+      "state": "failure",
+      "assertion": "backup-route-auth-and-unknown-id",
+      "sources": ["server/controllers/BackupController.js:166-180", "server/routers/ApiRouter.js:200-206"],
+      "rationale": "Ordinary users get 403 on list/create/upload, anonymous list gets 401, unknown apply/delete ids get 404, and the backup list and library row are unchanged."
+    },
+    {
+      "requirement": "cap-flow-backup-restore-swap",
+      "invariant": "INV-CAP-FLOW-BACKUP-RESTORE-SWAP",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "backup-apply-repeat-idempotent",
+      "sources": ["server/managers/BackupManager.js:200-266"],
+      "rationale": "Applying the same backup twice answers 200 both times and leaves the restored library name and backup count unchanged."
+    },
+    {
+      "requirement": "cap-flow-backup-restore-swap",
+      "invariant": "INV-CAP-FLOW-BACKUP-RESTORE-SWAP",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "backup-apply-restores-users-and-library",
+      "sources": ["server/managers/BackupManager.js:214-266"],
+      "rationale": "Applying the backup removes a user created after it, reverts a later library rename and keeps the pre-existing root token authenticating."
+    },
+    {
+      "requirement": "cap-flow-backup-restore-swap",
+      "invariant": "INV-CAP-FLOW-BACKUP-RESTORE-SWAP",
+      "case": "error",
+      "state": "failure",
+      "assertion": "backup-hostile-archive-rejected",
+      "sources": ["server/managers/BackupManager.js:103-181", "server/controllers/BackupController.js:66-80"],
+      "rationale": "An archive without absdatabase.sqlite answers 500, a non-zip 400 and a wrong extension 500, with no backup entry, no leftover file, no library change and no backup_applied."
+    },
+    {
+      "requirement": "cap-event-backup-applied",
+      "invariant": "INV-CAP-EVENT-BACKUP-APPLIED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "backup-applied-emitted-to-all-authorized-sockets",
+      "sources": ["server/managers/BackupManager.js:263-266", "server/SocketAuthority.js:52-68"],
+      "rationale": "A successful apply delivers exactly one backup_applied to an admin and an ordinary authenticated socket and none to an unauthenticated socket."
+    },
+    {
+      "requirement": "cap-event-backup-applied",
+      "invariant": "INV-CAP-EVENT-BACKUP-APPLIED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "backup-applied-absent-on-rejected-apply",
+      "sources": ["server/controllers/BackupController.js:166-180", "server/managers/BackupManager.js:263-266"],
+      "rationale": "A forbidden apply, an unknown id and a rejected upload deliver no backup_applied to admin or ordinary sockets."
+    },
+    {
+      "requirement": "cap-event-backup-applied",
+      "invariant": "INV-CAP-EVENT-BACKUP-APPLIED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "backup-applied-single-null-argument",
+      "sources": ["server/managers/BackupManager.js:266", "server/SocketAuthority.js:57-67"],
+      "rationale": "The single apply event carries exactly one argument that serializes as null and decodes as nil, pinning the omitted data argument."
+    },
+    {
+      "requirement": "cap-event-backup-applied",
+      "invariant": "INV-CAP-EVENT-BACKUP-APPLIED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "backup-applied-first-apply-after-connect",
+      "sources": ["server/managers/BackupManager.js:263-266", "server/SocketAuthority.js:57-67"],
+      "rationale": "A socket connected after earlier applies receives exactly one event for the next apply it observes."
+    },
+    {
+      "requirement": "cap-event-backup-applied",
+      "invariant": "INV-CAP-EVENT-BACKUP-APPLIED",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "backup-applied-once-per-apply",
+      "sources": ["server/managers/BackupManager.js:266"],
+      "rationale": "Two successful applies deliver exactly two events to the same socket."
+    },
+    {
+      "requirement": "cap-event-backup-applied",
+      "invariant": "INV-CAP-EVENT-BACKUP-APPLIED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "backup-applied-not-replayed-to-late-socket",
+      "sources": ["server/managers/BackupManager.js:263-266", "server/SocketAuthority.js:57-67"],
+      "rationale": "A socket connected after an apply receives no replay of it and receives exactly one event for the next apply."
+    },
+    {
+      "requirement": "cap-event-backup-applied",
+      "invariant": "INV-CAP-EVENT-BACKUP-APPLIED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "backup-applied-absent-on-failed-swap",
+      "sources": ["server/managers/BackupManager.js:103-138", "server/managers/BackupManager.js:263-266"],
+      "rationale": "An archive that cannot be applied is rejected with 500, emits no backup_applied and leaves the backup list and library row unchanged."
+    },
+    {
+      "requirement": "socket-outgoing-backup-applied",
+      "invariant": "INV-SOCKET-OUTGOING-BACKUP-APPLIED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "socket-backup-applied-audiences",
+      "sources": ["server/managers/BackupManager.js:266", "server/SocketAuthority.js:52-68", "client/layouts/default.vue:471"],
+      "rationale": "Two admin sockets and one ordinary socket each receive one backup_applied while an unauthenticated socket receives none."
+    },
+    {
+      "requirement": "socket-outgoing-backup-applied",
+      "invariant": "INV-SOCKET-OUTGOING-BACKUP-APPLIED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "socket-backup-applied-non-admin-apply-silent",
+      "sources": ["server/controllers/BackupController.js:166-174", "server/managers/BackupManager.js:266"],
+      "rationale": "A forbidden apply by an ordinary user emits no backup_applied to admin, ordinary or anonymous sockets."
+    },
+    {
+      "requirement": "socket-outgoing-backup-applied",
+      "invariant": "INV-SOCKET-OUTGOING-BACKUP-APPLIED",
+      "case": "edge",
+      "state": "repeat",
+      "assertion": "socket-backup-applied-argument-list",
+      "sources": ["server/managers/BackupManager.js:266", "server/SocketAuthority.js:57-67"],
+      "rationale": "The broadcast event has exactly one JSON null argument for both an admin and a non-admin recipient."
+    },
+    {
+      "requirement": "socket-outgoing-backup-applied",
+      "invariant": "INV-SOCKET-OUTGOING-BACKUP-APPLIED",
+      "case": "normal",
+      "state": "initial",
+      "assertion": "socket-backup-applied-after-connect",
+      "sources": ["server/managers/BackupManager.js:266", "server/SocketAuthority.js:57-67"],
+      "rationale": "A fresh admin socket holds no earlier event and receives the next apply's single event."
+    },
+    {
+      "requirement": "socket-outgoing-backup-applied",
+      "invariant": "INV-SOCKET-OUTGOING-BACKUP-APPLIED",
+      "case": "normal",
+      "state": "repeat",
+      "assertion": "socket-backup-applied-each-apply-one-event",
+      "sources": ["server/managers/BackupManager.js:266"],
+      "rationale": "Two applies in a row deliver one event per apply to the same socket."
+    },
+    {
+      "requirement": "socket-outgoing-backup-applied",
+      "invariant": "INV-SOCKET-OUTGOING-BACKUP-APPLIED",
+      "case": "normal",
+      "state": "changed",
+      "assertion": "socket-backup-applied-late-socket-no-replay",
+      "sources": ["server/managers/BackupManager.js:263-266", "server/SocketAuthority.js:57-67"],
+      "rationale": "A late socket sees no past apply and then exactly one event for the next apply."
+    },
+    {
+      "requirement": "socket-outgoing-backup-applied",
+      "invariant": "INV-SOCKET-OUTGOING-BACKUP-APPLIED",
+      "case": "error",
+      "state": "failure",
+      "assertion": "socket-backup-applied-absent-on-failure",
+      "sources": ["server/managers/BackupManager.js:103-138", "server/managers/BackupManager.js:266"],
+      "rationale": "A rejected archive and an unknown backup id emit no backup_applied to admin, ordinary or anonymous sockets."
+    }
+  ],
+  "not_applicable": [
+    {
+      "requirement": "route-r011",
+      "facet": "state",
+      "reason": "confirmed: stateless public status read; the record's exception marks state scenarios not applicable and there is no persisted state to vary."
+    },
+    {
+      "requirement": "route-r012",
+      "facet": "state",
+      "reason": "confirmed: stateless ping route; no persisted state."
+    },
+    {
+      "requirement": "route-r013",
+      "facet": "state",
+      "reason": "confirmed: stateless healthcheck route; no persisted state."
+    },
+    {
+      "requirement": "route-r014",
+      "facet": "state",
+      "reason": "confirmed: static client serving on a read-only dist directory; the only state is the install's files, which the scenarios do not change."
+    },
+    {
+      "requirement": "route-r015",
+      "facet": "state",
+      "reason": "confirmed: stateless route-precedence contract; only the request's method and token vary."
+    },
+    {
+      "requirement": "route-r016",
+      "facet": "state",
+      "reason": "confirmed: the record is stateful false; the two state-dependent effects (isolation, rename freshness) are covered as the edge case instead."
+    },
+    {
+      "requirement": "runtime-lifecycle",
+      "facet": "force",
+      "reason": "confirmed: Server.js:227-236 has only SIGINT (a second signal exits the process early, which is not an override mode); there is no force/hard shutdown or restart variant to exercise."
+    },
+    {
+      "requirement": "cap-event-log",
+      "facet": "force",
+      "reason": "confirmed: Logger.js:83-87 delivers by subscription level only; SocketAuthority.js:201-210 has no force/override subscription."
+    },
+    {
+      "requirement": "cap-event-backup-applied",
+      "facet": "force",
+      "reason": "confirmed: BackupManager.js:200-273 applies or rejects an archive; no force/hard parameter exists on the apply route."
+    },
+    {
+      "requirement": "socket-outgoing-backup-applied",
+      "facet": "force",
+      "reason": "confirmed: the event follows a successful BackupManager apply (BackupManager.js:266); there is no force/override emission."
+    },
+    {
+      "requirement": "cap-flow-backup-restore-swap",
+      "facet": "force",
+      "reason": "confirmed: BackupManager apply has no force/override variant; an archive is applied or rejected."
+    }
+  ],
+  "open_findings": [
+    "route-r014: spa-client-routes-serve-entry claims and the invariant requires 'every listed client route', but only /, /library/:id, /library/:id/search, /library/:id/bookshelf[/:id], /library/:id/series, /item/:id, /author/:id, /config/users/:id, /collection/:id and /playlist/:id are exercised; /audiobook/:id/{chapters,edit,manage}, /library/:lib/{authors,narrators,stats}, /library/:lib/podcast/{search,latest,download-queue}, /config/users/:id/sessions, /config/item-metadata-utils/:id and /share/:slug (11 of the 21 Server.js:414-436 routes) are not requested, so a server that omits them still passes.",
+    "route-r014: spa-missing-asset-404-no-listing only checks that /favicon.ico's Content-Type is not exactly 'text/html; charset=UTF-8'; upstream sends image/x-icon and the entry document text/html; charset=UTF-8 (verified on the pinned server), so serving the SPA entry (or any 200 bytes) with 'text/html; charset=utf-8' still passes. Assert the icon MIME (image/x-icon) or the fixture file's bytes, otherwise the 'existing asset is served with its own type' element is unproven.",
+    "route-r016: libraries-list-and-conditional claims 'serves a random sort without the cache' but asserts only 200 and two entries, which a cache hit returns identically; the element is unobservable and is not in INV-ROUTE-R016-CACHE. Drop the clause or make the bypass observable.",
+    "route-r016: the invariant and libraries-user-isolation-and-write-freshness cite server/controllers/LibraryController.js:74-90, which is create() validation; findAll (the accessible-library filter the scenario proves) is LibraryController.js:188-205. Fix the record and scenario source.",
+    "protocol-cors-basepath: public-image-exception-boundary claims the ebook answers 401 'even with the mobile CORS grant pre-added' (INV-PROTOCOL-CORS-BASEPATH-PUBLIC-001), but both ebook requests carry no Origin header, so the grant is never present; send Origin: capacitor://localhost (pinned server still answers 401) to prove the grant does not open the ebook route.",
+    "runtime-lifecycle: INV-RUNTIME-LIFECYCLE-RESTART-001 says 'a repeated shutdown call keep serving', which contradicts Server.js:227-236 (a second SIGINT exits immediately); repeated-restart-cycles-keep-serving's second Env.Stop is a local no-op (harness/server.go:277-281 returns when no process) and never signals the server. Remove the repeated-shutdown clause or observe a real repeated signal.",
+    "runtime-lifecycle: restart-closes-open-sockets-and-welcomes-new claims 'a restart closes an authenticated socket connection', but Env.Stop closes e.sockets client-side before SIGINT (harness/server.go:284-289), so the old socket's server-side closure is never observed; only the new socket's auth+log delivery is asserted. Narrow the claim or assert the old socket's disconnect before the harness closes it.",
+    "runtime-lifecycle: shutdown-refuses-requests-not-half-graph (and failed-boot-exits-without-partial-install) use getUnavailable, which returns nil only for status 200 and os.ErrInvalid for any other HTTP answer (scenarios/server/lifecycle.go:16-27); a half-shutdown server that still listens and answers 404/500 therefore passes as 'refusing connections'. Require a transport error (no HTTP response).",
+    "runtime-lifecycle: failed-boot-exits-without-partial-install claims the install's config and metadata directories are untouched, but only dirNames(t, broken.Config) is asserted; the metadata directory named in the Claim is never inspected."
+  ]
+}
