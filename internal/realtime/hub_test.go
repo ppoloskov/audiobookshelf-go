@@ -1,0 +1,520 @@
+package realtime
+
+import (
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"golang.org/x/net/websocket"
+	"monstrobook/internal/auth"
+	"monstrobook/internal/config"
+	absdb "monstrobook/internal/db"
+	"monstrobook/internal/item"
+)
+
+func testDB(t *testing.T) *absdb.DB {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "realtime.sqlite")
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	db, err := absdb.Connect(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(context.Background(), `CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT, email TEXT, pash TEXT, type TEXT, token TEXT, isActive INTEGER, isLocked INTEGER, lastSeen DATETIME, permissions TEXT, bookmarks TEXT, extraData TEXT, createdAt DATETIME, updatedAt DATETIME)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(context.Background(), `INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt) VALUES ('user-1', 'alice', '', '', 'user', '', 1, 0, '1970-01-01 00:00:00.000 +00:00', '{"librariesAccessible":["lib-1"],"itemTagsSelected":["mystery"]}', '[]', '{}', '2020-01-01 00:00:00.000 +00:00', '1970-01-01 00:00:00.000 +00:00'), ('admin-1', 'root', '', '', 'admin', '', 1, 0, '1970-01-01 00:00:00.000 +00:00', '{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}', '[]', '{}', '2020-01-01 00:00:00.000 +00:00', '1970-01-01 00:00:00.000 +00:00'), ('limited-1', 'bob', '', '', 'user', '', 1, 0, '1970-01-01 00:00:00.000 +00:00', '{"librariesAccessible":["lib-2"],"itemTagsSelected":["mystery"]}', '[]', '{}', '2020-01-01 00:00:00.000 +00:00', '1970-01-01 00:00:00.000 +00:00')`); err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range []string{
+		`CREATE TABLE libraries (id TEXT, name TEXT, displayOrder INTEGER, icon TEXT, mediaType TEXT, provider TEXT, lastScan DATETIME, lastScanVersion TEXT, settings TEXT, extraData TEXT, createdAt DATETIME, updatedAt DATETIME)`,
+		`CREATE TABLE libraryFolders (id TEXT, path TEXT, libraryId TEXT, createdAt DATETIME, updatedAt DATETIME)`,
+		`CREATE TABLE settings (key TEXT, value TEXT)`,
+		`CREATE TABLE sessions (id TEXT, ipAddress TEXT, userAgent TEXT, refreshToken TEXT, expiresAt DATETIME, createdAt DATETIME, updatedAt DATETIME, userId TEXT, lastRefreshToken TEXT, lastRefreshTokenExpiresAt DATETIME)`,
+		`CREATE TABLE apiKeys (id TEXT, isActive INTEGER, expiresAt DATETIME, lastUsedAt DATETIME, userId TEXT, updatedAt DATETIME)`,
+	} {
+		if _, err := db.Exec(context.Background(), statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	return db
+}
+
+// fakeBackend is a Backend with replaceable behaviour; unset parts do nothing.
+type fakeBackend struct {
+	d       *absdb.DB
+	auth    func(*http.Request) (*auth.Principal, error)
+	session func(string) any
+
+	cancelScan        func(string)
+	removeLogListener func(string)
+	actions           chan string // "<action> <argument>" of the other actions
+}
+
+func (f *fakeBackend) Authenticate(r *http.Request) (*auth.Principal, error) {
+	if f.auth == nil {
+		return nil, errors.New("no auth")
+	}
+	return f.auth(r)
+}
+func (f *fakeBackend) DB() *absdb.DB { return f.d }
+func (f *fakeBackend) Session(id string) any {
+	if f.session == nil {
+		return nil
+	}
+	return f.session(id)
+}
+func (f *fakeBackend) CancelScan(id string) {
+	if f.cancelScan != nil {
+		f.cancelScan(id)
+	}
+}
+func (f *fakeBackend) SetLogListener(socketID string, level int) {
+	f.record("set_log_listener " + strconv.Itoa(level))
+}
+func (f *fakeBackend) RemoveLogListener(socketID string) {
+	if f.removeLogListener != nil {
+		f.removeLogListener(socketID)
+	}
+}
+func (f *fakeBackend) SearchCovers(search CoverSearch, _ Reply) {
+	f.record("search_covers " + search.Title)
+}
+func (f *fakeBackend) CancelCoverSearch(id string, _ Reply) { f.record("cancel_cover_search " + id) }
+func (f *fakeBackend) record(action string) {
+	if f.actions != nil {
+		f.actions <- action
+	}
+}
+
+func newTestHub(cfg config.Config, b *fakeBackend) *Hub {
+	return New(cfg, func() Backend { return b })
+}
+
+// probeItem is a book of library lib with the given flags.
+func probeItem(lib string, explicit bool, tags ...string) item.Expanded {
+	return item.Expanded{Head: item.Head{ID: "li-" + lib, LibraryID: lib},
+		Media: item.BookExpanded{ID: "book-1", Tags: tags, Metadata: item.BookMetadataExpanded{Explicit: explicit}}}
+}
+
+func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
+	if err := exec.Command("node", "-e", "require('socket.io-client')").Run(); err != nil {
+		t.Skip("socket.io-client@4 is not installed; set NODE_PATH to a directory containing it")
+	}
+	db := testDB(t)
+	secret := "realtime-integration-secret"
+	authHandler, err := auth.New(db, nil, nil, config.Config{JWTSecret: secret})
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := &fakeBackend{d: db, auth: authHandler.Authenticate}
+	hub := newTestHub(config.Config{RouterBasePath: "/abs"}, backend)
+	backend.cancelScan = func(string) { hub.Emit("*", "probe_item", probeItem("lib-1", false, "mystery")) }
+	defer hub.Close()
+	server := httptest.NewServer(hub)
+	defer server.Close()
+	const probe = `
+const assert = require('node:assert/strict');
+const { io } = require('socket.io-client');
+const base = process.env.ABS_PROBE_URL;
+const once = (socket, name) => new Promise((resolve, reject) => {
+  const finish = (fn, value) => { clearTimeout(timer); socket.off(name, onValue); socket.off('connect_error', onError); fn(value); };
+  const timer = setTimeout(() => finish(reject, new Error('timeout waiting for ' + name)), 5000);
+  const onValue = value => finish(resolve, value);
+  const onError = error => finish(reject, error);
+  socket.once(name, onValue);
+  socket.once('connect_error', onError);
+});
+async function connect(path, token, opts, id, username) {
+  const client = io(base, { path, timeout: 4000, ...opts });
+  const seen = [];
+  const diagnostics = [];
+  client.onAny(event => seen.push(event));
+  client.on('disconnect', reason => diagnostics.push('disconnect: ' + reason));
+  client.on('connect_error', error => diagnostics.push('connect_error: ' + error.message));
+  await once(client, 'connect');
+  console.log('connected', path, client.io.engine.transport.name);
+  const initPromise = once(client, 'init');
+  let authFailure;
+  client.once('auth_failed', value => { authFailure = value; });
+		client.emit('auth', token);
+  const init = await initPromise;
+  assert.equal(authFailure, undefined, 'authentication failed: ' + JSON.stringify(authFailure));
+  console.log('inited', path, JSON.stringify(init));
+  assert.equal(init.userId, id);
+  assert.equal(init.username, username);
+  if (id === 'admin-1') assert(Array.isArray(init.usersOnline));
+  const pong = once(client, 'pong');
+  client.emit('ping');
+  await pong.catch(error => {
+    const engine = client.io.engine;
+    throw new Error(error.message + '; path=' + path + '; user=' + id + '; connected=' + client.connected + '; transport=' + engine?.transport?.name + '; readyState=' + engine?.readyState + '; events=' + JSON.stringify(seen) + '; diagnostics=' + JSON.stringify(diagnostics));
+  });
+  console.log('pong', path);
+  assert.equal(client.io.engine.transport.name, 'websocket');
+  return { client, seen, diagnostics };
+}
+(async () => {
+  const admin = await connect('/socket.io', process.env.ABS_ADMIN_TOKEN, { transports: ['websocket'] }, 'admin-1', 'root');
+  const alice = await connect('/abs/socket.io', process.env.ABS_USER_TOKEN, { transports: ['websocket'] }, 'user-1', 'alice');
+  const restricted = await connect('/socket.io', process.env.ABS_LIMITED_TOKEN, { transports: ['websocket'] }, 'limited-1', 'bob');
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert(admin.seen.some(event => event === 'user_online'), 'admin did not receive user_online');
+  assert(!alice.seen.includes('user_online'), 'non-admin received admin-only user_online');
+  const allowedItem = once(alice.client, 'probe_item');
+  admin.client.emit('cancel_scan', 'lib-1');
+  await allowedItem;
+  await new Promise(resolve => setTimeout(resolve, 200));
+  assert(!restricted.seen.includes('probe_item'), 'broadcast crossed library permission boundary');
+  admin.client.disconnect(); alice.client.disconnect(); restricted.client.disconnect();
+  console.log('Socket.IO4 protocol, auth, recipient scope, and permission fanout passed');
+  process.exit(0);
+})().catch(error => { console.error(error); process.exit(1); });
+`
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "node", "-e", probe)
+	cmd.Env = append(cmd.Environ(),
+		"ABS_PROBE_URL="+server.URL,
+		"ABS_ADMIN_TOKEN="+signedToken(t, secret, map[string]any{"type": "access", "userId": "admin-1", "username": "root", "jti": "admin-jti"}),
+		"ABS_USER_TOKEN="+signedToken(t, secret, map[string]any{"type": "access", "userId": "user-1", "username": "alice", "jti": "user-jti"}),
+		"ABS_LIMITED_TOKEN="+signedToken(t, secret, map[string]any{"type": "access", "userId": "limited-1", "username": "bob", "jti": "limited-jti"}),
+	)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Socket.IO client probe failed: %v (ctx error: %v)\n%s", err, ctx.Err(), output)
+	}
+	var stamps struct {
+		LastSeen  string `db:"lastSeen"`
+		UpdatedAt string `db:"updatedAt"`
+	}
+	if err := db.Get(context.Background(), &stamps, `SELECT lastSeen, updatedAt FROM users WHERE id='user-1'`); err != nil {
+		t.Fatal(err)
+	}
+	lastSeen, updatedAt := stamps.LastSeen, stamps.UpdatedAt
+	if _, err := time.Parse("2006-01-02 15:04:05.000 -07:00", lastSeen); err != nil {
+		t.Fatalf("Socket.IO auth wrote a non-Sequelize lastSeen value %q: %v", lastSeen, err)
+	}
+	if _, err := time.Parse("2006-01-02 15:04:05.000 -07:00", updatedAt); err != nil {
+		t.Fatalf("Socket.IO auth wrote a non-Sequelize updatedAt value %q: %v", updatedAt, err)
+	}
+}
+
+func signedToken(t *testing.T, secret string, claims map[string]any) string {
+	t.Helper()
+	header, err := json.Marshal(map[string]string{"alg": "HS256", "typ": "JWT"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(claims)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encode := base64.RawURLEncoding.EncodeToString
+	unsigned := encode(header) + "." + encode(payload)
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write([]byte(unsigned))
+	return unsigned + "." + encode(mac.Sum(nil))
+}
+
+// sentinel is emitted to everyone after a probe; events reach one connection in
+// order, so reading up to it shows exactly what was delivered.
+var marks atomic.Int64
+
+// mark emits a sentinel to everyone and returns its id for collect.
+func mark(srv *sioServer) string {
+	id := strconv.FormatInt(marks.Add(1), 10)
+	srv.hub.Emit("*", "sentinel", id)
+	return id
+}
+
+func collect(t *testing.T, ws *websocket.Conn, name, mark string) []event {
+	t.Helper()
+	var got []event
+	for {
+		e := next(t, ws)
+		if e.name == "sentinel" && string(e.payload) == `"`+mark+`"` {
+			return got
+		}
+		if e.name == name {
+			got = append(got, e)
+		}
+	}
+}
+
+func TestSocketPathsLegacyAndPrefixed(t *testing.T) {
+	srv := testServer(t)
+	if got, want := strings.Join(srv.hub.Paths(), ","), "/socket.io,/abs/socket.io"; got != want {
+		t.Fatalf("Paths() = %q, want %q", got, want)
+	}
+	prefixed := strings.Replace(srv.url, "/socket.io/", "/abs/socket.io/", 1)
+	ws, _ := connect(t, prefixed)
+	if init := login(t, ws, "tok-alice"); init["userId"] != "user-1" {
+		t.Fatalf("init on the prefixed path = %v", init)
+	}
+	response := httptest.NewRecorder()
+	srv.hub.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/elsewhere", nil))
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("unknown path status = %d, want 404", response.Code)
+	}
+}
+
+// Socket authentication (SocketAuthority.js authenticateSocket): only a valid,
+// active user gets init; everyone else is told and stays anonymous, receiving
+// no user-addressed or broadcast events.
+func TestSocketAuthentication(t *testing.T) {
+	srv := testServer(t)
+	for _, tc := range []struct{ send, message string }{
+		{`42["auth","tok-nobody"]`, "Invalid token"},
+		{`42["auth",""]`, "Invalid token"},
+		{`42["auth"]`, "Invalid token"},
+		{`42["auth","tok-inactive"]`, "Invalid user"},
+	} {
+		ws, _ := connect(t, srv.url)
+		send(t, ws, tc.send)
+		e := next(t, ws)
+		var body map[string]string
+		_ = json.Unmarshal(e.payload, &body)
+		if e.name != "auth_failed" || body["message"] == "" {
+			t.Errorf("%s -> %s %s, want auth_failed", tc.send, e.name, e.payload)
+			continue
+		}
+		if tc.message == "Invalid user" && body["message"] != tc.message {
+			t.Errorf("%s -> %q, want %q", tc.send, body["message"], tc.message)
+		}
+		srv.hub.Emit("*", "broadcast", map[string]any{"message": "x"})
+		srv.hub.Emit("user-1", "mine", 1)
+		mark(srv)
+		// An unauthenticated socket receives nothing, not even the sentinel.
+		_ = ws.SetReadDeadline(time.Now().Add(150 * time.Millisecond))
+		var msg string
+		for websocket.Message.Receive(ws, &msg) == nil {
+			if strings.HasPrefix(msg, "42") {
+				t.Errorf("%s: unauthenticated socket received %q", tc.send, msg)
+			}
+		}
+	}
+	// A valid login records lastSeen and tells admins (only) the user is online.
+	admin, _ := connect(t, srv.url)
+	if init := login(t, admin, "tok-admin"); init["usersOnline"] == nil {
+		t.Fatalf("admin init lacks usersOnline: %v", init)
+	}
+	alice, _ := connect(t, srv.url)
+	if init := login(t, alice, "tok-alice"); init["usersOnline"] != nil || init["username"] != "alice" {
+		t.Fatalf("user init = %v", init)
+	}
+	if e := next(t, admin); e.name != "user_online" {
+		t.Fatalf("admin got %s, want user_online", e.name)
+	}
+	var lastSeen string
+	if err := srv.backend.d.Get(context.Background(), &lastSeen, `SELECT lastSeen FROM users WHERE id='user-1'`); err != nil || lastSeen == "1970-01-01 00:00:00.000 +00:00" {
+		t.Fatalf("lastSeen = %q err=%v", lastSeen, err)
+	}
+	if got := collect(t, alice, "user_online", mark(srv)); len(got) != 0 {
+		t.Fatalf("non-admin received user_online: %v", got)
+	}
+}
+
+// Item events reach only sockets whose user may see the item: library, tags
+// and explicit content are checked, collections need only the library, and a
+// payload that cannot be classified is withheld.
+func TestBroadcastsRespectLibraryTagAndExplicitPermissions(t *testing.T) {
+	srv := testServer(t)
+	conns := map[string]*websocket.Conn{}
+	for _, who := range []string{"alice", "bob", "admin"} {
+		ws, _ := connect(t, srv.url)
+		login(t, ws, "tok-"+who)
+		conns[who] = ws
+	}
+	m := mark(srv) // drains the user_online announcements of the logins
+	for _, ws := range conns {
+		collect(t, ws, "", m)
+	}
+	book := probeItem
+	collection := scopedPayload{"lib-1"}
+	cases := []struct {
+		name            string
+		payload         any
+		alice, bob, adm int // number of items delivered (-1: not delivered at all); lists count elements
+	}{
+		{"allowed book", book("lib-1", false, "mystery"), 1, -1, 1},
+		{"other library", book("lib-2", false, "mystery"), -1, 1, 1},
+		{"tag not selected", book("lib-1", false, "romance"), -1, -1, 1},
+		{"explicit without permission", book("lib-1", true, "mystery"), -1, -1, 1},
+		{"podcast with accessible tag", item.Minified{Head: item.Head{LibraryID: "lib-1"}, Media: item.PodcastMinified{PodcastSettings: item.PodcastSettings{ID: "p1", Tags: []string{"mystery"}}}}, 1, -1, 1},
+		{"untyped map is global", map[string]any{"libraryId": "lib-1", "media": map[string]any{"tags": []any{"mystery"}}}, 1, 1, 1},
+		{"global message", map[string]any{"message": "global"}, 1, 1, 1},
+		{"collection in library", collection, 1, -1, 1},
+		{"typed item list", []item.Expanded{book("lib-1", false, "mystery"), book("lib-2", false, "mystery")}, 1, 1, 2},
+	}
+	count := func(e event) int {
+		var list []json.RawMessage
+		if json.Unmarshal(e.payload, &list) == nil {
+			return len(list)
+		}
+		return 1
+	}
+	for _, tc := range cases {
+		srv.hub.Emit("*", "probe", tc.payload)
+		m := mark(srv)
+		for who, want := range map[string]int{"alice": tc.alice, "bob": tc.bob, "admin": tc.adm} {
+			got := collect(t, conns[who], "probe", m)
+			switch {
+			case want < 0 && len(got) != 0:
+				t.Errorf("%s: %s received %s", tc.name, who, got[0].payload)
+			case want >= 0 && len(got) != 1:
+				t.Errorf("%s: %s got %d probe events, want 1", tc.name, who, len(got))
+			case want >= 0 && count(got[0]) != want && tc.name != "global message":
+				t.Errorf("%s: %s got %d items, want %d", tc.name, who, count(got[0]), want)
+			}
+		}
+	}
+	// A collection needs only library access, not tag permissions.
+	if _, err := srv.backend.d.Exec(context.Background(), `UPDATE users SET permissions='{"librariesAccessible":["lib-1"]}' WHERE id='user-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {
+		t.Fatal(err)
+	}
+	srv.hub.Emit("*", "probe", collection)
+	if got := collect(t, conns["alice"], "probe", mark(srv)); len(got) != 1 {
+		t.Fatalf("library-only user got %d collection events, want 1", len(got))
+	}
+}
+
+// Refresh (permissions changed, user deactivated or deleted) takes effect on
+// live sockets: new permissions apply at once and a revoked user is
+// disconnected and told admins are informed.
+func TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers(t *testing.T) {
+	srv := testServer(t)
+	admin, _ := connect(t, srv.url)
+	login(t, admin, "tok-admin")
+	alice, aliceID := connect(t, srv.url)
+	login(t, alice, "tok-alice")
+	next(t, admin) // user_online
+	probe := probeItem("lib-1", false, "mystery")
+
+	srv.hub.Emit("*", "probe", probe)
+	m := mark(srv)
+	if got := collect(t, alice, "probe", m); len(got) != 1 {
+		t.Fatalf("before revocation alice got %d probes", len(got))
+	}
+	collect(t, admin, "", m)
+
+	if _, err := srv.backend.d.Exec(context.Background(), `UPDATE users SET permissions='{"librariesAccessible":["lib-2"]}' WHERE id='user-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {
+		t.Fatal(err)
+	}
+	srv.hub.Emit("*", "probe", probe)
+	m = mark(srv)
+	if got := collect(t, alice, "probe", m); len(got) != 0 {
+		t.Fatalf("alice still receives lib-1 items after losing access: %v", got)
+	}
+	collect(t, admin, "", m)
+
+	if _, err := srv.backend.d.Exec(context.Background(), `DELETE FROM users WHERE id='user-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {
+		t.Fatal(err)
+	}
+	expectClosed(t, alice)
+	srv.waitDisconnect(t, aliceID)
+	if e := next(t, admin); e.name != "user_offline" {
+		t.Fatalf("admin got %s, want user_offline", e.name)
+	}
+	// Refreshing a user nobody is connected as is harmless.
+	if err := srv.hub.Refresh(context.Background(), "nobody"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// UsersOnline asks the backend for each user's playback session; that lookup
+// may itself change hub state (a stream update, Refresh) and must not run under
+// the hub's lock.
+func TestUsersOnlineListsConnectionsAndToleratesReentrantLookups(t *testing.T) {
+	srv := testServer(t)
+	for i := 0; i < 2; i++ {
+		ws, _ := connect(t, srv.url)
+		login(t, ws, "tok-alice")
+	}
+	srv.backend.session = func(userID string) any {
+		if userID != "user-1" {
+			t.Errorf("session lookup user=%q", userID)
+		}
+		_ = srv.hub.Refresh(context.Background(), "user-1") // takes the hub's write lock
+		return map[string]any{"id": "session-1"}
+	}
+	done := make(chan []OnlineUser, 1)
+	go func() { done <- srv.hub.UsersOnline() }()
+	select {
+	case users := <-done:
+		if len(users) != 1 || users[0].Connections != 2 || users[0].Session.(map[string]any)["id"] != "session-1" {
+			t.Fatalf("online users=%v", users)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("playback lookup deadlocked under the hub lock")
+	}
+}
+
+// Client actions are decoded into typed arguments; a malformed payload is
+// ignored, and the admin-only ones need an administrator.
+func TestClientActionsAreTypedAndChecked(t *testing.T) {
+	srv := testServer(t)
+	admin, _ := connect(t, srv.url)
+	login(t, admin, "tok-admin")
+	alice, _ := connect(t, srv.url)
+	login(t, alice, "tok-alice")
+	next(t, admin) // user_online
+
+	for _, frame := range []string{
+		`42["set_log_listener","3"]`, `42["set_log_listener",7]`, `42["set_log_listener",2.5]`, `42["cancel_scan"]`, `42["cancel_scan",5]`,
+		`42["cancel_cover_search",{"a":1}]`,
+	} {
+		send(t, admin, frame)
+	}
+	send(t, alice, `42["set_log_listener",3]`)
+	send(t, alice, `42["message_all_users",{"message":"no"}]`)
+	send(t, admin, `42["set_log_listener",4]`)
+	send(t, admin, `42["cancel_cover_search","req-1"]`)
+	for _, want := range []string{"set_log_listener 4", "cancel_cover_search req-1"} {
+		select {
+		case got := <-srv.actions:
+			if got != want {
+				t.Fatalf("action = %q, want %q (malformed or unauthorised payloads must be ignored)", got, want)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("action %q never ran", want)
+		}
+	}
+	send(t, admin, `42["message_all_users",{"message":"hello"}]`)
+	if e := next(t, alice); e.name != "admin_message" || string(e.payload) != `"hello"` {
+		t.Fatalf("alice got %s %s, want admin_message", e.name, e.payload)
+	}
+	// Cover searches report bad requests to the asker only.
+	send(t, alice, `42["search_covers",{"requestId":"r1"}]`)
+	if e := next(t, alice); e.name != "cover_search_error" || string(e.payload) != `{"requestId":"r1","error":"Invalid request parameters"}` {
+		t.Fatalf("got %s %s", e.name, e.payload)
+	}
+	send(t, alice, `42["search_covers",{"requestId":"r2","title":"Dune"}]`)
+	if got := <-srv.actions; got != "search_covers Dune" {
+		t.Fatalf("action = %q", got)
+	}
+}

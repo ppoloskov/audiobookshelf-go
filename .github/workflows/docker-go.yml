@@ -1,15 +1,31 @@
 name: Build and Push Go Docker Image
 
-# Builds ghcr.io/<owner>/audiobookshelf-go: the stock web client served by the
-# Go server in go-backend/ (see Dockerfile.go). Pull requests build the image
-# but never push it.
+# Builds ghcr.io/<owner>/monstrobook: the official v2.37.2 web client served by
+# the Monstrobook Go server (see Dockerfile). Pull requests build the image
+# without pushing.
 
 on:
   push:
     branches: [master]
     tags:
       - 'v*'
+    paths:
+      - 'Dockerfile'
+      - 'go.mod'
+      - 'go.sum'
+      - 'cmd/**'
+      - 'internal/**'
+      - '.github/workflows/docker-go.yml'
+      - '.github/workflows/go-backend.yml'
   pull_request:
+    paths:
+      - 'Dockerfile'
+      - 'go.mod'
+      - 'go.sum'
+      - 'cmd/**'
+      - 'internal/**'
+      - '.github/workflows/docker-go.yml'
+      - '.github/workflows/go-backend.yml'
   workflow_dispatch:
 
 concurrency:
@@ -45,7 +61,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/audiobookshelf-go
+          images: ghcr.io/${{ github.repository_owner }}/monstrobook
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha
@@ -70,7 +86,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.go
+          file: Dockerfile
           build-args: |
             VCS_REF=${{ github.sha }}
           platforms: linux/amd64,linux/arm64

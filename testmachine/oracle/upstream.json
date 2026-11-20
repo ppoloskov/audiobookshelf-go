@@ -1,0 +1,6 @@
+{
+  "repo": "https://github.com/advplyr/audiobookshelf.git",
+  "version": "2.37.2",
+  "commit": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "image": "ghcr.io/advplyr/audiobookshelf:2.37.2"
+}

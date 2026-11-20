@@ -25,7 +25,7 @@ linters:
         - (*database/sql.Rows).Close
         - (net.Conn).Close
         - (net.Listener).Close
-        - (*audiobookshelf-compat/internal/db.DB).Close
+        - (*monstrobook/internal/db.DB).Close
         # WebSocket client connections in tests.
         - (*golang.org/x/net/websocket.Conn).Close
         - os.Remove
