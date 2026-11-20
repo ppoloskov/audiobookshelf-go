@@ -229,7 +229,7 @@ func (b *Book) tracks(itemID string) []AudioTrack {
 		if file.Exclude {
 			continue
 		}
-		tracks = append(tracks, newTrack(itemID, file, file.Index, offset))
+		tracks = append(tracks, newTrack(itemID, file, int64(file.Index), offset))
 		offset += db.Val(file.Duration)
 	}
 	return tracks

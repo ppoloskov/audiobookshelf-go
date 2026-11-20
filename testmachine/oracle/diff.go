@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"math"
 	"mime"
 	"mime/multipart"
@@ -46,6 +47,8 @@ type Correspondence struct {
 	mu          sync.RWMutex
 	tsInstall   string
 	goInstall   string
+	tsServerURL string
+	goServerURL string
 	tsHTTPURL   string
 	goHTTPURL   string
 	tsSMTPAddr  string
@@ -73,6 +76,18 @@ func NewCorrespondence(tsInstall, goInstall string) *Correspondence {
 		tsInodes:    make(map[string]string),
 		goInodes:    make(map[string]string),
 	}
+}
+
+// RegisterServerURLs records the TypeScript and Go server base URLs so
+// absolute self-links (such as RSS feed URLs) normalize identically.
+func (c *Correspondence) RegisterServerURLs(tsURL, goURL string) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.tsServerURL = strings.TrimRight(tsURL, "/")
+	c.goServerURL = strings.TrimRight(goURL, "/")
 }
 
 // RegisterStubs records the per-side stub HTTP URLs and SMTP addresses/ports
@@ -272,11 +287,13 @@ func (c *Correspondence) NormalizeString(side, s string) string {
 	}
 	c.mu.RLock()
 	install := c.tsInstall
+	serverURL := c.tsServerURL
 	httpURL := c.tsHTTPURL
 	smtpAddr := c.tsSMTPAddr
 	inodes := c.tsInodes
 	if side == "go" {
 		install = c.goInstall
+		serverURL = c.goServerURL
 		httpURL = c.goHTTPURL
 		smtpAddr = c.goSMTPAddr
 		inodes = c.goInodes
@@ -298,6 +315,9 @@ func (c *Correspondence) NormalizeString(side, s string) string {
 	}
 	if httpURL != "" {
 		s = strings.ReplaceAll(s, httpURL, "<stub_http>")
+	}
+	if serverURL != "" {
+		s = strings.ReplaceAll(s, serverURL, "<server_url>")
 	}
 	if smtpAddr != "" {
 		s = strings.ReplaceAll(s, smtpAddr, "<stub_smtp>")
@@ -581,9 +601,13 @@ func (d *Differ) diffHTTPBody(step string, tsResp, goResp Response) []Finding {
 	if isTextBody(tsCT, tsResp.Body) && isTextBody(goCT, goResp.Body) {
 		tsText := d.Corr.NormalizeString("ts", string(tsResp.Body))
 		goText := d.Corr.NormalizeString("go", string(goResp.Body))
-		if isXMLBody(tsCT, tsResp.Body) && isXMLBody(goCT, goResp.Body) {
+		isXML := isXMLBody(tsCT, tsResp.Body) && isXMLBody(goCT, goResp.Body)
+		if isXML {
 			tsText = normalizeXML(tsText)
 			goText = normalizeXML(goText)
+			if tsText != goText && equalXMLWithPubDateTolerance(tsText, goText, 5*time.Second) {
+				return nil
+			}
 		}
 		if tsText != goText {
 			return []Finding{{
@@ -706,6 +730,19 @@ func (d *Differ) diffJSON(step, surface, path string, tsVal, goVal any) []Findin
 		gv, ok := goVal.(map[string]any)
 		if !ok {
 			return []Finding{typeMismatchFinding(step, surface, path, tsVal, goVal)}
+		}
+		// The "discover" personalized shelf uses ORDER BY RANDOM() on both TS and Go;
+		// sort its entities by ID so the set of items is compared deterministically.
+		if tv["id"] == "discover" && gv["id"] == "discover" {
+			if te, ok1 := tv["entities"].([]any); ok1 {
+				if ge, ok2 := gv["entities"].([]any); ok2 {
+					tvCopy := maps.Clone(tv)
+					gvCopy := maps.Clone(gv)
+					tvCopy["entities"] = sortJSONObjectsByID(d.Corr, "ts", te)
+					gvCopy["entities"] = sortJSONObjectsByID(d.Corr, "go", ge)
+					return d.diffJSONObject(step, surface, path, tvCopy, gvCopy)
+				}
+			}
 		}
 		return d.diffJSONObject(step, surface, path, tv, gv)
 	case []any:
@@ -1701,32 +1738,17 @@ func isXMLBody(ct string, body []byte) bool {
 	return bytes.HasPrefix(bytes.TrimSpace(body), []byte("<?xml"))
 }
 
-// normalizeXML strips whitespace-only spans between XML tags while preserving
-// tag names, attributes, text content, CDATA sections, and comments verbatim.
+// normalizeXML strips whitespace-only spans between XML tags, collapses empty
+// elements (<tag ...></tag> -> <tag .../>), canonicalizes numeric quote
+// entities outside CDATA/comments, and normalizes valid RFC1123
+// <lastBuildDate> timestamps.
 func normalizeXML(s string) string {
 	s = strings.TrimSpace(s)
 	var b strings.Builder
 	b.Grow(len(s))
 	i := 0
 	for i < len(s) {
-		if strings.HasPrefix(s[i:], "<![CDATA[") {
-			end := strings.Index(s[i+len("<![CDATA["):], "]]>")
-			if end < 0 {
-				b.WriteString(s[i:])
-				break
-			}
-			endIdx := i + len("<![CDATA[") + end + len("]]>")
-			b.WriteString(s[i:endIdx])
-			i = endIdx
-			continue
-		}
-		if strings.HasPrefix(s[i:], "<!--") {
-			end := strings.Index(s[i+len("<!--"):], "-->")
-			if end < 0 {
-				b.WriteString(s[i:])
-				break
-			}
-			endIdx := i + len("<!--") + end + len("-->")
+		if endIdx, ok := xmlVerbatimSpanEnd(s, i); ok {
 			b.WriteString(s[i:endIdx])
 			i = endIdx
 			continue
@@ -1747,7 +1769,180 @@ func normalizeXML(s string) string {
 		b.WriteByte(s[i])
 		i++
 	}
+	return normalizeXMLPostPass(b.String())
+}
+
+// xmlVerbatimSpanEnd checks if s[i:] begins a CDATA section or XML comment and
+// returns its exclusive end index.
+func xmlVerbatimSpanEnd(s string, i int) (int, bool) {
+	switch {
+	case strings.HasPrefix(s[i:], "<![CDATA["):
+		end := strings.Index(s[i+len("<![CDATA["):], "]]>")
+		if end < 0 {
+			return len(s), true
+		}
+		return i + len("<![CDATA[") + end + len("]]>"), true
+	case strings.HasPrefix(s[i:], "<!--"):
+		end := strings.Index(s[i+len("<!--"):], "-->")
+		if end < 0 {
+			return len(s), true
+		}
+		return i + len("<!--") + end + len("-->"), true
+	default:
+		return 0, false
+	}
+}
+
+func normalizeXMLPostPass(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		if endIdx, ok := xmlVerbatimSpanEnd(s, i); ok {
+			b.WriteString(s[i:endIdx])
+			i = endIdx
+			continue
+		}
+		if strings.HasPrefix(s[i:], "<?") {
+			end := strings.Index(s[i+2:], "?>")
+			if end < 0 {
+				b.WriteString(s[i:])
+				break
+			}
+			endIdx := i + 2 + end + 2
+			b.WriteString(s[i:endIdx])
+			i = endIdx
+			continue
+		}
+		if strings.HasPrefix(s[i:], "&#34;") {
+			b.WriteString("&quot;")
+			i += len("&#34;")
+			continue
+		}
+		if strings.HasPrefix(s[i:], "&#39;") {
+			b.WriteString("&apos;")
+			i += len("&#39;")
+			continue
+		}
+		if strings.HasPrefix(s[i:], "<lastBuildDate>") {
+			closeIdx := strings.Index(s[i+len("<lastBuildDate>"):], "</lastBuildDate>")
+			if closeIdx >= 0 {
+				inner := s[i+len("<lastBuildDate>") : i+len("<lastBuildDate>")+closeIdx]
+				if _, ok := parseRSSDate(inner); ok {
+					b.WriteString("<lastBuildDate><rfc1123></lastBuildDate>")
+					i += len("<lastBuildDate>") + closeIdx + len("</lastBuildDate>")
+					continue
+				}
+			}
+		}
+		if s[i] == '<' && i+1 < len(s) && s[i+1] != '/' && s[i+1] != '!' {
+			if tagName, gtIdx, ok := parseXMLStartTag(s, i); ok && gtIdx > i && s[gtIdx-1] != '/' {
+				closing := "</" + tagName + ">"
+				if strings.HasPrefix(s[gtIdx+1:], closing) {
+					b.WriteString(s[i:gtIdx])
+					b.WriteString("/>")
+					i = gtIdx + 1 + len(closing)
+					continue
+				}
+			}
+		}
+		b.WriteByte(s[i])
+		i++
+	}
 	return b.String()
+}
+
+func parseXMLStartTag(s string, start int) (tagName string, gtIdx int, ok bool) {
+	if start >= len(s) || s[start] != '<' {
+		return "", 0, false
+	}
+	nameStart := start + 1
+	nameEnd := nameStart
+	for nameEnd < len(s) && !isXMLWhitespace(s[nameEnd]) && s[nameEnd] != '>' && s[nameEnd] != '/' {
+		nameEnd++
+	}
+	if nameEnd == nameStart {
+		return "", 0, false
+	}
+	tagName = s[nameStart:nameEnd]
+	var quote byte
+	for j := nameEnd; j < len(s); j++ {
+		c := s[j]
+		if quote != 0 {
+			if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		if c == '"' || c == '\'' {
+			quote = c
+			continue
+		}
+		if c == '>' {
+			return tagName, j, true
+		}
+	}
+	return "", 0, false
+}
+
+func parseRSSDate(raw string) (time.Time, bool) {
+	trimmed := strings.TrimSpace(raw)
+	for _, layout := range []string{time.RFC1123, time.RFC1123Z, "Mon, 2 Jan 2006 15:04:05 MST", "Mon, 2 Jan 2006 15:04:05 -0700"} {
+		if t, err := time.Parse(layout, trimmed); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
+}
+
+func equalXMLWithPubDateTolerance(tsXML, goXML string, tol time.Duration) bool {
+	tsSkel, tsDates, okTS := extractXMLPubDates(tsXML)
+	goSkel, goDates, okGo := extractXMLPubDates(goXML)
+	if !okTS || !okGo || tsSkel != goSkel || len(tsDates) != len(goDates) {
+		return false
+	}
+	for i := range tsDates {
+		diff := tsDates[i].Sub(goDates[i])
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff > tol {
+			return false
+		}
+	}
+	return true
+}
+
+func extractXMLPubDates(s string) (string, []time.Time, bool) {
+	var b strings.Builder
+	var dates []time.Time
+	b.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		if endIdx, ok := xmlVerbatimSpanEnd(s, i); ok {
+			b.WriteString(s[i:endIdx])
+			i = endIdx
+			continue
+		}
+		if strings.HasPrefix(s[i:], "<pubDate>") {
+			closeIdx := strings.Index(s[i+len("<pubDate>"):], "</pubDate>")
+			if closeIdx < 0 {
+				return "", nil, false
+			}
+			inner := s[i+len("<pubDate>") : i+len("<pubDate>")+closeIdx]
+			t, ok := parseRSSDate(inner)
+			if !ok {
+				return "", nil, false
+			}
+			dates = append(dates, t)
+			b.WriteString("<pubDate><rfc1123></pubDate>")
+			i += len("<pubDate>") + closeIdx + len("</pubDate>")
+			continue
+		}
+		b.WriteByte(s[i])
+		i++
+	}
+	return b.String(), dates, true
 }
 
 func isXMLWhitespace(c byte) bool {

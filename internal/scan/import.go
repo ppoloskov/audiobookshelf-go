@@ -435,51 +435,94 @@ func (s *Scanner) saveBook(ctx context.Context, p *plan) (item.ScanLinks, error)
 }
 
 // savePodcast inserts the podcast, drops the episodes whose file left the
-// folder and adds one episode per audio file that has none.
+// folder, updates existing episodes whose file changed (matching by path then
+// inode, like PodcastScanner.js:107-126), and adds one episode per new audio file.
 func (s *Scanner) savePodcast(ctx context.Context, p *plan) (item.EpisodeRemoval, error) {
 	var removal item.EpisodeRemoval
+	var podRow db.Podcast
 	if p.old == nil {
-		row := db.Podcast{ID: p.mediaID, Title: &p.title, PodcastType: db.Ptr("episodic"), AutoDownloadSchedule: db.Ptr("0 * * * *"), LastEpisodeCheck: p.now,
-			MaxEpisodesToKeep: db.Ptr(int64(0)), MaxNewEpisodesToDownload: db.Ptr(int64(3)), Tags: db.JSON[[]string]{V: []string{}}, Genres: db.JSON[[]string]{V: []string{}},
-			CreatedAt: p.now, UpdatedAt: p.now}
-		if err := s.db.Insert(ctx, "podcasts", &row); err != nil {
+		podRow = db.Podcast{ID: p.mediaID, Title: &p.title, PodcastType: db.Ptr("episodic"), AutoDownloadSchedule: db.Ptr("0 * * * *"), LastEpisodeCheck: p.now,
+			MaxEpisodesToKeep: db.Ptr(int64(0)), MaxNewEpisodesToDownload: db.Ptr(int64(3)), NumEpisodes: db.Ptr(int64(len(p.audio))),
+			Tags: db.JSON[[]string]{V: []string{}}, Genres: db.JSON[[]string]{V: []string{}}, CreatedAt: p.now, UpdatedAt: p.now}
+		if err := s.db.Insert(ctx, "podcasts", &podRow); err != nil {
 			return removal, err
-		}
-	} else {
-		var row db.Podcast
-		if err := s.db.Get(ctx, &row, `SELECT * FROM podcasts WHERE id = ?`, p.mediaID); err == nil && db.Val(row.Title) == "" {
-			row.Title, row.UpdatedAt = &p.title, p.now
-			if err := s.db.Update(ctx, "podcasts", &row, "title", "updatedAt"); err != nil {
-				return removal, err
-			}
 		}
 	}
 	var gone []string
-	titles := map[string]bool{}
+	var kept []db.PodcastEpisode
 	for _, ep := range p.episodes {
 		a := ep.AudioFile.V
 		if slicesContainsRemoved(p.diff.removed, a.Metadata.Path, a.Ino) {
 			gone = append(gone, ep.ID)
 		} else {
-			titles[db.Val(ep.Title)] = true
+			kept = append(kept, ep)
 		}
 	}
 	removal, err := s.items.DeleteEpisodes(ctx, gone)
 	if err != nil {
 		return removal, err
 	}
-	count := len(p.episodes) - len(gone)
+	want := make([]keyed, len(p.audio))
 	for i, af := range p.audio {
-		name := strings.TrimSuffix(af.Metadata.Filename, filepath.Ext(af.Metadata.Filename))
-		if titles[name] {
+		want[i] = keyed{path: af.Metadata.Path, inos: []string{af.Ino}}
+	}
+	have := make([]keyed, len(kept))
+	for i, ep := range kept {
+		a := ep.AudioFile.V
+		have[i] = keyed{path: a.Metadata.Path, inos: []string{a.Ino}}
+	}
+	paired := pair(want, have)
+	touched := p.diff.touched()
+	addedCount := 0
+	for i, af := range p.audio {
+		// Upstream PodcastScanner leaves audioFile.index and filename track/disc
+		// numbers null on scanned podcast episodes.
+		af.Index = 0
+		af.TrackNumFromFilename = nil
+		af.DiscNumFromFilename = nil
+		if j := paired[i]; j >= 0 {
+			ep := kept[j]
+			if touched[af.Metadata.Path] || ep.AudioFile.V.Ino != af.Ino || ep.AudioFile.V.Metadata != af.Metadata {
+				ep.AudioFile.V = af
+				ep.UpdatedAt = p.now
+				if err := s.db.Update(ctx, "podcastEpisodes", &ep, "audioFile", "updatedAt"); err != nil {
+					return removal, err
+				}
+			}
 			continue
 		}
-		titles[name] = true
-		n := int64(count + i + 1)
-		ep := db.PodcastEpisode{ID: ids.Must(), PodcastID: &p.mediaID, Index: &n, Episode: db.Ptr(strconv.FormatInt(n, 10)), EpisodeType: db.Ptr("full"), Title: &name,
+		addedCount++
+		n := int64(len(kept) + addedCount)
+		title := cmpOrString(af.MetaTags.Title, strings.TrimSuffix(af.Metadata.Filename, filepath.Ext(af.Metadata.Filename)))
+		ep := db.PodcastEpisode{ID: ids.Must(), PodcastID: &p.mediaID, Index: &n, Episode: db.Ptr(strconv.FormatInt(n, 10)), EpisodeType: db.Ptr("full"), Title: &title,
 			AudioFile: db.JSON[db.AudioFile]{V: af}, Chapters: db.JSON[[]db.Chapter]{V: []db.Chapter{}}, ExtraData: db.JSON[*db.EpisodeExtra]{V: &db.EpisodeExtra{}}, CreatedAt: p.now, UpdatedAt: p.now}
 		if err := s.db.Insert(ctx, "podcastEpisodes", &ep); err != nil {
 			return removal, err
+		}
+	}
+	if p.old != nil {
+		err := s.db.Get(ctx, &podRow, `SELECT * FROM podcasts WHERE id = ?`, p.mediaID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return removal, err
+		}
+		if err == nil {
+			total := int64(len(kept) + addedCount)
+			var cols []string
+			if db.Val(podRow.Title) == "" {
+				podRow.Title = &p.title
+				cols = append(cols, "title")
+			}
+			if podRow.NumEpisodes == nil || *podRow.NumEpisodes != total {
+				podRow.NumEpisodes = &total
+				cols = append(cols, "numEpisodes")
+			}
+			if len(cols) > 0 {
+				podRow.UpdatedAt = p.now
+				cols = append(cols, "updatedAt")
+				if err := s.db.Update(ctx, "podcasts", &podRow, cols...); err != nil {
+					return removal, err
+				}
+			}
 		}
 	}
 	return removal, nil

@@ -135,7 +135,7 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request, user *aut
 			file := book.AudioFiles.V[i]
 			file.ManuallyVerified, file.Exclude, file.Index = true, order.Exclude, -1
 			if !order.Exclude {
-				file.Index, next = next, next+1
+				file.Index, next = db.AudioIndex(next), next+1
 			}
 			files = append(files, file)
 		}

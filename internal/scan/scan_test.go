@@ -414,10 +414,14 @@ func TestOneScanPerLibraryAndCancel(t *testing.T) {
 	r := newRig(t)
 	r.write("A/Book/a.mp3", "aaa")
 	started, release := gatedFFprobe(t)
-	done := make(chan Result, 1)
+	type scanOut struct {
+		res Result
+		err error
+	}
+	done := make(chan scanOut, 1)
 	go func() {
-		res, _ := r.s.Scan(context.Background(), "lib-1", false)
-		done <- res
+		res, err := r.s.Scan(context.Background(), "lib-1", false)
+		done <- scanOut{res, err}
 	}()
 	started()
 	if _, err := r.s.Scan(context.Background(), "lib-1", false); err == nil {
@@ -425,8 +429,24 @@ func TestOneScanPerLibraryAndCancel(t *testing.T) {
 	}
 	r.s.Cancel("lib-1")
 	release()
-	if res := <-done; !res.Canceled {
-		t.Fatalf("canceled scan = %+v", res)
+	out := <-done
+	if !out.res.Canceled || out.err != nil {
+		t.Fatalf("canceled scan = %+v, err=%v", out.res, out.err)
+	}
+	var finished struct {
+		IsFailed       bool   `json:"isFailed"`
+		IsFinished     bool   `json:"isFinished"`
+		DescriptionKey string `json:"descriptionKey"`
+	}
+	for _, ev := range r.take() {
+		if ev.Name == "task_finished" {
+			if err := json.Unmarshal(ev.Payload, &finished); err != nil {
+				t.Fatalf("unmarshal task_finished: %v", err)
+			}
+		}
+	}
+	if !finished.IsFinished || finished.IsFailed || finished.DescriptionKey != "MessageTaskCanceledByUser" {
+		t.Fatalf("canceled task_finished = %+v", finished)
 	}
 	if n := r.count(`SELECT COUNT(*) FROM libraryItems`); n != 0 {
 		t.Fatalf("canceled scan imported %d items", n)
@@ -777,4 +797,123 @@ func TestScanEbookFileParity(t *testing.T) {
 	if m["ebookFormat"] != "pdf" {
 		t.Fatalf("fallback ebookFile = %s, want pdf", raw)
 	}
+}
+
+func TestPodcastRescanMatchesEpisodesByPathOrInode(t *testing.T) {
+	r := newRig(t)
+	pod := t.TempDir()
+	for _, q := range []string{
+		`INSERT INTO libraries(id,name,mediaType,settings,createdAt,updatedAt) VALUES('lib-2','Pods','podcast','{}','2020-01-01 00:00:00.000 +00:00','2020-01-01 00:00:00.000 +00:00')`,
+		`INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES('folder-2','` + pod + `','lib-2','2020-01-01 00:00:00.000 +00:00','2020-01-01 00:00:00.000 +00:00')`,
+	} {
+		if _, err := r.d.Exec(context.Background(), q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	showDir := filepath.Join(pod, "Fixture Cast")
+	if err := os.MkdirAll(showDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ep1 := filepath.Join(showDir, "episode-1.mp3")
+	ep2 := filepath.Join(showDir, "episode-2.mp3")
+	for p, body := range map[string]string{ep1: "one", ep2: "twotwo"} {
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	res, err := r.s.Scan(context.Background(), "lib-2", false)
+	if err != nil || res.Added != 1 {
+		t.Fatalf("initial scan = %+v, %v", res, err)
+	}
+
+	// Simulate fixture DB episode titles differing from filenames and stale inodes.
+	if _, err := r.d.Exec(context.Background(), `UPDATE podcastEpisodes SET title = 'Pilot Episode' WHERE title = 'T-3'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.d.Exec(context.Background(), `UPDATE podcastEpisodes SET title = 'Second Outing' WHERE title = 'T-6'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.d.Exec(context.Background(), `UPDATE podcastEpisodes SET audioFile = json_set(audioFile, '$.ino', '9999999')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.d.Exec(context.Background(), `UPDATE libraryItems SET libraryFiles = json_set(libraryFiles, '$[0].ino', '9999999', '$[1].ino', '9999998') WHERE libraryId = 'lib-2'`); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err = r.s.Scan(context.Background(), "lib-2", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := r.count(`SELECT COUNT(*) FROM podcastEpisodes`); got != 2 {
+		t.Fatalf("episodes after inode-change rescan = %d, want 2 (res=%+v)", got, res)
+	}
+	if got := r.count(`SELECT COUNT(*) FROM podcastEpisodes WHERE title IN ('Pilot Episode', 'Second Outing')`); got != 2 {
+		t.Fatalf("custom episode titles lost after rescan: %d", got)
+	}
+	info1, err := os.Stat(ep1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gotIno string
+	if err := r.d.Get(context.Background(), &gotIno, `SELECT json_extract(audioFile, '$.ino') FROM podcastEpisodes WHERE title = 'Pilot Episode'`); err != nil {
+		t.Fatal(err)
+	}
+	if gotIno != inode(info1) {
+		t.Fatalf("episode audioFile.ino = %q, want %q", gotIno, inode(info1))
+	}
+
+	// Rename ep2 on disk (same inode, new path): still matched by inode without duplicating.
+	ep2Renamed := filepath.Join(showDir, "episode-2-renamed.mp3")
+	if err := os.Rename(ep2, ep2Renamed); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.s.Scan(context.Background(), "lib-2", false); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.count(`SELECT COUNT(*) FROM podcastEpisodes`); got != 2 {
+		t.Fatalf("episodes after rename rescan = %d, want 2", got)
+	}
+	var gotPath string
+	if err := r.d.Get(context.Background(), &gotPath, `SELECT json_extract(audioFile, '$.metadata.path') FROM podcastEpisodes WHERE title = 'Second Outing'`); err != nil {
+		t.Fatal(err)
+	}
+	if gotPath != filepath.ToSlash(ep2Renamed) {
+		t.Fatalf("renamed episode path = %q, want %q", gotPath, filepath.ToSlash(ep2Renamed))
+	}
+}
+
+func TestWatcherDelaysFSNotifyEventsByRenameTimeout(t *testing.T) {
+	prev := watcherRenameTimeout
+	watcherRenameTimeout = 150 * time.Millisecond
+	t.Cleanup(func() { watcherRenameTimeout = prev })
+
+	r := newRig(t)
+	r.write("Auth/Book/a.mp3", "aaaa")
+	r.scan(false)
+	r.take()
+
+	if err := r.s.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(r.root, "Auth/Book")); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+	for _, ev := range r.take() {
+		if ev.Name == "task_started" {
+			t.Fatal("task_started emitted before watcherRenameTimeout elapsed")
+		}
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		for _, ev := range r.take() {
+			if ev.Name == "task_started" {
+				return
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("task_started never emitted after watcherRenameTimeout elapsed")
 }

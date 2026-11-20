@@ -115,7 +115,7 @@ func (s session) tracks() any {
 	tracks := make([]item.AudioTrack, len(s.files))
 	offset := 0.0
 	for i, file := range s.files {
-		tracks[i] = item.AudioTrack{AudioFile: file, Index: file.Index, Title: file.Metadata.Filename, StartOffset: offset,
+		tracks[i] = item.AudioTrack{AudioFile: file, Index: int64(file.Index), Title: file.Metadata.Filename, StartOffset: offset,
 			ContentURL: "/api/items/" + s.LibraryItemID + "/file/" + file.Ino}
 		offset += db.Val(file.Duration)
 	}

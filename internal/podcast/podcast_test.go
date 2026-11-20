@@ -759,3 +759,35 @@ func TestCreateInvalidatesFilterData(t *testing.T) {
 		t.Error("the filter menu does not show the new podcast's genre")
 	}
 }
+
+func TestDeleteEpisodeAnnouncesPlaylistBeforeUpdatingLibraryFiles(t *testing.T) {
+	r := newRig(t)
+	fileCount := func() int {
+		var files db.JSON[[]db.LibraryFile]
+		if err := r.d.Get(context.Background(), &files, `SELECT libraryFiles FROM libraryItems WHERE id=?`, testItem); err != nil {
+			t.Fatal(err)
+		}
+		return len(files.V)
+	}
+	if got := fileCount(); got != 4 {
+		t.Fatalf("initial libraryFiles = %d, want 4", got)
+	}
+	var announcedFiles int
+	origAnnounce := r.h.announcePlaylists
+	r.h.announcePlaylists = func(ctx context.Context, changes []item.PlaylistChange) {
+		announcedFiles = fileCount()
+		origAnnounce(ctx, changes)
+	}
+	if w := r.serve(t, "trial-root", "DELETE", "/api/podcasts/"+testItem+"/episode/"+testEpisode, ""); w.Code != 200 {
+		t.Fatalf("delete = %d %s", w.Code, w.Body)
+	}
+	if announcedFiles != 4 {
+		t.Errorf("libraryFiles at playlist_updated announcement = %d, want 4", announcedFiles)
+	}
+	if afterFiles := fileCount(); afterFiles != 3 {
+		t.Errorf("libraryFiles after delete = %d, want 3", afterFiles)
+	}
+	if got := r.waitEvent(t, "playlist_updated"); got != "69178ac8-f7e7-45aa-8b92-d3c0c0524971" {
+		t.Errorf("playlist_updated payload = %v, want 69178ac8-f7e7-45aa-8b92-d3c0c0524971", got)
+	}
+}

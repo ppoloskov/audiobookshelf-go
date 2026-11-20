@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -52,10 +53,10 @@ func (s *Scanner) finishScanTask(task events.Task, res Result, err error) {
 	elapsed := *task.FinishedAt - task.StartedAt
 	task = withResults(task, scanResults{Added: res.Added, Updated: res.Updated, Missing: &res.Missing, Elapsed: elapsed,
 		Text: fmt.Sprintf("%s (%s)", changesText(res.Added, res.Updated, res.Missing), elapsedText(elapsed))})
-	if err != nil {
-		task = task.Failed("Failed", "MessageTaskFailed")
-	} else if res.Canceled {
+	if res.Canceled && (err == nil || errors.Is(err, context.Canceled)) {
 		task = task.Described("Task canceled by user", "MessageTaskCanceledByUser")
+	} else if err != nil {
+		task = task.Failed("Failed", "MessageTaskFailed")
 	}
 	s.emit.TaskFinished(task)
 }

@@ -59,7 +59,7 @@ func TestOrderAudio(t *testing.T) {
 	names := func(audio []db.AudioFile) string {
 		var out []string
 		for i, a := range audio {
-			if a.Index != int64(i+1) {
+			if a.Index != db.AudioIndex(i+1) {
 				t.Fatalf("audio[%d].Index = %d", i, a.Index)
 			}
 			out = append(out, a.Metadata.Filename)

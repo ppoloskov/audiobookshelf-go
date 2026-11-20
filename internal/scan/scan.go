@@ -207,6 +207,9 @@ func (s *Scanner) Scan(ctx context.Context, libraryID string, force bool) (Resul
 	slog.Info("library scan started", "task", task.ID, "library", libraryID, "forced", force)
 	res, err := s.scanLibrary(ctx, libraryID, force)
 	res.Canceled = errors.Is(ctx.Err(), context.Canceled)
+	if res.Canceled && errors.Is(err, context.Canceled) {
+		err = nil
+	}
 	slog.Info("library scan finished", "task", task.ID, "after", time.Since(time.UnixMilli(task.StartedAt)).Round(time.Second), "added", res.Added,
 		"updated", res.Updated, "missing", res.Missing, "canceled", res.Canceled, "error", err)
 	s.finishScanTask(task, res, err)

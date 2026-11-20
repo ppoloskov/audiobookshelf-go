@@ -284,6 +284,7 @@ func StartTwin(t *testing.T, o Options) *Twin {
 
 	tw.Diff = NewDiffer(tw.TS.Install, tw.Go.Install, DefaultDivergences())
 	tw.Diff.Corr.RegisterInodes(tw.TS.Media, tw.Go.Media, tw.TS.Metadata, tw.Go.Metadata)
+	tw.Diff.Corr.RegisterServerURLs(tw.TS.URL, tw.Go.URL)
 	if !o.NoWait && tw.Stubs == nil {
 		tw.Stubs = StartStubs(t)
 	}

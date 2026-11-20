@@ -196,7 +196,7 @@ func orderAudio(audio []db.AudioFile) {
 		return 0
 	})
 	for i := range audio {
-		audio[i].Index = int64(i + 1)
+		audio[i].Index = db.AudioIndex(i + 1)
 	}
 }
 

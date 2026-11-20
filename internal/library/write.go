@@ -75,7 +75,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 	}
 	if strings.HasPrefix(provider, "custom-") {
 		var n int
-		if err := h.db.Get(ctx, &n, `SELECT COUNT(*) FROM customMetadataProviders WHERE slug = ?`, provider); err != nil || n == 0 {
+		if err := h.db.Get(ctx, &n, `SELECT COUNT(*) FROM customMetadataProviders WHERE id = ?`, strings.TrimPrefix(provider, "custom-")); err != nil || n == 0 {
 			return httpx.BadRequest("Invalid request. Custom metadata provider does not exist")
 		}
 	}

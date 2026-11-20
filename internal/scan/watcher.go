@@ -20,10 +20,11 @@ import (
 	"monstrobook/internal/ids"
 )
 
-// Timing of the watcher (Watcher.js:20,259,233). Tests shorten the first two.
+// Timing of the watcher (Watcher.js:20,67,259,233). Tests shorten these.
 var (
-	watcherPendingDelay = 10 * time.Second // quiet period after the last event before a batch is scanned
-	watcherFilePoll     = 3 * time.Second  // poll interval of a file that is still being written
+	watcherPendingDelay  = 10 * time.Second // quiet period after the last event before a batch is scanned
+	watcherFilePoll      = 3 * time.Second  // poll interval of a file that is still being written
+	watcherRenameTimeout = 2 * time.Second  // rename detection delay on fsnotify events before queuing
 )
 
 const watcherMaxPolls = 200 // 600 s with the default poll
@@ -51,21 +52,54 @@ type watcher struct {
 	s   *Scanner
 	ctx context.Context
 
-	mu      sync.Mutex // guards the fields below
-	libs    map[string]watchedLibrary
-	pending []fileUpdate
-	being   map[string]bool // files still being written
-	timer   *time.Timer
-	task    *events.Task
+	mu       sync.Mutex // guards the fields below
+	libs     map[string]watchedLibrary
+	pending  []fileUpdate
+	being    map[string]bool // files still being written
+	timer    *time.Timer
+	fsTimers map[string]*time.Timer // fsnotify events waiting out watcherRenameTimeout
+	task     *events.Task
 
 	queue   chan struct{} // wakes the worker; the batches wait in waiting
 	waiting []batch
 }
 
 func (s *Scanner) newWatcher(ctx context.Context) *watcher {
-	w := &watcher{s: s, ctx: ctx, libs: map[string]watchedLibrary{}, being: map[string]bool{}, queue: make(chan struct{}, 1)}
+	w := &watcher{s: s, ctx: ctx, libs: map[string]watchedLibrary{}, being: map[string]bool{}, fsTimers: map[string]*time.Timer{}, queue: make(chan struct{}, 1)}
 	go w.work()
 	return w
+}
+
+// scheduleFS holds a filesystem event for watcherRenameTimeout before queuing
+// it, matching upstream Watcher.js renameDetection/renameTimeout so short-lived
+// or paired events (such as hard-delete or rename) do not emit task_started
+// immediately. Direct POST /api/watcher/update calls bypass this via onFile.
+func (w *watcher) scheduleFS(libraryID, path, kind string) {
+	if watcherRenameTimeout <= 0 {
+		w.onFile(libraryID, path, kind)
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.ctx.Err() != nil {
+		return
+	}
+	if prev := w.fsTimers[path]; prev != nil {
+		prev.Stop()
+	}
+	var timer *time.Timer
+	timer = time.AfterFunc(watcherRenameTimeout, func() {
+		w.mu.Lock()
+		stale := w.fsTimers[path] != timer || w.ctx.Err() != nil
+		if !stale {
+			delete(w.fsTimers, path)
+		}
+		w.mu.Unlock()
+		if !stale {
+			w.onFile(libraryID, path, kind)
+		}
+	})
+	w.fsTimers[path] = timer
 }
 
 // onFile queues a changed path of the library; kind is "added", "deleted" or
@@ -375,6 +409,10 @@ func (w *watcher) loop(fsw *fsnotify.Watcher, roots map[string]string) {
 		if w.timer != nil {
 			w.timer.Stop()
 		}
+		for _, t := range w.fsTimers {
+			t.Stop()
+		}
+		clear(w.fsTimers)
 	}()
 	libraryOf := func(p string) (id, root string) {
 		for root, id := range roots {
@@ -404,16 +442,16 @@ func (w *watcher) loop(fsw *fsnotify.Watcher, roots map[string]string) {
 					_ = watchDirs(fsw, root, ev.Name) // best effort, like the initial watch
 					_ = filepath.WalkDir(ev.Name, func(p string, d os.DirEntry, err error) error {
 						if err == nil && !d.IsDir() {
-							w.onFile(libraryID, filepath.ToSlash(p), "added")
+							w.scheduleFS(libraryID, filepath.ToSlash(p), "added")
 						}
 						return nil
 					})
 				} else {
-					w.onFile(libraryID, filepath.ToSlash(ev.Name), "added")
+					w.scheduleFS(libraryID, filepath.ToSlash(ev.Name), "added")
 				}
 			case ev.Has(fsnotify.Remove) || ev.Has(fsnotify.Rename):
 				// Writes and chmods are ignored, as upstream does (Watcher.js:64-66).
-				w.onFile(libraryID, filepath.ToSlash(ev.Name), "deleted")
+				w.scheduleFS(libraryID, filepath.ToSlash(ev.Name), "deleted")
 			}
 		case err, ok := <-fsw.Errors:
 			if !ok {

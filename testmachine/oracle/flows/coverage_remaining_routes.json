@@ -162,14 +162,14 @@
       "role": "root",
       "body": {"serverAddress": "http://127.0.0.1:8080", "slug": "oracle-rem-feed"},
       "expect_status": 200,
-      "capture": {"feed_id": "feed.id", "feed_ep_id": "feed.episodes.0.id"},
+      "capture": {"feed_id": "feed.id"},
       "check_db": true,
       "check_sockets": true
     },
-    {"name": "get-feeds-list", "method": "GET", "path": "/api/feeds", "role": "root", "expect_status": 200},
+    {"name": "get-feeds-list", "method": "GET", "path": "/api/feeds", "role": "root", "expect_status": 200, "capture": {"feed_ep_slug": "feeds.0.slug", "feed_ep_id": "feeds.0.episodes.0.id"}},
     {"name": "get-feed-xml", "method": "GET", "path": "/feed/oracle-rem-feed", "expect_status": 200},
     {"name": "get-feed-cover", "method": "GET", "path": "/feed/oracle-rem-feed/cover.jpg", "expect_status": 200},
-    {"name": "get-feed-item-range", "method": "GET", "path": "/feed/oracle-rem-feed/item/{{feed_ep_id}}/media.mp3", "header": {"Range": "bytes=0-63"}, "expect_status": 206},
+    {"name": "get-feed-item-range", "method": "GET", "path": "/feed/{{feed_ep_slug}}/item/{{feed_ep_id}}/media.mp3", "header": {"Range": "bytes=0-63"}, "expect_status": 206},
     {"name": "close-feed-for-cover-and-stream", "method": "POST", "path": "/api/feeds/{{feed_id}}/close", "role": "root", "expect_status": 200, "check_db": true, "check_sockets": true},
     {
       "name": "emails-patch-smtp-settings",

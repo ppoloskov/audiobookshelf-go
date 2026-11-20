@@ -82,10 +82,37 @@ type AudioMetaTags struct {
 }
 
 // AudioFile is one audio file of a book (books.audioFiles) or the audio file of
-// a podcast episode (podcastEpisodes.audioFile); server/objects/files/AudioFile.js
+// AudioIndex is an audio file's 1-based index (-1 when excluded). Zero marshals
+// as JSON null (upstream PodcastScanner leaves podcast episode audioFile.index null).
+type AudioIndex int64
+
+// MarshalJSON encodes 0 as JSON null and non-zero indices as JSON integers.
+func (i AudioIndex) MarshalJSON() ([]byte, error) {
+	if i == 0 {
+		return []byte("null"), nil
+	}
+	return json.Marshal(int64(i))
+}
+
+// UnmarshalJSON decodes JSON null as 0 and integers as AudioIndex.
+func (i *AudioIndex) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		*i = 0
+		return nil
+	}
+	var v int64
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	*i = AudioIndex(v)
+	return nil
+}
+
+// AudioFile is one entry of books.audioFiles (server/objects/files/AudioFile.js)
+// or a podcast episode (podcastEpisodes.audioFile); server/objects/files/AudioFile.js
 // toJSON.
 type AudioFile struct {
-	Index                int64         `json:"index"`
+	Index                AudioIndex    `json:"index"`
 	Ino                  string        `json:"ino"`
 	Metadata             FileMetadata  `json:"metadata"`
 	AddedAt              int64         `json:"addedAt"`

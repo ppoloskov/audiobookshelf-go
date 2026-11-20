@@ -114,8 +114,8 @@ func (h *Handler) openSession(ctx context.Context, r *http.Request, share db.Med
 			codec = nil
 		}
 		tracks = append(tracks, track{
-			Index: file.Index, StartOffset: total, Duration: duration, Title: file.Metadata.Filename,
-			ContentURL: h.base + "/public/share/" + db.Val(share.Slug) + "/track/" + strconv.FormatInt(file.Index, 10),
+			Index: int64(file.Index), StartOffset: total, Duration: duration, Title: file.Metadata.Filename,
+			ContentURL: h.base + "/public/share/" + db.Val(share.Slug) + "/track/" + strconv.FormatInt(int64(file.Index), 10),
 			MimeType:   nilIfEmpty(file.MimeType), Codec: codec, Metadata: file.Metadata,
 		})
 		total += duration

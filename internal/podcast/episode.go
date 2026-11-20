@@ -182,13 +182,24 @@ func (h *Handler) trimOldest(ctx context.Context, it *item.Item, justAdded strin
 	return nil
 }
 
-// deleteEpisode removes an episode row with its playlist entries and progress,
-// drops its audio file from the item's libraryFiles and recounts numEpisodes.
+// deleteEpisode removes an episode's playlist entries and announces them before
+// deleting the episode, its progress, and its libraryFiles entry, matching
+// upstream's order so playlist_updated sees the pre-save numFiles count
+// (PodcastController.js:526-548, PodcastManager.js:230-247).
 func (h *Handler) deleteEpisode(ctx context.Context, it *item.Item, episodeID, ino string) error {
 	var changes []item.PlaylistChange
-	err := h.db.Tx(ctx, func(ctx context.Context) error {
+	if err := h.db.Tx(ctx, func(ctx context.Context) error {
 		var err error
-		if changes, err = item.DeleteEpisodeRows(ctx, h.db, []string{episodeID}); err != nil {
+		changes, err = item.RemoveFromPlaylists(ctx, h.db, []string{episodeID})
+		return err
+	}); err != nil {
+		return err
+	}
+	if len(changes) > 0 && h.announcePlaylists != nil {
+		h.announcePlaylists(ctx, changes)
+	}
+	return h.db.Tx(ctx, func(ctx context.Context) error {
+		if _, err := item.DeleteEpisodeRows(ctx, h.db, []string{episodeID}); err != nil {
 			return err
 		}
 		var stored db.JSON[[]db.LibraryFile]
@@ -202,16 +213,9 @@ func (h *Handler) deleteEpisode(ctx context.Context, it *item.Item, episodeID, i
 		if err := h.db.Update(ctx, "libraryItems", &row, "libraryFiles", "updatedAt"); err != nil {
 			return err
 		}
-		_, err = h.db.Exec(ctx, `UPDATE podcasts SET numEpisodes=(SELECT COUNT(*) FROM podcastEpisodes WHERE podcastId=?),updatedAt=? WHERE id=?`, it.Podcast.ID, now, it.Podcast.ID)
+		_, err := h.db.Exec(ctx, `UPDATE podcasts SET numEpisodes=(SELECT COUNT(*) FROM podcastEpisodes WHERE podcastId=?),updatedAt=? WHERE id=?`, it.Podcast.ID, now, it.Podcast.ID)
 		return err
 	})
-	if err != nil {
-		return err
-	}
-	if len(changes) > 0 && h.announcePlaylists != nil {
-		h.announcePlaylists(ctx, changes)
-	}
-	return nil
 }
 
 func nonNilFiles(files []db.LibraryFile) []db.LibraryFile {

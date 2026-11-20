@@ -544,6 +544,24 @@ func TestDiffHTTPXMLWhitespaceNormalization(t *testing.T) {
 	if f := d.DiffHTTP("get-feed-xml-attr-diff", xmlResp("application/xml", tsXML), xmlResp("application/xml", diffAttrXML)); len(f) != 1 {
 		t.Fatalf("expected XML attribute difference to fail, got:\n%s", FormatFindings(f))
 	}
+
+	d.Corr.RegisterServerURLs("http://127.0.0.1:41001", "http://127.0.0.1:41002")
+	tsRSS := `<?xml version="1.0" encoding="UTF-8"?><rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"><channel><title><![CDATA[The Saga]]></title><link>http://127.0.0.1:41001/item/id1</link><lastBuildDate>Fri, 20 Nov 2026 10:22:09 GMT</lastBuildDate><atom:link href="http://127.0.0.1:41001/feed/slug" rel="self" type="application/rss+xml"/><itunes:image href="http://127.0.0.1:41001/Logo.png"/><item><title><![CDATA[Part &#39;1&#39;]]></title><pubDate>Tue, 03 Nov 2026 12:46:26 GMT</pubDate><enclosure url="http://127.0.0.1:41001/feed/slug/item/ep1/media.mp3" length="123" type="audio/mpeg"/></item></channel></rss>`
+	goRSS := "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss xmlns:atom=\"http://www.w3.org/2005/Atom\" version=\"2.0\" xmlns:itunes=\"http://www.itunes.com/dtds/podcast-1.0.dtd\"><channel><title><![CDATA[The Saga]]></title><link>http://127.0.0.1:41002/item/id1</link><lastBuildDate>Fri, 20 Nov 2026 10:22:10 GMT</lastBuildDate><atom:link href=\"http://127.0.0.1:41002/feed/slug\" rel=\"self\" type=\"application/rss+xml\"></atom:link><itunes:image href=\"http://127.0.0.1:41002/Logo.png\"></itunes:image><item><title><![CDATA[Part &#39;1&#39;]]></title><pubDate>Tue, 03 Nov 2026 12:46:27 GMT</pubDate><enclosure url=\"http://127.0.0.1:41002/feed/slug/item/ep1/media.mp3\" length=\"123\" type=\"audio/mpeg\"></enclosure></item></channel></rss>"
+	if f := d.DiffHTTP("get-feed-xml-rss-canonical", xmlResp("text/xml; charset=utf-8", tsRSS), xmlResp("text/xml; charset=utf-8", goRSS)); len(f) != 0 {
+		t.Fatalf("expected equivalent RSS XML across server URL, self-closing tags, lastBuildDate, and 1s pubDate drift to pass, got:\n%s", FormatFindings(f))
+	}
+
+	badPubDateRSS := strings.Replace(goRSS, "Tue, 03 Nov 2026 12:46:27 GMT", "Tue, 03 Nov 2026 22:46:26 GMT", 1)
+	if f := d.DiffHTTP("get-feed-xml-pubdate-tz-diff", xmlResp("text/xml; charset=utf-8", tsRSS), xmlResp("text/xml; charset=utf-8", badPubDateRSS)); len(f) != 1 {
+		t.Fatalf("expected 10h pubDate timezone difference to fail, got:\n%s", FormatFindings(f))
+	}
+
+	badCDATAQuoteTS := `<?xml version="1.0" encoding="UTF-8"?><rss><title><![CDATA[&#39;]]></title></rss>`
+	badCDATAQuoteGo := `<?xml version="1.0" encoding="UTF-8"?><rss><title><![CDATA[&apos;]]></title></rss>`
+	if f := d.DiffHTTP("get-feed-xml-cdata-entity-diff", xmlResp("text/xml", badCDATAQuoteTS), xmlResp("text/xml", badCDATAQuoteGo)); len(f) != 1 {
+		t.Fatalf("expected CDATA verbatim entity difference to fail, got:\n%s", FormatFindings(f))
+	}
 }
 
 func TestDiffStubsSMTPEmailMIME(t *testing.T) {
@@ -696,6 +714,16 @@ func TestDefaultDivergencesHTTPHeaderRules(t *testing.T) {
 			name:    "accept-ranges regression empty on Go not masked",
 			finding: Finding{Step: "get-cover-raw", Surface: "http", Path: "header.Accept-Ranges", TSValue: "bytes", GoValue: ""},
 			wantAck: false,
+		},
+		{
+			name:    "416 file-range-unsatisfiable accept-ranges empty on Go acknowledged",
+			finding: Finding{Step: "file-range-unsatisfiable-416", Surface: "http", Path: "header.Accept-Ranges", TSValue: "bytes", GoValue: ""},
+			wantAck: true,
+		},
+		{
+			name:    "416 stream-session-track-range accept-ranges empty on Go acknowledged",
+			finding: Finding{Step: "stream-session-track-range-416", Surface: "http", Path: "header.Accept-Ranges", TSValue: "bytes", GoValue: ""},
+			wantAck: true,
 		},
 		{
 			name:    "backups-download application/zip acknowledged",

@@ -87,7 +87,12 @@ Baseline from `make oracle` (2026-11-20, pinned upstream TS v2.37.2 @ `edb1f7ef`
 
 - **Soft architectural target:** **~20K prod LOC (excluding tests)**, down from ~35.8K today — achieved **strictly through simplification and better higher-order abstractions** (never golfing or sacrificing structure/readability).
 - The Waves 1–4 rewrite already removed the major legacy slop (`TODO/FIXME` = 0, stray `*-E` files = 0, legacy `logging.*f` = 2 in `internal/`, `map[string]any` = 23 remaining after Wave P2).
-- **Progress so far:** Waves P1–P4 reduced the oracle parity backlog from **768 → 47 findings (-93.9%)**, raised Flow Steps PASS **309 → 366 / 377 (97.1%)**, Complex Tests PASS **10 → 14 / 17**, and brought Route Matrix to **PASS (654/654 checks, 0 unexpected)**.
+- **Oracle parity achieved (2026-11-20):** Waves P1–P5 reduced the oracle parity backlog from **768 → 0 findings (0 groups)**! `make verify` exits **0**:
+  - **Flow Steps:** `PASS (377 / 377)`
+  - **Complex Tests:** `PASS (17 / 17)`
+  - **Route Matrix:** `PASS (654 / 654, 0 unexpected)`
+  - **SQLite (26 tables), Socket.IO (3 audiences), Outbound Stubs, Bidirectional TS↔Go Rollback:** `0 unexpected findings`
+  - **TS V8 In-Scope Coverage:** `80.3%` lines (`32,730 / 40,752`), `82.8%` functions; **Go Statement Cov:** `71.4%`; **Routes Happy-Path:** `217 / 218 (99.5%)`.
 
 | Opportunity | Target Package(s) | Est. LOC Reduction | Parity Findings Closed |
 | --- | --- | ---: | ---: |
@@ -151,8 +156,13 @@ Baseline from `make oracle` (2026-11-20, pinned upstream TS v2.37.2 @ `edb1f7ef`
   - Separated `share` `playbackSession.id` (fresh random v4 UUID) from the `share_session_id` cookie.
 - [x] **`testmachine/oracle` (`diff.go` & `divergences.json`)**
   - Added semantic XML inter-tag whitespace normalization, parsed SMTP MIME part comparison, canonical HTTP stub query-param sorting, and recorded `Accept-Ranges: bytes` + `backups` Content-Type intentional divergences.
-- [ ] **Final 47 findings (20 groups)** → zero-divergence CI!
-- [ ] **Higher-order structural compression waves** (protected by green `make verify`) toward the **~20K prod LOC** soft goal.
+- [x] **Wave P5 — Final 47 Findings → Zero-Divergence CI (`47 -> 0` findings, `make verify` exit 0!)**
+  - `internal/library/write.go`: fixed real production bug querying `customMetadataProviders WHERE id = ?` (was nonexistent `slug` column).
+  - `internal/db/documents.go` + `internal/scan/import.go`: added `db.AudioIndex` (marshals `0` as `null` for scanned podcast episodes) and paired podcast episodes by path/inode on rescan (fixing episode duplication).
+  - `internal/scan/watcher.go` + `scan.go` + `tasks.go`: added `2s` `watcherRenameTimeout` matching `Watcher.js` (eliminating spurious `task_started` on hard-delete) and fixed canceled library scan emitting `task_failed`.
+  - `internal/podcast/episode.go`: announced `playlist_updated` before trimming `libraryFiles` on episode delete.
+  - `testmachine/oracle`: normalized ephemeral server base URLs, self-closing XML tags, `<lastBuildDate>`/`<pubDate>` drift, `discover` random-shelf entity order, `416` `Accept-Ranges`, and `coverage_remaining_routes.json` feed slug capture.
+- [ ] **Higher-order structural compression waves** (protected by green `make verify`!) toward the **~20K prod LOC** soft goal.
 - [ ] **Housekeeping**: replace the last 2 `logging.*f` calls in `internal/` (and `cmd/monstrobook/main.go`) with `slog` and delete the legacy printf helpers.
 - [ ] **Device acceptance of the mobile apps** (using `cmd/abs-record` against real iOS/Android apps).
 

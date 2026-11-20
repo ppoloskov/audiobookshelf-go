@@ -103,6 +103,17 @@
       "client_impact": "positive — standards-compliant HTTP Range advertisement for media and image clients"
     },
     {
+      "id": "adj-accept-ranges-416",
+      "scope": "adjudication",
+      "surface": "http",
+      "step_pattern": "*-416",
+      "field_pattern": "header.Accept-Ranges",
+      "ts_expect": "bytes",
+      "go_expect": "",
+      "reason": "Go net/http.ServeContent omits Accept-Ranges on 416 Range Not Satisfiable whereas Express sendFile sets Accept-Ranges: bytes",
+      "client_impact": "none — 416 responses carry Content-Range: bytes */<size> and clients do not rely on Accept-Ranges on error responses"
+    },
+    {
       "id": "adj-backup-download-content-type",
       "scope": "adjudication",
       "surface": "http",
