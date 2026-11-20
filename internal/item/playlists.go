@@ -20,33 +20,28 @@ type PlaylistChange struct {
 // Playlist.js:172-208). It returns what changed, for the caller to announce
 // through Deps.AnnouncePlaylists once the transaction has committed.
 func RemoveFromPlaylists(ctx context.Context, d *db.DB, mediaIDs []string) ([]PlaylistChange, error) {
-	var playlistIDs []string
-	err := forChunks(mediaIDs, func(chunk []string) error {
-		var found []string
-		if err := d.Select(ctx, &found, `SELECT DISTINCT playlistId FROM playlistMediaItems WHERE mediaItemId IN (?) AND playlistId IS NOT NULL`, chunk); err != nil {
-			return err
-		}
-		for _, id := range found {
-			if !slices.Contains(playlistIDs, id) {
-				playlistIDs = append(playlistIDs, id)
-			}
-		}
-		if len(found) == 0 {
-			return nil
-		}
-		_, err := d.Exec(ctx, `DELETE FROM playlistMediaItems WHERE mediaItemId IN (?)`, chunk)
-		return err
-	})
+	found, err := selectIn[string](ctx, d, `SELECT DISTINCT playlistId FROM playlistMediaItems WHERE mediaItemId IN (?) AND playlistId IS NOT NULL`, "", mediaIDs)
 	if err != nil {
 		return nil, err
 	}
-	var changes []PlaylistChange
-	for _, id := range playlistIDs {
-		var playlist db.Playlist
-		var entryIDs []string
-		if err := d.Get(ctx, &playlist, `SELECT * FROM playlists WHERE id = ?`, id); err != nil {
+	var playlistIDs []string
+	for _, id := range found {
+		if !slices.Contains(playlistIDs, id) {
+			playlistIDs = append(playlistIDs, id)
+		}
+	}
+	if len(playlistIDs) > 0 {
+		if err := execIn(ctx, d, `DELETE FROM playlistMediaItems WHERE mediaItemId IN (?)`, mediaIDs); err != nil {
 			return nil, err
 		}
+	}
+	var changes []PlaylistChange
+	for _, id := range playlistIDs {
+		playlist, err := getRow[db.Playlist](ctx, d, "playlists", id)
+		if err != nil {
+			return nil, err
+		}
+		var entryIDs []string
 		if err := d.Select(ctx, &entryIDs, "SELECT id FROM playlistMediaItems WHERE playlistId = ? ORDER BY `order`", id); err != nil {
 			return nil, err
 		}
@@ -85,7 +80,7 @@ func DeleteEpisodeRows(ctx context.Context, d *db.DB, episodeIDs []string) ([]Pl
 		return nil, err
 	}
 	for _, query := range []string{`DELETE FROM mediaProgresses WHERE mediaItemId IN (?)`, `DELETE FROM podcastEpisodes WHERE id IN (?)`} {
-		if _, err := d.Exec(ctx, query, episodeIDs); err != nil {
+		if err := execIn(ctx, d, query, episodeIDs); err != nil {
 			return nil, err
 		}
 	}

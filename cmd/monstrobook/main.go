@@ -26,7 +26,7 @@ import (
 // upstream's uncaughtExceptionMonitor handler records a crash
 // (server/Server.js:243).
 func fatal(format string, args ...any) {
-	logging.Fatalf(format, args...)
+	slog.Log(context.Background(), slog.Level((logging.LevelFatal-logging.LevelInfo)*4), fmt.Sprintf(format, args...))
 	os.Exit(1)
 }
 
@@ -43,27 +43,27 @@ func main() {
 	if err != nil {
 		fatal("[Server] configuration error: %v", err)
 	}
-	logging.Info("=== Starting Server ===")
-	logging.Infof("[Server] Init v%s (Go backend build %s)", version.Server, buildCommit)
-	logging.Infof("[Server] Go Version: %s", runtime.Version())
-	logging.Infof("[Server] Platform: %s", runtime.GOOS)
-	logging.Infof("[Server] Arch: %s", runtime.GOARCH)
+	slog.Info("=== Starting Server ===")
+	slog.Info(fmt.Sprintf("[Server] Init v%s (Go backend build %s)", version.Server, buildCommit))
+	slog.Info(fmt.Sprintf("[Server] Go Version: %s", runtime.Version()))
+	slog.Info(fmt.Sprintf("[Server] Platform: %s", runtime.GOOS))
+	slog.Info(fmt.Sprintf("[Server] Arch: %s", runtime.GOARCH))
 	dbPath := data.FilePath(cfg.ConfigPath)
 	db, err := server.OpenDatabase(cfg)
 	if err != nil {
 		fatal("[Database] Failed to connect to db %q: %v", dbPath, err)
 	}
-	logging.Infof("[Database] Db connection was successful (%s)", dbPath)
+	slog.Info(fmt.Sprintf("[Database] Db connection was successful (%s)", dbPath))
 	// Upstream applies logLevel when ServerSettings loads, then initializes
 	// the LogManager (server/Server.js:186).
 	dailyLogsToKeep := 0
 	if stored, settingsErr := settings.NewStore(context.Background(), db, os.Getenv, cfg.Dirs().Backups); settingsErr == nil {
 		dailyLogsToKeep = server.ApplyLoggingSettings(stored.Server())
 	} else {
-		logging.Errorf("[Database] Failed to load server settings: %v", settingsErr)
+		slog.Error(fmt.Sprintf("[Database] Failed to load server settings: %v", settingsErr))
 	}
 	if err := logging.Default().OpenFiles(cfg.Dirs().Logs, dailyLogsToKeep); err != nil {
-		logging.Errorf("[LogManager] daily log files are unavailable: %v", err)
+		slog.Error(fmt.Sprintf("[LogManager] daily log files are unavailable: %v", err))
 	}
 	manager, err := server.NewManager(db, cfg)
 	if err != nil {
@@ -78,35 +78,35 @@ func main() {
 	go func() {
 		defer close(shutdownDone)
 		<-ctx.Done()
-		logging.Info("SIGINT/SIGTERM received. Shutting down...")
-		logging.Info("=== Stopping Server ===")
-		logging.Info("[Server] Closing HTTP Server")
+		slog.Info("SIGINT/SIGTERM received. Shutting down...")
+		slog.Info("=== Stopping Server ===")
+		slog.Info("[Server] Closing HTTP Server")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
 	}()
-	logging.Infof("Monstrobook v%s (build %s); SOURCE=%s; listen=%s; config=%s; metadata=%s; routerBasePath=%q", version.Server, buildCommit, cfg.Source, addr, cfg.ConfigPath, cfg.MetadataPath, cfg.RouterBasePath)
+	slog.Info(fmt.Sprintf("Monstrobook v%s (build %s); SOURCE=%s; listen=%s; config=%s; metadata=%s; routerBasePath=%q", version.Server, buildCommit, cfg.Source, addr, cfg.ConfigPath, cfg.MetadataPath, cfg.RouterBasePath))
 	basePath := cfg.RouterBasePath
 	if basePath == "" {
 		basePath = "/"
 	}
-	logging.Infof("[Server] Serving from base path %q", basePath)
+	slog.Info(fmt.Sprintf("[Server] Serving from base path %q", basePath))
 	// Same two wordings as server/Server.js:476.
 	if cfg.Host != "" {
 		host := cfg.Host
 		if net.ParseIP(host) != nil && strings.Contains(host, ":") {
 			host = "[" + host + "]"
 		}
-		logging.Infof("Listening on http://%s:%d", host, cfg.Port)
+		slog.Info(fmt.Sprintf("Listening on http://%s:%d", host, cfg.Port))
 	} else {
-		logging.Infof("Listening on port :%d", cfg.Port)
+		slog.Info(fmt.Sprintf("Listening on port :%d", cfg.Port))
 	}
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fatal("[Server] HTTP server: %v", err)
 	}
 	<-shutdownDone // ListenAndServe returns as soon as Shutdown starts
-	logging.Info("[Server] HTTP Server Closed")
+	slog.Info("[Server] HTTP Server Closed")
 	manager.Close() // runtime domains, then the realtime hub, then the database
-	logging.Info("Server stopped. Exiting.")
+	slog.Info("Server stopped. Exiting.")
 	logging.Default().Close()
 }

@@ -27,7 +27,7 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request, user *auth.Pr
 	if err != nil {
 		return httpx.Error(http.StatusForbidden, "Invalid payload")
 	}
-	ids := slices.DeleteFunc(slices.Compact(slices.Sorted(slices.Values(body.IDs))), func(id string) bool { return id == "" })
+	ids := uniqueNonEmpty(body.IDs)
 	if len(ids) == 0 {
 		return httpx.Error(http.StatusForbidden, "Invalid payload")
 	}
@@ -35,16 +35,10 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request, user *auth.Pr
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}
-	if allowed, err := h.canAccessAll(ctx, user, refs); err != nil {
-		return httpx.Internal("database read failed", err)
-	} else if !allowed {
-		return httpx.Forbidden()
+	if err := h.requireAccess(ctx, user, refs); err != nil {
+		return err
 	}
-	order := make([]string, len(refs))
-	for i, ref := range refs {
-		order[i] = ref.ID
-	}
-	loaded, err := Load(ctx, h.db, order, Options{Episodes: true})
+	loaded, err := Load(ctx, h.db, refIDs(refs), Options{Episodes: true})
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}
@@ -88,10 +82,8 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request, user *auth
 	if len(refs) == 0 {
 		return httpx.NotFound()
 	}
-	if allowed, err := h.canAccessAll(ctx, user, refs); err != nil {
-		return httpx.Internal("database read failed", err)
-	} else if !allowed {
-		return httpx.Forbidden()
+	if err := h.requireAccess(ctx, user, refs); err != nil {
+		return err
 	}
 	var files func(context.Context, itemRef)
 	if r.URL.Query().Get("hard") == "1" {
@@ -144,10 +136,8 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request, user *auth
 		slog.Error("batch update failed: not all library items found")
 		return httpx.NotFound()
 	}
-	if allowed, err := h.canAccessAll(ctx, user, refs); err != nil {
-		return httpx.Internal("database read failed", err)
-	} else if !allowed {
-		return httpx.Forbidden()
+	if err := h.requireAccess(ctx, user, refs); err != nil {
+		return err
 	}
 	byID := make(map[string]itemRef, len(refs))
 	for _, ref := range refs {
@@ -181,7 +171,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request, user *auth
 			count++
 		}
 	}
-	if err := h.finish(ctx, outs...); err != nil {
+	if _, err := h.finish(ctx, false, outs...); err != nil {
 		return httpx.Internal("metadata file write failed", err)
 	}
 	return httpx.JSON(w, r, struct {

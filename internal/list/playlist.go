@@ -2,8 +2,6 @@ package list
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -12,7 +10,6 @@ import (
 	"monstrobook/internal/auth"
 	"monstrobook/internal/db"
 	"monstrobook/internal/httpx"
-	"monstrobook/internal/ids"
 	"monstrobook/internal/item"
 	"monstrobook/internal/text"
 )
@@ -60,7 +57,7 @@ func (h *Handler) AnnouncePlaylists(ctx context.Context, changes []item.Playlist
 			h.emit.ToUser(owner, "playlist_removed", newPlaylistView(change.Playlist, []playlistEntry{}))
 			continue
 		}
-		view, err := h.playlistViewOf(ctx, change.Playlist)
+		view, err := h.playlistViewOf(ctx, nil, change.Playlist)
 		if err != nil {
 			slog.Error("playlist_updated after delete", "playlist", change.Playlist.ID, "error", err)
 			continue
@@ -86,9 +83,28 @@ type playlistRequest struct {
 	Items       []itemRequest `json:"items"`
 }
 
+func (h *Handler) playlistSpec() container[db.Playlist, playlistView] {
+	return container[db.Playlist, playlistView]{
+		h: h, kind: "playlist", table: "playlists", notFound: "Playlist not found", links: playlistLinks, clearEmptyDesc: true,
+		access: func(user *auth.Principal, row db.Playlist, _ listOp) error {
+			if db.Val(row.UserID) != user.ID {
+				return httpx.Forbidden()
+			}
+			if !user.CanAccessLibrary(db.Val(row.LibraryID)) {
+				return httpx.Error(http.StatusNotFound, "Playlist not found")
+			}
+			return nil
+		},
+		libraryID: func(r db.Playlist) string { return db.Val(r.LibraryID) },
+		metaPtrs:  func(r *db.Playlist) (**string, **string, *db.Time) { return &r.Name, &r.Description, &r.UpdatedAt },
+		viewOf:    h.playlistViewOf,
+		emit:      func(v playlistView, ev string) { h.emit.ToUser(v.UserID, ev, v) },
+	}
+}
+
 // playlistViewOf builds the playlist with its items; entries whose media or
 // library item is gone are left out (upstream reconciles them away).
-func (h *Handler) playlistViewOf(ctx context.Context, row db.Playlist) (playlistView, error) {
+func (h *Handler) playlistViewOf(ctx context.Context, _ *auth.Principal, row db.Playlist) (playlistView, error) {
 	var rows []struct {
 		MediaID       string  `db:"mediaId"`
 		MediaType     *string `db:"mediaType"`
@@ -141,52 +157,6 @@ WHERE pmi.playlistId=? ORDER BY pmi."order" ASC`, row.ID)
 	return newPlaylistView(row, entries), nil
 }
 
-// owned loads the user's playlist: 404 when missing, 403 when it is someone
-// else's, 404 when its library is closed to the user.
-func (h *Handler) owned(ctx context.Context, user *auth.Principal, id string) (db.Playlist, error) {
-	var row db.Playlist
-	err := h.db.Get(ctx, &row, `SELECT * FROM playlists WHERE id=?`, id)
-	switch {
-	case errors.Is(err, sql.ErrNoRows), err == nil && db.Val(row.UserID) == user.ID && !user.CanAccessLibrary(db.Val(row.LibraryID)):
-		return row, httpx.Error(http.StatusNotFound, "Playlist not found")
-	case err == nil && db.Val(row.UserID) != user.ID:
-		return row, httpx.Forbidden()
-	}
-	return row, err
-}
-
-// ownedWithBody is owned plus the decoded body of the request.
-func (h *Handler) ownedWithBody(w http.ResponseWriter, r *http.Request, user *auth.Principal) (db.Playlist, playlistRequest, error) {
-	row, err := h.owned(r.Context(), user, r.PathValue("id"))
-	if err != nil {
-		return row, playlistRequest{}, err
-	}
-	req, err := httpx.Decode[playlistRequest](w, r)
-	return row, req, err
-}
-
-// finishPlaylist answers with the playlist as it is now and tells its owner
-// (nothing when event is empty).
-func (h *Handler) finishPlaylist(w http.ResponseWriter, r *http.Request, id, event string) error {
-	return h.finishAdjusted(w, r, id, event, nil)
-}
-
-// finishAdjusted is finishPlaylist with adjust applied to the view first.
-func (h *Handler) finishAdjusted(w http.ResponseWriter, r *http.Request, id, event string, adjust func(context.Context, *playlistView)) error {
-	var row db.Playlist
-	if err := h.db.Get(r.Context(), &row, `SELECT * FROM playlists WHERE id=?`, id); err != nil {
-		return err
-	}
-	view, err := h.playlistViewOf(r.Context(), row)
-	if err != nil {
-		return err
-	}
-	if adjust != nil {
-		adjust(r.Context(), &view)
-	}
-	return emitAndJSON(w, r, view, func(ev string, payload any) { h.emit.ToUser(view.UserID, ev, payload) }, event)
-}
-
 // episodeTotals gives the last entry's minified podcast the numEpisodes and
 // size of its episodes: PlaylistController.addItem answers with the library
 // item it loaded WITH episodes, unlike a reloaded playlist (client-visible).
@@ -210,13 +180,7 @@ func (h *Handler) episodeTotals(ctx context.Context, view *playlistView) {
 // userPlaylists lists the user's playlists of libraryID ("" for all) sorted by
 // name like upstream (localeCompare).
 func (h *Handler) userPlaylists(ctx context.Context, user *auth.Principal, libraryID string) ([]playlistView, error) {
-	var rows []db.Playlist
-	if err := h.db.Select(ctx, &rows, `SELECT * FROM playlists WHERE userId=? AND (?='' OR libraryId=?)`, user.ID, libraryID, libraryID); err != nil {
-		return nil, err
-	}
-	views, err := accessibleViews(rows, user, func(r db.Playlist) string { return db.Val(r.LibraryID) }, func(r db.Playlist) (playlistView, error) {
-		return h.playlistViewOf(ctx, r)
-	})
+	views, err := h.playlistSpec().list(ctx, user, `WHERE userId=? AND (?='' OR libraryId=?)`, user.ID, libraryID, libraryID)
 	if err != nil {
 		return nil, err
 	}
@@ -253,11 +217,15 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user 
 }
 
 func (h *Handler) getPlaylist(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	row, err := h.owned(r.Context(), user, r.PathValue("id"))
+	row, err := h.playlistSpec().open(r.Context(), user, r.PathValue("id"), opRead)
 	if err != nil {
 		return err
 	}
-	return h.finishPlaylist(w, r, row.ID, "")
+	view, err := h.playlistViewOf(r.Context(), user, row)
+	if err != nil {
+		return err
+	}
+	return httpx.JSON(w, r, view)
 }
 
 // itemRefsOf reads the library items that items name.
@@ -314,22 +282,10 @@ func (h *Handler) addEntry(ctx context.Context, libraryID string, batch bool, it
 	return newEntry{ref.MediaID, "book"}, nil
 }
 
-// insertPlaylist writes a playlist with its entries in one transaction and
-// returns its id.
-func (h *Handler) insertPlaylist(ctx context.Context, userID, libraryID, name string, description *string, entries []newEntry) (id string, err error) {
-	now := db.Now()
-	err = h.db.Tx(ctx, func(ctx context.Context) error {
-		var err error
-		if id, err = ids.New(); err != nil {
-			return err
-		}
-		row := db.Playlist{ID: id, Name: &name, Description: emptyAsNull(description), LibraryID: &libraryID, UserID: &userID, CreatedAt: now, UpdatedAt: now}
-		if err = h.db.Insert(ctx, "playlists", &row); err != nil {
-			return err
-		}
-		return playlistLinks.append(ctx, h.db, id, 0, entries)
-	})
-	return id, err
+func (h *Handler) createPlaylistWith(w http.ResponseWriter, r *http.Request, user *auth.Principal, libraryID, name string, description *string, entries []newEntry) error {
+	return h.playlistSpec().create(w, r, user, func(id string, now db.Time) db.Playlist {
+		return db.Playlist{ID: id, Name: &name, Description: emptyAsNull(description), LibraryID: &libraryID, UserID: &user.ID, CreatedAt: now, UpdatedAt: now}
+	}, entries)
 }
 
 // createPlaylist serves POST /api/playlists.
@@ -358,11 +314,7 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user *a
 			return err
 		}
 	}
-	id, err := h.insertPlaylist(r.Context(), user.ID, req.LibraryID, name, req.Description, entries)
-	if err != nil {
-		return err
-	}
-	return h.finishPlaylist(w, r, id, "playlist_added")
+	return h.createPlaylistWith(w, r, user, req.LibraryID, name, req.Description, entries)
 }
 
 // playlistAction serves POST /api/playlists/{id}/{action}: "collection/{id}"
@@ -373,25 +325,25 @@ func (h *Handler) playlistAction(w http.ResponseWriter, r *http.Request, user *a
 	case id == "collection":
 		return h.createFromCollection(w, r, user, action)
 	case action == "item":
-		row, req, err := h.ownedWithBody(w, r, user)
+		row, req, err := openBody[playlistRequest](h.playlistSpec(), w, r, user, opUpdate)
 		if err != nil {
 			return err
 		}
 		if req.LibraryItemID == "" {
 			return httpx.BadRequest("Request body has no libraryItemId")
 		}
-		return h.addItems(w, r, row, []itemRequest{req.itemRequest}, false)
+		return h.addItems(w, r, user, row, []itemRequest{req.itemRequest}, false)
 	}
 	return httpx.NotFound()
 }
 
 // createFromCollection copies the books the user can read from a collection.
 func (h *Handler) createFromCollection(w http.ResponseWriter, r *http.Request, user *auth.Principal, collectionID string) error {
-	collection, err := h.open(r.Context(), user, collectionID, true)
+	collection, err := h.collectionSpec().open(r.Context(), user, collectionID, opRead)
 	if err != nil {
 		return err
 	}
-	view, err := h.viewOf(r.Context(), user, collection)
+	view, err := h.collectionViewOf(r.Context(), user, collection)
 	if err != nil {
 		return err
 	}
@@ -402,11 +354,7 @@ func (h *Handler) createFromCollection(w http.ResponseWriter, r *http.Request, u
 	for i, book := range view.Books {
 		entries[i] = newEntry{book.MediaID(), "book"}
 	}
-	id, err := h.insertPlaylist(r.Context(), user.ID, view.LibraryID, view.Name, view.Description, entries)
-	if err != nil {
-		return err
-	}
-	return h.finishPlaylist(w, r, id, "playlist_added")
+	return h.createPlaylistWith(w, r, user, view.LibraryID, view.Name, view.Description, entries)
 }
 
 // mediaIDs maps item requests to media ids (an episode id replaces the item's
@@ -428,7 +376,8 @@ func (h *Handler) mediaIDs(ctx context.Context, items []itemRequest, strict bool
 // updatePlaylist serves PATCH /api/playlists/{id}: name, description and item
 // order. An empty name is ignored.
 func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	row, req, err := h.ownedWithBody(w, r, user)
+	c := h.playlistSpec()
+	row, req, err := openBody[playlistRequest](c, w, r, user, opUpdate)
 	if err != nil {
 		return err
 	}
@@ -444,18 +393,7 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request, user *a
 	if err != nil {
 		return err
 	}
-	changed, moved := false, false
-	err = h.db.Tx(r.Context(), func(ctx context.Context) error {
-		changed = patchListMeta(&row.Name, &row.Description, req.Name, req.Description, true)
-		if changed {
-			row.UpdatedAt = db.Now()
-			if err := h.db.Update(ctx, "playlists", &row, "name", "description", "updatedAt"); err != nil {
-				return err
-			}
-		}
-		if len(wanted) == 0 {
-			return nil
-		}
+	return c.update(w, r, user, row, row.ID, req.Name, req.Description, wanted, len(wanted), func(ctx context.Context) error {
 		links, err := playlistLinks.list(ctx, h.db, row.ID)
 		if err != nil {
 			return err
@@ -463,37 +401,16 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request, user *a
 		if len(links) != len(wanted) {
 			return httpx.BadRequest("Invalid playlist items. Length mismatch")
 		}
-		moved, err = playlistLinks.reorder(ctx, h.db, row.ID, wanted, len(wanted))
-		return err
+		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return h.finishPlaylist(w, r, row.ID, eventIf(changed || moved, "playlist_updated"))
 }
 
 // deletePlaylist serves DELETE /api/playlists/{id}.
 func (h *Handler) deletePlaylist(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	row, err := h.owned(r.Context(), user, r.PathValue("id"))
-	if err != nil {
+	return h.playlistSpec().remove(w, r, user, func(ctx context.Context, row db.Playlist) error {
+		_, err := h.db.Exec(ctx, `DELETE FROM playlistMediaItems WHERE playlistId=?`, row.ID)
 		return err
-	}
-	view, err := h.playlistViewOf(r.Context(), row)
-	if err != nil {
-		return err
-	}
-	err = h.db.Tx(r.Context(), func(ctx context.Context) error {
-		if _, err := h.db.Exec(ctx, `DELETE FROM playlistMediaItems WHERE playlistId=?`, row.ID); err != nil {
-			return err
-		}
-		_, err := h.db.Exec(ctx, `DELETE FROM playlists WHERE id=?`, row.ID)
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	h.emit.ToUser(user.ID, "playlist_removed", view)
-	return httpx.Status(w, http.StatusOK)
+	}, nil)
 }
 
 // validItems checks the items of a batch request: some, each naming a library item.
@@ -506,19 +423,19 @@ func validItems(items []itemRequest) error {
 
 // addPlaylistItems serves POST /api/playlists/{id}/batch/add; members are skipped.
 func (h *Handler) addPlaylistItems(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	row, req, err := h.ownedWithBody(w, r, user)
+	row, req, err := openBody[playlistRequest](h.playlistSpec(), w, r, user, opUpdate)
 	if err != nil {
 		return err
 	}
 	if err := validItems(req.Items); err != nil {
 		return err
 	}
-	return h.addItems(w, r, row, req.Items, true)
+	return h.addItems(w, r, user, row, req.Items, true)
 }
 
 // addItems appends items in one transaction; a member is skipped in batch mode
 // and refused otherwise.
-func (h *Handler) addItems(w http.ResponseWriter, r *http.Request, row db.Playlist, items []itemRequest, batch bool) error {
+func (h *Handler) addItems(w http.ResponseWriter, r *http.Request, user *auth.Principal, row db.Playlist, items []itemRequest, batch bool) error {
 	refs, err := h.itemRefsOf(r.Context(), items)
 	if err != nil {
 		return err
@@ -533,26 +450,19 @@ func (h *Handler) addItems(w http.ResponseWriter, r *http.Request, row db.Playli
 	if batch {
 		dupMsg = ""
 	}
-	added := 0
-	err = h.db.Tx(r.Context(), func(ctx context.Context) error {
-		added, err = playlistLinks.add(ctx, h.db, row.ID, entries, dupMsg)
-		return err
+	return h.playlistSpec().addEntries(w, r, user, row.ID, entries, dupMsg, func(added int) func(context.Context, *playlistView) {
+		if !batch && added > 0 && items[0].EpisodeID != "" {
+			return h.episodeTotals
+		}
+		return nil
 	})
-	if err != nil {
-		return err
-	}
-	var adjust func(context.Context, *playlistView)
-	if !batch && added > 0 && items[0].EpisodeID != "" {
-		adjust = h.episodeTotals
-	}
-	return h.finishAdjusted(w, r, row.ID, eventIf(added > 0, "playlist_updated"), adjust)
 }
 
 // removePlaylistItems serves POST /api/playlists/{id}/batch/remove; unknown
 // items are ignored. Like PlaylistController.removeBatch, remaining entries
 // keep their existing order values.
 func (h *Handler) removePlaylistItems(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	row, req, err := h.ownedWithBody(w, r, user)
+	row, req, err := openBody[playlistRequest](h.playlistSpec(), w, r, user, opUpdate)
 	if err != nil {
 		return err
 	}
@@ -568,7 +478,7 @@ func (h *Handler) removePlaylistItems(w http.ResponseWriter, r *http.Request, us
 
 // removePlaylistItem serves DELETE /api/playlists/{id}/item/{libraryItemId}[/{episodeId}].
 func (h *Handler) removePlaylistItem(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	row, err := h.owned(r.Context(), user, r.PathValue("id"))
+	row, err := h.playlistSpec().open(r.Context(), user, r.PathValue("id"), opUpdate)
 	if err != nil {
 		return err
 	}
@@ -591,7 +501,7 @@ func (h *Handler) removePlaylistItem(w http.ResponseWriter, r *http.Request, use
 // and deletes the playlist when it is left empty. It answers with the playlist
 // as it is then.
 func (h *Handler) removeEntries(w http.ResponseWriter, r *http.Request, user *auth.Principal, row db.Playlist, media []string, recompact bool) error {
-	view, err := h.playlistViewOf(r.Context(), row)
+	view, err := h.playlistViewOf(r.Context(), user, row)
 	if err != nil {
 		return err
 	}

@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -31,17 +32,6 @@ const (
 var sniffedImages = map[string]string{
 	"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
 	"image/gif": "gif", "image/bmp": "bmp", "image/x-icon": "ico",
-}
-
-// mediaTable is the table of the item's media, "" for another media type.
-func (r itemRef) mediaTable() string {
-	switch r.MediaType {
-	case "book":
-		return "books"
-	case "podcast":
-		return "podcasts"
-	}
-	return ""
 }
 
 // coverDir is the folder a new cover goes to: the item's own folder when the
@@ -219,13 +209,13 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user *auth
 	if err != nil {
 		return httpx.BadRequest(err.Error())
 	}
-	if err := h.db.Tx(ctx, func(ctx context.Context) error {
+	if err := h.writeTx(ctx, func(ctx context.Context) error {
 		if _, err := h.db.Exec(ctx, `UPDATE `+ref.mediaTable()+` SET coverPath = ? WHERE id = ?`, cover, ref.MediaID); err != nil {
 			return err
 		}
-		return h.db.Update(ctx, "libraryItems", &db.LibraryItem{ID: ref.ID, UpdatedAt: db.Now()}, "updatedAt")
+		return h.stampItem(ctx, ref.ID, db.Now())
 	}); err != nil {
-		return httpx.Internal("database write failed", err)
+		return err
 	}
 	if err := h.announceHTTP(ctx, ref.ID); err != nil {
 		return err
@@ -246,22 +236,34 @@ func (h *Handler) saveCoverUpload(dir, itemID string, header *multipart.FileHead
 		return "", failed
 	}
 	defer source.Close()
-	path := filepath.Join(dir, "cover."+ext)
-	if err := writeFile(path, source); err != nil {
+	path, err := h.storeCover(dir, itemID, ext, source)
+	if err != nil {
 		return "", failed
+	}
+	return path, nil
+}
+
+// storeCover writes source to <dir>/cover.<ext> and purges older covers/cache.
+func (h *Handler) storeCover(dir, itemID, ext string, source io.Reader) (string, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, "cover."+ext)
+	if _, err := writeFile(path, source); err != nil {
+		return "", err
 	}
 	h.coverStored(dir, itemID, ext)
 	return path, nil
 }
 
-// writeFile creates path with the content of source.
-func writeFile(path string, source io.Reader) error {
+// writeFile creates path with the content of source and returns bytes written.
+func writeFile(path string, source io.Reader) (int64, error) {
 	target, err := os.Create(path)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	_, err = io.Copy(target, source)
-	return errors.Join(err, target.Close())
+	n, err := io.Copy(target, source)
+	return n, errors.Join(err, target.Close())
 }
 
 // saveCoverFromURL is CoverManager.downloadCoverFromUrlNew (CoverManager.js:
@@ -319,12 +321,12 @@ func (h *Handler) download(ctx context.Context, rawURL, dest string) error {
 		return errCoverTooLarge
 	}
 	// One byte past the cap tells an oversized body from one of exactly the cap.
-	body := &countingReader{r: io.LimitReader(resp.Body, maxCoverDownload+1)}
-	if err := writeFile(dest, body); err != nil {
+	n, err := writeFile(dest, io.LimitReader(resp.Body, maxCoverDownload+1))
+	if err != nil {
 		_ = os.Remove(dest) // do not keep a partial image
 		return err
 	}
-	if body.n > maxCoverDownload {
+	if n > maxCoverDownload {
 		_ = os.Remove(dest)
 		return errCoverTooLarge
 	}
@@ -335,18 +337,6 @@ func (h *Handler) download(ctx context.Context, rawURL, dest string) error {
 const maxCoverDownload = 10 << 20
 
 var errCoverTooLarge = errors.New("cover is too large")
-
-// countingReader counts the bytes read through it.
-type countingReader struct {
-	r io.Reader
-	n int64
-}
-
-func (c *countingReader) Read(p []byte) (int, error) {
-	n, err := c.r.Read(p)
-	c.n += int64(n)
-	return n, err
-}
 
 // coverStored follows a new cover file in dir: the item's older cover images
 // and its cached resizes go (CoverManager.removeOldCovers, which removes only
@@ -389,7 +379,7 @@ func (h *Handler) chooseCover(w http.ResponseWriter, r *http.Request, user *auth
 	if err != nil {
 		return err
 	}
-	if !hasFile(files, body.Cover) {
+	if !slices.ContainsFunc(files, func(f db.LibraryFile) bool { return f.Metadata.Path == body.Cover }) {
 		return httpx.Error(http.StatusInternalServerError, "Invalid cover path")
 	}
 	current, err := h.coverPath(ctx, ref)
@@ -411,35 +401,19 @@ func (h *Handler) chooseCover(w http.ResponseWriter, r *http.Request, user *auth
 	dir := h.coverDir(ref, h.settings.Server().StoreCoverWithItem)
 	cover := body.Cover
 	if !strings.HasPrefix(cover, dir) { // copy it into the folder covers live in
-		failed := func(err error) error { return httpx.Internal("Failed to copy cover to dir", err) }
 		source, err := os.Open(body.Cover)
 		if err != nil {
-			return failed(err)
+			return httpx.Internal("Failed to copy cover to dir", err)
 		}
 		defer source.Close()
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return failed(err)
+		if cover, err = h.storeCover(dir, ref.ID, ext, source); err != nil {
+			return httpx.Internal("Failed to copy cover to dir", err)
 		}
-		cover = filepath.Join(dir, "cover."+ext)
-		if err := writeFile(cover, source); err != nil {
-			return failed(err)
-		}
-		h.coverStored(dir, ref.ID, ext)
 	}
 	if err := h.changeCover(ctx, ref, &cover); err != nil {
 		return err
 	}
 	return httpx.JSON(w, r, coverResult{true, cover})
-}
-
-// hasFile reports whether one of files lies at path.
-func hasFile(files []db.LibraryFile, path string) bool {
-	for _, f := range files {
-		if f.Metadata.Path == path {
-			return true
-		}
-	}
-	return false
 }
 
 // removeCover is LibraryItemController.deleteCover: the file stays, the item
@@ -462,7 +436,7 @@ func (h *Handler) removeCover(w http.ResponseWriter, r *http.Request, user *auth
 // the item is stamped, its cached resizes dropped and item_updated sent.
 func (h *Handler) changeCover(ctx context.Context, ref itemRef, cover *string) error {
 	var changed int64
-	err := h.db.Tx(ctx, func(ctx context.Context) error {
+	if err := h.writeTx(ctx, func(ctx context.Context) error {
 		now := db.Now()
 		res, err := h.db.Exec(ctx, `UPDATE `+ref.mediaTable()+` SET coverPath = ?, updatedAt = ? WHERE id = ? AND COALESCE(coverPath, '') != COALESCE(?, '')`, cover, now, ref.MediaID, cover)
 		if err != nil {
@@ -471,17 +445,13 @@ func (h *Handler) changeCover(ctx context.Context, ref itemRef, cover *string) e
 		if changed, err = res.RowsAffected(); err != nil || changed == 0 {
 			return err
 		}
-		return h.db.Update(ctx, "libraryItems", &db.LibraryItem{ID: ref.ID, UpdatedAt: now}, "updatedAt")
-	})
-	if err != nil {
-		return httpx.Internal("database write failed", err)
+		return h.stampItem(ctx, ref.ID, now)
+	}); err != nil {
+		return err
 	}
 	if changed == 0 {
 		return nil
 	}
 	purgeCoverCache(h.deps.CoverCacheDir, ref.ID)
-	if err := h.announceHTTP(ctx, ref.ID); err != nil {
-		return err
-	}
-	return nil
+	return h.announceHTTP(ctx, ref.ID)
 }

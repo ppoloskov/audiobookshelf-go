@@ -83,7 +83,7 @@ func (h *Handler) sweepSeries(ctx context.Context, ids []string) {
 // committed and ignores the request's cancellation: a client that disconnects
 // must not leave orphans. It returns the removed ids in creation order.
 func (h *Handler) sweep(ctx context.Context, parent, junction, col, guard string, ids []string, event string) []string {
-	ids = slices.Compact(slices.Sorted(slices.Values(slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return id == "" }))))
+	ids = uniqueNonEmpty(ids)
 	if len(ids) == 0 {
 		return nil
 	}

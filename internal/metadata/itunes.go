@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -88,17 +87,13 @@ func (i itunesItem) cover() string {
 }
 
 func (p itunes) search(ctx context.Context, term, entity, country string) ([]itunesItem, error) {
-	query := url.Values{"term": {term}, "entity": {entity}, "media": {entity}}
-	if country != "" {
-		query.Set("country", country)
-	}
-	var response struct {
+	resp, err := fetchJSON[struct {
 		Results []itunesItem `json:"results"`
-	}
-	if err := p.json(ctx, p.base+"?"+query.Encode(), &response); err != nil {
+	}](ctx, p.getter, queryURL(p.base, "term", term, "entity", entity, "media", entity, "country", country))
+	if err != nil {
 		return nil, err
 	}
-	return response.Results, nil
+	return resp.Results, nil
 }
 
 func (p itunes) searchBooks(ctx context.Context, q BookQuery) ([]BookResult, error) {
@@ -158,11 +153,4 @@ func (p itunes) podcastCovers(ctx context.Context, term string) ([]string, error
 		covers = append(covers, item.cover())
 	}
 	return uniqueTrimmed(covers), nil
-}
-
-func nonEmpty(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
 }

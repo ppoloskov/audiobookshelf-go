@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"slices"
 	"strings"
 	"time"
 )
@@ -50,19 +52,55 @@ func (g getter) body(ctx context.Context, endpoint string, header http.Header) (
 	return body, nil
 }
 
-// json GETs endpoint into target. A field of another type than target expects
-// stays zero, as an absent one does: providers drift, and one odd field must
-// not lose the whole answer.
-func (g getter) json(ctx context.Context, endpoint string, target any) error {
+// fetchJSON GETs endpoint and decodes JSON into T. A field of another type than
+// T expects stays zero, as an absent one does: providers drift, and one odd
+// field must not lose the whole answer.
+func fetchJSON[T any](ctx context.Context, g getter, endpoint string) (T, error) {
+	var target T
 	body, err := g.body(ctx, endpoint, nil)
 	if err != nil {
-		return err
+		return target, err
 	}
 	var mistyped *json.UnmarshalTypeError
-	if err := json.Unmarshal(body, target); err != nil && !errors.As(err, &mistyped) {
-		return err
+	if err := json.Unmarshal(body, &target); err != nil && !errors.As(err, &mistyped) {
+		return target, err
 	}
-	return nil
+	return target, nil
+}
+
+// queryURL appends non-empty key/value pairs to base as URL query parameters.
+func queryURL(base string, pairs ...string) string {
+	q := url.Values{}
+	for i := 0; i+1 < len(pairs); i += 2 {
+		if pairs[i+1] != "" {
+			q.Set(pairs[i], pairs[i+1])
+		}
+	}
+	if len(q) == 0 {
+		return base
+	}
+	sep := "?"
+	if strings.Contains(base, "?") {
+		sep = "&"
+	}
+	if strings.HasSuffix(base, "?") || strings.HasSuffix(base, "&") {
+		sep = ""
+	}
+	return base + sep + q.Encode()
+}
+
+type namedItem struct {
+	Name string `json:"name"`
+}
+
+func joinNames(items []namedItem) string {
+	var names []string
+	for _, item := range items {
+		if name := strings.TrimSpace(item.Name); name != "" {
+			names = append(names, name)
+		}
+	}
+	return strings.Join(names, ", ")
 }
 
 // rawText is the text of a JSON string or number, "" for anything else.
@@ -98,4 +136,20 @@ func jsonString(s string) json.RawMessage {
 	}
 	raw, _ := json.Marshal(s) // a string always marshals
 	return raw
+}
+
+func ptr[T any](v T) *T { return &v }
+
+func nonEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func appendUnique(dst []string, val string) []string {
+	if val != "" && !slices.Contains(dst, val) {
+		return append(dst, val)
+	}
+	return dst
 }

@@ -88,18 +88,49 @@ func Get(ctx context.Context, d *db.DB, id string, opt Options) (*Item, error) {
 	return &items[0], nil
 }
 
+// forChunks calls fn with ids in groups of 500, as SQLite limits bound variables.
+func forChunks(ids []string, fn func(chunk []string) error) error {
+	for chunk := range slices.Chunk(ids, chunkSize) {
+		if err := fn(chunk); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // selectIn runs query (whose single placeholder is `IN (?)`) over ids in
 // chunks of 500 and appends the rows; suffix is appended to the statement.
 func selectIn[T any](ctx context.Context, d *db.DB, query, suffix string, ids []string) ([]T, error) {
 	var out []T
-	for chunk := range slices.Chunk(ids, chunkSize) {
+	err := forChunks(ids, func(chunk []string) error {
 		var rows []T
 		if err := d.Select(ctx, &rows, query+suffix, chunk); err != nil {
-			return nil, err
+			return err
 		}
 		out = append(out, rows...)
+		return nil
+	})
+	return out, err
+}
+
+// execIn runs query (whose single placeholder is `IN (?)`) over ids in chunks of 500.
+func execIn(ctx context.Context, d *db.DB, query string, ids []string) error {
+	return forChunks(ids, func(chunk []string) error {
+		_, err := d.Exec(ctx, query, chunk)
+		return err
+	})
+}
+
+func getRow[T any](ctx context.Context, d *db.DB, table, id string) (T, error) {
+	var row T
+	err := d.Get(ctx, &row, `SELECT * FROM `+table+` WHERE id = ?`, id)
+	return row, err
+}
+
+func nonNil[T any](s *[]T) {
+	if *s == nil {
+		*s = []T{}
 	}
-	return out, nil
 }
 
 // normalizeItem makes the item row's slices non-nil and derives each library
@@ -153,21 +184,11 @@ func loadBooks(ctx context.Context, d *db.DB, ids []string) (map[string]*Book, e
 }
 
 func normalizeBook(row *db.Book) {
-	if row.Narrators.V == nil {
-		row.Narrators.V = []string{}
-	}
-	if row.Tags.V == nil {
-		row.Tags.V = []string{}
-	}
-	if row.Genres.V == nil {
-		row.Genres.V = []string{}
-	}
-	if row.Chapters.V == nil {
-		row.Chapters.V = []db.Chapter{}
-	}
-	if row.AudioFiles.V == nil {
-		row.AudioFiles.V = []db.AudioFile{}
-	}
+	nonNil(&row.Narrators.V)
+	nonNil(&row.Tags.V)
+	nonNil(&row.Genres.V)
+	nonNil(&row.Chapters.V)
+	nonNil(&row.AudioFiles.V)
 	for i := range row.AudioFiles.V {
 		normalizeAudio(&row.AudioFiles.V[i])
 	}
@@ -186,12 +207,8 @@ func loadPodcasts(ctx context.Context, d *db.DB, ids []string, opt Options) (map
 		return nil, fmt.Errorf("load podcasts: %w", err)
 	}
 	for _, row := range rows {
-		if row.Tags.V == nil {
-			row.Tags.V = []string{}
-		}
-		if row.Genres.V == nil {
-			row.Genres.V = []string{}
-		}
+		nonNil(&row.Tags.V)
+		nonNil(&row.Genres.V)
 		podcasts[row.ID] = &Podcast{Podcast: row}
 		if opt.Episodes {
 			podcasts[row.ID].Episodes = []Episode{}

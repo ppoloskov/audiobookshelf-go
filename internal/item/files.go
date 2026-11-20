@@ -21,24 +21,6 @@ import (
 	"monstrobook/internal/media"
 )
 
-// readable loads the item (404) and checks the user's library access (403).
-func (h *Handler) readable(ctx context.Context, user *auth.Principal, id string) (itemRef, error) {
-	ref, err := h.loadRef(ctx, id)
-	if err == nil && !user.CanAccessLibrary(ref.LibraryID) {
-		err = httpx.Forbidden()
-	}
-	return ref, err
-}
-
-// writable is readable plus the update permission (403).
-func (h *Handler) writable(ctx context.Context, user *auth.Principal, id string) (itemRef, error) {
-	ref, err := h.readable(ctx, user, id)
-	if err == nil && !user.CanUpdate() {
-		err = httpx.Forbidden()
-	}
-	return ref, err
-}
-
 // libraryFiles is the item's libraryFiles column.
 func (h *Handler) libraryFiles(ctx context.Context, itemID string) ([]db.LibraryFile, error) {
 	var row struct {
@@ -86,37 +68,48 @@ func audioType(w http.ResponseWriter, path string) {
 	}
 }
 
+// openLibraryFile verifies read access and returns the path of the item's file with inode ino.
+func (h *Handler) openLibraryFile(ctx context.Context, user *auth.Principal, itemID, ino string) (string, error) {
+	ref, err := h.readable(ctx, user, itemID)
+	if err != nil {
+		return "", err
+	}
+	file, err := h.libraryFile(ctx, ref, ino)
+	if err != nil {
+		return "", err
+	}
+	return file.Metadata.Path, nil
+}
+
 // serveFile is LibraryItemController.getLibraryFile: one file of the item,
 // with ranges. Order: 404, 403 (library), 404 for an unknown or outside file.
 func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	ref, err := h.readable(r.Context(), user, r.PathValue("id"))
+	path, err := h.openLibraryFile(r.Context(), user, r.PathValue("id"), r.PathValue("ino"))
 	if err != nil {
 		return err
 	}
-	file, err := h.libraryFile(r.Context(), ref, r.PathValue("ino"))
-	if err != nil {
-		return err
-	}
-	audioType(w, file.Metadata.Path)
-	return httpx.ServeFile(w, r, file.Metadata.Path)
+	audioType(w, path)
+	return httpx.ServeFile(w, r, path)
 }
 
 // downloadFile is serveFile as an attachment; it needs the download permission,
 // which is checked after the file is found (js:675-707).
 func (h *Handler) downloadFile(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	ref, err := h.readable(r.Context(), user, r.PathValue("id"))
-	if err != nil {
-		return err
-	}
-	file, err := h.libraryFile(r.Context(), ref, r.PathValue("ino"))
+	path, err := h.openLibraryFile(r.Context(), user, r.PathValue("id"), r.PathValue("ino"))
 	if err != nil {
 		return err
 	}
 	if !user.CanDownload() {
 		return httpx.Forbidden()
 	}
-	audioType(w, file.Metadata.Path)
-	return httpx.Download(w, r, file.Metadata.Path, filepath.Base(file.Metadata.Path))
+	audioType(w, path)
+	return httpx.Download(w, r, path, filepath.Base(path))
+}
+
+func findEbookFile(files []db.LibraryFile, ino string) int {
+	return slices.IndexFunc(files, func(f db.LibraryFile) bool {
+		return f.Ino == ino && fileKind(f.Metadata) == media.KindEbook
+	})
 }
 
 // serveEbook is LibraryItemController.getEBookFile: the ebook file with the
@@ -134,14 +127,14 @@ func (h *Handler) serveEbook(w http.ResponseWriter, r *http.Request, user *auth.
 		if err != nil {
 			return err
 		}
-		i := slices.IndexFunc(files, func(f db.LibraryFile) bool { return f.Ino == fileID && fileKind(f.Metadata) == media.KindEbook })
+		i := findEbookFile(files, fileID)
 		if i < 0 {
 			return httpx.BadRequest("Invalid ebook file id")
 		}
 		path = files[i].Metadata.Path
 	} else if ref.MediaType == "book" {
-		var book db.Book
-		if err := h.db.Get(ctx, &book, `SELECT * FROM books WHERE id = ?`, ref.MediaID); err != nil {
+		book, err := getRow[db.Book](ctx, h.db, "books", ref.MediaID)
+		if err != nil {
 			return httpx.NotFound()
 		}
 		if ebook := book.EbookFile.V; ebook != nil {
@@ -164,7 +157,7 @@ func (h *Handler) deleteFile(w http.ResponseWriter, r *http.Request, user *auth.
 	if err != nil {
 		return err
 	}
-	if ref.MediaType != "book" && ref.MediaType != "podcast" {
+	if ref.mediaTable() == "" {
 		return httpx.BadRequest("")
 	}
 	ino := r.PathValue("ino")
@@ -213,14 +206,12 @@ func (h *Handler) deleteFile(w http.ResponseWriter, r *http.Request, user *auth.
 // dropBookFile removes the file from the book's audio files and ebook and sets
 // item.IsMissing for the result.
 func (h *Handler) dropBookFile(ctx context.Context, ref itemRef, ino string, item *db.LibraryItem) error {
-	var book db.Book
-	if err := h.db.Get(ctx, &book, `SELECT * FROM books WHERE id = ?`, ref.MediaID); err != nil {
+	book, err := getRow[db.Book](ctx, h.db, "books", ref.MediaID)
+	if err != nil {
 		return err
 	}
 	audio := slices.DeleteFunc(slices.Clone(book.AudioFiles.V), func(f db.AudioFile) bool { return f.Ino == ino })
-	if audio == nil {
-		audio = []db.AudioFile{}
-	}
+	nonNil(&audio)
 	ebookGone := book.EbookFile.V != nil && book.EbookFile.V.Ino == ino
 	if len(audio) != len(book.AudioFiles.V) || ebookGone {
 		book.AudioFiles.V = audio

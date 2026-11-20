@@ -16,9 +16,15 @@ import (
 	"monstrobook/internal/media"
 )
 
-// editableAudio is the number of audio files a book plays: those not excluded.
-func editableAudio(files []db.AudioFile) int {
-	return len(slices.DeleteFunc(slices.Clone(files), func(f db.AudioFile) bool { return f.Exclude }))
+// playableAudio is the number of audio files a book plays: those not excluded.
+func playableAudio(files []db.AudioFile) int {
+	n := 0
+	for _, f := range files {
+		if !f.Exclude {
+			n++
+		}
+	}
+	return n
 }
 
 // Refusals found inside a transaction, answered 400 once it has rolled back.
@@ -39,22 +45,19 @@ type chaptersResult struct {
 // then the body (400). Chapters keep their ids when only their count is equal.
 func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
 	ctx := r.Context()
-	ref, err := h.writable(ctx, user, r.PathValue("id"))
+	ref, err := h.writableBook(ctx, user, r.PathValue("id"), httpx.Error(http.StatusInternalServerError, ""))
 	if err != nil {
 		return err
 	}
-	if ref.MediaType != "book" {
-		return httpx.Error(http.StatusInternalServerError, "")
-	}
-	var book db.Book
-	var missing db.Bool
-	if err := h.db.Get(ctx, &book, `SELECT * FROM books WHERE id = ?`, ref.MediaID); err != nil {
+	book, err := getRow[db.Book](ctx, h.db, "books", ref.MediaID)
+	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}
+	var missing db.Bool
 	if err := h.db.Get(ctx, &missing, `SELECT isMissing FROM libraryItems WHERE id = ?`, ref.ID); err != nil {
 		return httpx.Internal("database read failed", err)
 	}
-	if bool(missing) || editableAudio(book.AudioFiles.V) == 0 {
+	if bool(missing) || playableAudio(book.AudioFiles.V) == 0 {
 		return httpx.Error(http.StatusInternalServerError, "")
 	}
 	body, err := httpx.DecodeLimit[struct {
@@ -64,8 +67,9 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request, user *a
 		return httpx.BadRequest("Invalid payload")
 	}
 	updated := false
-	err = h.db.Tx(ctx, func(ctx context.Context) error {
-		if err := h.db.Get(ctx, &book, `SELECT * FROM books WHERE id = ?`, ref.MediaID); err != nil {
+	if err := h.writeTx(ctx, func(ctx context.Context) error {
+		book, err := getRow[db.Book](ctx, h.db, "books", ref.MediaID)
+		if err != nil {
 			return err
 		}
 		previous := book.Chapters.V
@@ -83,9 +87,8 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request, user *a
 		}
 		book.Chapters.V, book.UpdatedAt = chapters, db.Now()
 		return h.db.Update(ctx, "books", &book, "chapters", "updatedAt")
-	})
-	if err != nil {
-		return httpx.Internal("database write failed", err)
+	}); err != nil {
+		return err
 	}
 	if updated {
 		if err := h.ItemChanged(ctx, ref.ID); err != nil {
@@ -107,12 +110,9 @@ type trackOrder struct {
 // an unreadable or empty list, or an inode the book does not have.
 func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
 	ctx := r.Context()
-	ref, err := h.writable(ctx, user, r.PathValue("id"))
+	ref, err := h.writableBook(ctx, user, r.PathValue("id"), httpx.BadRequest(""))
 	if err != nil {
 		return err
-	}
-	if ref.MediaType != "book" {
-		return httpx.BadRequest("")
 	}
 	body, err := httpx.DecodeLimit[struct {
 		Ordered []trackOrder `json:"orderedFileData"`
@@ -121,8 +121,8 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request, user *aut
 		return httpx.BadRequest("")
 	}
 	err = h.db.Tx(ctx, func(ctx context.Context) error {
-		var book db.Book
-		if err := h.db.Get(ctx, &book, `SELECT * FROM books WHERE id = ?`, ref.MediaID); err != nil {
+		book, err := getRow[db.Book](ctx, h.db, "books", ref.MediaID)
+		if err != nil {
 			return err
 		}
 		files := make([]db.AudioFile, 0, len(body.Ordered))
@@ -149,7 +149,7 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request, user *aut
 	if err != nil {
 		return httpx.Internal("database write failed", err)
 	}
-	it, err := h.announceItem(ctx, ref.ID)
+	it, err := h.announceItem(ctx, ref.ID, true)
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}
@@ -162,12 +162,9 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request, user *aut
 // an ebook of the item.
 func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
 	ctx := r.Context()
-	ref, err := h.writable(ctx, user, r.PathValue("id"))
+	ref, err := h.writableBook(ctx, user, r.PathValue("id"), httpx.BadRequest(""))
 	if err != nil {
 		return err
-	}
-	if ref.MediaType != "book" {
-		return httpx.BadRequest("")
 	}
 	ino := r.PathValue("ino")
 	err = h.db.Tx(ctx, func(ctx context.Context) error {
@@ -175,12 +172,12 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user
 		if err != nil {
 			return err
 		}
-		i := slices.IndexFunc(files, func(f db.LibraryFile) bool { return f.Ino == ino && fileKind(f.Metadata) == media.KindEbook })
+		i := findEbookFile(files, ino)
 		if i < 0 {
 			return errNotEbook
 		}
-		var book db.Book
-		if err := h.db.Get(ctx, &book, `SELECT * FROM books WHERE id = ?`, ref.MediaID); err != nil {
+		book, err := getRow[db.Book](ctx, h.db, "books", ref.MediaID)
+		if err != nil {
 			return err
 		}
 		book.EbookFile.V = nil
@@ -197,7 +194,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user
 		}
 		now := db.Now()
 		book.UpdatedAt = now
-		item := db.LibraryItem{ID: ref.ID, UpdatedAt: now, IsMissing: db.Bool(book.EbookFile.V == nil && editableAudio(book.AudioFiles.V) == 0)}
+		item := db.LibraryItem{ID: ref.ID, UpdatedAt: now, IsMissing: db.Bool(book.EbookFile.V == nil && playableAudio(book.AudioFiles.V) == 0)}
 		item.LibraryFiles.V = files
 		if err := h.db.Update(ctx, "books", &book, "ebookFile", "updatedAt"); err != nil {
 			return err
@@ -253,31 +250,24 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request, user *a
 	if !user.CanAccessLibrary(db.Val(it.LibraryID)) {
 		return httpx.Forbidden()
 	}
-	if it.Book == nil || bool(it.IsMissing) || editableAudio(it.Book.AudioFiles.V) == 0 {
+	if it.Book == nil || bool(it.IsMissing) {
+		return httpx.BadRequest("")
+	}
+	tracks := playableAudio(it.Book.AudioFiles.V)
+	if tracks == 0 {
 		return httpx.BadRequest("")
 	}
 	b := it.Book
-	authors := make([]string, len(b.Authors))
-	for i, a := range b.Authors {
-		authors[i] = a.Name
-	}
-	groups := make([]string, len(b.Series))
-	for i, s := range b.Series {
-		groups[i] = strings.TrimSpace(s.Name + " #" + db.Val(s.Sequence))
-		if db.Val(s.Sequence) == "" {
-			groups[i] = s.Name
-		}
-	}
 	album := db.Val(b.Title)
 	if subtitle := db.Val(b.Subtitle); subtitle != "" {
 		album += ": " + subtitle
 	}
-	names := strings.Join(authors, ", ")
+	names := b.AuthorName()
 	return httpx.JSON(w, r, audioTags{
 		Title: db.Val(b.Title), Artist: names, AlbumArtist: names, Album: album, Subtitle: db.Val(b.Subtitle),
 		Genre: strings.Join(b.Genres.V, "; "), Date: db.Val(b.PublishedYear), Comment: db.Val(b.Description), Description: db.Val(b.Description),
 		Composer: strings.Join(b.Narrators.V, ", "), Copyright: db.Val(b.Publisher), Publisher: db.Val(b.Publisher),
-		TrackTotal: fmt.Sprint(editableAudio(b.AudioFiles.V)), Grouping: strings.Join(groups, "; "),
+		TrackTotal: fmt.Sprint(tracks), Grouping: strings.Join(b.seriesLabels(), "; "),
 	})
 }
 
@@ -302,8 +292,8 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request, user *auth.Pri
 	var files []db.AudioFile
 	switch ref.MediaType {
 	case "book":
-		var book db.Book
-		if err := h.db.Get(ctx, &book, `SELECT * FROM books WHERE id = ?`, ref.MediaID); err != nil {
+		book, err := getRow[db.Book](ctx, h.db, "books", ref.MediaID)
+		if err != nil {
 			return httpx.Internal("database read failed", err)
 		}
 		files = book.AudioFiles.V

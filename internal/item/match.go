@@ -61,17 +61,18 @@ func (h *Handler) QuickMatch(ctx context.Context, itemID string, opts MatchOptio
 	var p patch
 	var cover string
 	var storedCover *string
+	var coverDst **string
 	switch {
 	case it.Book != nil:
 		b := it.Book
-		search := metadata.BookQuery{Provider: opts.Provider, Title: firstNonEmpty(opts.Title, db.Val(b.Title)), Author: firstNonEmpty(opts.Author, bookAuthors(b)),
+		search := metadata.BookQuery{Provider: opts.Provider, Title: firstNonEmpty(opts.Title, db.Val(b.Title)), Author: firstNonEmpty(opts.Author, b.AuthorName()),
 			ISBN: firstNonEmpty(opts.ISBN, db.Val(b.ISBN)), ASIN: firstNonEmpty(opts.ASIN, db.Val(b.ASIN)), Duration: db.Val(b.Duration), MaxFuzzy: 2}
 		results := h.deps.Books.SearchBooks(ctx, search)
 		if len(results) == 0 {
 			return noMatch(), nil
 		}
 		bp := bookMatchPatch(b, results[0], overrideDetails)
-		p, cover, storedCover = patch{book: &bp}, results[0].Cover, b.CoverPath
+		p, cover, storedCover, coverDst = patch{book: &bp}, results[0].Cover, b.CoverPath, &bp.coverPath
 		if it.IsFile { // a single-file item has no folder to hold the cover
 			ref.Path = ""
 		}
@@ -81,18 +82,12 @@ func (h *Handler) QuickMatch(ctx context.Context, itemID string, opts MatchOptio
 			return noMatch(), nil
 		}
 		pp := podcastMatchPatch(&it.Podcast.Podcast, results[0], overrideDetails)
-		p, cover, storedCover = patch{podcast: &pp}, db.Val(results[0].Cover), it.Podcast.CoverPath
+		p, cover, storedCover, coverDst = patch{podcast: &pp}, db.Val(results[0].Cover), it.Podcast.CoverPath, &pp.coverPath
 	default:
 		return MatchResult{}, fmt.Errorf("unsupported media type %q", ref.MediaType)
 	}
 
-	coverPath := h.matchCover(ctx, ref, server.StoreCoverWithItem, cover, storedCover, overrideCover)
-	switch {
-	case p.book != nil:
-		p.book.coverPath = coverPath
-	default:
-		p.podcast.coverPath = coverPath
-	}
+	*coverDst = h.matchCover(ctx, ref, server.StoreCoverWithItem, cover, storedCover, overrideCover)
 	out, err := h.update(ctx, ref, p, fromMatch)
 	if err != nil {
 		return MatchResult{}, err
@@ -105,7 +100,7 @@ func (h *Handler) QuickMatch(ctx context.Context, itemID string, opts MatchOptio
 			slog.Info("quick matched podcast episodes", "item", ref.ID, "updated", n)
 		}
 	}
-	fresh, err := h.finishOne(ctx, out)
+	fresh, err := h.finish(ctx, true, out)
 	if err != nil {
 		return MatchResult{}, err
 	}
@@ -134,17 +129,17 @@ func firstNonEmpty(a, b string) string {
 	return b
 }
 
-func bookAuthors(b *Book) string {
-	names := make([]string, len(b.Authors))
-	for i, a := range b.Authors {
-		names[i] = a.Name
-	}
-	return strings.Join(names, ", ")
+type textMatch struct {
+	value  string
+	stored *string
+	dst    *Text
 }
 
-func setTextIfMissing(value string, stored *string, dst *Text, override bool) {
-	if value != "" && (db.Val(stored) == "" || override) {
-		*dst = Text{true, value}
+func applyMissingTexts(fields []textMatch, override bool) {
+	for _, f := range fields {
+		if f.value != "" && (db.Val(f.stored) == "" || override) {
+			*f.dst = Text{true, f.value}
+		}
 	}
 }
 
@@ -154,17 +149,11 @@ func setTextIfMissing(value string, stored *string, dst *Text, override bool) {
 func bookMatchPatch(b *Book, m metadata.BookResult, override bool) BookPatch {
 	md := &BookMetadataPatch{}
 	p := BookPatch{Metadata: md}
-	for _, f := range []struct {
-		value  string
-		stored *string
-		dst    *Text
-	}{
+	applyMissingTexts([]textMatch{
 		{m.Title, b.Title, &md.Title}, {m.Subtitle, b.Subtitle, &md.Subtitle}, {m.Description, b.Description, &md.Description},
 		{m.Publisher, b.Publisher, &md.Publisher}, {m.PublishedYear, b.PublishedYear, &md.PublishedYear},
 		{m.Language, b.Language, &md.Language}, {m.ASIN, b.ASIN, &md.ASIN}, {m.ISBN, b.ISBN, &md.ISBN},
-	} {
-		setTextIfMissing(f.value, f.stored, f.dst, override)
-	}
+	}, override)
 	if m.Narrator != "" && (len(b.Narrators.V) == 0 || override) {
 		md.Narrators = db.Ptr(splitNames(m.Narrator))
 	}
@@ -206,19 +195,13 @@ func bookMatchPatch(b *Book, m metadata.BookResult, override bool) BookPatch {
 // podcastMatchPatch is quickMatchPodcastBuildUpdatePayload (Scanner.js:145-182).
 func podcastMatchPatch(pod *db.Podcast, m metadata.PodcastResult, override bool) PodcastPatch {
 	md := &PodcastMetadataPatch{}
-	for _, f := range []struct {
-		value  string
-		stored *string
-		dst    *Text
-	}{
+	applyMissingTexts([]textMatch{
 		{db.Val(m.Title), pod.Title, &md.Title}, {db.Val(m.ArtistName), pod.Author, &md.Author},
 		{idText(m.ID), pod.ItunesID, &md.ItunesID}, {db.Val(m.PageURL), pod.ItunesPageURL, &md.ItunesPageURL},
 		{idText(m.ArtistID), pod.ItunesArtistID, &md.ItunesArtistID}, {db.Val(m.ReleaseDate), pod.ReleaseDate, &md.ReleaseDate},
 		{db.Val(m.Cover), pod.ImageURL, &md.ImageURL}, {db.Val(m.FeedURL), pod.FeedURL, &md.FeedURL},
 		{m.DescriptionPlain, pod.Description, &md.Description},
-	} {
-		setTextIfMissing(f.value, f.stored, f.dst, override)
-	}
+	}, override)
 	if m.Genres != nil && (len(pod.Genres.V) == 0 || override) {
 		md.Genres = db.Ptr(m.Genres)
 	}
@@ -258,15 +241,6 @@ func idText(raw json.RawMessage) string {
 	return ""
 }
 
-// decodeOptional decodes a JSON body, treating an empty one as the zero value.
-func decodeOptional[T any](w http.ResponseWriter, r *http.Request) (T, error) {
-	if r.ContentLength == 0 {
-		var zero T
-		return zero, nil
-	}
-	return httpx.Decode[T](w, r)
-}
-
 // match is LibraryItemController.match (js:526-548) behind its middleware
 // (js:1220-1249). Order: 404, 403 for item access, 403 for the update permission.
 func (h *Handler) match(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
@@ -275,16 +249,17 @@ func (h *Handler) match(w http.ResponseWriter, r *http.Request, user *auth.Princ
 	if err != nil {
 		return err
 	}
-	allowed, err := h.canAccessAll(ctx, user, []itemRef{ref})
-	if err != nil {
-		return httpx.Internal("database read failed", err)
+	if err := h.requireAccess(ctx, user, []itemRef{ref}); err != nil {
+		return err
 	}
-	if !allowed || !user.CanUpdate() {
+	if !user.CanUpdate() {
 		return httpx.Forbidden()
 	}
-	opts, err := decodeOptional[MatchOptions](w, r)
-	if err != nil {
-		return err
+	var opts MatchOptions
+	if r.ContentLength != 0 {
+		if opts, err = httpx.Decode[MatchOptions](w, r); err != nil {
+			return err
+		}
 	}
 	result, err := h.QuickMatch(ctx, ref.ID, opts)
 	if err != nil {

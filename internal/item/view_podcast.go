@@ -42,6 +42,15 @@ type PodcastSettings struct {
 	MaxNewEpisodesToDownload int64    `json:"maxNewEpisodesToDownload"`
 }
 
+// MediaID implements Media.
+func (p PodcastSettings) MediaID() string { return p.ID }
+
+// PodcastStats holds the episode count and total size of minified and expanded podcast views.
+type PodcastStats struct {
+	NumEpisodes int64 `json:"numEpisodes"`
+	Size        int64 `json:"size"`
+}
+
 // PodcastFull is Podcast.toOldJSON.
 type PodcastFull struct {
 	PodcastSettings
@@ -54,20 +63,18 @@ type PodcastFull struct {
 // unless a list row fills them (Item.ListRow).
 type PodcastMinified struct {
 	PodcastSettings
-	Metadata    PodcastMetadataMinified `json:"metadata"`
-	NumEpisodes int64                   `json:"numEpisodes"`
-	Size        int64                   `json:"size"`
+	Metadata PodcastMetadataMinified `json:"metadata"`
+	PodcastStats
 }
 
 // PodcastExpanded is Podcast.toOldJSONExpanded: NumEpisodes and Size come from
 // the loaded episodes.
 type PodcastExpanded struct {
 	PodcastSettings
-	Metadata      PodcastMetadataMinified `json:"metadata"`
-	NumEpisodes   int64                   `json:"numEpisodes"`
-	Size          int64                   `json:"size"`
-	LibraryItemID string                  `json:"libraryItemId"`
-	Episodes      []EpisodeExpanded       `json:"episodes"`
+	Metadata PodcastMetadataMinified `json:"metadata"`
+	PodcastStats
+	LibraryItemID string            `json:"libraryItemId"`
+	Episodes      []EpisodeExpanded `json:"episodes"`
 }
 
 // Enclosure is the feed enclosure of an episode; Length is the decimal size.
@@ -108,20 +115,11 @@ type EpisodeExpanded struct {
 	Duration   *float64   `json:"duration"`
 }
 
-// MediaID implements Media.
-func (p PodcastFull) MediaID() string { return p.ID }
-
 // Flags implements Media.
 func (p PodcastFull) Flags() (bool, []string) { return p.Metadata.Explicit, p.Tags }
 
-// MediaID implements Media.
-func (p PodcastMinified) MediaID() string { return p.ID }
-
 // Flags implements Media.
 func (p PodcastMinified) Flags() (bool, []string) { return p.Metadata.Explicit, p.Tags }
-
-// MediaID implements Media.
-func (p PodcastExpanded) MediaID() string { return p.ID }
 
 // Flags implements Media.
 func (p PodcastExpanded) Flags() (bool, []string) { return p.Metadata.Explicit, p.Tags }
@@ -162,7 +160,7 @@ func (p *Podcast) Minified(prefixes []string) PodcastMinified {
 // episodes must have been loaded for the count, size and list to be real.
 func (p *Podcast) Expanded(itemID string, prefixes []string) PodcastExpanded {
 	view := PodcastExpanded{PodcastSettings: p.settings(), Metadata: p.metadataMinified(prefixes), LibraryItemID: itemID,
-		NumEpisodes: int64(len(p.Episodes)), Episodes: make([]EpisodeExpanded, len(p.Episodes))}
+		PodcastStats: PodcastStats{NumEpisodes: int64(len(p.Episodes))}, Episodes: make([]EpisodeExpanded, len(p.Episodes))}
 	for i, episode := range p.Episodes {
 		view.Episodes[i] = episode.Expanded(itemID)
 		view.Size += view.Episodes[i].Size

@@ -106,12 +106,8 @@ func trimmed(names []string) (list []string, wanted map[string]bool) {
 // description attribute (server/models/Series.js:168-178): the series_added
 // payload of a quick match.
 type seriesCreated struct {
-	ID               string `json:"id"`
-	Name             string `json:"name"`
+	authorEvent
 	NameIgnorePrefix string `json:"nameIgnorePrefix"`
-	AddedAt          int64  `json:"addedAt"`
-	UpdatedAt        int64  `json:"updatedAt"`
-	LibraryID        string `json:"libraryId"`
 }
 
 // authorEvent is Author.toOldJSON of an author created now, which has no
@@ -143,13 +139,31 @@ func (h *Handler) authorUpdated(ctx context.Context, c *changes, id string, src 
 	if err := h.db.Get(ctx, &n, `SELECT COUNT(*) FROM bookAuthors WHERE authorId = ?`, id); err != nil || n == 0 {
 		return err
 	}
-	var a db.Author
-	if err := h.db.Get(ctx, &a, `SELECT * FROM authors WHERE id = ?`, id); err != nil {
+	a, err := getRow[db.Author](ctx, h.db, "authors", id)
+	if err != nil {
 		return err
 	}
 	c.events = append(c.events, event{"author_updated", authorExpandedEvent{
 		authorEvent{a.ID, db.Val(a.Name), db.Val(a.LibraryID), a.CreatedAt.UnixMilli(), a.UpdatedAt.UnixMilli()}, a.ASIN, a.Description, a.ImagePath, n}})
 	return nil
+}
+
+// unlinkMissing deletes junction rows not in wanted and returns the kept links
+// keyed by lowercase name plus the unlinked parent ids in link order.
+func (h *Handler) unlinkMissing(ctx context.Context, junction, col, bookID string, order []link, wanted map[string]bool) (kept map[string]link, unlinked []string, err error) {
+	kept = make(map[string]link, len(order))
+	for _, l := range order {
+		key := strings.ToLower(l.Name)
+		if wanted[key] {
+			kept[key] = l
+			continue
+		}
+		if _, err := h.db.Exec(ctx, `DELETE FROM `+junction+` WHERE bookId = ? AND `+col+` = ?`, bookID, l.ID); err != nil {
+			return nil, nil, err
+		}
+		unlinked = append(unlinked, l.ID)
+	}
+	return kept, unlinked, nil
 }
 
 // linkAuthors makes the book's authors exactly names, creating missing ones:
@@ -160,30 +174,24 @@ func (h *Handler) linkAuthors(ctx context.Context, c *changes, libraryID, bookID
 	if err != nil {
 		return false, err
 	}
-	have := map[string]bool{}
-	changed := false
-	for _, l := range order {
-		key := strings.ToLower(l.Name)
-		if wanted[key] {
-			have[key] = true
-			continue
-		}
-		if _, err := h.db.Exec(ctx, `DELETE FROM bookAuthors WHERE bookId = ? AND authorId = ?`, bookID, l.ID); err != nil {
-			return false, err
-		}
-		changed = true
-		c.authorsUnlinked = append(c.authorsUnlinked, l.ID)
-		if err := h.authorUpdated(ctx, c, l.ID, src); err != nil {
+	have, unlinked, err := h.unlinkMissing(ctx, "bookAuthors", "authorId", bookID, order, wanted)
+	if err != nil {
+		return false, err
+	}
+	changed := len(unlinked) > 0
+	c.authorsUnlinked = append(c.authorsUnlinked, unlinked...)
+	for _, id := range unlinked {
+		if err := h.authorUpdated(ctx, c, id, src); err != nil {
 			return false, err
 		}
 	}
 	var clk clock
 	for _, name := range wants {
 		key := strings.ToLower(name)
-		if have[key] {
+		if _, ok := have[key]; ok {
 			continue
 		}
-		have[key] = true
+		have[key] = link{}
 		now := clk.now()
 		id, created, err := h.parent(ctx, "authors", libraryID, name, func(id string) any {
 			return db.Author{ID: id, Name: &name, LastFirst: db.Ptr(text.ToLastFirst(name)), LibraryID: &libraryID, CreatedAt: now, UpdatedAt: now}
@@ -222,20 +230,12 @@ func (h *Handler) linkSeries(ctx context.Context, c *changes, libraryID, bookID 
 	if err != nil {
 		return false, err
 	}
-	current := map[string]link{}
-	changed := false
-	for _, l := range order {
-		key := strings.ToLower(l.Name)
-		if wanted[key] {
-			current[key] = l
-			continue
-		}
-		if _, err := h.db.Exec(ctx, `DELETE FROM bookSeries WHERE bookId = ? AND seriesId = ?`, bookID, l.ID); err != nil {
-			return false, err
-		}
-		changed = true
-		c.seriesUnlinked = append(c.seriesUnlinked, l.ID)
+	current, unlinked, err := h.unlinkMissing(ctx, "bookSeries", "seriesId", bookID, order, wanted)
+	if err != nil {
+		return false, err
 	}
+	changed := len(unlinked) > 0
+	c.seriesUnlinked = append(c.seriesUnlinked, unlinked...)
 	var clk clock
 	prefixes := h.prefixes()
 	for _, w := range wants {
@@ -267,7 +267,7 @@ func (h *Handler) linkSeries(ctx context.Context, c *changes, libraryID, bookID 
 		changed = true
 		if created && src == fromMatch {
 			ms := now.UnixMilli()
-			c.events = append(c.events, event{"series_added", seriesCreated{ID: id, Name: name, NameIgnorePrefix: text.PrefixAtEnd(name, prefixes), AddedAt: ms, UpdatedAt: ms, LibraryID: libraryID}})
+			c.events = append(c.events, event{"series_added", seriesCreated{authorEvent: authorEvent{ID: id, Name: name, LibraryID: libraryID, AddedAt: ms, UpdatedAt: ms}, NameIgnorePrefix: text.PrefixAtEnd(name, prefixes)}})
 		}
 	}
 	return changed, nil

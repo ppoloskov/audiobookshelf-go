@@ -8,44 +8,43 @@ import (
 	"monstrobook/internal/text"
 )
 
+// BookMetadataCommon holds the scalar metadata fields shared across every book view.
+type BookMetadataCommon struct {
+	Title         *string  `json:"title"`
+	Subtitle      *string  `json:"subtitle"`
+	Genres        []string `json:"genres"`
+	PublishedYear *string  `json:"publishedYear"`
+	PublishedDate *string  `json:"publishedDate"`
+	Publisher     *string  `json:"publisher"`
+	Description   *string  `json:"description"`
+	ISBN          *string  `json:"isbn"`
+	ASIN          *string  `json:"asin"`
+	Language      *string  `json:"language"`
+	Explicit      bool     `json:"explicit"`
+	Abridged      bool     `json:"abridged"`
+}
+
+// BookMetadataDerived holds the formatted name and sort-title fields of minified and expanded book views.
+type BookMetadataDerived struct {
+	TitleIgnorePrefix *string `json:"titleIgnorePrefix"`
+	AuthorName        string  `json:"authorName"`
+	AuthorNameLF      string  `json:"authorNameLF"`
+	NarratorName      string  `json:"narratorName"`
+	SeriesName        string  `json:"seriesName"`
+}
+
 // BookMetadataFull is the metadata of the full and expanded book views.
 type BookMetadataFull struct {
-	Title         *string     `json:"title"`
-	Subtitle      *string     `json:"subtitle"`
-	Authors       []Author    `json:"authors"`
-	Narrators     []string    `json:"narrators"`
-	Series        []SeriesRef `json:"series"`
-	Genres        []string    `json:"genres"`
-	PublishedYear *string     `json:"publishedYear"`
-	PublishedDate *string     `json:"publishedDate"`
-	Publisher     *string     `json:"publisher"`
-	Description   *string     `json:"description"`
-	ISBN          *string     `json:"isbn"`
-	ASIN          *string     `json:"asin"`
-	Language      *string     `json:"language"`
-	Explicit      bool        `json:"explicit"`
-	Abridged      bool        `json:"abridged"`
+	BookMetadataCommon
+	Authors   []Author    `json:"authors"`
+	Narrators []string    `json:"narrators"`
+	Series    []SeriesRef `json:"series"`
 }
 
 // BookMetadataMinified is the metadata of the minified book view.
 type BookMetadataMinified struct {
-	Title             *string  `json:"title"`
-	TitleIgnorePrefix *string  `json:"titleIgnorePrefix"`
-	Subtitle          *string  `json:"subtitle"`
-	AuthorName        string   `json:"authorName"`
-	AuthorNameLF      string   `json:"authorNameLF"`
-	NarratorName      string   `json:"narratorName"`
-	SeriesName        string   `json:"seriesName"`
-	Genres            []string `json:"genres"`
-	PublishedYear     *string  `json:"publishedYear"`
-	PublishedDate     *string  `json:"publishedDate"`
-	Publisher         *string  `json:"publisher"`
-	Description       *string  `json:"description"`
-	ISBN              *string  `json:"isbn"`
-	ASIN              *string  `json:"asin"`
-	Language          *string  `json:"language"`
-	Explicit          bool     `json:"explicit"`
-	Abridged          bool     `json:"abridged"`
+	BookMetadataCommon
+	BookMetadataDerived
 	// Series is added by callers on continue-series shelves, series-filtered
 	// pages and author series groups; each shape is the caller's own, so it is
 	// open (any) and omitted when unset.
@@ -55,24 +54,16 @@ type BookMetadataMinified struct {
 // BookMetadataExpanded is the metadata of the expanded book view.
 type BookMetadataExpanded struct {
 	BookMetadataFull
-	TitleIgnorePrefix *string `json:"titleIgnorePrefix"`
-	AuthorName        string  `json:"authorName"`
-	AuthorNameLF      string  `json:"authorNameLF"`
-	NarratorName      string  `json:"narratorName"`
-	SeriesName        string  `json:"seriesName"`
-	DescriptionPlain  *string `json:"descriptionPlain"`
+	BookMetadataDerived
+	DescriptionPlain *string `json:"descriptionPlain"`
 }
 
-// BookFull is Book.toOldJSON. EbookFile is null without an ebook.
-type BookFull struct {
-	ID            string           `json:"id"`
-	LibraryItemID string           `json:"libraryItemId"`
-	Metadata      BookMetadataFull `json:"metadata"`
-	CoverPath     *string          `json:"coverPath"`
-	Tags          []string         `json:"tags"`
-	AudioFiles    []db.AudioFile   `json:"audioFiles"`
-	Chapters      []db.Chapter     `json:"chapters"`
-	EbookFile     *db.EbookFile    `json:"ebookFile"`
+// BookMedia holds the library item reference and media file lists of full and expanded book views.
+type BookMedia struct {
+	LibraryItemID string         `json:"libraryItemId"`
+	AudioFiles    []db.AudioFile `json:"audioFiles"`
+	Chapters      []db.Chapter   `json:"chapters"`
+	EbookFile     *db.EbookFile  `json:"ebookFile"`
 }
 
 // BookCounts are the derived numbers of the minified and expanded views.
@@ -86,27 +77,37 @@ type BookCounts struct {
 	EbookFormat *string `json:"ebookFormat,omitempty"`
 }
 
+// BookIdentity holds the identity, cover and tags shared across every book view.
+type BookIdentity struct {
+	ID        string   `json:"id"`
+	CoverPath *string  `json:"coverPath"`
+	Tags      []string `json:"tags"`
+}
+
+// MediaID implements Media.
+func (b BookIdentity) MediaID() string { return b.ID }
+
+// BookFull is Book.toOldJSON. EbookFile is null without an ebook.
+type BookFull struct {
+	BookIdentity
+	Metadata BookMetadataFull `json:"metadata"`
+	BookMedia
+}
+
 // BookMinified is Book.toOldJSONMinified.
 type BookMinified struct {
-	ID        string               `json:"id"`
-	Metadata  BookMetadataMinified `json:"metadata"`
-	CoverPath *string              `json:"coverPath"`
-	Tags      []string             `json:"tags"`
+	BookIdentity
+	Metadata BookMetadataMinified `json:"metadata"`
 	BookCounts
 }
 
 // BookExpanded is Book.toOldJSONExpanded.
 type BookExpanded struct {
-	ID        string               `json:"id"`
-	Metadata  BookMetadataExpanded `json:"metadata"`
-	CoverPath *string              `json:"coverPath"`
-	Tags      []string             `json:"tags"`
+	BookIdentity
+	Metadata BookMetadataExpanded `json:"metadata"`
 	BookCounts
-	LibraryItemID string         `json:"libraryItemId"`
-	AudioFiles    []db.AudioFile `json:"audioFiles"`
-	Chapters      []db.Chapter   `json:"chapters"`
-	EbookFile     *db.EbookFile  `json:"ebookFile"`
-	Tracks        []AudioTrack   `json:"tracks"`
+	BookMedia
+	Tracks []AudioTrack `json:"tracks"`
 }
 
 // AudioTrack is a playable audio file: the stored file plus its title (the
@@ -120,20 +121,11 @@ type AudioTrack struct {
 	ContentURL  string  `json:"contentUrl"`
 }
 
-// MediaID implements Media.
-func (b BookFull) MediaID() string { return b.ID }
-
 // Flags implements Media.
 func (b BookFull) Flags() (bool, []string) { return b.Metadata.Explicit, b.Tags }
 
-// MediaID implements Media.
-func (b BookMinified) MediaID() string { return b.ID }
-
 // Flags implements Media.
 func (b BookMinified) Flags() (bool, []string) { return b.Metadata.Explicit, b.Tags }
-
-// MediaID implements Media.
-func (b BookExpanded) MediaID() string { return b.ID }
 
 // Flags implements Media.
 func (b BookExpanded) Flags() (bool, []string) { return b.Metadata.Explicit, b.Tags }
@@ -152,28 +144,39 @@ func (b *Book) authorNames(lastFirst bool) string {
 	return strings.Join(names, ", ")
 }
 
-func (b *Book) seriesName() string {
+func (b *Book) seriesLabels() []string {
 	names := make([]string, len(b.Series))
 	for i, series := range b.Series {
 		names[i] = series.Name
-		if series.Sequence != nil && *series.Sequence != "" {
+		if db.Val(series.Sequence) != "" {
 			names[i] += " #" + *series.Sequence
 		}
 	}
-	return strings.Join(names, ", ")
+	return names
 }
 
-func (b *Book) metadataFull() BookMetadataFull {
-	return BookMetadataFull{Title: b.Title, Subtitle: b.Subtitle, Authors: b.Authors, Narrators: b.Narrators.V, Series: b.Series, Genres: b.Genres.V,
-		PublishedYear: b.PublishedYear, PublishedDate: b.PublishedDate, Publisher: b.Publisher, Description: b.Description, ISBN: b.ISBN, ASIN: b.ASIN,
+func (b *Book) metadataCommon() BookMetadataCommon {
+	return BookMetadataCommon{Title: b.Title, Subtitle: b.Subtitle, Genres: b.Genres.V, PublishedYear: b.PublishedYear,
+		PublishedDate: b.PublishedDate, Publisher: b.Publisher, Description: b.Description, ISBN: b.ISBN, ASIN: b.ASIN,
 		Language: b.Language, Explicit: bool(b.Explicit), Abridged: bool(b.Abridged)}
 }
 
-func (b *Book) titleIgnorePrefix(prefixes []string) *string {
-	if b.Title == nil {
-		return nil
+func (b *Book) metadataDerived(prefixes []string) BookMetadataDerived {
+	var titleIgnorePrefix *string
+	if b.Title != nil {
+		titleIgnorePrefix = db.Ptr(text.PrefixAtEnd(*b.Title, prefixes))
 	}
-	return db.Ptr(text.PrefixAtEnd(*b.Title, prefixes))
+	return BookMetadataDerived{TitleIgnorePrefix: titleIgnorePrefix, AuthorName: b.authorNames(false),
+		AuthorNameLF: b.authorNames(true), NarratorName: strings.Join(b.Narrators.V, ", "),
+		SeriesName: strings.Join(b.seriesLabels(), ", ")}
+}
+
+func (b *Book) metadataFull() BookMetadataFull {
+	return BookMetadataFull{BookMetadataCommon: b.metadataCommon(), Authors: b.Authors, Narrators: b.Narrators.V, Series: b.Series}
+}
+
+func (b *Book) mediaFiles(itemID string) BookMedia {
+	return BookMedia{LibraryItemID: itemID, AudioFiles: b.AudioFiles.V, Chapters: b.Chapters.V, EbookFile: b.EbookFile.V}
 }
 
 // counts is the one place the derived numbers are computed: tracks are the
@@ -193,32 +196,29 @@ func (b *Book) counts() BookCounts {
 	return c
 }
 
+func (b *Book) identity() BookIdentity {
+	return BookIdentity{ID: b.ID, CoverPath: b.CoverPath, Tags: b.Tags.V}
+}
+
 // Full is the full media view (Book.toOldJSON) of the book of item itemID.
 func (b *Book) Full(itemID string) BookFull {
-	return BookFull{ID: b.ID, LibraryItemID: itemID, Metadata: b.metadataFull(), CoverPath: b.CoverPath, Tags: b.Tags.V,
-		AudioFiles: b.AudioFiles.V, Chapters: b.Chapters.V, EbookFile: b.EbookFile.V}
+	return BookFull{BookIdentity: b.identity(), Metadata: b.metadataFull(), BookMedia: b.mediaFiles(itemID)}
 }
 
 // Minified is the shelf and list media view (Book.toOldJSONMinified).
 func (b *Book) Minified(prefixes []string) BookMinified {
-	return BookMinified{ID: b.ID, CoverPath: b.CoverPath, Tags: b.Tags.V, BookCounts: b.counts(),
-		Metadata: BookMetadataMinified{Title: b.Title, TitleIgnorePrefix: b.titleIgnorePrefix(prefixes), Subtitle: b.Subtitle,
-			AuthorName: b.authorNames(false), AuthorNameLF: b.authorNames(true), NarratorName: strings.Join(b.Narrators.V, ", "), SeriesName: b.seriesName(),
-			Genres: b.Genres.V, PublishedYear: b.PublishedYear, PublishedDate: b.PublishedDate, Publisher: b.Publisher, Description: b.Description,
-			ISBN: b.ISBN, ASIN: b.ASIN, Language: b.Language, Explicit: bool(b.Explicit), Abridged: bool(b.Abridged)}}
+	return BookMinified{BookIdentity: b.identity(), BookCounts: b.counts(),
+		Metadata: BookMetadataMinified{BookMetadataCommon: b.metadataCommon(), BookMetadataDerived: b.metadataDerived(prefixes)}}
 }
 
 // Expanded is the expanded media view (Book.toOldJSONExpanded).
 func (b *Book) Expanded(itemID string, prefixes []string) BookExpanded {
 	var plain *string
-	if b.Description != nil && *b.Description != "" {
+	if db.Val(b.Description) != "" {
 		plain = db.Ptr(text.Strip(*b.Description))
 	}
-	return BookExpanded{ID: b.ID, CoverPath: b.CoverPath, Tags: b.Tags.V, BookCounts: b.counts(), LibraryItemID: itemID,
-		AudioFiles: b.AudioFiles.V, Chapters: b.Chapters.V, EbookFile: b.EbookFile.V, Tracks: b.tracks(itemID),
-		Metadata: BookMetadataExpanded{BookMetadataFull: b.metadataFull(), TitleIgnorePrefix: b.titleIgnorePrefix(prefixes),
-			AuthorName: b.authorNames(false), AuthorNameLF: b.authorNames(true), NarratorName: strings.Join(b.Narrators.V, ", "),
-			SeriesName: b.seriesName(), DescriptionPlain: plain}}
+	return BookExpanded{BookIdentity: b.identity(), BookCounts: b.counts(), BookMedia: b.mediaFiles(itemID), Tracks: b.tracks(itemID),
+		Metadata: BookMetadataExpanded{BookMetadataFull: b.metadataFull(), BookMetadataDerived: b.metadataDerived(prefixes), DescriptionPlain: plain}}
 }
 
 // tracks are the non-excluded audio files with running start offsets.

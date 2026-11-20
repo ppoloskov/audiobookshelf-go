@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"slices"
 
 	"monstrobook/internal/auth"
 	"monstrobook/internal/db"
@@ -185,18 +186,81 @@ func (h *Handler) refsInQueryOrder(ctx context.Context, ids []string) ([]itemRef
 	return refs, nil
 }
 
-// canAccessAll is ensureUserCanAccessLibraryItemsForBatch
+// requireAccess checks ensureUserCanAccessLibraryItemsForBatch
 // (LibraryItemController.js:48-56): every item must pass the library, explicit
 // content and tag rules.
-func (h *Handler) canAccessAll(ctx context.Context, user *auth.Principal, refs []itemRef) (bool, error) {
+func (h *Handler) requireAccess(ctx context.Context, user *auth.Principal, refs []itemRef) error {
 	for _, ref := range refs {
 		_, exists, allowed, err := user.ReadItem(ctx, h.db, ref.ID)
 		if err != nil {
-			return false, err
+			return httpx.Internal("database read failed", err)
 		}
 		if !exists || !allowed {
-			return false, nil
+			return httpx.Forbidden()
 		}
 	}
-	return true, nil
+	return nil
+}
+
+// mediaTable is the table of the item's media, "" for another media type.
+func (r itemRef) mediaTable() string {
+	switch r.MediaType {
+	case "book":
+		return "books"
+	case "podcast":
+		return "podcasts"
+	}
+	return ""
+}
+
+// readable loads the item (404) and checks the user's library access (403).
+func (h *Handler) readable(ctx context.Context, user *auth.Principal, id string) (itemRef, error) {
+	ref, err := h.loadRef(ctx, id)
+	if err == nil && !user.CanAccessLibrary(ref.LibraryID) {
+		err = httpx.Forbidden()
+	}
+	return ref, err
+}
+
+// writable is readable plus the update permission (403).
+func (h *Handler) writable(ctx context.Context, user *auth.Principal, id string) (itemRef, error) {
+	ref, err := h.readable(ctx, user, id)
+	if err == nil && !user.CanUpdate() {
+		err = httpx.Forbidden()
+	}
+	return ref, err
+}
+
+// writableBook checks writable access and rejects non-book items with nonBook.
+func (h *Handler) writableBook(ctx context.Context, user *auth.Principal, id string, nonBook error) (itemRef, error) {
+	ref, err := h.writable(ctx, user, id)
+	if err == nil && ref.MediaType != "book" {
+		return ref, nonBook
+	}
+	return ref, err
+}
+
+// writeTx runs fn in a transaction, mapping any failure to HTTP 500.
+func (h *Handler) writeTx(ctx context.Context, fn func(context.Context) error) error {
+	if err := h.db.Tx(ctx, fn); err != nil {
+		return httpx.Internal("database write failed", err)
+	}
+	return nil
+}
+
+func (h *Handler) stampItem(ctx context.Context, itemID string, now db.Time) error {
+	return h.db.Update(ctx, "libraryItems", &db.LibraryItem{ID: itemID, UpdatedAt: now}, "updatedAt")
+}
+
+func refIDs(refs []itemRef) []string {
+	ids := make([]string, len(refs))
+	for i, ref := range refs {
+		ids[i] = ref.ID
+	}
+	return ids
+}
+
+func uniqueNonEmpty(ids []string) []string {
+	clean := slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return id == "" })
+	return slices.Compact(slices.Sorted(slices.Values(clean)))
 }

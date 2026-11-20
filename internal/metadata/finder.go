@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
 	"math"
@@ -9,6 +10,8 @@ import (
 	"strings"
 
 	"monstrobook/internal/text"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // Search distances: how far (Levenshtein) an Open Library result may be from
@@ -21,15 +24,28 @@ const (
 )
 
 var (
-	bracketedText = regexp.MustCompile(`\[[^\]]*\]|\([^)]*\)|\{[^}]*\}|_`)
-	titleSplit    = regexp.MustCompile(` - | -|- `)
-	etAl          = regexp.MustCompile(` et al\.?( |$)`)
-	initialDots   = regexp.MustCompile(`([a-z])\.([a-z])`)
-	// middleInitials matches the initials between a first and a last name
-	// ("john q. smith"). Go has no lookaround, so the two-word-character
-	// context on each side is captured and kept by the replacement.
+	bracketedText  = regexp.MustCompile(`\[[^\]]*\]|\([^)]*\)|\{[^}]*\}|_`)
+	titleSplit     = regexp.MustCompile(` - | -|- `)
+	etAl           = regexp.MustCompile(` et al\.?( |$)`)
+	initialDots    = regexp.MustCompile(`([a-z])\.([a-z])`)
 	middleInitials = regexp.MustCompile(`(\w\w)(?:\s+[a-z]\.?)+(\s+\w\w)`)
 	aggressiveTail = regexp.MustCompile(`[,/-].*$`)
+	accentMarks    = regexp.MustCompile(`[\x{0300}-\x{036f}]`)
+	spaceRuns      = regexp.MustCompile(`\s+`)
+	parenText      = regexp.MustCompile(`\([^)]*\)`)
+
+	titleTransformers = []struct {
+		re   *regexp.Regexp
+		with string
+	}{
+		{regexp.MustCompile(`(: |[,;_]| by ).*`), ""},
+		{regexp.MustCompile(`(^| )\d+k(bps)?( |$)`), " "},
+		{regexp.MustCompile(` (2nd|3rd|\d+th)\s+ed(\.|ition)?`), ""},
+		{regexp.MustCompile(`(^| |\.)(m4b|m4a|mp3)( |$)`), ""},
+		{regexp.MustCompile(` a novel.*$`), ""},
+		{regexp.MustCompile(`(^| )(un)?abridged( |$)`), " "},
+		{regexp.MustCompile(`^\d+ | \d+$`), ""},
+	}
 )
 
 // fuzzySearch searches q.Provider and, while it finds nothing, up to q.MaxFuzzy
@@ -70,7 +86,7 @@ func (h *Handler) fuzzySearch(ctx context.Context, q BookQuery) []BookResult {
 // their distance to the query and ordered by it.
 func (h *Handler) runSearch(ctx context.Context, q BookQuery) []BookResult {
 	slog.Debug("metadata: book search", "title", q.Title, "author", q.Author, "provider", q.Provider)
-	books := h.searchBuiltin(ctx, q)
+	books, _ := h.searchBookOnce(ctx, q) // built-ins answer failure as no results
 	if q.Provider == "openlibrary" {
 		books = filterByDistance(books, q.Title, q.Author)
 	}
@@ -87,18 +103,8 @@ func sortByDuration(books []BookResult, minutes float64) {
 		return math.Abs(b.Duration - minutes)
 	}
 	slices.SortStableFunc(books, func(a, b BookResult) int {
-		return cmpFloat(distance(a), distance(b))
+		return cmp.Compare(distance(a), distance(b))
 	})
-}
-
-func cmpFloat(a, b float64) int {
-	switch {
-	case a < b:
-		return -1
-	case a > b:
-		return 1
-	}
-	return 0
 }
 
 func truncateRunes(s string, n int) string {
@@ -108,42 +114,22 @@ func truncateRunes(s string, n int) string {
 	return s
 }
 
-// authorCandidates are the author names to retry with: the cleaned author and
-// the cleaned title parts, each confirmed against Audnexus; else an
-// aggressively cleaned author; the empty author is always last.
 func (h *Handler) authorCandidates(ctx context.Context, cleanAuthor string, titleParts []string) []string {
-	var candidates []string
-	add := func(name string) {
-		if name != "" && !slices.Contains(candidates, name) {
-			candidates = append(candidates, name)
-		}
-	}
-	add(cleanAuthor)
+	candidates := appendUnique(nil, cleanAuthor)
 	for _, part := range titleParts {
-		add(strings.TrimSpace(cleanAuthorForCompares(part)))
+		candidates = appendUnique(candidates, strings.TrimSpace(cleanAuthorForCompares(part)))
 	}
 	var validated []string
 	for _, candidate := range candidates {
-		if valid := h.validateAuthor(ctx, candidate); valid != "" && !slices.Contains(validated, valid) {
-			validated = append(validated, valid)
-		}
+		validated = appendUnique(validated, h.validateAuthor(ctx, candidate))
 	}
 	if len(validated) == 0 && cleanAuthor != "" {
 		aggressive := strings.TrimSpace(aggressiveTail.ReplaceAllString(cleanAuthor, ""))
-		validated = append(validated, cmpOr(aggressive, cleanAuthor))
+		validated = append(validated, cmp.Or(aggressive, cleanAuthor))
 	}
 	return append(validated, "")
 }
 
-func cmpOr(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
-}
-
-// validateAuthor is the name Audnexus knows closest to name (one that contains
-// it, is contained by it, or is within validateAuthorMaxDist), or "".
 func (h *Handler) validateAuthor(ctx context.Context, name string) string {
 	known, err := h.svc.audnexus.authorCandidates(ctx, name, "")
 	if err != nil {
@@ -165,4 +151,143 @@ func (h *Handler) validateAuthor(ctx context.Context, name string) string {
 		}
 	}
 	return ""
+}
+
+func stripRedundantSpaces(s string) string {
+	return strings.TrimSpace(spaceRuns.ReplaceAllString(s, " "))
+}
+
+func replaceAccentedChars(s string) string {
+	return accentMarks.ReplaceAllString(norm.NFD.String(s), "")
+}
+
+func stripSubtitle(title string) string {
+	for _, separator := range []string{": ", " - "} {
+		if strings.Contains(title, separator) {
+			return strings.TrimSpace(before(title, separator))
+		}
+	}
+	return title
+}
+
+func cleanTitleForCompares(title string) string {
+	if title == "" {
+		return ""
+	}
+	cleaned := stripSubtitle(stripRedundantSpaces(title))
+	cleaned = stripRedundantSpaces(parenText.ReplaceAllString(cleaned, ""))
+	cleaned = strings.ReplaceAll(cleaned, "'", "")
+	return strings.ToLower(replaceAccentedChars(cleaned))
+}
+
+func cleanAuthorForCompares(author string) string {
+	if author == "" {
+		return ""
+	}
+	clean := strings.ToLower(replaceAccentedChars(stripRedundantSpaces(author)))
+	clean = initialDots.ReplaceAllString(clean, "$1. $2")
+	// Each pass removes the initials of one gap; a name with several gaps
+	// needs more than one because a match consumes the context of the next.
+	for {
+		next := middleInitials.ReplaceAllString(clean, "$1$2")
+		if next == clean {
+			break
+		}
+		clean = next
+	}
+	return etAl.ReplaceAllString(clean, "$1")
+}
+
+func containsLong(targetClean, clean, targetRaw, raw string) bool {
+	return len(clean) > 4 && strings.Contains(targetClean, clean) || len(raw) > 4 && strings.Contains(targetRaw, raw)
+}
+
+func filterByDistance(books []BookResult, title, author string) []BookResult {
+	searchTitle, searchAuthor := cleanTitleForCompares(title), cleanAuthorForCompares(author)
+	type scored struct {
+		book  BookResult
+		total int
+	}
+	var kept []scored
+	for _, b := range books {
+		cleanedTitle := cleanTitleForCompares(b.Title)
+		titleDistance := text.LevenshteinFold(cleanedTitle, title)
+		totalPossible := len([]rune(b.Title))
+		authorDistance, includesAuthor := 0, false
+		if author != "" {
+			if b.Author == "" {
+				authorDistance = len([]rune(author))
+			} else {
+				totalPossible += len([]rune(b.Author))
+				cleanedAuthor := cleanAuthorForCompares(b.Author)
+				authorDistance = min(text.LevenshteinFold(cleanedAuthor, searchAuthor), text.LevenshteinFold(b.Author, author))
+				includesAuthor = containsLong(cleanedAuthor, searchAuthor, b.Author, author)
+			}
+		}
+		includesTitle := containsLong(cleanedTitle, searchTitle, b.Title, title)
+		total := titleDistance + authorDistance
+		switch {
+		case !includesTitle && titleDistance > maxTitleDistance,
+			author != "" && !includesAuthor && authorDistance > maxFilterAuthorDist,
+			totalPossible < 5 && total > 0:
+			continue
+		}
+		kept = append(kept, scored{b, total})
+	}
+	slices.SortStableFunc(kept, func(a, b scored) int { return a.total - b.total })
+	out := make([]BookResult, len(kept))
+	for i, k := range kept {
+		out[i] = k.book
+	}
+	return out
+}
+
+func titleCandidates(cleanAuthor string, titleParts []string) []string {
+	var order []string
+	priority, position := map[string]int{}, map[string]int{}
+	note := func(candidate string, prio, pos int) {
+		if _, seen := priority[candidate]; !seen {
+			order = append(order, candidate)
+		}
+		priority[candidate], position[candidate] = prio, pos
+	}
+	for pos, part := range titleParts {
+		if cleanAuthor != "" {
+			part = removeAuthorFromTitle(cleanAuthor, part)
+		}
+		clean := strings.TrimSpace(cleanTitleForCompares(part))
+		if clean == "" {
+			continue
+		}
+		note(clean, 0, pos)
+		simplified := clean
+		for _, t := range titleTransformers {
+			simplified = strings.TrimSpace(t.re.ReplaceAllString(simplified, t.with))
+		}
+		if simplified != clean {
+			if simplified != "" {
+				note(simplified, 0, pos)
+			}
+			priority[clean] = 1
+		}
+	}
+	slices.SortStableFunc(order, func(a, b string) int {
+		if da, db := onlyDigits.MatchString(a), onlyDigits.MatchString(b); da != db {
+			if da {
+				return 1
+			}
+			return -1
+		}
+		return cmp.Or(cmp.Compare(priority[a], priority[b]), cmp.Compare(position[a], position[b]))
+	})
+	return order
+}
+
+func removeAuthorFromTitle(cleanAuthor, title string) string {
+	re := regexp.MustCompile(`(^| | by |)` + regexp.QuoteMeta(cleanAuthor) + `( |$)`)
+	cleaned := cleanAuthorForCompares(title)
+	if without := re.ReplaceAllString(cleaned, "$2"); without != cleaned {
+		return strings.TrimSpace(without)
+	}
+	return title
 }

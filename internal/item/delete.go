@@ -35,7 +35,7 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request, user *auth.Prin
 	if !user.CanAccessLibrary(ref.LibraryID) || !user.CanDelete() {
 		return httpx.Forbidden()
 	}
-	if ref.MediaType != "book" && ref.MediaType != "podcast" {
+	if ref.mediaTable() == "" {
 		return httpx.BadRequest("")
 	}
 	var files func(context.Context, itemRef)
@@ -77,13 +77,7 @@ func (h *Handler) deleteItem(ctx context.Context, ref itemRef, files func(contex
 // back with the caller's other writes. Unknown ids are skipped. Nothing is
 // announced; call Announce and Sweep after the commit.
 func (h *Handler) DeleteRows(ctx context.Context, itemIDs []string) (Removal, error) {
-	var refs []itemRef
-	err := forChunks(itemIDs, func(chunk []string) error {
-		var found []itemRef
-		err := h.db.Select(ctx, &found, `SELECT `+itemRefColumns+` FROM libraryItems li WHERE li.id IN (?)`, chunk)
-		refs = append(refs, found...)
-		return err
-	})
+	refs, err := selectIn[itemRef](ctx, h.db, `SELECT `+itemRefColumns+` FROM libraryItems li WHERE li.id IN (?)`, "", itemIDs)
 	if err != nil {
 		return Removal{}, err
 	}
@@ -134,16 +128,6 @@ func (h *Handler) announceRemoval(ctx context.Context, rem Removal, files func(c
 	}
 }
 
-// forChunks calls fn with ids in groups, as SQLite limits the variables of a statement.
-func forChunks(ids []string, fn func(chunk []string) error) error {
-	for chunk := range slices.Chunk(ids, 500) {
-		if err := fn(chunk); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // deleteRows removes the items and what hangs off them inside the caller's
 // transaction (ApiRouter.handleDeleteLibraryItem, ApiRouter.js:373-407).
 func (h *Handler) deleteRows(ctx context.Context, refs []itemRef) (Removal, error) {
@@ -158,30 +142,18 @@ func (h *Handler) deleteRows(ctx context.Context, refs []itemRef) (Removal, erro
 			podcastIDs = append(podcastIDs, ref.MediaID)
 		}
 	}
-	mediaIDs := slices.Clone(bookIDs)
-	err := forChunks(bookIDs, func(chunk []string) error {
-		var authors, series []string
-		if err := h.db.Select(ctx, &authors, `SELECT authorId FROM bookAuthors WHERE bookId IN (?) AND authorId IS NOT NULL`, chunk); err != nil {
-			return err
-		}
-		if err := h.db.Select(ctx, &series, `SELECT seriesId FROM bookSeries WHERE bookId IN (?) AND seriesId IS NOT NULL`, chunk); err != nil {
-			return err
-		}
-		rem.authors, rem.series = append(rem.authors, authors...), append(rem.series, series...)
-		return nil
-	})
+	var err error
+	if rem.authors, err = selectIn[string](ctx, h.db, `SELECT authorId FROM bookAuthors WHERE bookId IN (?) AND authorId IS NOT NULL`, "", bookIDs); err != nil {
+		return Removal{}, err
+	}
+	if rem.series, err = selectIn[string](ctx, h.db, `SELECT seriesId FROM bookSeries WHERE bookId IN (?) AND seriesId IS NOT NULL`, "", bookIDs); err != nil {
+		return Removal{}, err
+	}
+	episodes, err := selectIn[string](ctx, h.db, `SELECT id FROM podcastEpisodes WHERE podcastId IN (?)`, "", podcastIDs)
 	if err != nil {
 		return Removal{}, err
 	}
-	err = forChunks(podcastIDs, func(chunk []string) error {
-		var episodes []string
-		err := h.db.Select(ctx, &episodes, `SELECT id FROM podcastEpisodes WHERE podcastId IN (?)`, chunk)
-		mediaIDs = append(mediaIDs, episodes...)
-		return err
-	})
-	if err != nil {
-		return Removal{}, err
-	}
+	mediaIDs := append(slices.Clone(bookIDs), episodes...)
 	for _, id := range itemIDs {
 		closed, err := h.closeFeeds(ctx, id)
 		if err != nil {
@@ -189,10 +161,7 @@ func (h *Handler) deleteRows(ctx context.Context, refs []itemRef) (Removal, erro
 		}
 		rem.closedFeeds = append(rem.closedFeeds, closed...)
 	}
-	if err = forChunks(mediaIDs, func(chunk []string) error {
-		_, err := h.db.Exec(ctx, `DELETE FROM mediaProgresses WHERE mediaItemId IN (?)`, chunk)
-		return err
-	}); err != nil {
+	if err = execIn(ctx, h.db, `DELETE FROM mediaProgresses WHERE mediaItemId IN (?)`, mediaIDs); err != nil {
 		return Removal{}, err
 	}
 	if rem.playlists, err = RemoveFromPlaylists(ctx, h.db, mediaIDs); err != nil {
@@ -211,10 +180,7 @@ func (h *Handler) deleteRows(ctx context.Context, refs []itemRef) (Removal, erro
 		{`DELETE FROM podcasts WHERE id IN (?)`, podcastIDs},
 		{`DELETE FROM libraryItems WHERE id IN (?)`, itemIDs},
 	} {
-		if err = forChunks(statement.ids, func(chunk []string) error {
-			_, err := h.db.Exec(ctx, statement.query, chunk)
-			return err
-		}); err != nil {
+		if err = execIn(ctx, h.db, statement.query, statement.ids); err != nil {
 			return Removal{}, err
 		}
 	}
@@ -224,15 +190,7 @@ func (h *Handler) deleteRows(ctx context.Context, refs []itemRef) (Removal, erro
 // removeFiles deletes a hard-deleted item's path when it lies inside one of the
 // library's folders; failures are logged (LibraryItemController.js:134-139).
 func (h *Handler) removeFiles(ctx context.Context, ref itemRef) {
-	if ref.Path == "" {
-		return
-	}
-	var roots []string
-	if err := h.db.Select(ctx, &roots, `SELECT path FROM libraryFolders WHERE libraryId = ? AND path IS NOT NULL`, ref.LibraryID); err != nil {
-		slog.Error("folders of library", "library", ref.LibraryID, "error", err)
-		return
-	}
-	if !within(ref.Path, roots) {
+	if ref.Path == "" || !h.inLibrary(ctx, ref.Path, ref.LibraryID) {
 		return
 	}
 	slog.Info("deleting library item from file system", "path", ref.Path)

@@ -69,8 +69,8 @@ func (h *Handler) update(ctx context.Context, ref itemRef, p patch, src source) 
 }
 
 func (h *Handler) updateBook(ctx context.Context, out *outcome, p *BookPatch, src source) error {
-	var row db.Book
-	if err := h.db.Get(ctx, &row, `SELECT * FROM books WHERE id = ?`, out.ref.MediaID); err != nil {
+	row, err := getRow[db.Book](ctx, h.db, "books", out.ref.MediaID)
+	if err != nil {
 		return err
 	}
 	cols := p.apply(&row, h.prefixes(), src)
@@ -104,8 +104,8 @@ func (h *Handler) updateBook(ctx context.Context, out *outcome, p *BookPatch, sr
 }
 
 func (h *Handler) updatePodcast(ctx context.Context, out *outcome, p *PodcastPatch, src source) error {
-	var row db.Podcast
-	if err := h.db.Get(ctx, &row, `SELECT * FROM podcasts WHERE id = ?`, out.ref.MediaID); err != nil {
+	row, err := getRow[db.Podcast](ctx, h.db, "podcasts", out.ref.MediaID)
+	if err != nil {
 		return err
 	}
 	cols := p.apply(&row, h.prefixes(), src)
@@ -123,7 +123,7 @@ func (h *Handler) save(ctx context.Context, table string, row any, cols columns,
 	if err := h.db.Update(ctx, table, row, cols...); err != nil {
 		return err
 	}
-	return h.db.Update(ctx, "libraryItems", &db.LibraryItem{ID: itemID, UpdatedAt: now}, "updatedAt")
+	return h.stampItem(ctx, itemID, now)
 }
 
 // finish is what every media write does once its transaction has committed,
@@ -132,18 +132,7 @@ func (h *Handler) save(ctx context.Context, table string, row any, cols columns,
 // removed (LibraryItemController.js:233-262), then each updated item is saved
 // and announced and podcast cron entries are refreshed (js:273-280). A batch
 // finishes once for all its items, so a series another item relinks is not swept.
-func (h *Handler) finish(ctx context.Context, outs ...outcome) error {
-	_, err := h.finishWith(ctx, false, outs...)
-	return err
-}
-
-// finishOne finishes a single item mutation and returns the reloaded item
-// without querying it twice when item_updated was emitted.
-func (h *Handler) finishOne(ctx context.Context, out outcome) (*Item, error) {
-	return h.finishWith(ctx, true, out)
-}
-
-func (h *Handler) finishWith(ctx context.Context, wantLast bool, outs ...outcome) (*Item, error) {
+func (h *Handler) finish(ctx context.Context, wantLast bool, outs ...outcome) (*Item, error) {
 	var unlinked changes
 	for _, o := range outs {
 		unlinked.merge(changes{authorsUnlinked: o.changes.authorsUnlinked, seriesUnlinked: o.changes.seriesUnlinked})
@@ -159,8 +148,13 @@ func (h *Handler) finishWith(ctx context.Context, wantLast bool, outs ...outcome
 		if !o.updated {
 			continue
 		}
+		if h.deps.WriteMetadata != nil {
+			if err := h.deps.WriteMetadata(ctx, o.ref.ID); err != nil {
+				return nil, err
+			}
+		}
 		needItem := wantLast && i == len(outs)-1
-		it, err := h.itemChanged(ctx, o.ref.ID, needItem)
+		it, err := h.announceItem(ctx, o.ref.ID, needItem)
 		if err != nil {
 			return nil, err
 		}
@@ -181,34 +175,21 @@ func (h *Handler) finishWith(ctx context.Context, wantLast bool, outs ...outcome
 // item_updated carries the expanded item. Other routes that edit an item
 // (admin tag and genre changes) use it too.
 func (h *Handler) ItemChanged(ctx context.Context, itemID string) error {
-	_, err := h.itemChanged(ctx, itemID, false)
-	return err
-}
-
-func (h *Handler) itemChanged(ctx context.Context, itemID string, needItem bool) (*Item, error) {
 	if h.deps.WriteMetadata != nil {
 		if err := h.deps.WriteMetadata(ctx, itemID); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	if needItem {
-		return h.announceItem(ctx, itemID)
-	}
-	return nil, h.announce(ctx, itemID)
-}
-
-// announce sends item_updated with the expanded item when listeners exist.
-func (h *Handler) announce(ctx context.Context, itemID string) error {
-	if h.emit == nil { // nobody listens: skip building the expanded item
-		return nil
-	}
-	_, err := h.announceItem(ctx, itemID)
+	_, err := h.announceItem(ctx, itemID, false)
 	return err
 }
 
-// announceItem loads the item, sends item_updated with its expanded view when
-// listeners exist, and returns the loaded item for callers that also respond with it.
-func (h *Handler) announceItem(ctx context.Context, itemID string) (*Item, error) {
+// announceItem loads the item when listeners exist or needItem is set, sends
+// item_updated with its expanded view, and returns the loaded item.
+func (h *Handler) announceItem(ctx context.Context, itemID string, needItem bool) (*Item, error) {
+	if !needItem && h.emit == nil {
+		return nil, nil
+	}
 	it, err := Get(ctx, h.db, itemID, Options{Episodes: true})
 	if err != nil {
 		return nil, err
@@ -221,7 +202,7 @@ func (h *Handler) announceItem(ctx context.Context, itemID string) (*Item, error
 
 // announceHTTP announces item_updated and maps any reload failure to a 500.
 func (h *Handler) announceHTTP(ctx context.Context, itemID string) error {
-	if err := h.announce(ctx, itemID); err != nil {
+	if _, err := h.announceItem(ctx, itemID, false); err != nil {
 		return httpx.Internal("database read failed", err)
 	}
 	return nil
@@ -259,7 +240,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user *auth
 	if err != nil {
 		return httpx.Internal("database write failed", err)
 	}
-	it, err := h.finishOne(ctx, out)
+	it, err := h.finish(ctx, true, out)
 	if err != nil {
 		return httpx.Internal("metadata file write failed", err)
 	}

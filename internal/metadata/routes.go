@@ -1,13 +1,16 @@
 package metadata
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"monstrobook/internal/db"
@@ -15,8 +18,135 @@ import (
 	"monstrobook/internal/ids"
 )
 
-// providerView is a custom provider as the settings page lists it. Times are
-// RFC 3339 strings, as upstream's model sends them.
+// maxQueryRunes bounds the podcast and author search terms, as upstream does.
+const maxQueryRunes = 1000
+
+type errorBody struct {
+	Error     string `json:"error"`
+	StringKey string `json:"stringKey,omitempty"`
+}
+
+func jsonError(w http.ResponseWriter, r *http.Request, status int, message string) error {
+	return httpx.JSONStatus(w, r, status, errorBody{Error: message})
+}
+
+// searchBooksRoute is GET /api/search/books: one provider, no retries. A
+// failing provider answers an empty list.
+func (h *Handler) searchBooksRoute(w http.ResponseWriter, r *http.Request) error {
+	query := r.URL.Query()
+	// The match modal names the item it matches; an unknown item is a 404
+	// before any provider is asked.
+	if id := query.Get("id"); id != "" {
+		var found int
+		if err := h.d.Get(r.Context(), &found, `SELECT COUNT(*) FROM libraryItems WHERE id = ?`, id); err != nil {
+			return httpx.Internal("", fmt.Errorf("find library item: %w", err))
+		}
+		if found == 0 {
+			return jsonError(w, r, http.StatusNotFound, fmt.Sprintf("library item %q not found", id))
+		}
+	}
+	q := BookQuery{
+		Provider: cmp.Or(query.Get("provider"), "google"), Title: query.Get("title"), Author: query.Get("author"),
+		ISBN: query.Get("isbn"), ASIN: query.Get("asin"), Region: query.Get("region"),
+	}
+	results, err := h.searchBookOnce(r.Context(), q)
+	if err != nil {
+		slog.Warn("metadata: custom provider search failed", "provider", q.Provider, "error", err)
+	}
+	if results == nil {
+		results = []BookResult{}
+	}
+	return httpx.JSON(w, r, results)
+}
+
+// searchCoversRoute is GET /api/search/covers: the covers of every provider
+// the request names, distinct, in provider order.
+func (h *Handler) searchCoversRoute(w http.ResponseWriter, r *http.Request) error {
+	query := r.URL.Query()
+	if !query.Has("title") {
+		return jsonError(w, r, http.StatusBadRequest, "Missing required query parameter: title")
+	}
+	type coversBody struct {
+		Results []string `json:"results"`
+	}
+	req := CoverRequest{Title: query.Get("title"), Author: query.Get("author"), Provider: cmp.Or(query.Get("provider"), "google"), Podcast: query.Get("podcast") == "1"}
+	if req.Title == "" {
+		return httpx.JSON(w, r, coversBody{})
+	}
+	var covers []string
+	for _, provider := range coverProviders(req) {
+		list, err := h.providerCovers(r.Context(), provider, req)
+		if err != nil {
+			continue // the socket search reports it; here a provider that fails adds nothing
+		}
+		covers = append(covers, list...)
+	}
+	return httpx.JSON(w, r, coversBody{Results: append([]string{}, uniqueTrimmed(covers)...)})
+}
+
+func queryParam(query url.Values, name, fallback string, required bool) (string, error) {
+	values, present := query[name]
+	switch {
+	case !present && required:
+		return "", fmt.Errorf("Query parameter %q is required", name)
+	case !present:
+		return fallback, nil
+	case len(values) > 1:
+		return "", fmt.Errorf("Query parameter %q is an array", name)
+	case len([]rune(values[0])) > maxQueryRunes:
+		return "", fmt.Errorf("Query parameter %q is too long", name)
+	}
+	return values[0], nil
+}
+
+// searchPodcastsRoute is GET /api/search/podcast over iTunes.
+func (h *Handler) searchPodcastsRoute(w http.ResponseWriter, r *http.Request) error {
+	term, err := queryParam(r.URL.Query(), "term", "", true)
+	if err != nil {
+		return jsonError(w, r, http.StatusBadRequest, err.Error())
+	}
+	country, err := queryParam(r.URL.Query(), "country", "us", false)
+	if err != nil {
+		return jsonError(w, r, http.StatusBadRequest, err.Error())
+	}
+	if term == "" {
+		return httpx.JSON(w, r, nil)
+	}
+	results, err := h.svc.itunes.searchPodcasts(r.Context(), term, country)
+	if err != nil {
+		results = []PodcastResult{} // a failing provider is an empty answer
+	}
+	return httpx.JSON(w, r, results)
+}
+
+// searchAuthorsRoute is GET /api/search/authors?q=: the Audnexus author
+// closest to the name, or null.
+func (h *Handler) searchAuthorsRoute(w http.ResponseWriter, r *http.Request) error {
+	name, err := queryParam(r.URL.Query(), "q", "", true)
+	if err != nil {
+		return jsonError(w, r, http.StatusBadRequest, err.Error())
+	}
+	if name == "" {
+		return httpx.JSON(w, r, nil)
+	}
+	return httpx.JSON(w, r, h.FindAuthorByName(r.Context(), name, r.URL.Query().Get("region")))
+}
+
+// searchChaptersRoute is GET /api/search/chapters?asin=&region=. The web
+// client reads the error key of a 200 answer, so failures are 200s.
+func (h *Handler) searchChaptersRoute(w http.ResponseWriter, r *http.Request) error {
+	query := r.URL.Query()
+	asin := strings.ToUpper(query.Get("asin"))
+	if !validASIN(asin) {
+		return httpx.JSON(w, r, errorBody{Error: "Invalid ASIN", StringKey: "MessageInvalidAsin"})
+	}
+	chapters, err := h.svc.audnexus.chapters(r.Context(), asin, strings.ToLower(cmp.Or(query.Get("region"), "us")))
+	if err != nil {
+		return httpx.JSON(w, r, errorBody{Error: "Chapters not found", StringKey: "MessageChaptersNotFound"})
+	}
+	return httpx.JSON(w, r, chapters)
+}
+
 type providerView struct {
 	ID              string          `json:"id"`
 	Name            string          `json:"name"`
@@ -36,7 +166,6 @@ func viewOf(row db.CustomMetadataProvider) providerView {
 	}
 }
 
-// providerEvent is the payload of custom_metadata_provider_added and _removed.
 type providerEvent struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
@@ -75,7 +204,6 @@ type createCustomRequest struct {
 	ExtraData       json.RawMessage `json:"extraData"`
 }
 
-// normalizeProviderURL checks that raw has a scheme and gives a host a path.
 func normalizeProviderURL(raw string) (string, error) {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Scheme == "" || parsed.Opaque != "" {
@@ -87,8 +215,7 @@ func normalizeProviderURL(raw string) (string, error) {
 	return parsed.String(), nil
 }
 
-// createCustom is POST /api/custom-metadata-providers (admin only). The
-// provider's search is GET {url}/search; see searchCustom.
+// createCustom is POST /api/custom-metadata-providers (admin only).
 func (h *Handler) createCustom(w http.ResponseWriter, r *http.Request) error {
 	req, err := httpx.Decode[createCustomRequest](w, r)
 	if err != nil {
@@ -117,16 +244,15 @@ func (h *Handler) createCustom(w http.ResponseWriter, r *http.Request) error {
 	h.emit.ToAll("custom_metadata_provider_added", providerEvent{row.ID, req.Name, req.MediaType, customPrefix + row.ID})
 	// extraData is left out of the answer unless one was sent (upstream's
 	// created instance has no such attribute).
-	view := viewOf(row)
-	return httpx.JSON(w, r, struct {
+	var resp struct {
 		Provider struct {
 			providerView
 			ExtraData json.RawMessage `json:"extraData,omitempty"`
 		} `json:"provider"`
-	}{Provider: struct {
-		providerView
-		ExtraData json.RawMessage `json:"extraData,omitempty"`
-	}{view, row.ExtraData.V}})
+	}
+	resp.Provider.providerView = viewOf(row)
+	resp.Provider.ExtraData = row.ExtraData.V
+	return httpx.JSON(w, r, resp)
 }
 
 // deleteCustom is DELETE /api/custom-metadata-providers/{id} (admin only).
@@ -158,13 +284,11 @@ func (h *Handler) deleteCustom(w http.ResponseWriter, r *http.Request) error {
 	return httpx.Text(w, http.StatusOK, "OK")
 }
 
-// providerOption is one entry of a provider dropdown.
 type providerOption struct {
 	Value string `json:"value"`
 	Text  string `json:"text"`
 }
 
-// bookProviderNames are the built-in providers in dropdown order.
 var bookProviderNames = []providerOption{
 	{"google", "Google Books"}, {"itunes", "iTunes"}, {"openlibrary", "Open Library"}, {"fantlab", "FantLab.ru"},
 	{"audiobookcovers", "AudiobookCovers.com"}, {"audible", "Audible.com"}, {"audible.ca", "Audible.ca"},
@@ -198,19 +322,15 @@ func (h *Handler) providers(w http.ResponseWriter, r *http.Request) error {
 		}
 		covers = append(covers, option)
 	}
-	books = append(books, bookCustom...)
-	covers = append(covers, bookCustom...)
-	covers = append(covers, providerOption{"all", "All"})
-	podcasts := append([]providerOption{{"itunes", "iTunes"}}, podcastCustom...)
-	return httpx.JSON(w, r, struct {
+	var resp struct {
 		Providers struct {
 			Books       []providerOption `json:"books"`
 			BooksCovers []providerOption `json:"booksCovers"`
 			Podcasts    []providerOption `json:"podcasts"`
 		} `json:"providers"`
-	}{Providers: struct {
-		Books       []providerOption `json:"books"`
-		BooksCovers []providerOption `json:"booksCovers"`
-		Podcasts    []providerOption `json:"podcasts"`
-	}{books, covers, podcasts}})
+	}
+	resp.Providers.Books = append(books, bookCustom...)
+	resp.Providers.BooksCovers = append(append(covers, bookCustom...), providerOption{"all", "All"})
+	resp.Providers.Podcasts = append([]providerOption{{"itunes", "iTunes"}}, podcastCustom...)
+	return httpx.JSON(w, r, resp)
 }

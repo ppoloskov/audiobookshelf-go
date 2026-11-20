@@ -149,6 +149,13 @@ func (c *columns) list(column string, dst *db.JSON[[]string], next *[]string) {
 	}
 }
 
+func (c *columns) int64(column string, dst **int64, next *int64) {
+	if next != nil && (*dst == nil || **dst != *next) {
+		*dst = db.Ptr(*next)
+		*c = append(*c, column)
+	}
+}
+
 // sanitized is the description as stored (Book.js:382).
 func sanitized(s *string) *string {
 	if s == nil {
@@ -218,16 +225,8 @@ func (p *PodcastPatch) apply(row *db.Podcast, prefixes []string, src source) col
 		row.AutoDownloadSchedule = db.Ptr(*p.AutoDownloadSchedule)
 		c = append(c, "autoDownloadSchedule")
 	}
-	for _, n := range []struct {
-		column string
-		dst    **int64
-		next   *int64
-	}{{"maxEpisodesToKeep", &row.MaxEpisodesToKeep, p.MaxEpisodesToKeep}, {"maxNewEpisodesToDownload", &row.MaxNewEpisodesToDownload, p.MaxNewEpisodesToDownload}} {
-		if n.next != nil && (*n.dst == nil || **n.dst != *n.next) {
-			*n.dst = db.Ptr(*n.next)
-			c = append(c, n.column)
-		}
-	}
+	c.int64("maxEpisodesToKeep", &row.MaxEpisodesToKeep, p.MaxEpisodesToKeep)
+	c.int64("maxNewEpisodesToDownload", &row.MaxNewEpisodesToDownload, p.MaxNewEpisodesToDownload)
 	c.applyTitleAndCover(row.Title, &row.TitleIgnorePrefix, &row.CoverPath, p.coverPath, prefixes, src)
 	return c
 }

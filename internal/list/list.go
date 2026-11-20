@@ -4,6 +4,8 @@ package list
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"html"
 	"net/http"
 	"regexp"
@@ -75,6 +77,170 @@ func (h *Handler) write(next userHandler) httpx.Handler {
 	}
 }
 
+type listOp uint8
+
+const (
+	opRead listOp = iota
+	opUpdate
+	opDelete
+)
+
+// container parameterizes the shared persistence, access, view, and event rules
+// of collections and playlists so CRUD and membership handlers share one path.
+type container[R, V any] struct {
+	h              *Handler
+	kind           string // "collection" or "playlist"; drives event names
+	table          string // "collections" or "playlists"
+	notFound       string
+	links          linkTable
+	clearEmptyDesc bool
+	reorderUpdates bool // true if reordering items also bumps updatedAt
+	access         func(user *auth.Principal, row R, op listOp) error
+	libraryID      func(R) string
+	metaPtrs       func(*R) (name, desc **string, updatedAt *db.Time)
+	viewOf         func(context.Context, *auth.Principal, R) (V, error)
+	emit           func(V, string)
+}
+
+func (c container[R, V]) open(ctx context.Context, user *auth.Principal, id string, op listOp) (R, error) {
+	var row R
+	err := c.h.db.Get(ctx, &row, `SELECT * FROM `+c.table+` WHERE id=?`, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return row, httpx.Error(http.StatusNotFound, c.notFound)
+	}
+	if err != nil {
+		return row, err
+	}
+	return row, c.access(user, row, op)
+}
+
+func openBody[Req, R, V any](c container[R, V], w http.ResponseWriter, r *http.Request, user *auth.Principal, op listOp) (R, Req, error) {
+	row, err := c.open(r.Context(), user, r.PathValue("id"), op)
+	if err != nil {
+		var zero Req
+		return row, zero, err
+	}
+	req, err := httpx.Decode[Req](w, r)
+	return row, req, err
+}
+
+func (c container[R, V]) list(ctx context.Context, user *auth.Principal, where string, args ...any) ([]V, error) {
+	var rows []R
+	if err := c.h.db.Select(ctx, &rows, `SELECT * FROM `+c.table+` `+where, args...); err != nil {
+		return nil, err
+	}
+	return accessibleViews(rows, user, c.libraryID, func(r R) (V, error) { return c.viewOf(ctx, user, r) })
+}
+
+func (c container[R, V]) finish(w http.ResponseWriter, r *http.Request, user *auth.Principal, id, event string, adjust func(context.Context, *V)) error {
+	var row R
+	if err := c.h.db.Get(r.Context(), &row, `SELECT * FROM `+c.table+` WHERE id=?`, id); err != nil {
+		return err
+	}
+	view, err := c.viewOf(r.Context(), user, row)
+	if err != nil {
+		return err
+	}
+	if adjust != nil {
+		adjust(r.Context(), &view)
+	}
+	if event != "" {
+		c.emit(view, event)
+	}
+	return httpx.JSON(w, r, view)
+}
+
+func (c container[R, V]) create(w http.ResponseWriter, r *http.Request, user *auth.Principal, buildRow func(id string, now db.Time) R, entries []newEntry) error {
+	id, now := "", db.Now()
+	err := c.h.db.Tx(r.Context(), func(ctx context.Context) (err error) {
+		if id, err = ids.New(); err != nil {
+			return err
+		}
+		row := buildRow(id, now)
+		if err = c.h.db.Insert(ctx, c.table, &row); err != nil {
+			return err
+		}
+		return c.links.append(ctx, c.h.db, id, 0, entries)
+	})
+	if err != nil {
+		return err
+	}
+	return c.finish(w, r, user, id, c.kind+"_added", nil)
+}
+
+func (c container[R, V]) update(w http.ResponseWriter, r *http.Request, user *auth.Principal, row R, id string, reqName, reqDesc *string, wanted []string, missing int, beforeReorder func(context.Context) error) error {
+	metaChanged, moved := false, false
+	err := c.h.db.Tx(r.Context(), func(ctx context.Context) error {
+		name, desc, updatedAt := c.metaPtrs(&row)
+		metaChanged = patchListMeta(name, desc, reqName, reqDesc, c.clearEmptyDesc)
+		if len(wanted) > 0 {
+			if beforeReorder != nil {
+				if err := beforeReorder(ctx); err != nil {
+					return err
+				}
+			}
+			var err error
+			if moved, err = c.links.reorder(ctx, c.h.db, id, wanted, missing); err != nil {
+				return err
+			}
+		}
+		if metaChanged || (c.reorderUpdates && moved) {
+			*updatedAt = db.Now()
+			return c.h.db.Update(ctx, c.table, &row, "name", "description", "updatedAt")
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return c.finish(w, r, user, id, eventIf(metaChanged || moved, c.kind+"_updated"), nil)
+}
+
+func (c container[R, V]) remove(w http.ResponseWriter, r *http.Request, user *auth.Principal, beforeDelete func(context.Context, R) error, afterDelete func()) error {
+	id := r.PathValue("id")
+	row, err := c.open(r.Context(), user, id, opDelete)
+	if err != nil {
+		return err
+	}
+	view, err := c.viewOf(r.Context(), user, row)
+	if err != nil {
+		return err
+	}
+	err = c.h.db.Tx(r.Context(), func(ctx context.Context) error {
+		if beforeDelete != nil {
+			if err := beforeDelete(ctx, row); err != nil {
+				return err
+			}
+		}
+		_, err := c.h.db.Exec(ctx, `DELETE FROM `+c.table+` WHERE id=?`, id)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if afterDelete != nil {
+		afterDelete()
+	}
+	c.emit(view, c.kind+"_removed")
+	return httpx.Status(w, http.StatusOK)
+}
+
+func (c container[R, V]) addEntries(w http.ResponseWriter, r *http.Request, user *auth.Principal, id string, entries []newEntry, dupMsg string, adjust func(int) func(context.Context, *V)) error {
+	added := 0
+	err := c.h.db.Tx(r.Context(), func(ctx context.Context) (err error) {
+		added, err = c.links.add(ctx, c.h.db, id, entries, dupMsg)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	var adj func(context.Context, *V)
+	if adjust != nil {
+		adj = adjust(added)
+	}
+	return c.finish(w, r, user, id, eventIf(added > 0, c.kind+"_updated"), adj)
+}
+
 var markup = regexp.MustCompile(`<[^>]*>`)
 
 // cleanName strips tags and unescapes entities before a name is stored
@@ -113,14 +279,6 @@ func patchListMeta(dstName, dstDesc **string, reqName, reqDesc *string, clearEmp
 		changed = true
 	}
 	return changed
-}
-
-// emitAndJSON emits event (if non-empty) and writes view as JSON.
-func emitAndJSON[V any](w http.ResponseWriter, r *http.Request, view V, emit func(string, any), event string) error {
-	if event != "" {
-		emit(event, view)
-	}
-	return httpx.JSON(w, r, view)
 }
 
 // validateCreate cleans name and checks that name, libraryID and library

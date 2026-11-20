@@ -11,7 +11,6 @@ import (
 	"monstrobook/internal/auth"
 	"monstrobook/internal/db"
 	"monstrobook/internal/httpx"
-	"monstrobook/internal/ids"
 	"monstrobook/internal/item"
 )
 
@@ -102,32 +101,27 @@ type collectionRequest struct {
 	Books       []string `json:"books"`
 }
 
-// open loads a collection: 404 when it is missing or its library is closed to
-// the user, then 403 unless permitted.
-func (h *Handler) open(ctx context.Context, user *auth.Principal, id string, permitted bool) (db.Collection, error) {
-	var row db.Collection
-	err := h.db.Get(ctx, &row, `SELECT * FROM collections WHERE id=?`, id)
-	if errors.Is(err, sql.ErrNoRows) || err == nil && !user.CanAccessLibrary(db.Val(row.LibraryID)) {
-		return row, httpx.Error(http.StatusNotFound, "Collection not found")
+func (h *Handler) collectionSpec() container[db.Collection, collectionView] {
+	return container[db.Collection, collectionView]{
+		h: h, kind: "collection", table: "collections", notFound: "Collection not found", links: collectionLinks, reorderUpdates: true,
+		access: func(user *auth.Principal, row db.Collection, op listOp) error {
+			if !user.CanAccessLibrary(db.Val(row.LibraryID)) {
+				return httpx.Error(http.StatusNotFound, "Collection not found")
+			}
+			if op == opUpdate && !user.CanUpdate() || op == opDelete && !user.CanDelete() {
+				return httpx.Forbidden()
+			}
+			return nil
+		},
+		libraryID: func(r db.Collection) string { return db.Val(r.LibraryID) },
+		metaPtrs:  func(r *db.Collection) (**string, **string, *db.Time) { return &r.Name, &r.Description, &r.UpdatedAt },
+		viewOf:    h.collectionViewOf,
+		emit:      func(v collectionView, ev string) { h.emit.ToAll(ev, v) },
 	}
-	if err == nil && !permitted {
-		return row, httpx.Forbidden()
-	}
-	return row, err
 }
 
-// editable is open for a changing request with a body (update permission).
-func (h *Handler) editable(w http.ResponseWriter, r *http.Request, user *auth.Principal) (db.Collection, collectionRequest, error) {
-	row, err := h.open(r.Context(), user, r.PathValue("id"), user.CanUpdate())
-	if err != nil {
-		return row, collectionRequest{}, err
-	}
-	req, err := httpx.Decode[collectionRequest](w, r)
-	return row, req, err
-}
-
-// viewOf builds the collection with its readable books in collection order.
-func (h *Handler) viewOf(ctx context.Context, user *auth.Principal, row db.Collection) (collectionView, error) {
+// collectionViewOf builds the collection with its readable books in collection order.
+func (h *Handler) collectionViewOf(ctx context.Context, user *auth.Principal, row db.Collection) (collectionView, error) {
 	var itemIDs []string
 	err := h.db.Select(ctx, &itemIDs, `SELECT li.id FROM collectionBooks cb
 JOIN libraryItems li ON li.mediaId = cb.bookId AND li.mediaType = 'book'
@@ -162,34 +156,8 @@ func (h *Handler) feedOf(ctx context.Context, id string) (*feedView, error) {
 	return newFeedView(f), nil
 }
 
-// finish answers with the collection as it is now and announces it as event
-// (none when event is empty).
-func (h *Handler) finish(w http.ResponseWriter, r *http.Request, user *auth.Principal, id, event string) error {
-	var row db.Collection
-	if err := h.db.Get(r.Context(), &row, `SELECT * FROM collections WHERE id=?`, id); err != nil {
-		return err
-	}
-	view, err := h.viewOf(r.Context(), user, row)
-	if err != nil {
-		return err
-	}
-	return emitAndJSON(w, r, view, h.emit.ToAll, event)
-}
-
-// collections lists the collections of libraryID ("" for every library) that
-// the user can access.
-func (h *Handler) collections(ctx context.Context, user *auth.Principal, libraryID string) ([]collectionView, error) {
-	var rows []db.Collection
-	if err := h.db.Select(ctx, &rows, `SELECT * FROM collections WHERE (?='' OR libraryId=?) ORDER BY createdAt ASC`, libraryID, libraryID); err != nil {
-		return nil, err
-	}
-	return accessibleViews(rows, user, func(r db.Collection) string { return db.Val(r.LibraryID) }, func(r db.Collection) (collectionView, error) {
-		return h.viewOf(ctx, user, r)
-	})
-}
-
 func (h *Handler) listCollections(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	views, err := h.collections(r.Context(), user, "")
+	views, err := h.collectionSpec().list(r.Context(), user, `ORDER BY createdAt ASC`)
 	if err != nil {
 		return err
 	}
@@ -205,7 +173,7 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request, use
 	if err != nil {
 		return err
 	}
-	views, err := h.collections(r.Context(), user, libraryID)
+	views, err := h.collectionSpec().list(r.Context(), user, `WHERE libraryId=? ORDER BY createdAt ASC`, libraryID)
 	if err != nil {
 		return err
 	}
@@ -245,11 +213,11 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request, use
 
 // getCollection serves GET /api/collections/{id}; include=rssfeed adds the feed.
 func (h *Handler) getCollection(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	row, err := h.open(r.Context(), user, r.PathValue("id"), true)
+	row, err := h.collectionSpec().open(r.Context(), user, r.PathValue("id"), opRead)
 	if err != nil {
 		return err
 	}
-	view, err := h.viewOf(r.Context(), user, row)
+	view, err := h.collectionViewOf(r.Context(), user, row)
 	if err != nil {
 		return err
 	}
@@ -290,27 +258,16 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 		}
 		entries[i] = newEntry{ref.MediaID, "book"}
 	}
-	id, now := "", db.Now()
-	err = h.db.Tx(r.Context(), func(ctx context.Context) (err error) {
-		if id, err = ids.New(); err != nil {
-			return err
-		}
-		row := db.Collection{ID: id, Name: &name, Description: emptyAsNull(req.Description), LibraryID: &req.LibraryID, CreatedAt: now, UpdatedAt: now}
-		if err = h.db.Insert(ctx, "collections", &row); err != nil {
-			return err
-		}
-		return collectionLinks.append(ctx, h.db, id, 0, entries)
-	})
-	if err != nil {
-		return err
-	}
-	return h.finish(w, r, user, id, "collection_added")
+	return h.collectionSpec().create(w, r, user, func(id string, now db.Time) db.Collection {
+		return db.Collection{ID: id, Name: &name, Description: emptyAsNull(req.Description), LibraryID: &req.LibraryID, CreatedAt: now, UpdatedAt: now}
+	}, entries)
 }
 
 // updateCollection serves PATCH /api/collections/{id} (update permission):
 // name, description and book order. An empty name is ignored.
 func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	row, req, err := h.editable(w, r, user)
+	c := h.collectionSpec()
+	row, req, err := openBody[collectionRequest](c, w, r, user, opUpdate)
 	if err != nil {
 		return err
 	}
@@ -318,70 +275,37 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 	if err != nil {
 		return err
 	}
-	changed := false
-	err = h.db.Tx(r.Context(), func(ctx context.Context) error {
-		changed = patchListMeta(&row.Name, &row.Description, req.Name, req.Description, false)
-		if len(req.Books) > 0 {
-			wanted := make([]string, len(req.Books))
-			for i, id := range req.Books {
-				wanted[i] = refs[id].MediaID
-			}
-			moved, err := collectionLinks.reorder(ctx, h.db, row.ID, wanted, -1)
-			if err != nil {
-				return err
-			}
-			changed = changed || moved
-		}
-		if !changed {
-			return nil
-		}
-		row.UpdatedAt = db.Now()
-		return h.db.Update(ctx, "collections", &row, "name", "description", "updatedAt")
-	})
-	if err != nil {
-		return err
+	wanted := make([]string, len(req.Books))
+	for i, id := range req.Books {
+		wanted[i] = refs[id].MediaID
 	}
-	return h.finish(w, r, user, row.ID, eventIf(changed, "collection_updated"))
+	return c.update(w, r, user, row, row.ID, req.Name, req.Description, wanted, -1, nil)
 }
 
 // deleteCollection serves DELETE /api/collections/{id} (delete permission);
 // its RSS feeds are closed with it.
 func (h *Handler) deleteCollection(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	row, err := h.open(r.Context(), user, r.PathValue("id"), user.CanDelete())
-	if err != nil {
-		return err
-	}
-	view, err := h.viewOf(r.Context(), user, row)
-	if err != nil {
-		return err
-	}
 	var closed []db.Feed
-	err = h.db.Tx(r.Context(), func(ctx context.Context) error {
+	return h.collectionSpec().remove(w, r, user, func(ctx context.Context, row db.Collection) error {
 		if err := h.db.Select(ctx, &closed, `SELECT * FROM feeds WHERE entityId=?`, row.ID); err != nil {
 			return err
 		}
-		if _, err := h.db.Exec(ctx, `DELETE FROM feeds WHERE entityId=?`, row.ID); err != nil { // episodes cascade
-			return err
+		_, err := h.db.Exec(ctx, `DELETE FROM feeds WHERE entityId=?`, row.ID) // episodes cascade
+		return err
+	}, func() {
+		for _, feed := range closed {
+			c := closedFeed{ID: feed.ID, EntityType: feed.EntityType, EntityID: feed.EntityID, FeedURL: feed.FeedURL}
+			c.Meta.Title, c.Meta.Description, c.Meta.PreventIndexing = feed.Title, feed.Description, bool(feed.PreventIndexing)
+			c.Meta.OwnerName, c.Meta.OwnerEmail = feed.OwnerName, feed.OwnerEmail
+			h.emit.ToAll("rss_feed_closed", c)
 		}
-		_, err := h.db.Exec(ctx, `DELETE FROM collections WHERE id=?`, row.ID)
-		return err
 	})
-	if err != nil {
-		return err
-	}
-	for _, feed := range closed {
-		c := closedFeed{ID: feed.ID, EntityType: feed.EntityType, EntityID: feed.EntityID, FeedURL: feed.FeedURL}
-		c.Meta.Title, c.Meta.Description, c.Meta.PreventIndexing = feed.Title, feed.Description, bool(feed.PreventIndexing)
-		c.Meta.OwnerName, c.Meta.OwnerEmail = feed.OwnerName, feed.OwnerEmail
-		h.emit.ToAll("rss_feed_closed", c)
-	}
-	h.emit.ToAll("collection_removed", view)
-	return httpx.Status(w, http.StatusOK)
 }
 
 // addCollectionBook serves POST /api/collections/{id}/book (update permission).
 func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	row, req, err := h.editable(w, r, user)
+	c := h.collectionSpec()
+	row, req, err := openBody[collectionRequest](c, w, r, user, opUpdate)
 	if err != nil {
 		return err
 	}
@@ -391,20 +315,18 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user
 	}
 	ref, ok := refs[req.ID]
 	switch {
-	case !ok:
+	case !ok || ref.MediaType != "book":
 		return httpx.Error(http.StatusNotFound, "Book not found")
 	case ref.LibraryID != db.Val(row.LibraryID):
 		return httpx.BadRequest("Book in different library")
-	case ref.MediaType != "book":
-		return httpx.Error(http.StatusNotFound, "Book not found")
 	}
-	changed, err := h.changeBooks(r.Context(), row, []string{req.ID}, true, "Book already in collection")
-	return h.respondBooks(w, r, user, row.ID, changed, err)
+	return c.addEntries(w, r, user, row.ID, []newEntry{{ref.MediaID, "book"}}, "Book already in collection", nil)
 }
 
 // removeCollectionBook serves DELETE /api/collections/{id}/book/{itemID}.
 func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
-	row, err := h.open(r.Context(), user, r.PathValue("id"), user.CanUpdate())
+	c := h.collectionSpec()
+	row, err := c.open(r.Context(), user, r.PathValue("id"), opUpdate)
 	if err != nil {
 		return err
 	}
@@ -416,8 +338,7 @@ func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request, u
 	if _, ok := refs[itemID]; !ok {
 		return httpx.NotFound()
 	}
-	changed, err := h.changeBooks(r.Context(), row, []string{itemID}, false, "")
-	return h.respondBooks(w, r, user, row.ID, changed, err)
+	return h.removeCollectionBooks(w, r, user, row.ID, refs, []string{itemID})
 }
 
 // batchCollectionBooks serves POST /api/collections/{id}/batch/add and /remove.
@@ -426,51 +347,50 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 	if action != "add" && action != "remove" {
 		return httpx.NotFound()
 	}
-	row, req, err := h.editable(w, r, user)
+	c := h.collectionSpec()
+	row, req, err := openBody[collectionRequest](c, w, r, user, opUpdate)
 	if err != nil {
 		return err
 	}
 	if len(req.Books) == 0 {
 		return httpx.BadRequest("Invalid request body")
 	}
-	changed, err := h.changeBooks(r.Context(), row, req.Books, action == "add", "")
-	return h.respondBooks(w, r, user, row.ID, changed, err)
+	refs, err := h.itemRefs(r.Context(), req.Books...)
+	if err != nil {
+		return err
+	}
+	if action == "remove" {
+		return h.removeCollectionBooks(w, r, user, row.ID, refs, req.Books)
+	}
+	_, entries := filterBookRefs(refs, req.Books, db.Val(row.LibraryID))
+	if len(entries) == 0 {
+		return httpx.BadRequest("Invalid request body. No valid books")
+	}
+	return c.addEntries(w, r, user, row.ID, entries, "", nil)
 }
 
-// changeBooks adds the books among the given items to the collection (those of
-// its library, not yet in it) or removes them, and answers with the collection;
-// a change that did nothing is not announced. Items that are not books are skipped.
-func (h *Handler) changeBooks(ctx context.Context, row db.Collection, itemIDs []string, add bool, dupMsg string) (changed int, err error) {
-	refs, err := h.itemRefs(ctx, itemIDs...)
-	if err != nil {
-		return 0, err
-	}
-	var bookIDs []string
-	var entries []newEntry
+func filterBookRefs(refs map[string]itemRef, itemIDs []string, libraryID string) (bookIDs []string, entries []newEntry) {
 	for _, id := range itemIDs {
-		if ref, ok := refs[id]; ok && ref.MediaType == "book" && (!add || ref.LibraryID == db.Val(row.LibraryID)) {
+		if ref, ok := refs[id]; ok && ref.MediaType == "book" && (libraryID == "" || ref.LibraryID == libraryID) {
 			bookIDs = append(bookIDs, ref.MediaID)
 			entries = append(entries, newEntry{ref.MediaID, "book"})
 		}
 	}
-	if add && len(entries) == 0 {
-		return 0, httpx.BadRequest("Invalid request body. No valid books")
-	}
-	err = h.db.Tx(ctx, func(ctx context.Context) (err error) {
-		if !add {
-			changed, _, err = collectionLinks.remove(ctx, h.db, row.ID, bookIDs, true)
-			return err
-		}
-		changed, err = collectionLinks.add(ctx, h.db, row.ID, entries, dupMsg)
-		return err
-	})
-	return changed, err
+	return bookIDs, entries
 }
 
-// respondBooks answers a change of books: nothing changed is not announced.
-func (h *Handler) respondBooks(w http.ResponseWriter, r *http.Request, user *auth.Principal, id string, changed int, err error) error {
+// removeCollectionBooks deletes the books among itemIDs (non-books are skipped)
+// and answers with the collection, emitting collection_updated only on change.
+func (h *Handler) removeCollectionBooks(w http.ResponseWriter, r *http.Request, user *auth.Principal, id string, refs map[string]itemRef, itemIDs []string) error {
+	bookIDs, _ := filterBookRefs(refs, itemIDs, "")
+	removed := 0
+	err := h.db.Tx(r.Context(), func(ctx context.Context) (err error) {
+		removed, _, err = collectionLinks.remove(ctx, h.db, id, bookIDs, true)
+		return err
+	})
 	if err != nil {
 		return err
 	}
-	return h.finish(w, r, user, id, eventIf(changed > 0, "collection_updated"))
+	c := h.collectionSpec()
+	return c.finish(w, r, user, id, eventIf(removed > 0, "collection_updated"), nil)
 }

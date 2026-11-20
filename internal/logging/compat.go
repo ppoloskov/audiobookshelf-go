@@ -1,4 +1,5 @@
-// Printf-style helpers over the slog handler, for startup and shutdown lines that keep upstream wording. New code logs with log/slog.
+// Printf-style helpers over the slog handler kept for remaining callers in
+// internal/server and internal/admin. New code logs with log/slog.
 package logging
 
 import (
@@ -11,23 +12,8 @@ import (
 	"time"
 )
 
-// Tracef logs at TRACE to the default logger; the source is the caller.
-func Tracef(format string, args ...any) { output(LevelTrace, fmt.Sprintf(format, args...)) }
-
-// Debugf logs at DEBUG.
-func Debugf(format string, args ...any) { output(LevelDebug, fmt.Sprintf(format, args...)) }
-
-// Infof logs at INFO.
-func Infof(format string, args ...any) { output(LevelInfo, fmt.Sprintf(format, args...)) }
-
-// Warnf logs at WARN.
-func Warnf(format string, args ...any) { output(LevelWarn, fmt.Sprintf(format, args...)) }
-
 // Errorf logs at ERROR.
 func Errorf(format string, args ...any) { output(LevelError, fmt.Sprintf(format, args...)) }
-
-// Fatalf logs at FATAL (also written to the crash log).
-func Fatalf(format string, args ...any) { output(LevelFatal, fmt.Sprintf(format, args...)) }
 
 // Trace logs msg at TRACE.
 func Trace(msg string) { output(LevelTrace, msg) }
@@ -38,34 +24,13 @@ func Debug(msg string) { output(LevelDebug, msg) }
 // Info logs msg at INFO.
 func Info(msg string) { output(LevelInfo, msg) }
 
-// Warn logs msg at WARN.
-func Warn(msg string) { output(LevelWarn, msg) }
-
-// Error logs msg at ERROR.
-func Error(msg string) { output(LevelError, msg) }
-
-// RequestError logs a 5xx cause at ERROR with the route (path only: the query
-// can carry a token).
-func RequestError(r *http.Request, what string, err error) {
-	if err != nil {
-		what += ": " + err.Error()
-	}
-	output(LevelError, route(r)+": "+what)
-}
-
-// RequestDebug logs at DEBUG why a handler deliberately answers 500.
-func RequestDebug(r *http.Request, why string) { output(LevelDebug, route(r)+": "+why) }
-
 // RecoverRequest logs a handler panic and its stack at ERROR.
 func RecoverRequest(r *http.Request, recovered any) {
-	output(LevelError, fmt.Sprintf("%s: panic: %v\n%s", route(r), recovered, debug.Stack()))
-}
-
-func route(r *http.Request) string {
-	if r == nil || r.URL == nil {
-		return "[HTTP] ? ?"
+	path := "? ?"
+	if r != nil && r.URL != nil {
+		path = r.Method + " " + r.URL.Path
 	}
-	return "[HTTP] " + r.Method + " " + r.URL.Path
+	output(LevelError, fmt.Sprintf("[HTTP] %s: panic: %v\n%s", path, recovered, debug.Stack()))
 }
 
 // output logs to the default logger; the source is the caller of the helper.

@@ -139,13 +139,10 @@ func TestCompatHelpersSourceAndLevel(t *testing.T) {
 	defaultLogger = New(Options{Stdout: &out, Stderr: &errBuf})
 	t.Cleanup(func() { defaultLogger = old })
 	defaultLogger.SetLevel(LevelTrace)
-	Tracef("t%d", 1)
-	Debugf("d")
-	Infof("i %s", "x")
-	Warnf("w")
-	Errorf("e")
-	Fatalf("f")
+	Trace("t1")
+	Debug("d")
 	Info("plain")
+	Errorf("e %s", "x")
 	got := defaultLogger.Entries()[1:] // the first is "Set Log Level"
 	var names []string
 	for _, e := range got {
@@ -154,12 +151,12 @@ func TestCompatHelpersSourceAndLevel(t *testing.T) {
 			t.Errorf("source = %q", e.Source)
 		}
 	}
-	if strings.Join(names, "|") != "TRACE:t1|DEBUG:d|INFO:i x|WARN:w|ERROR:e|FATAL:f|INFO:plain" {
+	if strings.Join(names, "|") != "TRACE:t1|DEBUG:d|INFO:plain|ERROR:e x" {
 		t.Fatalf("entries = %v", names)
 	}
 	defaultLogger.SetLevel(LevelError)
 	n := len(defaultLogger.Entries())
-	Infof("hidden")
+	Info("hidden")
 	if len(defaultLogger.Entries()) != n {
 		t.Fatal("below-level helper call was logged")
 	}
@@ -171,26 +168,15 @@ func TestRequestHelpers(t *testing.T) {
 	t.Cleanup(func() { defaultLogger = old })
 	defaultLogger.SetLevel(LevelDebug)
 	r, _ := http.NewRequest(http.MethodPatch, "/api/items/li_1/media?token=secret", nil)
-	RequestError(r, "database write failed", errors.New("disk I/O error"))
-	RequestError(r, "internal error", nil)
-	RequestError(nil, "no request", nil)
-	RequestDebug(r, "responding 500: nope")
 	RecoverRequest(r, "boom")
-	var got []string
-	for _, e := range defaultLogger.Entries()[1:] {
-		got = append(got, e.LevelName+" "+e.Message)
+	RecoverRequest(nil, "boom2")
+	got := defaultLogger.Entries()[1:]
+	if len(got) != 2 || !strings.Contains(got[0].Message, "[HTTP] PATCH /api/items/li_1/media: panic: boom\ngoroutine") ||
+		!strings.Contains(got[1].Message, "[HTTP] ? ?: panic: boom2\ngoroutine") {
+		t.Fatalf("logged: %+v", got)
 	}
-	want := []string{
-		"ERROR [HTTP] PATCH /api/items/li_1/media: database write failed: disk I/O error",
-		"ERROR [HTTP] PATCH /api/items/li_1/media: internal error",
-		"ERROR [HTTP] ? ?: no request",
-		"DEBUG [HTTP] PATCH /api/items/li_1/media: responding 500: nope",
-	}
-	if len(got) != 5 || strings.Join(got[:4], "\n") != strings.Join(want, "\n") || !strings.Contains(got[4], "panic: boom\ngoroutine") {
-		t.Fatalf("logged:\n%s", strings.Join(got, "\n"))
-	}
-	for _, line := range got {
-		if strings.Contains(line, "secret") {
+	for _, e := range got {
+		if strings.Contains(e.Message, "secret") {
 			t.Fatal("query string leaked")
 		}
 	}
