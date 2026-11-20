@@ -26,7 +26,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request, user *auth.Princi
 	}
 	if slices.Contains(strings.Split(r.URL.Query().Get("include"), ","), "stats") {
 		for i := range views {
-			if views[i].Stats, err = h.statsOf(ctx, views[i].ID, db.Val(views[i].MediaType)); err != nil {
+			if views[i].Stats, err = h.compactStatsOf(ctx, views[i].ID, db.Val(views[i].MediaType)); err != nil {
 				return httpx.Internal("database read failed", err)
 			}
 		}

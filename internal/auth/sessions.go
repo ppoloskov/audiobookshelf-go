@@ -43,13 +43,8 @@ func (s *Service) sessionByToken(ctx context.Context, token string) (db.Session,
 	return session, err
 }
 
-// rotate replaces the refresh token of session with a new one; the old token
-// stays valid for the grace period. The update only applies while the session
-// still holds the token it was loaded with, so of two concurrent refreshes the
-// second returns the token the first stored. It returns a fresh access token
-// and the session's current refresh token.
-func (s *Service) rotate(ctx context.Context, session db.Session) (access, refresh string, err error) {
-	user, err := s.userByID(ctx, session.UserID)
+func (s *Service) mintSessionTokens(ctx context.Context, userID string) (access, refresh string, err error) {
+	user, err := s.userByID(ctx, userID)
 	if err != nil {
 		return "", "", err
 	}
@@ -58,6 +53,19 @@ func (s *Service) rotate(ctx context.Context, session db.Session) (access, refre
 		return "", "", err
 	}
 	if refresh, err = s.sessionToken(typeRefresh, user.ID, name, s.cfg.Auth.RefreshTTL); err != nil {
+		return "", "", err
+	}
+	return access, refresh, nil
+}
+
+// rotate replaces the refresh token of session with a new one; the old token
+// stays valid for the grace period. The update only applies while the session
+// still holds the token it was loaded with, so of two concurrent refreshes the
+// second returns the token the first stored. It returns a fresh access token
+// and the session's current refresh token.
+func (s *Service) rotate(ctx context.Context, session db.Session) (access, refresh string, err error) {
+	access, refresh, err = s.mintSessionTokens(ctx, session.UserID)
+	if err != nil {
 		return "", "", err
 	}
 	now := db.Now()
@@ -73,14 +81,34 @@ WHERE id = ? AND refreshToken = ?`, refresh, db.Time{Time: now.Add(s.cfg.Auth.Re
 	return access, refresh, err
 }
 
+// rotateWithoutGrace replaces the refresh token of session and clears the
+// grace-period columns to SQL NULL (TokenManager.rotateTokensForSession with
+// gracePeriod=false).
+func (s *Service) rotateWithoutGrace(ctx context.Context, session db.Session) (access, refresh string, err error) {
+	access, refresh, err = s.mintSessionTokens(ctx, session.UserID)
+	if err != nil {
+		return "", "", err
+	}
+	now := db.Now()
+	result, err := s.db.Exec(ctx, `UPDATE sessions SET refreshToken = ?, expiresAt = ?, lastRefreshToken = NULL, lastRefreshTokenExpiresAt = NULL, updatedAt = ?
+WHERE id = ? AND refreshToken = ?`, refresh, db.Time{Time: now.Add(s.cfg.Auth.RefreshTTL)}, now, session.ID, session.RefreshToken)
+	if err != nil {
+		return "", "", err
+	}
+	if n, _ := result.RowsAffected(); n == 0 {
+		err = s.db.Get(ctx, &refresh, `SELECT refreshToken FROM sessions WHERE id = ?`, session.ID)
+	}
+	return access, refresh, err
+}
+
 // InvalidateUserSessions deletes every session of userID after a credential
 // change. When currentRefreshToken names one of the user's sessions that
-// session survives with rotated tokens, which are returned; otherwise all go
-// and the returned tokens are empty.
+// session survives with rotated tokens (and cleared grace state), which are
+// returned; otherwise all go and the returned tokens are empty.
 func (s *Service) InvalidateUserSessions(ctx context.Context, userID, currentRefreshToken string) (access, refresh string, err error) {
 	if currentRefreshToken != "" {
 		if session, err := s.sessionByToken(ctx, currentRefreshToken); err == nil && session.UserID == userID {
-			if access, refresh, err = s.rotate(ctx, session); err != nil {
+			if access, refresh, err = s.rotateWithoutGrace(ctx, session); err != nil {
 				return "", "", err
 			}
 			_, err = s.db.Exec(ctx, `DELETE FROM sessions WHERE userId = ? AND id <> ?`, userID, session.ID)

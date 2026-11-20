@@ -9,6 +9,15 @@ import (
 	"monstrobook/internal/httpx"
 )
 
+// CompactStats is the summary stats included on GET /api/libraries?include=stats
+// (libraryItemsBookFilters.getBookLibraryStats and getPodcastLibraryStats).
+type CompactStats struct {
+	TotalSize     int64   `json:"totalSize" db:"size"`
+	TotalDuration float64 `json:"totalDuration" db:"duration"`
+	NumAudioFiles int64   `json:"numAudioFiles" db:"tracks"`
+	TotalItems    int64   `json:"totalItems" db:"items"`
+}
+
 // Stats is the stats of a podcast library; BookStats adds the authors.
 type Stats struct {
 	TotalGenres     int           `json:"totalGenres"`
@@ -60,34 +69,41 @@ func (h *Handler) stats(w http.ResponseWriter, r *http.Request, scope Scope) err
 	return httpx.JSON(w, r, stats)
 }
 
-// statsOf is the aggregate payload of a library of the given media type
-// (libraryItemsBookFilters.getBookLibraryStats and the podcast counterpart).
+// compactStatsOf returns the summary totals for GET /api/libraries?include=stats.
 // The size of a podcast library sums the library items alone, not the items
 // joined to their episodes (libraryItemsPodcastFilters.js:566-580).
+func (h *Handler) compactStatsOf(ctx context.Context, id, mediaType string) (CompactStats, error) {
+	var total CompactStats
+	switch mediaType {
+	case "book":
+		if err := h.db.Get(ctx, &total, `SELECT COALESCE(SUM(li.size),0) AS size, COALESCE(SUM(b.duration),0) AS duration, COALESCE(SUM(json_array_length(b.audioFiles)),0) AS tracks, COUNT(*) AS items FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId = ?`, id); err != nil {
+			return total, err
+		}
+	case "podcast":
+		if err := h.db.Get(ctx, &total, `SELECT COALESCE(SUM(json_extract(pe.audioFile,'$.duration')),0) AS duration, COUNT(pe.id) AS tracks, COUNT(DISTINCT li.id) AS items, (SELECT COALESCE(SUM(size),0) FROM libraryItems WHERE mediaType='podcast' AND libraryId = ?) AS size FROM libraryItems li, podcasts p LEFT OUTER JOIN podcastEpisodes pe ON pe.podcastId=p.id WHERE p.id=li.mediaId AND li.libraryId = ?`, id, id); err != nil {
+			return total, err
+		}
+	default:
+		return total, fmt.Errorf("unsupported library media type %q", mediaType)
+	}
+	return total, nil
+}
+
+// statsOf is the aggregate payload of a library of the given media type
+// (libraryItemsBookFilters.getBookLibraryStats and the podcast counterpart).
 func (h *Handler) statsOf(ctx context.Context, id, mediaType string) (any, error) {
-	var total struct {
-		Size     int64   `db:"size"`
-		Duration float64 `db:"duration"`
-		Tracks   int64   `db:"tracks"`
-		Items    int64   `db:"items"`
+	total, err := h.compactStatsOf(ctx, id, mediaType)
+	if err != nil {
+		return nil, err
 	}
 	var table, durationExpr string
 	switch mediaType {
 	case "book":
 		table, durationExpr = "books", "m.duration"
-		if err := h.db.Get(ctx, &total, `SELECT COALESCE(SUM(li.size),0) AS size, COALESCE(SUM(b.duration),0) AS duration, COALESCE(SUM(json_array_length(b.audioFiles)),0) AS tracks, COUNT(*) AS items FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId = ?`, id); err != nil {
-			return nil, err
-		}
 	case "podcast":
 		table, durationExpr = "podcasts", "(SELECT SUM(json_extract(pe.audioFile,'$.duration')) FROM podcastEpisodes pe WHERE pe.podcastId=m.id)"
-		if err := h.db.Get(ctx, &total, `SELECT COALESCE(SUM(json_extract(pe.audioFile,'$.duration')),0) AS duration, COUNT(pe.id) AS tracks, COUNT(DISTINCT li.id) AS items, (SELECT COALESCE(SUM(size),0) FROM libraryItems WHERE mediaType='podcast' AND libraryId = ?) AS size FROM libraryItems li, podcasts p LEFT OUTER JOIN podcastEpisodes pe ON pe.podcastId=p.id WHERE p.id=li.mediaId AND li.libraryId = ?`, id, id); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, fmt.Errorf("unsupported library media type %q", mediaType)
 	}
-	stats := Stats{TotalItems: total.Items, TotalSize: total.Size, TotalDuration: total.Duration, NumAudioTracks: total.Tracks}
-	var err error
+	stats := Stats{TotalItems: total.TotalItems, TotalSize: total.TotalSize, TotalDuration: total.TotalDuration, NumAudioTracks: total.NumAudioFiles}
 	// table and durationExpr are constants chosen above.
 	if stats.GenresWithCount, err = selectAll[genreCount](ctx, h.db, `SELECT j.value AS genre, COUNT(*) AS count FROM `+table+` m JOIN libraryItems li ON li.mediaId=m.id, json_each(m.genres) j WHERE li.libraryId = ? AND json_valid(m.genres) GROUP BY j.value ORDER BY count DESC`, id); err != nil {
 		return nil, err

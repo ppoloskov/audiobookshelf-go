@@ -2,8 +2,11 @@ package server
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"path"
@@ -215,6 +218,49 @@ func cleanPath(next http.Handler) http.Handler {
 			trimmed.URL = &u
 			r = &trimmed
 		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// maxJSONBodyBytes matches upstream's express.json({ limit: '10mb' })
+// (server/Server.js:352) and accommodates routes using httpx.DecodeLimit up to 10 MiB.
+const maxJSONBodyBytes = 10 << 20
+
+// validateJSONBody mirrors Express's express.json() pre-check before auth and
+// routing: non-empty bodies with a JSON Content-Type must be valid JSON (400)
+// and within the limit (413). The read body is re-attached for downstream handlers.
+func validateJSONBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Body == nil || r.Body == http.NoBody {
+			next.ServeHTTP(w, r)
+			return
+		}
+		switch r.Method {
+		case http.MethodPost, http.MethodPatch, http.MethodPut, http.MethodDelete:
+		default:
+			next.ServeHTTP(w, r)
+			return
+		}
+		mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err != nil || (mt != "application/json" && !strings.HasSuffix(mt, "+json")) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		raw, err := io.ReadAll(io.LimitReader(r.Body, maxJSONBodyBytes+1))
+		_ = r.Body.Close() // replaced below with bytes.NewReader
+		if err != nil {
+			_ = httpx.Status(w, http.StatusBadRequest)
+			return
+		}
+		if len(raw) > maxJSONBodyBytes {
+			_ = httpx.Status(w, http.StatusRequestEntityTooLarge)
+			return
+		}
+		if len(bytes.TrimSpace(raw)) > 0 && !json.Valid(raw) {
+			_ = httpx.Status(w, http.StatusBadRequest)
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(raw))
 		next.ServeHTTP(w, r)
 	})
 }

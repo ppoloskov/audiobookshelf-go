@@ -76,7 +76,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) error {
 	moveFailed := func(err error) error { return httpx.Internal("Failed to move backup file into backups directory", err) }
 	r.Body = http.MaxBytesReader(w, r.Body, maxArchiveBytes)
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		return invalid(err)
+		return httpx.BadRequest("Invalid multipart form")
 	}
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -142,5 +142,5 @@ func (h *Handler) updatePath(w http.ResponseWriter, r *http.Request) error {
 			return httpx.Internal("failed to reload backup path", err)
 		}
 	}
-	return httpx.JSON(w, r, "OK")
+	return httpx.Status(w, http.StatusOK)
 }

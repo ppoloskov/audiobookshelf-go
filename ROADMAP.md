@@ -87,7 +87,7 @@ Baseline from `make oracle` (2026-11-20, pinned upstream TS v2.37.2 @ `edb1f7ef`
 
 - **Soft architectural target:** **~20K prod LOC (excluding tests)**, down from ~35.8K today — achieved **strictly through simplification and better higher-order abstractions** (never golfing or sacrificing structure/readability).
 - The Waves 1–4 rewrite already removed the major legacy slop (`TODO/FIXME` = 0, stray `*-E` files = 0, legacy `logging.*f` = 2 in `internal/`, `map[string]any` = 23 remaining after Wave P2).
-- **Progress so far:** Waves P1 + P2 reduced the oracle parity backlog from **768 → 220 findings (-71.4%)**, raised Flow Steps PASS **309 → 331**, Complex Tests PASS **10 → 13**, and Route Matrix unexpected **97 → 55**.
+- **Progress so far:** Waves P1–P3 reduced the oracle parity backlog from **768 → 131 findings (-82.9%)**, raised Flow Steps PASS **309 → 341**, Complex Tests PASS **10 → 13**, and cut Route Matrix unexpected findings **97 → 1** (653/654 checks passing).
 
 | Opportunity | Target Package(s) | Est. LOC Reduction | Parity Findings Closed |
 | --- | --- | ---: | ---: |
@@ -124,37 +124,21 @@ Baseline from `make oracle` (2026-11-20, pinned upstream TS v2.37.2 @ `edb1f7ef`
 - [x] **`internal/item`**
   - Consolidated `applyTitleAndCover`, `announceItem`/`announceHTTP`/`finishWith`, and `setTextIfMissing`; fixed `patch-saga1-tracks-reorder` non-expanded `Full` response (14 findings), `quick-match` `titleIgnorePrefix` (12 SQLite findings), `autoDownloadSchedule: ""` clearing (12+ findings), `Expanded.LastScan` `omitempty`, and `ffprobe` middleware check order.
 
-#### Wave P3 — HTTP Edge Middleware & Remaining Domain Modules (~100 findings)
+#### Wave P3 — HTTP Edge Middleware & Domain Parity — PARTIALLY DONE (`220 -> 131` findings, `-82.9%` cumulative; Route Matrix `97 -> 1`)
 
-- [ ] **`internal/server` & `internal/httpx` (~55 findings: 55 HTTP)**
-  - **Refactor:** Add a lightweight JSON-syntax pre-check middleware for requests carrying `Content-Type: application/json` (matching Express `express.json()` returning `400` before route/auth dispatch) — closes **~35 `[bad_json]` route-matrix groups** (across `auth`, `admin`, `backup`, `item`, `library`, `list`, `playback`, `share`, `tools`, `user`, `author`) without per-handler boilerplate.
-  - Record Express's `<!DOCTYPE html><pre>Bad Request</pre>` HTML error body on malformed JSON in `testmachine/oracle/divergences.json` (intentional Go improvement per `ARCHITECTURE.md`).
+- [x] **`internal/server` & `internal/scan/audio.go`**
+  - Added global `validateJSONBody` middleware (`10 MiB` limit, matching `express.json()`) — collapsed Route Matrix unexpected findings from **55 → 1** (653/654 passing).
+  - Deduplicated `internal/scan/audio.go` onto `media.ProbeAudio` / `media.LeadingNumber` (**-71 prod LOC**, raised `internal/media` coverage `78.0% → 87.1%`).
 
-- [ ] **`internal/library` (~17 findings: 14 HTTP, 3 SQLite)**
-  - Match `GET /api/libraries?include=stats` compact `stats` shape: add `numAudioFiles` and drop 12 extra full-stats fields (`authorsWithCount`, `genresWithCount`, `largestItems`, `longestItems`, `numAudioTracks`, `totalAuthors`, `totalGenres`).
-  - Store `libraries.extraData` as SQLite `NULL` instead of `"{}"` text on create/patch/reorder (3 SQLite findings).
+- [x] **`internal/library`, `internal/backup`, `internal/auth`, `internal/user`**
+  - `GET /api/libraries?include=stats` returns compact stats (`totalSize`, `totalDuration`, `numAudioFiles`, `totalItems`); `libraries.extraData` persists as SQLite `NULL`.
+  - `PATCH /api/backups/path` returns `text/plain` `"OK"`; `POST /api/backups/upload` returns `400` on invalid multipart body.
+  - `POST /api/api-keys` / `PATCH /api/api-keys/{id}` match upstream omitted fields; `PATCH /api/me/password` sets rotated `refresh_token` cookie and nulls `sessions.lastRefreshToken*`; `PATCH /api/users/{id}` returns `404` on missing user ID before body decode.
 
-- [ ] **`internal/auth` & `internal/user` (~12 findings: 10 HTTP, 2 SQLite)**
-  - `me-patch-password`: set rotated `refresh_token` cookie and clear `sessions.lastRefreshToken` / `lastRefreshTokenExpiresAt` to SQLite `NULL` (3 findings).
-  - `api-keys-create` & `api-keys-deactivate`: omit `createdByUser` (and unset `description`/`lastUsedAt`/`permissions`) to match TS response (5 findings).
-  - Align `PATCH /api/users/:id [missing_id]` (`404` vs `400`) and `PATCH /api/notifications/:id [missing_id]` (`404` vs `400`).
-
-- [ ] **`internal/backup` (~6 findings: 6 HTTP)**
-  - `backups-download`: `Content-Type: application/octet-stream` (or record `application/zip` in `divergences.json`).
-  - `backups-patch-path-*`: return plain text `"OK"` instead of JSON `"\"OK\""` (5 findings).
-  - `POST /api/backups/upload [bad_json]`: return `400` instead of `500`.
-
-- [ ] **`internal/share` (~3 findings: 2 HTTP, 1 test_error)**
-  - Fix `get-public-share-by-slug` / `get-public-share-init` `playbackSession.id` (replace hardcoded/placeholder UUIDs with proper generated UUIDs).
-  - Investigate & fix `TestOracleFlows/coverage_remaining_routes/get-feed-item-range`.
-
-- [ ] **`internal/list` (1 finding + high-value desloping)**
-  - **Refactor:** Extract shared ordered-container CRUD/batch/hydration helpers across `playlist.go` (662 LOC) and `collection.go` (521 LOC) (~350–450 LOC savings).
-  - Fix `playlist-batch-remove` `playlistMediaItems.order` re-indexing (1 SQLite finding).
-
-- [ ] **`internal/mail` & `internal/notify` (desloping + 2 stub findings)**
-  - Set `application/epub+zip` attachment MIME type in `internal/mail` when sending `.epub`.
-  - **Desloping:** Replace the 14 `map[string]any` usages in `internal/notify` with typed structs.
+- [ ] **Remaining in Wave P3 (`internal/share`, `internal/list`, `internal/mail`, `internal/notify`)**
+  - `internal/share`: fix `get-public-share-by-slug` / `get-public-share-init` `playbackSession.id` UUIDs and `get-feed-item-range`.
+  - `internal/list`: unify `playlist.go` (662 LOC) + `collection.go` (521 LOC) ordered-container helpers (~350–450 LOC savings) and fix `playlist-batch-remove` `order` re-indexing.
+  - `internal/mail` & `internal/notify`: set `application/epub+zip` attachment MIME in `mail`; replace the 14 `map[string]any` usages in `notify` with typed structs.
 
 #### Wave P4 — Oracle Differ Calibration & Final Polish (~20 false positives + housekeeping)
 

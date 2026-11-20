@@ -47,12 +47,11 @@ func (h *Handler) changePassword(w http.ResponseWriter, r *http.Request, me *aut
 	if err != nil {
 		return err
 	}
-	switch {
-	case refresh == "":
-	case r.Header.Get("x-refresh-token") != "": // mobile apps keep the token themselves
-		return httpx.JSON(w, r, map[string]any{"success": true, "user": map[string]string{"accessToken": access, "refreshToken": refresh}})
-	default:
+	if refresh != "" {
 		h.auth.SetRefreshTokenCookie(w, r, refresh)
+		if r.Header.Get("x-refresh-token") != "" { // mobile apps also receive the new tokens in the JSON body
+			return httpx.JSON(w, r, map[string]any{"success": true, "user": map[string]string{"accessToken": access, "refreshToken": refresh}})
+		}
 	}
 	return ok(w)
 }

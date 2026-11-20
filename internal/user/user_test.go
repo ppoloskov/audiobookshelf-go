@@ -102,6 +102,7 @@ func TestStatuses(t *testing.T) {
 		{"online for a user", "trial-listener", "GET", "/api/users/online", "", 403},
 		{"keys for a user", "trial-listener", "GET", "/api/api-keys", "", 403},
 		{"user missing", "trial-root", "GET", "/api/users/" + missingID, "", 404},
+		{"patch missing user with empty body", "trial-root", "PATCH", "/api/users/" + missingID, "", 404},
 		{"other user's stats", "trial-finisher", "GET", "/api/users/" + missingID + "/listening-stats", "", 403},
 		{"missing user's stats", "trial-root", "GET", "/api/users/" + missingID + "/listening-stats", "", 404},
 		{"session missing", "trial-listener", "DELETE", "/api/me/sessions/" + missingID, "", 404},
@@ -220,6 +221,11 @@ func TestAPIKeys(t *testing.T) {
 	if code != 200 || key["apiKey"] == "" || key["isActive"] != true || key["expiresAt"] == nil || key["user"].(map[string]any)["username"] != "trial-listener" {
 		t.Fatalf("create: %d %v", code, doc)
 	}
+	for _, omitted := range []string{"createdByUser", "description", "lastUsedAt", "permissions"} {
+		if _, present := key[omitted]; present {
+			t.Errorf("create must omit %q: %v", omitted, key)
+		}
+	}
 	for _, body := range []string{`{"name":"k"}`, `{"name":"k","userId":"` + missingID + `"}`, `{"name":"k","userId":"` + listener + `","expiresIn":0}`} {
 		if got := r.status("trial-root", "POST", "/api/api-keys", body); got != 400 {
 			t.Errorf("%s: %d", body, got)
@@ -229,6 +235,9 @@ func TestAPIKeys(t *testing.T) {
 	code, doc = r.do("trial-root", "PATCH", "/api/api-keys/"+id, `{"isActive":false,"userId":"`+r.id("trial-finisher")+`"}`)
 	if key = doc["apiKey"].(map[string]any); code != 200 || key["isActive"] != false || key["user"].(map[string]any)["username"] != "trial-finisher" {
 		t.Errorf("update: %d %v", code, doc)
+	}
+	if _, present := key["createdByUser"]; present {
+		t.Errorf("update must omit createdByUser: %v", key)
 	}
 	if _, list := r.do("trial-root", "GET", "/api/api-keys", ""); len(list["apiKeys"].([]any)) != 1 {
 		t.Errorf("list = %v", list)
@@ -340,5 +349,46 @@ func TestEreaderDevices(t *testing.T) {
 	code, doc := r.do("trial-listener", "POST", "/api/me/ereader-devices", `{"ereaderDevices":[`+device+`]}`)
 	if code != 200 || len(doc["ereaderDevices"].([]any)) != 1 || r.events[len(r.events)-1].name != "ereader-devices-updated" {
 		t.Errorf("save: %d %v", code, doc)
+	}
+}
+
+func TestChangePasswordSetsRefreshCookieAndNullsGraceColumns(t *testing.T) {
+	r := newRig(t)
+	listenerID := r.id("trial-listener")
+	// Seed a session with non-NULL grace columns to ensure password change nulls them.
+	if _, err := r.db.Exec(context.Background(), `INSERT INTO sessions (id, refreshToken, expiresAt, lastRefreshToken, lastRefreshTokenExpiresAt, createdAt, updatedAt, userId)
+		VALUES ('s1', 'tok-1', '2099-01-01 00:00:00.000 +00:00', 'tok-0', '2099-01-01 00:00:00.000 +00:00', '2026-01-01 00:00:00.000 +00:00', '2026-01-01 00:00:00.000 +00:00', ?)`, listenerID); err != nil {
+		t.Fatal(err)
+	}
+	hash, err := auth.HashPassword("shelf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.db.Exec(context.Background(), `UPDATE users SET pash = ? WHERE id = ?`, hash, listenerID); err != nil {
+		t.Fatal(err)
+	}
+	var row db.User
+	if err := r.db.Get(context.Background(), &row, `SELECT * FROM users WHERE id = ?`, listenerID); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest("PATCH", "/api/me/password", strings.NewReader(`{"password":"shelf","newPassword":"new-shelf"}`))
+	req.Header.Set("x-refresh-token", "tok-1")
+	w := httptest.NewRecorder()
+	r.mux.ServeHTTP(w, req.WithContext(auth.WithUser(req.Context(), auth.NewPrincipal(row))))
+	if w.Code != 200 {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	var hasCookie bool
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "refresh_token" && c.Value != "" && c.Value != "tok-1" {
+			hasCookie = true
+		}
+	}
+	if !hasCookie {
+		t.Fatalf("expected rotated refresh_token cookie, got %+v", w.Result().Cookies())
+	}
+	var nullCount int
+	if err := r.db.Get(context.Background(), &nullCount, `SELECT COUNT(*) FROM sessions WHERE id = 's1' AND lastRefreshToken IS NULL AND lastRefreshTokenExpiresAt IS NULL`); err != nil || nullCount != 1 {
+		t.Fatalf("expected NULL grace columns, count=%d err=%v", nullCount, err)
 	}
 }

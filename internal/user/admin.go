@@ -273,6 +273,13 @@ func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request, me *auth.Pr
 // updateUser is PATCH /api/users/{id}: only root edits root; user_updated goes to the acting admin.
 func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, me *auth.Principal) error {
 	ctx := r.Context()
+	target, err := h.userRow(ctx, r.PathValue("id"))
+	if err != nil {
+		return err
+	}
+	if err := onlyRootTouchesRoot(me, target); err != nil {
+		return err
+	}
 	raw, err := httpx.Decode[json.RawMessage](w, r)
 	if err != nil {
 		return err
@@ -293,7 +300,7 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, me *auth.Pr
 		if err != nil {
 			return err
 		}
-		if refresh != "" && r.Header.Get("x-refresh-token") == "" {
+		if refresh != "" {
 			h.auth.SetRefreshTokenCookie(w, r, refresh)
 		}
 	}

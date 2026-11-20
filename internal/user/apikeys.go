@@ -18,25 +18,33 @@ type keyUser struct {
 	Type     *string `json:"type" db:"type"`
 }
 
+type baseKeyView struct {
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	ExpiresAt       *string  `json:"expiresAt"`
+	IsActive        bool     `json:"isActive"`
+	UserID          *string  `json:"userId"`
+	CreatedByUserID *string  `json:"createdByUserId"`
+	CreatedAt       *string  `json:"createdAt"`
+	UpdatedAt       *string  `json:"updatedAt"`
+	User            *keyUser `json:"user"`
+}
+
+type updatedKeyView struct {
+	baseKeyView
+	Description *string         `json:"description"`
+	LastUsedAt  *string         `json:"lastUsedAt"`
+	Permissions *db.Permissions `json:"permissions"` // null until a flag is set
+}
+
 type keyView struct {
-	ID              string          `json:"id"`
-	Name            string          `json:"name"`
-	Description     *string         `json:"description"`
-	ExpiresAt       *string         `json:"expiresAt"`
-	LastUsedAt      *string         `json:"lastUsedAt"`
-	IsActive        bool            `json:"isActive"`
-	Permissions     *db.Permissions `json:"permissions"` // null until a flag is set
-	UserID          *string         `json:"userId"`
-	CreatedByUserID *string         `json:"createdByUserId"`
-	CreatedAt       *string         `json:"createdAt"`
-	UpdatedAt       *string         `json:"updatedAt"`
-	User            *keyUser        `json:"user"`
-	CreatedByUser   *keyUser        `json:"createdByUser"`
+	updatedKeyView
+	CreatedByUser *keyUser `json:"createdByUser"`
 }
 
 type createdKey struct {
-	keyView
 	Token string `json:"apiKey"`
+	baseKeyView
 }
 
 func (h *Handler) keyViews(ctx context.Context, rows []db.ApiKey) ([]keyView, error) {
@@ -50,9 +58,18 @@ func (h *Handler) keyViews(ctx context.Context, rows []db.ApiKey) ([]keyView, er
 	}
 	views := make([]keyView, len(rows))
 	for i, row := range rows {
-		views[i] = keyView{ID: row.ID, Name: row.Name, Description: row.Description, ExpiresAt: iso(row.ExpiresAt), LastUsedAt: iso(row.LastUsedAt),
-			IsActive: bool(row.IsActive), UserID: row.UserID, CreatedByUserID: row.CreatedByUserID,
-			CreatedAt: iso(row.CreatedAt), UpdatedAt: iso(row.UpdatedAt), User: byID[db.Val(row.UserID)], CreatedByUser: byID[db.Val(row.CreatedByUserID)]}
+		views[i] = keyView{
+			updatedKeyView: updatedKeyView{
+				baseKeyView: baseKeyView{
+					ID: row.ID, Name: row.Name, ExpiresAt: iso(row.ExpiresAt), IsActive: bool(row.IsActive),
+					UserID: row.UserID, CreatedByUserID: row.CreatedByUserID, CreatedAt: iso(row.CreatedAt), UpdatedAt: iso(row.UpdatedAt),
+					User: byID[db.Val(row.UserID)],
+				},
+				Description: row.Description,
+				LastUsedAt:  iso(row.LastUsedAt),
+			},
+			CreatedByUser: byID[db.Val(row.CreatedByUserID)],
+		}
 		if p := row.Permissions.V; p.Download || p.Update || p.Delete || p.Upload || p.AccessAllLibraries {
 			views[i].Permissions = &p
 		}
@@ -119,7 +136,7 @@ func (h *Handler) createAPIKey(w http.ResponseWriter, r *http.Request, me *auth.
 	if err != nil {
 		return err
 	}
-	return httpx.JSON(w, r, wrap("apiKey", createdKey{view, token}))
+	return httpx.JSON(w, r, wrap("apiKey", createdKey{Token: token, baseKeyView: view.baseKeyView}))
 }
 
 func (h *Handler) deleteAPIKey(w http.ResponseWriter, r *http.Request, _ *auth.Principal) error {
@@ -177,5 +194,5 @@ func (h *Handler) updateAPIKey(w http.ResponseWriter, r *http.Request, me *auth.
 	if err != nil {
 		return err
 	}
-	return httpx.JSON(w, r, wrap("apiKey", view))
+	return httpx.JSON(w, r, wrap("apiKey", view.updatedKeyView))
 }

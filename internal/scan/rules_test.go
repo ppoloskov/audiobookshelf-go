@@ -46,8 +46,8 @@ func TestLeadingNumber(t *testing.T) {
 		want *int64
 	}{{"3", i64(3)}, {"3/12", i64(3)}, {" 7 /9", i64(7)}, {"", nil}, {"x", nil}, {"/3", nil}}
 	for _, tc := range tests {
-		if got := leadingNumber(tc.in); !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("leadingNumber(%q) = %v, want %v", tc.in, db.Val(got), db.Val(tc.want))
+		if got := media.LeadingNumber(tc.in); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("LeadingNumber(%q) = %v, want %v", tc.in, db.Val(got), db.Val(tc.want))
 		}
 	}
 }
@@ -364,14 +364,14 @@ func TestParseMetadataJSON(t *testing.T) {
 func TestApplyTags(t *testing.T) {
 	t.Run("old: title, artist and slash-separated genres", func(t *testing.T) {
 		m := bookMeta{Title: "Folder"}
-		m.applyTags(audioTags(map[string]string{"TITLE": "Tagged", "artist": "A Writer", "genre": "Mystery/Fiction"}))
+		m.applyTags(db.AudioMetaTags(media.ParseMetaTags(map[string]string{"TITLE": "Tagged", "artist": "A Writer", "genre": "Mystery/Fiction"})))
 		if m.Title != "Tagged" || !slices.Equal(m.Authors, []string{"A Writer"}) || !slices.Equal(m.Genres, []string{"Mystery", "Fiction"}) {
 			t.Fatalf("meta = %+v", m)
 		}
 	})
 	t.Run("album beats title, album artist backs up artist, comment backs up description", func(t *testing.T) {
 		var m bookMeta
-		m.applyTags(audioTags(map[string]string{"album": "Album", "title": "Track", "albumartist": "AA", "comment": "C", "composer": "N1; N2"}))
+		m.applyTags(db.AudioMetaTags(media.ParseMetaTags(map[string]string{"album": "Album", "title": "Track", "albumartist": "AA", "comment": "C", "composer": "N1; N2"})))
 		if m.Title != "Album" || !slices.Equal(m.Authors, []string{"AA"}) || m.Description != "C" || !slices.Equal(m.Narrators, []string{"N1", "N2"}) {
 			t.Fatalf("meta = %+v", m)
 		}
@@ -388,7 +388,7 @@ func TestApplyTags(t *testing.T) {
 		}
 		for _, tc := range tests {
 			var m bookMeta
-			m.applyTags(audioTags(tc.tags))
+			m.applyTags(db.AudioMetaTags(media.ParseMetaTags(tc.tags)))
 			if !reflect.DeepEqual(m.Series, tc.want) {
 				t.Errorf("%v: series = %+v, want %+v", tc.tags, m.Series, tc.want)
 			}

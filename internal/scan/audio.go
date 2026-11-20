@@ -3,7 +3,6 @@ package scan
 import (
 	"context"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -17,84 +16,40 @@ import (
 // probeAudio is the audio entry of one file (AudioFile.js toJSON), or nil when
 // the file has no audio stream. The entry takes the file's inode and metadata.
 func probeAudio(ctx context.Context, file db.LibraryFile) (*db.AudioFile, error) {
-	res, err := media.Probe(ctx, file.Metadata.Path)
-	if err != nil {
+	probed, err := media.ProbeAudio(ctx, file.Metadata.Path)
+	if err != nil || probed == nil {
 		return nil, err
 	}
-	var audio *media.Stream
-	var embedded *string
-	hasDefault := false
-	for i := range res.Streams {
-		s := &res.Streams[i]
-		// The first video stream is the embedded cover, attached picture or not.
-		if s.Type == "video" && embedded == nil {
-			embedded = &s.Codec
-		}
-		if s.Type == "audio" && (audio == nil || (s.Disposition.Default == 1 && !hasDefault)) {
-			audio, hasDefault = s, hasDefault || s.Disposition.Default == 1
-		}
-	}
-	if audio == nil {
-		return nil, nil
-	}
-	duration, _ := strconv.ParseFloat(res.Format.Duration, 64) // missing or malformed: 0
-	format := res.Format.LongName
-	if format == "" {
-		format = res.Format.Name
+	chapters := make([]db.Chapter, len(probed.Chapters))
+	for i, ch := range probed.Chapters {
+		chapters[i] = db.Chapter{ID: ch.ID, Start: ch.Start, End: ch.End, Title: ch.Title}
 	}
 	now := time.Now().UnixMilli()
-	out := &db.AudioFile{Index: 1, Ino: file.Ino, Metadata: file.Metadata, AddedAt: now, UpdatedAt: now, Format: format, Duration: &duration,
-		Codec: &audio.Codec, TimeBase: &audio.TimeBase, EmbeddedCoverArt: embedded, MimeType: media.AudioMime(file.Metadata.Ext), Chapters: []db.Chapter{}}
-	if rate, _ := strconv.ParseInt(audio.BitRate, 10, 64); rate > 0 {
-		out.BitRate = &rate
-	} else if rate, _ := strconv.ParseInt(res.Format.BitRate, 10, 64); rate > 0 {
-		out.BitRate = &rate
-	}
-	if audio.Channels > 0 {
-		out.Channels = db.Ptr(int64(audio.Channels))
-	}
-	if audio.ChannelLayout != "" {
-		out.ChannelLayout = db.Ptr(strings.Split(audio.ChannelLayout, "(")[0])
-	}
-	if language := strings.TrimSpace(audio.Tags["language"]); language != "" {
-		out.Language = &language
-	}
-	tags := res.Format.Tags
-	if tags == nil {
-		tags = audio.Tags
-	}
-	out.MetaTags = audioTags(tags)
-	out.TrackNumFromMeta, out.DiscNumFromMeta = leadingNumber(out.MetaTags.Track), leadingNumber(out.MetaTags.Disc)
-	out.TrackNumFromFilename, out.DiscNumFromFilename = filenameNumbers(file.Metadata.Filename, filepath.Dir(file.Metadata.Path))
-	for _, ch := range res.Chapters {
-		start, end := ch.Seconds()
-		out.Chapters = append(out.Chapters, db.Chapter{Start: start, End: end, Title: strings.TrimSpace(ch.Tags["title"])})
-	}
-	slices.SortStableFunc(out.Chapters, func(a, b db.Chapter) int { return compareFloat(a.Start, b.Start) })
-	for i := range out.Chapters {
-		out.Chapters[i].ID = int64(i)
-	}
-	return out, nil
-}
-
-func compareFloat(a, b float64) int {
-	switch {
-	case a < b:
-		return -1
-	case a > b:
-		return 1
-	}
-	return 0
-}
-
-// leadingNumber reads "3" or "3/12"; a missing or malformed value is nil.
-func leadingNumber(value string) *int64 {
-	head, _, _ := strings.Cut(value, "/")
-	n, err := strconv.ParseInt(strings.TrimSpace(head), 10, 64)
-	if err != nil {
-		return nil
-	}
-	return &n
+	duration := probed.Duration
+	trackFromFile, discFromFile := filenameNumbers(file.Metadata.Filename, filepath.Dir(file.Metadata.Path))
+	return &db.AudioFile{
+		Index:                1,
+		Ino:                  file.Ino,
+		Metadata:             file.Metadata,
+		AddedAt:              now,
+		UpdatedAt:            now,
+		TrackNumFromMeta:     probed.TrackNumFromMeta,
+		DiscNumFromMeta:      probed.DiscNumFromMeta,
+		TrackNumFromFilename: trackFromFile,
+		DiscNumFromFilename:  discFromFile,
+		Format:               probed.Format,
+		Duration:             &duration,
+		BitRate:              probed.BitRate,
+		Language:             probed.Language,
+		Codec:                probed.Codec,
+		TimeBase:             probed.TimeBase,
+		Channels:             probed.Channels,
+		ChannelLayout:        probed.ChannelLayout,
+		Chapters:             chapters,
+		EmbeddedCoverArt:     probed.EmbeddedCoverArt,
+		MetaTags:             db.AudioMetaTags(probed.MetaTags),
+		MimeType:             media.AudioMime(file.Metadata.Ext),
+	}, nil
 }
 
 var (
@@ -109,40 +64,14 @@ var (
 func filenameNumbers(filename, dir string) (track, disc *int64) {
 	base := strings.TrimSuffix(filename, filepath.Ext(filename))
 	if m := discInName.FindStringSubmatch(base); m != nil {
-		disc = leadingNumber(m[2])
+		disc = media.LeadingNumber(m[2])
 		base = strings.Replace(base, m[0], "", 1)
 	}
 	if parent := filepath.Base(dir); cdDirectory.MatchString(parent) {
 		n, _ := strconv.ParseInt(discPrefix.ReplaceAllString(parent, ""), 10, 64)
 		disc = &n
 	}
-	return leadingNumber(trackNumber.FindString(base)), disc
-}
-
-// tagAliases lists, per AudioMetaTags json key, the ffprobe tag names that
-// fill it (AudioFileScanner.js); the first alias with a value wins.
-var tagAliases = map[string][]string{"tagEncoder": {"encoder", "tsse", "tss"}, "tagEncodedBy": {"encoded_by", "tenc", "ten"}, "tagTitle": {"title", "tit2", "tt2"}, "tagTitleSort": {"title-sort", "tsot"}, "tagSubtitle": {"subtitle", "tit3", "tt3"}, "tagTrack": {"track", "trck", "trk"}, "tagDisc": {"discnumber", "disc", "disk", "tpos", "tpa"}, "tagAlbum": {"album", "talb", "tal"}, "tagAlbumSort": {"album-sort", "tsoa"}, "tagArtist": {"artist", "tpe1", "tp1"}, "tagArtistSort": {"artist-sort", "tsop"}, "tagAlbumArtist": {"albumartist", "album_artist", "tpe2"}, "tagDate": {"date", "tyer", "tye"}, "tagComposer": {"composer", "tcom", "tcm"}, "tagPublisher": {"publisher", "tpub", "tpb"}, "tagComment": {"comment", "comm", "com"}, "tagDescription": {"description", "desc"}, "tagGenre": {"genre", "tcon", "tco"}, "tagSeries": {"series", "show", "mvnm"}, "tagSeriesPart": {"series-part", "episode_id", "mvin", "part"}, "tagGrouping": {"grouping", "grp1"}, "tagIsbn": {"isbn"}, "tagLanguage": {"language", "lang"}, "tagASIN": {"asin", "audible_asin"}, "tagItunesId": {"itunes-id"}, "tagPodcastType": {"podcast-type"}, "tagEpisodeType": {"episode-type"}, "tagOriginalYear": {"originalyear"}, "tagReleaseCountry": {"musicbrainz album release country", "releasecountry"}, "tagReleaseStatus": {"musicbrainz album status", "releasestatus", "musicbrainz_albumstatus"}, "tagReleaseType": {"musicbrainz album type", "releasetype", "musicbrainz_albumtype"}, "tagISRC": {"tsrc", "isrc"}, "tagMusicBrainzTrackId": {"musicbrainz release track id", "musicbrainz_releasetrackid"}, "tagMusicBrainzAlbumId": {"musicbrainz album id", "musicbrainz_albumid"}, "tagMusicBrainzAlbumArtistId": {"musicbrainz album artist id", "musicbrainz_albumartistid"}, "tagMusicBrainzArtistId": {"musicbrainz artist id", "musicbrainz_artistid"}}
-
-// audioTags fills the AudioMetaTags fields from ffprobe's tag map.
-func audioTags(raw map[string]string) db.AudioMetaTags {
-	lower := make(map[string]string, len(raw))
-	for key, value := range raw {
-		if value = strings.TrimSpace(value); value != "" {
-			lower[strings.ToLower(key)] = value
-		}
-	}
-	var tags db.AudioMetaTags
-	fields := reflect.ValueOf(&tags).Elem()
-	for i := range fields.NumField() {
-		name, _, _ := strings.Cut(fields.Type().Field(i).Tag.Get("json"), ",")
-		for _, alias := range tagAliases[name] {
-			if value, ok := lower[alias]; ok {
-				fields.Field(i).SetString(value)
-				break
-			}
-		}
-	}
-	return tags
+	return media.LeadingNumber(trackNumber.FindString(base)), disc
 }
 
 // applyTags sets the book metadata from the first audio file's tags

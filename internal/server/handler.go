@@ -13,7 +13,7 @@ import (
 
 // newHandler composes the request pipeline once:
 //
-//	recover -> security headers -> CORS -> base path -> trailing slash -> route
+//	recover -> security headers -> CORS -> base path -> trailing slash -> JSON syntax -> route
 //
 // Routes are in two groups. The public mux answers without a user: login and
 // the other authentication flows, /ping, /healthcheck, /status, Socket.IO, the
@@ -54,6 +54,7 @@ func (rt *Runtime) middlewares(allowAllCORS bool) []middleware {
 		corsPolicy(allowAllCORS, rt.settings),
 		basePath(rt.cfg.RouterBasePath),
 		cleanPath, // Express matched a route with one trailing slash
+		validateJSONBody,
 	}
 }
 

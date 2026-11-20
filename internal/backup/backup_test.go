@@ -273,13 +273,19 @@ func TestUploadRejections(t *testing.T) {
 	if w := e.do(true, httptest.NewRequest("GET", "/api/backups/up/download", nil)); w.Code != 200 || !bytes.Equal(w.Body.Bytes(), good) {
 		t.Fatalf("download: %d", w.Code)
 	}
+	badJSON := httptest.NewRequest("POST", "/api/backups/upload", strings.NewReader("{bad"))
+	badJSON.Header.Set("Content-Type", "application/json")
+	if w := e.do(true, badJSON); w.Code != 400 {
+		t.Fatalf("non-multipart upload: %d, want 400", w.Code)
+	}
 }
 
 func TestUpdatePathAndSettingsFollowing(t *testing.T) {
 	e := newEnv(t, nil)
 	moved := filepath.Join(t.TempDir(), "moved")
-	if w := e.do(true, httptest.NewRequest("PATCH", "/api/backups/path", strings.NewReader(`{"path":"`+moved+`"}`))); w.Code != 200 {
-		t.Fatalf("status %d %s", w.Code, w.Body)
+	w := e.do(true, httptest.NewRequest("PATCH", "/api/backups/path", strings.NewReader(`{"path":"`+moved+`"}`)))
+	if w.Code != 200 || w.Body.String() != "OK" || !strings.HasPrefix(w.Header().Get("Content-Type"), "text/plain") {
+		t.Fatalf("status=%d ct=%q body=%q", w.Code, w.Header().Get("Content-Type"), w.Body.String())
 	}
 	if got := e.store.Server().BackupPath; got != moved || e.h.folder() != moved {
 		t.Fatalf("stored %q, in use %q", got, e.h.folder())

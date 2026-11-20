@@ -371,6 +371,9 @@ func TestChangePasswordAndInvalidateSessions(t *testing.T) {
 	if err != nil || access == "" || refresh == "" || refresh == current || count(t, d, `SELECT COUNT(*) FROM sessions`) != 1 {
 		t.Fatalf("rotated %q %q %v", access, refresh, err)
 	}
+	if count(t, d, `SELECT COUNT(*) FROM sessions WHERE lastRefreshToken IS NULL AND lastRefreshTokenExpiresAt IS NULL`) != 1 {
+		t.Fatal("InvalidateUserSessions must clear grace columns to NULL")
+	}
 	if access, refresh, err = s.InvalidateUserSessions(ctx, listenerID, "unknown"); err != nil || access != "" || refresh != "" || count(t, d, `SELECT COUNT(*) FROM sessions`) != 0 {
 		t.Fatalf("unknown token must drop every session: %q %q %v", access, refresh, err)
 	}

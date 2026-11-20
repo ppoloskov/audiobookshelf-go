@@ -96,7 +96,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 		lib := db.Library{ID: id, Name: &req.Name, DisplayOrder: &order, Icon: &icon, MediaType: &mediaType, Provider: &provider,
-			Settings: db.JSON[db.LibrarySettings]{V: settings}, ExtraData: db.JSON[*db.LibraryExtra]{V: &db.LibraryExtra{}}, CreatedAt: now, UpdatedAt: now}
+			Settings: db.JSON[db.LibrarySettings]{V: settings}, CreatedAt: now, UpdatedAt: now}
 		if err := h.db.Insert(ctx, "libraries", &lib); err != nil {
 			return err
 		}

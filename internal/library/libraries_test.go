@@ -92,6 +92,9 @@ func TestCreateUpdateRefreshWatchersAfterCommit(t *testing.T) {
 		t.Fatalf("create: %v changed=%d", created, r.changed)
 	}
 	id := created["id"].(string)
+	if n := r.count(`SELECT COUNT(*) FROM libraries WHERE id = ? AND extraData IS NULL`, id); n != 1 {
+		t.Fatalf("created library extraData must be NULL")
+	}
 	w = r.do("PATCH", "/api/libraries/"+id, `{"name":"Renamed","settings":{"disableWatcher":true}}`, "root")
 	if w.Code != 200 || r.changed != 2 || r.count(`SELECT COUNT(*) FROM libraries WHERE id = ? AND name = 'Renamed' AND settings LIKE '%"disableWatcher":true%'`, id) != 1 {
 		t.Fatalf("update %d changed=%d %s", w.Code, r.changed, w.Body)
@@ -160,6 +163,47 @@ func TestDeleteLibraryIsOneTransactionWithEffectsAfter(t *testing.T) {
 	}
 	if w := r.do("DELETE", "/api/libraries/"+bookLib, "", "root"); w.Code != 404 {
 		t.Errorf("second delete %d", w.Code)
+	}
+}
+
+func TestListWithStatsReturnsCompactShape(t *testing.T) {
+	r := newRig(t)
+	w := r.do("GET", "/api/libraries?include=stats", "", "root")
+	if w.Code != 200 {
+		t.Fatalf("list stats: %d %s", w.Code, w.Body)
+	}
+	var payload struct {
+		Libraries []struct {
+			ID    string         `json:"id"`
+			Stats map[string]any `json:"stats"`
+		} `json:"libraries"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Libraries) == 0 {
+		t.Fatal("expected libraries")
+	}
+	for _, lib := range payload.Libraries {
+		for _, wantKey := range []string{"totalSize", "totalDuration", "numAudioFiles", "totalItems"} {
+			if _, ok := lib.Stats[wantKey]; !ok {
+				t.Errorf("lib %s missing compact stats key %q: %v", lib.ID, wantKey, lib.Stats)
+			}
+		}
+		for _, dropKey := range []string{"authorsWithCount", "genresWithCount", "largestItems", "longestItems", "numAudioTracks", "totalAuthors", "totalGenres"} {
+			if _, ok := lib.Stats[dropKey]; ok {
+				t.Errorf("lib %s unexpected full stats key %q: %v", lib.ID, dropKey, lib.Stats)
+			}
+		}
+	}
+	// Full stats endpoint still includes the full fields.
+	full := r.do("GET", "/api/libraries/"+bookLib+"/stats", "", "root")
+	var fullStats map[string]any
+	if err := json.Unmarshal(full.Body.Bytes(), &fullStats); err != nil || full.Code != 200 {
+		t.Fatalf("full stats: %d %v", full.Code, err)
+	}
+	if _, ok := fullStats["authorsWithCount"]; !ok {
+		t.Errorf("full stats missing authorsWithCount: %v", fullStats)
 	}
 }
 

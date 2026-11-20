@@ -283,7 +283,7 @@ func TestMiddlewareOrder(t *testing.T) {
 	for _, m := range manager.current.Load().middlewares(false) {
 		names = append(names, funcName(m))
 	}
-	want := []string{"recoverPanics", "securityHeaders", "corsPolicy", "basePath", "cleanPath"}
+	want := []string{"recoverPanics", "securityHeaders", "corsPolicy", "basePath", "cleanPath", "validateJSONBody"}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Fatalf("pipeline = %v, want %v", names, want)
 	}
@@ -342,4 +342,61 @@ func TestCloseStopsServingAndIsIdempotent(t *testing.T) {
 		t.Fatalf("status after Close = %d", w.Code)
 	}
 	manager.Close()
+}
+
+func TestValidateJSONBodyMiddleware(t *testing.T) {
+	manager, token := newPipelineManager(t)
+	post := func(path, tok, contentType, body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+		if tok != "" {
+			r.Header.Set("Authorization", "Bearer "+tok)
+		}
+		if contentType != "" {
+			r.Header.Set("Content-Type", contentType)
+		}
+		w := httptest.NewRecorder()
+		manager.ServeHTTP(w, r)
+		return w
+	}
+
+	t.Run("malformed json returns 400 before auth and routing", func(t *testing.T) {
+		for _, path := range []string{"/api/libraries", "/api/no-such-route"} {
+			for _, ct := range []string{"application/json", "application/json; charset=utf-8"} {
+				w := post(path, "", ct, "{invalid json")
+				if w.Code != http.StatusBadRequest || w.Body.String() != "Bad Request" {
+					t.Errorf("%s (%s): status=%d body=%q, want 400 Bad Request", path, ct, w.Code, w.Body.String())
+				}
+			}
+		}
+	})
+
+	t.Run("valid json passes through to handler", func(t *testing.T) {
+		w := post("/api/libraries", token, "application/json", "{}")
+		// Hits the library create handler (400 because name/folders missing), not middleware 400 "Bad Request".
+		if w.Code != http.StatusBadRequest || w.Body.String() == "Bad Request" {
+			t.Fatalf("status=%d body=%q, expected downstream handler validation", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("empty body passes through", func(t *testing.T) {
+		w := post("/api/no-such-route", token, "application/json", "   ")
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("status=%d body=%q, want 404 from router", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("non-json content type passes through", func(t *testing.T) {
+		w := post("/api/no-such-route", "", "text/plain", "{invalid json")
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("status=%d body=%q, want 401 from auth middleware", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("oversized json body returns 413", func(t *testing.T) {
+		huge := `{"x":"` + strings.Repeat("a", maxJSONBodyBytes+1) + `"}`
+		w := post("/api/libraries", "", "application/json", huge)
+		if w.Code != http.StatusRequestEntityTooLarge {
+			t.Fatalf("status=%d body=%q, want 413", w.Code, w.Body.String())
+		}
+	})
 }
