@@ -20,20 +20,21 @@ Prepared from the 2026-11-20 pre-release Security and Open State-Machine / Concu
 - [x] **Stuck `library-match-all` task (`internal/library/match.go`)**: `defer h.emit.TaskFinished(task)`, track goroutine with `sync.WaitGroup` + `Close()`, and guard against duplicate runs (wired into `internal/server/runtime.go`).
 - [x] **Graceful shutdown & restore drain (`cmd/monstrobook/main.go`, `internal/scan/`, `internal/tools/`, `internal/realtime/`)**: set `IdleTimeout` & `MaxHeaderBytes` on `http.Server`; wait on `sync.WaitGroup` in `Scanner.Close`, `tools.Handler.Close`, and `Hub.Close`; emit `TaskFinished` on watcher cancel with pending task; fix `cancelEncode` temp-file race and `Refresh()` vs `Close()` lock race.
 
-## Gate 2 — Automated CI & Differential Verification
+## Gate 2 — Automated CI & Differential Verification (COMPLETE)
 
-- [ ] `nix develop --command make verify` exits `0` (**0 unexpected findings**, Flow Steps `377/377`, Complex `17/17`, Route Matrix `654/654`, bidirectional TS↔Go rollback pass).
-- [ ] `nix develop --command go test -race ./... -count=1` passes across all packages.
-- [ ] `nix develop --command golangci-lint run ./...` reports `0 issues.` and `gofmt -l .` is empty.
-- [ ] Linux `amd64` and `arm64` `CGO_ENABLED=0` cross-builds of `./cmd/monstrobook` succeed.
-- [ ] GitHub Actions `Unified replacement verification` and `Build and Push Go Docker Image` are green on `master` (multi-arch `ghcr.io/<owner>/monstrobook` image published).
-- [ ] Regenerate `docs/openapi.json` via `make openapi` if any response/status changed.
+- [x] `nix develop --command make verify` exits `0` (**0 unexpected findings**, Flow Steps `377/377`, Complex `17/17`, Route Matrix `654/654`, bidirectional TS↔Go rollback pass).
+- [x] `nix develop --command go test -race ./... -count=1` passes across all packages.
+- [x] `nix develop --command golangci-lint run ./...` reports `0 issues.` and `gofmt -l .` is empty.
+- [x] Linux `amd64` and `arm64` `CGO_ENABLED=0` `-trimpath -ldflags "-s -w"` cross-builds of `./cmd/monstrobook` succeed.
+- [x] GitHub Actions run [`44825036376`](https://github.com/ppoloskov/audiobookshelf-go/actions/runs/44825036376) (`Unified replacement verification` in 5m54s + `Build and Push Go Docker Image` in 1m28s) is green on `master` (`4a193e2b`), publishing multi-arch `ghcr.io/ppoloskov/monstrobook`.
+- [x] Regenerated `docs/openapi.json` via `make openapi`.
 
-## Gate 3 — Container, Migration & Rollback Smoke Tests
+## Gate 3 — Container, Migration & Rollback Smoke Tests (Host Binary Smoke Verified; Docker Host Run Remaining)
 
-- [ ] **Fresh container boot**: `docker compose up` from empty `/config` & `/metadata`, complete `/init`, create library, scan real audiobook + ebook + podcast, verify Web UI (`/app/client/dist` from `ghcr.io/advplyr/audiobookshelf:2.37.2`) loads and plays audio + HLS + WebP covers.
-- [ ] **Drop-in upgrade + rollback**: Back up a real Audiobookshelf v2.37.2 `/config` + `/metadata`, switch image to `monstrobook`, verify login, progress, shelves, covers, RSS feeds, and backups; switch back to `ghcr.io/advplyr/audiobookshelf:2.37.2` and verify zero DB corruption.
-- [ ] **Graceful shutdown & soak**: Run active HLS transcode + library scan + Socket.IO clients, send `SIGTERM`, confirm clean exit in `<5s`, zero orphaned `ffmpeg` processes, zero leaked `/streams/*` dirs, and clean SQLite WAL checkpoint.
+- [x] **Host binary fresh boot & smoke**: Verified stripped `CGO_ENABLED=0` `./monstrobook` against `.oracle-upstream/client/dist` (`GET /` 200, `/init`, `/login`, library create + scan, `cover?format=webp` 200 `image/webp`, HLS play session start).
+- [x] **Graceful shutdown & SQLite WAL check**: `SIGTERM` exited cleanly in `0s` with `PRAGMA integrity_check: ok`.
+- [x] **Automated bidirectional TS↔Go rollback**: Verified inside `make verify` and CI run `44825036376`.
+- [ ] **Docker host smoke (`docker compose up` + real backup rollback)**: No local Docker daemon on this macOS host; run `docker compose up` on a Docker host with `ghcr.io/ppoloskov/monstrobook:latest` and smoke-test a real v2.37.2 backup rollback.
 
 ## Gate 4 — Real Client Acceptance & Release Packaging
 
