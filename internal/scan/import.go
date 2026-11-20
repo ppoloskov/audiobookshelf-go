@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"monstrobook/internal/db"
 	"monstrobook/internal/ids"
 	"monstrobook/internal/item"
+	"monstrobook/internal/media"
 	"monstrobook/internal/text"
 	"monstrobook/internal/version"
 )
@@ -38,6 +40,7 @@ type plan struct {
 	book                 db.Book             // the stored book of an existing item
 	episodes             []db.PodcastEpisode // the stored episodes of an existing podcast
 	audio                []db.AudioFile      // probed or kept entries
+	ebook                *db.EbookFile
 	md                   bookMeta
 	title, author        string
 	series, sequence     string
@@ -65,6 +68,13 @@ func (s *Scanner) importItem(ctx context.Context, lib library, c *candidate, old
 	p, err := s.gather(ctx, lib, c, old, force)
 	if err != nil || p.skip {
 		return outcome{}, err
+	}
+	if lib.mediaType == "book" && p.rescanMedia && p.cover == "" {
+		if extracted := s.extractEmbeddedCover(ctx, p); extracted != "" {
+			p.cover = extracted
+			p.coverChanged = p.cover != db.Val(p.book.CoverPath)
+			p.updated = p.updated || p.coverChanged
+		}
 	}
 	out := outcome{id: p.itemID, added: old == nil, updated: p.updated}
 	var removal item.EpisodeRemoval
@@ -132,22 +142,27 @@ func (s *Scanner) gather(ctx context.Context, lib library, c *candidate, old *db
 	} else {
 		s.resolve(p)
 	}
-	newest := time.Time{}
-	for _, f := range c.files() {
-		if f.info.ModTime().After(newest) {
-			newest = f.info.ModTime()
-		}
-	}
-	p.mtime, p.ctime, p.birthtime = db.Time{Time: newest.UTC()}, db.Time{Time: newest.UTC()}, db.Time{Time: newest.UTC()}
+	newest := db.Time{Time: newestModTime(c.files()).UTC()}
+	p.mtime, p.ctime, p.birthtime = newest, newest, newest
 	if c.info != nil {
-		mtime, ctime, birthtime := statTimes(c.path, c.info)
-		p.ino, p.mtime, p.ctime, p.birthtime = inode(c.info), db.Time{Time: mtime.UTC()}, db.Time{Time: ctime.UTC()}, db.Time{Time: birthtime.UTC()}
+		p.ino = inode(c.info)
+		p.mtime, p.ctime, p.birthtime = statDBTimes(c.path, c.info)
 	}
 	if p.ino == "" && len(c.media) > 0 {
 		p.ino = inode(c.media[0].info)
 	}
 	s.decide(p)
 	return p, nil
+}
+
+func newestModTime(files []fileEntry) time.Time {
+	var newest time.Time
+	for _, f := range files {
+		if f.info.ModTime().After(newest) {
+			newest = f.info.ModTime()
+		}
+	}
+	return newest
 }
 
 // probe builds the audio entries: an unchanged file keeps its stored entry, a
@@ -238,16 +253,27 @@ func (s *Scanner) resolve(p *plan) {
 func (s *Scanner) decide(p *plan) {
 	lib, old := p.lib, p.old
 	podcast := lib.mediaType == "podcast"
+	if p.ino == "" {
+		p.skip = true
+		return
+	}
+	if old == nil {
+		p.rescanMedia = true
+	} else {
+		pathChanged := db.Val(old.Path) != p.c.path || db.Val(old.RelPath) != p.rel
+		p.rescanMedia = p.force || p.diff.changed() || pathChanged
+		statChanged := old.Mtime.Millis() != p.mtime.Millis() || old.Ctime.Millis() != p.ctime.Millis() || old.Birthtime.Millis() != p.birthtime.Millis()
+		p.itemChanged = p.diff.changed() || statChanged || pathChanged || db.Val(old.Ino) != p.ino || db.Val(old.MediaType) != lib.mediaType || bool(old.IsMissing)
+	}
+	var suppChanged bool
 	if !podcast {
-		if old == nil && len(p.audio) == 0 {
+		p.ebook, suppChanged = reconcileEbook(p)
+		if old == nil && len(p.audio) == 0 && p.ebook == nil {
 			p.skip = true
 			return
 		}
 		orderAudio(p.audio)
-	}
-	if p.ino == "" {
-		p.skip = true
-		return
+		p.cover, p.coverChanged = coverPath(db.Val(p.book.CoverPath), p.diff)
 	}
 	for _, a := range p.audio {
 		p.duration += db.Val(a.Duration)
@@ -256,24 +282,90 @@ func (s *Scanner) decide(p *plan) {
 	for _, f := range p.diff.files {
 		p.size += f.Metadata.Size
 	}
-	if !podcast {
-		p.cover, p.coverChanged = coverPath(db.Val(p.book.CoverPath), p.diff)
-	}
 	if old == nil {
-		p.rescanMedia = true
 		return
 	}
-	pathChanged := db.Val(old.Path) != p.c.path || db.Val(old.RelPath) != p.rel
-	p.rescanMedia = p.force || p.diff.changed() || pathChanged
-	statChanged := old.Mtime.Millis() != p.mtime.Millis() || old.Ctime.Millis() != p.ctime.Millis() || old.Birthtime.Millis() != p.birthtime.Millis()
-	p.itemChanged = p.diff.changed() || statChanged || pathChanged || db.Val(old.Ino) != p.ino || db.Val(old.MediaType) != lib.mediaType || bool(old.IsMissing)
 	if !podcast {
 		// A book with neither audio nor an ebook file is missing (BookScanner.js:405-417).
-		p.missing = len(p.audio) == 0 && p.book.EbookFile.V == nil
-		p.itemChanged = p.itemChanged || (p.missing && !bool(old.IsMissing))
+		p.missing = len(p.audio) == 0 && p.ebook == nil
+		p.itemChanged = p.itemChanged || suppChanged || (p.missing && !bool(old.IsMissing))
 	}
 	p.writeItem = p.itemChanged || p.force
 	p.updated = p.itemChanged || p.coverChanged
+}
+
+func reconcileEbook(p *plan) (*db.EbookFile, bool) {
+	eb := p.book.EbookFile.V
+	if p.old != nil && !p.rescanMedia {
+		return eb, false
+	}
+	if eb != nil && (p.lib.audiobooksOnly || ebookRemoved(eb, p.diff.files)) {
+		eb = nil
+	} else if eb != nil {
+		for _, f := range p.diff.modified {
+			if f.FileType == media.KindEbook && p.diff.oldPath[f.Metadata.Path] == eb.Metadata.Path {
+				eb = newEbookFile(f, false)
+				break
+			}
+		}
+	}
+	if eb == nil && !p.lib.audiobooksOnly {
+		if lf, ok := pickEbookFile(p.diff.files); ok {
+			eb = newEbookFile(lf, true)
+		}
+	}
+	return eb, syncSupplementaryEbooks(p.diff.files, eb)
+}
+
+// extractEmbeddedCover saves embedded cover art from the first audio file that
+// has one (CoverManager.saveEmbeddedCoverArt), returning the saved path or "".
+func (s *Scanner) extractEmbeddedCover(ctx context.Context, p *plan) string {
+	var audioPath, codec string
+	for _, a := range p.audio {
+		if c := db.Val(a.EmbeddedCoverArt); c != "" {
+			audioPath, codec = a.Metadata.Path, c
+			break
+		}
+	}
+	if audioPath == "" {
+		return ""
+	}
+	var coverDir string
+	if s.settings.Server().StoreCoverWithItem && !p.c.isFile {
+		coverDir = p.c.path
+	} else if s.cfg.MetadataPath != "" {
+		coverDir = filepath.Join(s.cfg.Dirs().Items, p.itemID)
+	} else {
+		return ""
+	}
+	name := "cover.jpg"
+	if codec == "png" {
+		name = "cover.png"
+	}
+	coverPath := filepath.Join(coverDir, name)
+	if _, err := os.Stat(coverPath); err == nil {
+		slog.Warn("embedded cover already exists", "path", coverPath)
+		return ""
+	}
+	if err := os.MkdirAll(coverDir, 0o755); err != nil {
+		slog.Warn("create embedded cover dir failed", "dir", coverDir, "error", err)
+		return ""
+	}
+	if err := media.Run(ctx, "-y", "-i", audioPath, "-map", "0:v:0", "-frames:v", "1", coverPath); err != nil {
+		slog.Debug("extract embedded cover failed", "audio", audioPath, "cover", coverPath, "error", err)
+		return ""
+	}
+	if _, err := os.Stat(coverPath); err != nil {
+		return ""
+	}
+	if cacheDir := s.cfg.Dirs().CoverCache; cacheDir != "" {
+		if matches, err := filepath.Glob(filepath.Join(cacheDir, p.itemID+"*")); err == nil {
+			for _, m := range matches {
+				_ = os.Remove(m) // best-effort cover cache purge
+			}
+		}
+	}
+	return coverPath
 }
 
 // nullable is nil for a blank string.
@@ -319,7 +411,7 @@ func (s *Scanner) saveBook(ctx context.Context, p *plan) (item.ScanLinks, error)
 	keep(&b.ISBN, md.ISBN)
 	keep(&b.ASIN, md.ASIN)
 	keep(&b.Language, md.Language)
-	b.Duration, b.AudioFiles.V, b.Chapters.V, b.CoverPath, b.UpdatedAt = &p.duration, p.audio, p.chapters, nullable(p.cover), p.now
+	b.Duration, b.AudioFiles.V, b.Chapters.V, b.EbookFile.V, b.CoverPath, b.UpdatedAt = &p.duration, p.audio, p.chapters, p.ebook, nullable(p.cover), p.now
 	if added || len(md.Tags) > 0 {
 		b.Tags.V = orEmpty(md.Tags)
 	}
@@ -334,7 +426,7 @@ func (s *Scanner) saveBook(ctx context.Context, p *plan) (item.ScanLinks, error)
 		err = s.db.Insert(ctx, "books", b)
 	} else {
 		err = s.db.Update(ctx, "books", b, "title", "titleIgnorePrefix", "subtitle", "publishedYear", "publishedDate", "publisher", "description",
-			"isbn", "asin", "language", "duration", "audioFiles", "chapters", "coverPath", "tags", "genres", "narrators", "updatedAt")
+			"isbn", "asin", "language", "duration", "audioFiles", "chapters", "ebookFile", "coverPath", "tags", "genres", "narrators", "updatedAt")
 	}
 	if err != nil {
 		return links, err

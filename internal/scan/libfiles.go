@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -25,6 +26,11 @@ func newLibraryFile(f fileEntry) db.LibraryFile {
 
 func statTimes(path string, info os.FileInfo) (mtime, ctime, birthtime time.Time) {
 	return info.ModTime(), statChangeTime(info), statBirthTime(path, info)
+}
+
+func statDBTimes(path string, info os.FileInfo) (mtime, ctime, birthtime db.Time) {
+	m, c, b := statTimes(path, info)
+	return db.Time{Time: m.UTC()}, db.Time{Time: c.UTC()}, db.Time{Time: b.UTC()}
 }
 
 // fileDiff is the outcome of reconciling an item's stored libraryFiles with
@@ -138,4 +144,71 @@ func coverPath(current string, diff fileDiff) (string, bool) {
 		cover = first
 	}
 	return cover, cover != current
+}
+
+// newEbookFile builds books.ebookFile from a library file. Upstream writes two
+// shapes (BookScanner.js:187-205): withFileType includes fileType and
+// isSupplementary:null on initial pick; updates use EBookFile.toJSON without them.
+func newEbookFile(lf db.LibraryFile, withFileType bool) *db.EbookFile {
+	ef := &db.EbookFile{
+		Ino:         lf.Ino,
+		Metadata:    lf.Metadata,
+		EbookFormat: strings.TrimPrefix(strings.ToLower(lf.Metadata.Ext), "."),
+		AddedAt:     lf.AddedAt,
+		UpdatedAt:   lf.UpdatedAt,
+	}
+	if withFileType {
+		ef.FileType = media.KindEbook
+		ef.IsSupplementary = json.RawMessage("null")
+	}
+	return ef
+}
+
+// pickEbookFile chooses the book's primary ebook, preferring .epub (BookScanner.js:199,453).
+func pickEbookFile(files []db.LibraryFile) (db.LibraryFile, bool) {
+	var first db.LibraryFile
+	hasFirst := false
+	for _, f := range files {
+		if f.FileType != media.KindEbook {
+			continue
+		}
+		if strings.EqualFold(f.Metadata.Ext, ".epub") {
+			return f, true
+		}
+		if !hasFirst {
+			first, hasFirst = f, true
+		}
+	}
+	return first, hasFirst
+}
+
+// ebookRemoved reports whether eb is absent from files by both path and inode
+// (LibraryItemScanData.checkEbookFileRemoved).
+func ebookRemoved(eb *db.EbookFile, files []db.LibraryFile) bool {
+	for _, f := range files {
+		if f.FileType != media.KindEbook {
+			continue
+		}
+		if f.Metadata.Path == eb.Metadata.Path || (eb.Ino != "" && f.Ino == eb.Ino) {
+			return false
+		}
+	}
+	return true
+}
+
+// syncSupplementaryEbooks updates isSupplementary on ebook entries in files:
+// false for the primary ebook, true for all others. It reports whether any changed.
+func syncSupplementaryEbooks(files []db.LibraryFile, primary *db.EbookFile) bool {
+	changed := false
+	for i := range files {
+		if files[i].FileType != media.KindEbook {
+			continue
+		}
+		want := primary == nil || files[i].Ino != primary.Ino
+		if files[i].IsSupplementary == nil || *files[i].IsSupplementary != want {
+			files[i].IsSupplementary = &want
+			changed = true
+		}
+	}
+	return changed
 }

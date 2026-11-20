@@ -3,6 +3,7 @@ package scan
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"monstrobook/internal/db"
@@ -127,7 +128,7 @@ func (s *Scanner) finalize(ctx context.Context, libraryID string, t scanTally) {
 		var counts []authorBookCount
 		err := s.db.Select(ctx, &counts, `SELECT authorId AS id, COUNT(id) AS numBooks FROM bookAuthors WHERE authorId IN (?) GROUP BY authorId ORDER BY authorId`, changed)
 		if err != nil {
-			slogError("author book counts", err)
+			slog.Error("scan: author book counts", "error", err)
 		} else if len(counts) > 0 {
 			s.emit.ToAll("authors_num_books_updated", authorCounts{LibraryID: libraryID, Authors: counts})
 		}

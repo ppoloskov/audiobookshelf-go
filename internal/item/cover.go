@@ -227,8 +227,8 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user *auth
 	}); err != nil {
 		return httpx.Internal("database write failed", err)
 	}
-	if err := h.announce(ctx, ref.ID); err != nil {
-		return httpx.Internal("database read failed", err)
+	if err := h.announceHTTP(ctx, ref.ID); err != nil {
+		return err
 	}
 	return httpx.JSON(w, r, coverResult{true, cover})
 }
@@ -480,8 +480,8 @@ func (h *Handler) changeCover(ctx context.Context, ref itemRef, cover *string) e
 		return nil
 	}
 	purgeCoverCache(h.deps.CoverCacheDir, ref.ID)
-	if err := h.announce(ctx, ref.ID); err != nil {
-		return httpx.Internal("database read failed", err)
+	if err := h.announceHTTP(ctx, ref.ID); err != nil {
+		return err
 	}
 	return nil
 }

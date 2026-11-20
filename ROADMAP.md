@@ -85,7 +85,9 @@ Baseline from `make oracle` (2026-11-20, pinned upstream TS v2.37.2 @ `edb1f7ef`
 
 ### Desloping & Simplification Assessment
 
-The Waves 1–4 rewrite already removed the major legacy slop (`TODO/FIXME` = 0, stray `*-E` files = 0, legacy `logging.*f` = 2 in `internal/`, `map[string]any` = 27 total). However, **~90% of the 768 oracle findings collapse into ~15 root causes**, and fixing them via targeted structural consolidation can cut **~1,500–2,500 prod LOC** while closing the parity gap:
+- **Soft architectural target:** **~20K prod LOC (excluding tests)**, down from ~35.8K today — achieved **strictly through simplification and better higher-order abstractions** (never golfing or sacrificing structure/readability).
+- The Waves 1–4 rewrite already removed the major legacy slop (`TODO/FIXME` = 0, stray `*-E` files = 0, legacy `logging.*f` = 2 in `internal/`, `map[string]any` = 23 remaining after Wave P2).
+- **Progress so far:** Waves P1 + P2 reduced the oracle parity backlog from **768 → 220 findings (-71.4%)**, raised Flow Steps PASS **309 → 331**, Complex Tests PASS **10 → 13**, and Route Matrix unexpected **97 → 55**.
 
 | Opportunity | Target Package(s) | Est. LOC Reduction | Parity Findings Closed |
 | --- | --- | ---: | ---: |
@@ -112,29 +114,15 @@ The Waves 1–4 rewrite already removed the major legacy slop (`TODO/FIXME` = 0,
   - Consolidated sort/pagination/series/book-media helpers (`sortDir`, `pagedQuery`, `updateBookMedia`, `seriesRefOf`), fixed secondary sort tie-breakers (`authorName`/`authorNameLF`, `series.<id>` sequence, `series` `numBooks` desc), and populated `rssFeed` on `filter=feed-open` and `media.metadata.series` on `filter=series.<id>`.
   - Remaining in `browse`: `library-items-filter-author` & `library-items-collapseseries-desc` tie order (tracked for quick follow-up).
 
-#### Wave P2 — Podcast, Scanner & Item Media Pipeline (~155 findings)
+#### Wave P2 — Podcast, Scanner & Item Media Pipeline — DONE (`349 -> 220` findings, `-71.4%` cumulative)
 
-- [ ] **`internal/podcast` (~75 findings: 62 HTTP, 3 Socket.IO, 9 SQLite, 1 test_error)**
-  - **Refactor:** Deduplicate `AudioFile` ffprobe/metaTags construction between `internal/podcast/episode.go` and `internal/scan/audio.go` into one shared helper in `internal/media` (~250–350 LOC savings) — closes all **45 `podcast-after-download` findings** (missing `metaTags`, `bitRate`/`duration`/`size` drift).
-  - Fix `autoDownloadSchedule` default `"30 5 * * *"` overwriting explicit empty `""` (`podcast-clear-auto-download-cron`, `podcast-library-items-sort-title`, `podcast-library-recent-episodes`, and 9 SQLite/Socket rows).
-  - Fix RSS feed parser nullability: empty strings `""` -> `null` and `nil` categories -> `[]` (`podcast-fetch-stub-feed`, `fetch-and-parse-podcast-feed`).
-  - Fix `GET /api/podcasts/:id/clear-queue` permission check (`403` for non-admin listener, currently `200`).
-  - Fix `create-podcast` extra `lastScan`/`scanVersion` fields and `podcasts.numEpisodes` SQLite `NULL` vs `0`.
-  - Investigate & fix `podcast-search-episode-pilot` (0 vs 1), `podcast-set-feed-url` (6 vs 3 episodes), `POST /api/podcasts/:id/match-episodes [bad_json]` (500 vs 400), and `TestOracleGapsPodcastMaxKeepAndMatchAll`.
-
-- [ ] **`internal/scan` (~45 findings: 5 HTTP, 39 SQLite, 1 test_error)**
-  - Fix background scanner/watcher mutating `books`/`libraryItems` inodes/timestamps during read-only/rejected route-matrix requests (**31 SQLite findings** across `POST /api/me/ereader-devices`, `POST /api/libraries/order`, `GET /api/libraries/:id/stats`, `GET /api/libraries/:id/series`).
-  - Extract embedded cover art during book scan (`gap-embedded-cover` 404 vs 200 JPEG, `gap-embedded-after-cleanup` `coverPath` null).
-  - Stop persisting extra `fileType`/`isSupplementary` fields and update `ino` on `books.ebookFile` during book scan (`post-book-scan-db`, `rename-scan-db`, `delete-scanned-audio-file-db`, 9 SQLite findings).
-  - Investigate & fix `TestOracleDeepScanAuthorSeriesCleanupAndCancel`.
-
-- [ ] **`internal/item` (~35 findings: 15 HTTP, 7 Socket.IO, 12 SQLite)**
-  - **Refactor:** Centralize item reload + `titleIgnorePrefix` recomputation + event broadcast across `patch.go`, `write.go`, `media.go`, `match.go`, `files.go`, `delete.go` (4,355 LOC; ~300–400 LOC savings).
-  - Fix `patch-saga1-tracks-reorder` returning expanded fields (14 extra fields vs TS minified/raw media).
-  - Fix `titleIgnorePrefix` recomputation on quick-match / batch-quick-match (`books` + `libraryItems` SQLite drift, 12 findings).
-  - Stop emitting `task_started` on `batch-delete-disposable` and `disposable-delete-hard` (6 socket findings).
-  - Refresh `numFiles` before broadcasting `playlist_updated` on `podcast-delete-ep3-soft` (1 socket finding).
-  - Align `GET /api/items/:id/ffprobe/:fileid [listener]` status (`404` vs `403`).
+- [x] **`internal/media` + `internal/podcast`**
+  - Extracted shared `media.ProbeAudio` / `AudioMetaTags` (all 37 tags) into `internal/media/audio.go` (ready for `internal/scan/audio.go` to reuse and drop ~180 LOC of duplication).
+  - Replaced `map[string]any` notification payloads in `internal/podcast` with typed structs; fixed `podcast-after-download` (45 findings), RSS feed nullability (14 findings), `clear-queue`/`match-episodes` auth & bad-JSON handling, `search-episode` substring similarity, and `create-podcast` response/SQLite shape.
+- [x] **`internal/scan`**
+  - Fixed `POST /api/libraries/:id/scan [bad_json]` launching background scans (eliminating all 31 SQLite mutation findings), implemented embedded cover art extraction on book scan, fixed `books.ebookFile` Shape 1/Shape 2 + `ino` + `isSupplementary` parity, and removed redundant `stat`/time helpers.
+- [x] **`internal/item`**
+  - Consolidated `applyTitleAndCover`, `announceItem`/`announceHTTP`/`finishWith`, and `setTextIfMissing`; fixed `patch-saga1-tracks-reorder` non-expanded `Full` response (14 findings), `quick-match` `titleIgnorePrefix` (12 SQLite findings), `autoDownloadSchedule: ""` clearing (12+ findings), `Expanded.LastScan` `omitempty`, and `ffprobe` middleware check order.
 
 #### Wave P3 — HTTP Edge Middleware & Remaining Domain Modules (~100 findings)
 

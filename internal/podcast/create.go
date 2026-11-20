@@ -78,6 +78,35 @@ func (s *idText) UnmarshalJSON(data []byte) error {
 
 var errPodcastExists = httpx.BadRequest("Podcast already exists")
 
+type createdItemView struct {
+	item.Head
+	LastScan     *int64           `json:"lastScan,omitempty"`
+	ScanVersion  *string          `json:"scanVersion,omitempty"`
+	LibraryFiles []db.LibraryFile `json:"libraryFiles"`
+	NumFiles     int              `json:"numFiles"`
+	Size         *int64           `json:"size,omitempty"`
+	Media        item.Media       `json:"media"`
+	item.Extras
+	access item.Access
+}
+
+// Access implements realtime's itemView interface so item_added keeps per-user filtering.
+func (v createdItemView) Access() item.Access { return v.access }
+
+func newCreatedItemView(e item.Expanded) createdItemView {
+	return createdItemView{
+		Head:         e.Head,
+		LastScan:     e.LastScan,
+		ScanVersion:  e.ScanVersion,
+		LibraryFiles: e.LibraryFiles,
+		NumFiles:     e.NumFiles,
+		Size:         e.Size,
+		Media:        e.Media,
+		Extras:       e.Extras,
+		access:       e.Access(),
+	}
+}
+
 func (h *Handler) createPodcast(w http.ResponseWriter, r *http.Request) error {
 	req, err := httpx.DecodeLimit[createRequest](w, r, 4<<20)
 	if err != nil {
@@ -93,7 +122,7 @@ func (h *Handler) createPodcast(w http.ResponseWriter, r *http.Request) error {
 	if it.Podcast.AutoDownloadEpisodes {
 		h.Reschedule(r.Context(), it.ID)
 	}
-	return httpx.JSON(w, r, h.expanded(it))
+	return httpx.JSON(w, r, newCreatedItemView(h.expanded(it)))
 }
 
 // create adds the podcast and its library item for req.Media.Metadata, makes
@@ -134,7 +163,7 @@ func (h *Handler) create(ctx context.Context, req *createRequest) (*item.Item, e
 		return nil, httpx.BadRequest("Invalid auto download schedule cron expression")
 	}
 	server := h.settings.Server()
-	schedule := cmp.Or(req.Media.AutoDownloadSchedule, server.PodcastEpisodeSchedule, "0 * * * *")
+	schedule := cmp.Or(req.Media.AutoDownloadSchedule, server.PodcastEpisodeSchedule)
 
 	madeDir := false
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -166,7 +195,7 @@ func (h *Handler) create(ctx context.Context, req *createRequest) (*item.Item, e
 		ItunesID: ptrIfSet(string(meta.ItunesID)), ItunesArtistID: ptrIfSet(string(meta.ItunesArtistID)), Language: ptrIfSet(meta.Language),
 		PodcastType: ptrIfSet(meta.Type), Explicit: db.Bool(meta.Explicit), AutoDownloadEpisodes: db.Bool(req.Media.AutoDownloadEpisodes),
 		AutoDownloadSchedule: &schedule, LastEpisodeCheck: now, MaxEpisodesToKeep: db.Ptr[int64](0), MaxNewEpisodesToDownload: db.Ptr[int64](3),
-		Tags: db.JSON[[]string]{V: nonNil(req.Media.Tags)}, Genres: db.JSON[[]string]{V: nonNil(meta.Genres)}, NumEpisodes: db.Ptr[int64](0), CreatedAt: now, UpdatedAt: now}
+		Tags: db.JSON[[]string]{V: nonNil(req.Media.Tags)}, Genres: db.JSON[[]string]{V: nonNil(meta.Genres)}, CreatedAt: now, UpdatedAt: now}
 	relPath := filepath.ToSlash(rel)
 	if relPath == "." {
 		relPath = ""
@@ -190,7 +219,7 @@ func (h *Handler) create(ctx context.Context, req *createRequest) (*item.Item, e
 	if err != nil {
 		return nil, httpx.Internal("database read failed", err)
 	}
-	h.emit.ToAdmins("item_added", h.expanded(it))
+	h.emit.ToAdmins("item_added", newCreatedItemView(h.expanded(it)))
 	return it, nil
 }
 
@@ -269,13 +298,14 @@ func (h *Handler) importOPML(req opmlCreateRequest, folderPath string, task even
 	added := 0
 	for _, link := range req.Feeds {
 		parsed, err := h.fetchFeed(h.ctx, link)
-		if err != nil || parsed.Metadata.Title == "" {
+		if err != nil || db.Val(parsed.Metadata.Title) == "" {
 			h.opmlFailure(link, `Importing RSS feed "`+link+`"`, "MessageTaskOpmlImportFeedDescription", "Failed to get podcast feed", "MessageTaskOpmlImportFeedFailed")
 			continue
 		}
 		m := parsed.Metadata
-		create := createRequest{LibraryID: req.LibraryID, FolderID: req.FolderID, Path: filepath.ToSlash(filepath.Join(folderPath, podcastDirName(m.Title))),
-			Media: &mediaBody{AutoDownloadEpisodes: req.AutoDownloadEpisodes, Metadata: &podcastMetadata{Title: m.Title, Author: m.Author, Description: m.Description, Genres: m.Categories, FeedURL: m.FeedURL, ImageURL: m.Image}}}
+		title := db.Val(m.Title)
+		create := createRequest{LibraryID: req.LibraryID, FolderID: req.FolderID, Path: filepath.ToSlash(filepath.Join(folderPath, podcastDirName(title))),
+			Media: &mediaBody{AutoDownloadEpisodes: req.AutoDownloadEpisodes, Metadata: &podcastMetadata{Title: title, Author: db.Val(m.Author), Description: db.Val(m.Description), Genres: m.Categories, FeedURL: db.Val(m.FeedURL), ImageURL: db.Val(m.Image)}}}
 		it, err := h.create(h.ctx, &create)
 		if err == nil {
 			added++
@@ -288,7 +318,7 @@ func (h *Handler) importOPML(req opmlCreateRequest, folderPath string, task even
 		if errors.Is(err, errPodcastExists) {
 			text, key = "Podcast already exists at path", "MessageTaskOpmlImportFeedPodcastExists"
 		}
-		h.opmlFailure(m.Title, `Creating podcast "`+m.Title+`"`, "MessageTaskOpmlImportFeedPodcastDescription", text, key)
+		h.opmlFailure(title, `Creating podcast "`+title+`"`, "MessageTaskOpmlImportFeedPodcastDescription", text, key)
 	}
 	h.emit.TaskFinished(task.Described(fmt.Sprintf("Added %d podcasts", added), "MessageTaskOpmlImportFinished", added).Finished())
 }

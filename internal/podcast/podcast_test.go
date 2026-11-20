@@ -218,9 +218,13 @@ func (s *episodeServer) requests() string {
 
 func (r *rig) download(t *testing.T, s *episodeServer, titlesToPaths ...string) {
 	t.Helper()
-	var eps []map[string]any
+	type epReq struct {
+		Title     string    `json:"title"`
+		Enclosure enclosure `json:"enclosure"`
+	}
+	var eps []epReq
 	for i := 0; i < len(titlesToPaths); i += 2 {
-		eps = append(eps, map[string]any{"title": titlesToPaths[i], "enclosure": map[string]any{"url": s.URL + titlesToPaths[i+1]}})
+		eps = append(eps, epReq{Title: titlesToPaths[i], Enclosure: enclosure{URL: s.URL + titlesToPaths[i+1]}})
 	}
 	body, _ := json.Marshal(eps)
 	if w := r.serve(t, "trial-root", "POST", "/api/podcasts/"+testItem+"/download-episodes", string(body)); w.Code != 200 {
@@ -263,6 +267,9 @@ func TestClearQueueDropsWaitingDownloadsOnly(t *testing.T) {
 	ga := srv.gate("/a.wav")
 	r.download(t, srv, "A", "/a.wav", "B", "/b.wav")
 	srv.hit(t, "/a.wav")
+	if w := r.serve(t, "trial-listener", "GET", "/api/podcasts/"+testItem+"/clear-queue", ""); w.Code != 403 {
+		t.Fatalf("listener clear-queue = %d, want 403", w.Code)
+	}
 	if w := r.serve(t, "trial-root", "GET", "/api/podcasts/"+testItem+"/clear-queue", ""); w.Code != 200 {
 		t.Fatalf("clear-queue = %d", w.Code)
 	}
@@ -503,6 +510,17 @@ func TestCreatePodcast(t *testing.T) {
 	if w.Code != 200 || strings.Contains(w.Body.String(), "<script>") {
 		t.Fatalf("create = %d %s", w.Code, w.Body)
 	}
+	if strings.Contains(w.Body.String(), `"lastScan"`) || strings.Contains(w.Body.String(), `"scanVersion"`) {
+		t.Errorf("create response unexpectedly includes lastScan/scanVersion: %s", w.Body)
+	}
+	addedEv, _ := json.Marshal(r.waitEvent(t, "item_added"))
+	if strings.Contains(string(addedEv), `"lastScan"`) || strings.Contains(string(addedEv), `"scanVersion"`) {
+		t.Errorf("item_added unexpectedly includes lastScan/scanVersion: %s", addedEv)
+	}
+	var numEpisodesType string
+	if err := r.d.Get(context.Background(), &numEpisodesType, `SELECT typeof(numEpisodes) FROM podcasts WHERE title='The New Show'`); err != nil || numEpisodesType != "null" {
+		t.Errorf("typeof(numEpisodes) = %q, %v, want null", numEpisodesType, err)
+	}
 	if _, err := os.Stat(filepath.Join(r.root, "New Show")); err != nil {
 		t.Errorf("folder not made: %v", err)
 	}
@@ -563,20 +581,34 @@ func TestFeedOPMLAndSearchRoutes(t *testing.T) {
 	r.sql(t, `UPDATE podcasts SET feedURL=?`, srv.URL)
 	w := r.serve(t, "trial-root", "POST", "/api/podcasts/feed", `{"rssFeed":"`+srv.URL+`"}`)
 	var out struct{ Podcast feed }
-	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil || w.Code != 200 || out.Podcast.Metadata.Title != "Fixture Cast" || len(out.Podcast.Episodes) != 2 {
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil || w.Code != 200 || db.Val(out.Podcast.Metadata.Title) != "Fixture Cast" || len(out.Podcast.Episodes) != 2 {
 		t.Fatalf("feed = %d %s", w.Code, w.Body)
+	}
+	if out.Podcast.Metadata.Link != nil || out.Podcast.Metadata.PubDate != nil || out.Podcast.Metadata.Type != nil || out.Podcast.Metadata.Categories == nil || len(out.Podcast.Metadata.Categories) != 0 {
+		t.Errorf("feed metadata nullability = %+v", out.Podcast.Metadata)
 	}
 	for body, want := range map[string]int{`{"rssFeed":"nope"}`: 400, `{"rssFeed":"http://127.0.0.1:1/x"}`: 404} {
 		if w := r.serve(t, "trial-root", "POST", "/api/podcasts/feed", body); w.Code != want {
 			t.Errorf("%s = %d, want %d", body, w.Code, want)
 		}
 	}
-	w = r.serve(t, "trial-root", "GET", "/api/podcasts/"+testItem+"/search-episode?title=long+road+home", "")
-	var found struct {
-		Episodes []struct{ Episode feedEpisode }
+	for _, query := range []string{"long+road+home", "Road", "c%C3%B3oking"} {
+		w = r.serve(t, "trial-root", "GET", "/api/podcasts/"+testItem+"/search-episode?title="+query, "")
+		var found struct {
+			Episodes []struct{ Episode feedEpisode }
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &found); err != nil || len(found.Episodes) != 1 {
+			t.Fatalf("search(%s) = %d %s", query, w.Code, w.Body)
+		}
 	}
-	if err := json.Unmarshal(w.Body.Bytes(), &found); err != nil || len(found.Episodes) != 1 || found.Episodes[0].Episode.Title != "Long Road Home" {
-		t.Fatalf("search = %d %s", w.Code, w.Body)
+	if w := r.serve(t, "trial-root", "POST", "/api/podcasts/"+testItem+"/match-episodes", `{bad json`); w.Code != 400 {
+		t.Errorf("match-episodes bad json = %d, want 400", w.Code)
+	}
+	if w := r.serve(t, "trial-listener", "POST", "/api/podcasts/"+testItem+"/match-episodes", ""); w.Code != 403 {
+		t.Errorf("match-episodes listener = %d, want 403", w.Code)
+	}
+	if w := r.serve(t, "trial-root", "POST", "/api/podcasts/"+testItem+"/match-episodes", ""); w.Code != 200 {
+		t.Errorf("match-episodes empty body = %d %s, want 200", w.Code, w.Body)
 	}
 	r.sql(t, `UPDATE podcasts SET feedURL='http://127.0.0.1:1/x'`)
 	if w = r.serve(t, "trial-root", "GET", "/api/podcasts/"+testItem+"/search-episode?title=x", ""); strings.TrimSpace(w.Body.String()) != `{"episodes":null}` {
@@ -691,8 +723,11 @@ func TestParseFeedShapesAndSanitizes(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := parsed.Metadata
-	if m.Title != "Cast" || m.Image != "https://e.test/c.jpg" || m.FeedURL != "https://e.test/feed" || !reflect.DeepEqual(m.Categories, []string{"Arts:Books"}) || strings.Contains(m.Description, "script") {
+	if db.Val(m.Title) != "Cast" || db.Val(m.Image) != "https://e.test/c.jpg" || db.Val(m.FeedURL) != "https://e.test/feed" || !reflect.DeepEqual(m.Categories, []string{"Arts:Books"}) || strings.Contains(db.Val(m.Description), "script") {
 		t.Errorf("metadata = %+v", m)
+	}
+	if m.Author == nil || *m.Author != "W" || m.Link != nil || m.PubDate != nil || m.Language != nil || m.Explicit != nil || m.Type != nil {
+		t.Errorf("metadata pointers = %+v", m)
 	}
 	if len(parsed.Episodes) != 1 || *parsed.Episodes[0].DurationSeconds != 3723 || strings.Contains(parsed.Episodes[0].Description, "javascript:") || parsed.Episodes[0].Enclosure.Length != "12" {
 		t.Errorf("episodes = %+v", parsed.Episodes)

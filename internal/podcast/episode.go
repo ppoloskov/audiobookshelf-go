@@ -23,31 +23,44 @@ import (
 	"monstrobook/internal/text"
 )
 
-// audioOf maps an ffprobe report of the downloaded file to the audioFile
+// audioOf maps a probed audio report of the downloaded file to the audioFile
 // document of an episode. It fails when the file has no audio stream.
-func audioOf(path string, st os.FileInfo, probe media.Info, now db.Time) (db.AudioFile, error) {
-	i := slices.IndexFunc(probe.Streams, func(s media.Stream) bool { return s.Type == "audio" })
-	if i < 0 {
+func audioOf(path string, st os.FileInfo, probed *media.AudioProbe, now db.Time) (db.AudioFile, error) {
+	if probed == nil {
 		return db.AudioFile{}, errors.New("Invalid media file: no audio stream found")
 	}
-	stream := probe.Streams[i]
-	duration, _ := strconv.ParseFloat(probe.Format.Duration, 64) // unreadable counts as 0
-	bitRate, _ := strconv.ParseInt(probe.Format.BitRate, 10, 64)
-	if bitRate == 0 {
-		bitRate, _ = strconv.ParseInt(stream.BitRate, 10, 64)
+	chapters := make([]db.Chapter, len(probed.Chapters))
+	for i, ch := range probed.Chapters {
+		chapters[i] = db.Chapter{ID: ch.ID, Start: ch.Start, End: ch.End, Title: ch.Title}
 	}
 	ext, base, ms := filepath.Ext(path), filepath.Base(path), float64(st.ModTime().UnixMilli())
-	return db.AudioFile{Index: 1, Ino: inode(st), AddedAt: now.Millis(), UpdatedAt: now.Millis(),
-		Metadata: db.FileMetadata{Filename: base, Ext: ext, Path: filepath.ToSlash(path), RelPath: base, Size: st.Size(), MtimeMs: ms, CtimeMs: ms, BirthtimeMs: ms},
-		Format:   cmp.Or(probe.Format.LongName, probe.Format.Name), Duration: &duration, BitRate: &bitRate, Codec: &stream.Codec, TimeBase: &stream.TimeBase,
-		Channels: db.Ptr(int64(stream.Channels)), ChannelLayout: &stream.ChannelLayout, Chapters: []db.Chapter{}, MimeType: media.AudioMime(ext)}, nil
+	duration := probed.Duration
+	return db.AudioFile{
+		Index:            1,
+		Ino:              inode(st),
+		AddedAt:          now.Millis(),
+		UpdatedAt:        now.Millis(),
+		Metadata:         db.FileMetadata{Filename: base, Ext: ext, Path: filepath.ToSlash(path), RelPath: base, Size: st.Size(), MtimeMs: ms, CtimeMs: ms, BirthtimeMs: ms},
+		Format:           probed.Format,
+		Duration:         &duration,
+		BitRate:          probed.BitRate,
+		Language:         probed.Language,
+		Codec:            probed.Codec,
+		TimeBase:         probed.TimeBase,
+		Channels:         probed.Channels,
+		ChannelLayout:    probed.ChannelLayout,
+		Chapters:         chapters,
+		EmbeddedCoverArt: probed.EmbeddedCoverArt,
+		MetaTags:         db.AudioMetaTags(probed.MetaTags),
+		MimeType:         media.AudioMime(ext),
+	}, nil
 }
 
 // register adds the downloaded file at path to the podcast as an episode, then
 // trims old episodes (auto downloads only) and announces the change.
 func (h *Handler) register(d *download, path string) error {
 	ctx := h.ctx
-	probe, err := media.Probe(ctx, path)
+	probed, err := media.ProbeAudio(ctx, path)
 	if err != nil {
 		return fmt.Errorf("ffprobe audio file: %w", err)
 	}
@@ -56,7 +69,7 @@ func (h *Handler) register(d *download, path string) error {
 		return err
 	}
 	now := db.Now()
-	audio, err := audioOf(path, st, probe, now)
+	audio, err := audioOf(path, st, probed, now)
 	if err != nil {
 		return err
 	}
@@ -65,10 +78,19 @@ func (h *Handler) register(d *download, path string) error {
 	if ep.GUID != nil && *ep.GUID != "" {
 		extra.GUID = ep.GUID
 	}
+	chapters := []db.Chapter{}
+	if len(audio.Chapters) > 0 {
+		chapters = slices.Clone(audio.Chapters)
+	} else if len(ep.Chapters) > 0 {
+		chapters = make([]db.Chapter, len(ep.Chapters))
+		for i, ch := range ep.Chapters {
+			chapters[i] = db.Chapter{ID: int64(ch.ID), Start: float64(ch.Start), End: float64(ch.End), Title: ch.Title}
+		}
+	}
 	row := db.PodcastEpisode{ID: ids.Must(), Season: ptrIfSet(ep.Season), Episode: ptrIfSet(ep.Episode), EpisodeType: db.Ptr(cmp.Or(ep.EpisodeType, "full")),
 		Title: db.Ptr(d.title()), Subtitle: ptrIfSet(ep.Subtitle), Description: ptrIfSet(ep.Description), PubDate: ptrIfSet(ep.PubDate),
 		EnclosureURL: ptrIfSet(enc.URL), EnclosureType: ptrIfSet(enc.Type), AudioFile: db.JSON[db.AudioFile]{V: audio},
-		Chapters: db.JSON[[]db.Chapter]{V: []db.Chapter{}}, ExtraData: db.JSON[*db.EpisodeExtra]{V: &extra}, CreatedAt: now, UpdatedAt: now, PodcastID: &d.item.Podcast.ID}
+		Chapters: db.JSON[[]db.Chapter]{V: chapters}, ExtraData: db.JSON[*db.EpisodeExtra]{V: &extra}, CreatedAt: now, UpdatedAt: now, PodcastID: &d.item.Podcast.ID}
 	if size, err := strconv.ParseInt(enc.Length, 10, 64); err == nil {
 		row.EnclosureSize = &size
 	}
@@ -199,6 +221,45 @@ func nonNilFiles(files []db.LibraryFile) []db.LibraryFile {
 	return files
 }
 
+type episodeDownloadedNote struct {
+	LibraryItemID      string `json:"libraryItemId"`
+	LibraryID          string `json:"libraryId"`
+	LibraryName        string `json:"libraryName"`
+	MediaTags          string `json:"mediaTags"`
+	PodcastTitle       string `json:"podcastTitle"`
+	PodcastAuthor      string `json:"podcastAuthor"`
+	PodcastDescription string `json:"podcastDescription"`
+	PodcastGenres      string `json:"podcastGenres"`
+	EpisodeID          string `json:"episodeId"`
+	EpisodeTitle       string `json:"episodeTitle"`
+	EpisodeSubtitle    string `json:"episodeSubtitle"`
+	EpisodeDescription string `json:"episodeDescription"`
+}
+
+func (n episodeDownloadedNote) toMap() map[string]any {
+	return map[string]any{
+		"libraryItemId": n.LibraryItemID, "libraryId": n.LibraryID, "libraryName": n.LibraryName,
+		"mediaTags": n.MediaTags, "podcastTitle": n.PodcastTitle, "podcastAuthor": n.PodcastAuthor,
+		"podcastDescription": n.PodcastDescription, "podcastGenres": n.PodcastGenres,
+		"episodeId": n.EpisodeID, "episodeTitle": n.EpisodeTitle, "episodeSubtitle": n.EpisodeSubtitle,
+		"episodeDescription": n.EpisodeDescription,
+	}
+}
+
+type feedFailureNote struct {
+	FeedURL   string `json:"feedUrl"`
+	NumFailed int    `json:"numFailed"`
+	Title     string `json:"title"`
+}
+
+func (n feedFailureNote) toMap() map[string]any {
+	return map[string]any{"feedUrl": n.FeedURL, "numFailed": n.NumFailed, "title": n.Title}
+}
+
+type notePayload interface {
+	toMap() map[string]any
+}
+
 // notifyEpisodeDownloaded fires onPodcastEpisodeDownloaded
 // (NotificationManager.js:21-46); delivery is not awaited, as upstream.
 func (h *Handler) notifyEpisodeDownloaded(it *item.Item, ep item.Episode) {
@@ -206,24 +267,25 @@ func (h *Handler) notifyEpisodeDownloaded(it *item.Item, ep item.Episode) {
 	var library db.Library
 	_ = h.db.Get(h.ctx, &library, `SELECT * FROM libraries WHERE id=?`, db.Val(it.LibraryID)) // a missing library is named "Unknown"
 	libraryName := cmp.Or(db.Val(library.Name), "Unknown")
-	h.notifyAsync("onPodcastEpisodeDownloaded", map[string]any{
-		"libraryItemId": it.ID, "libraryId": db.Val(it.LibraryID), "libraryName": libraryName,
-		"mediaTags": strings.Join(p.Tags.V, ", "), "podcastTitle": db.Val(p.Title), "podcastAuthor": db.Val(p.Author),
-		"podcastDescription": db.Val(p.Description), "podcastGenres": strings.Join(p.Genres.V, ", "),
-		"episodeId": ep.ID, "episodeTitle": db.Val(ep.Title), "episodeSubtitle": db.Val(ep.Subtitle), "episodeDescription": db.Val(ep.Description),
+	h.notifyAsync("onPodcastEpisodeDownloaded", episodeDownloadedNote{
+		LibraryItemID: it.ID, LibraryID: db.Val(it.LibraryID), LibraryName: libraryName,
+		MediaTags: strings.Join(p.Tags.V, ", "), PodcastTitle: db.Val(p.Title), PodcastAuthor: db.Val(p.Author),
+		PodcastDescription: db.Val(p.Description), PodcastGenres: strings.Join(p.Genres.V, ", "),
+		EpisodeID: ep.ID, EpisodeTitle: db.Val(ep.Title), EpisodeSubtitle: db.Val(ep.Subtitle), EpisodeDescription: db.Val(ep.Description),
 	})
 }
 
 // notifyFeedFailure fires onRSSFeedDisabled or onRSSFeedFailed
 // (NotificationManager.js:81-121, PodcastManager.js:346-351).
 func (h *Handler) notifyFeedFailure(event string, it *item.Item, numFailed int) {
-	h.notifyAsync(event, map[string]any{"feedUrl": db.Val(it.Podcast.FeedURL), "numFailed": numFailed, "title": cmp.Or(db.Val(it.Podcast.Title), "Unknown Title")})
+	h.notifyAsync(event, feedFailureNote{FeedURL: db.Val(it.Podcast.FeedURL), NumFailed: numFailed, Title: cmp.Or(db.Val(it.Podcast.Title), "Unknown Title")})
 }
 
-func (h *Handler) notifyAsync(event string, data map[string]any) {
+func (h *Handler) notifyAsync(event string, payload notePayload) {
 	if h.notify == nil {
 		return
 	}
+	data := payload.toMap()
 	h.spawn(func() {
 		if err := h.notify(h.ctx, event, data); err != nil {
 			slog.Error("podcast: notification failed", "event", event, "error", err)

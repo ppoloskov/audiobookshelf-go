@@ -105,10 +105,7 @@ func (h *Handler) QuickMatch(ctx context.Context, itemID string, opts MatchOptio
 			slog.Info("quick matched podcast episodes", "item", ref.ID, "updated", n)
 		}
 	}
-	if err := h.finish(ctx, out); err != nil {
-		return MatchResult{}, err
-	}
-	fresh, err := Get(ctx, h.db, ref.ID, Options{Episodes: true})
+	fresh, err := h.finishOne(ctx, out)
 	if err != nil {
 		return MatchResult{}, err
 	}
@@ -145,25 +142,29 @@ func bookAuthors(b *Book) string {
 	return strings.Join(names, ", ")
 }
 
+func setTextIfMissing(value string, stored *string, dst *Text, override bool) {
+	if value != "" && (db.Val(stored) == "" || override) {
+		*dst = Text{true, value}
+	}
+}
+
 // bookMatchPatch turns a provider result into the patch that fills the book
 // (quickMatchBookBuildUpdatePayload, Scanner.js:214-364): a field is taken
 // when the book has none yet, or when the details are overridden.
 func bookMatchPatch(b *Book, m metadata.BookResult, override bool) BookPatch {
 	md := &BookMetadataPatch{}
 	p := BookPatch{Metadata: md}
-	text := func(value string, stored *string, dst *Text) {
-		if value != "" && (db.Val(stored) == "" || override) {
-			*dst = Text{true, value}
-		}
+	for _, f := range []struct {
+		value  string
+		stored *string
+		dst    *Text
+	}{
+		{m.Title, b.Title, &md.Title}, {m.Subtitle, b.Subtitle, &md.Subtitle}, {m.Description, b.Description, &md.Description},
+		{m.Publisher, b.Publisher, &md.Publisher}, {m.PublishedYear, b.PublishedYear, &md.PublishedYear},
+		{m.Language, b.Language, &md.Language}, {m.ASIN, b.ASIN, &md.ASIN}, {m.ISBN, b.ISBN, &md.ISBN},
+	} {
+		setTextIfMissing(f.value, f.stored, f.dst, override)
 	}
-	text(m.Title, b.Title, &md.Title)
-	text(m.Subtitle, b.Subtitle, &md.Subtitle)
-	text(m.Description, b.Description, &md.Description)
-	text(m.Publisher, b.Publisher, &md.Publisher)
-	text(m.PublishedYear, b.PublishedYear, &md.PublishedYear)
-	text(m.Language, b.Language, &md.Language)
-	text(m.ASIN, b.ASIN, &md.ASIN)
-	text(m.ISBN, b.ISBN, &md.ISBN)
 	if m.Narrator != "" && (len(b.Narrators.V) == 0 || override) {
 		md.Narrators = db.Ptr(splitNames(m.Narrator))
 	}
@@ -205,20 +206,19 @@ func bookMatchPatch(b *Book, m metadata.BookResult, override bool) BookPatch {
 // podcastMatchPatch is quickMatchPodcastBuildUpdatePayload (Scanner.js:145-182).
 func podcastMatchPatch(pod *db.Podcast, m metadata.PodcastResult, override bool) PodcastPatch {
 	md := &PodcastMetadataPatch{}
-	text := func(value string, stored *string, dst *Text) {
-		if value != "" && (db.Val(stored) == "" || override) {
-			*dst = Text{true, value}
-		}
+	for _, f := range []struct {
+		value  string
+		stored *string
+		dst    *Text
+	}{
+		{db.Val(m.Title), pod.Title, &md.Title}, {db.Val(m.ArtistName), pod.Author, &md.Author},
+		{idText(m.ID), pod.ItunesID, &md.ItunesID}, {db.Val(m.PageURL), pod.ItunesPageURL, &md.ItunesPageURL},
+		{idText(m.ArtistID), pod.ItunesArtistID, &md.ItunesArtistID}, {db.Val(m.ReleaseDate), pod.ReleaseDate, &md.ReleaseDate},
+		{db.Val(m.Cover), pod.ImageURL, &md.ImageURL}, {db.Val(m.FeedURL), pod.FeedURL, &md.FeedURL},
+		{m.DescriptionPlain, pod.Description, &md.Description},
+	} {
+		setTextIfMissing(f.value, f.stored, f.dst, override)
 	}
-	text(db.Val(m.Title), pod.Title, &md.Title)
-	text(db.Val(m.ArtistName), pod.Author, &md.Author)
-	text(idText(m.ID), pod.ItunesID, &md.ItunesID)
-	text(db.Val(m.PageURL), pod.ItunesPageURL, &md.ItunesPageURL)
-	text(idText(m.ArtistID), pod.ItunesArtistID, &md.ItunesArtistID)
-	text(db.Val(m.ReleaseDate), pod.ReleaseDate, &md.ReleaseDate)
-	text(db.Val(m.Cover), pod.ImageURL, &md.ImageURL)
-	text(db.Val(m.FeedURL), pod.FeedURL, &md.FeedURL)
-	text(m.DescriptionPlain, pod.Description, &md.Description)
 	if m.Genres != nil && (len(pod.Genres.V) == 0 || override) {
 		md.Genres = db.Ptr(m.Genres)
 	}

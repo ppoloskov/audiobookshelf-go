@@ -376,5 +376,3 @@ func uniqueIDs(list []string) []string {
 	out := slices.Sorted(slices.Values(list))
 	return slices.DeleteFunc(slices.Compact(out), func(id string) bool { return id == "" })
 }
-
-func slogError(what string, err error) { slog.Error("scan: "+what, "error", err) }

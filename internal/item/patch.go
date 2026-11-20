@@ -3,7 +3,6 @@ package item
 import (
 	"encoding/json"
 	"slices"
-	"strings"
 
 	"monstrobook/internal/db"
 	"monstrobook/internal/text"
@@ -158,9 +157,24 @@ func sanitized(s *string) *string {
 	return db.Ptr(text.Sanitize(*s))
 }
 
+// applyTitleAndCover updates titleIgnorePrefix (for PATCH / batch-update, as
+// Book.updateFromRequest/Podcast.updateFromRequest do, while Scanner.quickMatchLibraryItem
+// leaves titleIgnorePrefix alone) and coverPath when set.
+func (c *columns) applyTitleAndCover(title *string, dstPrefix, dstCover **string, cover *string, prefixes []string, src source) {
+	if src == fromRequest && slices.Contains(*c, "title") {
+		*dstPrefix = db.Ptr(text.TitleIgnorePrefix(db.Val(title), prefixes))
+		*c = append(*c, "titleIgnorePrefix")
+	}
+	if cover != nil {
+		*dstCover = cover
+		*c = append(*c, "coverPath")
+	}
+}
+
 // apply writes the patch onto row and returns the changed columns. A new title
-// carries its sort form (Book.js:394-396); the libraryItems copy follows by trigger.
-func (p *BookPatch) apply(row *db.Book, prefixes []string) columns {
+// from a request carries its sort form (Book.js:394-396); the libraryItems copy
+// follows by trigger. Quick match leaves titleIgnorePrefix unchanged (Scanner.js:109-122).
+func (p *BookPatch) apply(row *db.Book, prefixes []string, src source) columns {
 	var c columns
 	if m := p.Metadata; m != nil {
 		for _, f := range []textField{
@@ -177,19 +191,12 @@ func (p *BookPatch) apply(row *db.Book, prefixes []string) columns {
 		c.list("genres", &row.Genres, m.Genres)
 	}
 	c.list("tags", &row.Tags, p.Tags)
-	if slices.Contains(c, "title") {
-		row.TitleIgnorePrefix = db.Ptr(text.TitleIgnorePrefix(db.Val(row.Title), prefixes))
-		c = append(c, "titleIgnorePrefix")
-	}
-	if p.coverPath != nil {
-		row.CoverPath = p.coverPath
-		c = append(c, "coverPath")
-	}
+	c.applyTitleAndCover(row.Title, &row.TitleIgnorePrefix, &row.CoverPath, p.coverPath, prefixes, src)
 	return c
 }
 
 // apply writes the patch onto row (Podcast.js:210-292) and returns the changed columns.
-func (p *PodcastPatch) apply(row *db.Podcast, prefixes []string) columns {
+func (p *PodcastPatch) apply(row *db.Podcast, prefixes []string, src source) columns {
 	var c columns
 	if m := p.Metadata; m != nil {
 		for _, f := range []textField{
@@ -205,8 +212,7 @@ func (p *PodcastPatch) apply(row *db.Podcast, prefixes []string) columns {
 	}
 	c.list("tags", &row.Tags, p.Tags)
 	c.flag("autoDownloadEpisodes", &row.AutoDownloadEpisodes, p.AutoDownloadEpisodes)
-	// A blank schedule is ignored, as upstream (Podcast.js:259).
-	if p.AutoDownloadSchedule != nil && strings.TrimSpace(*p.AutoDownloadSchedule) != "" {
+	if p.AutoDownloadSchedule != nil {
 		c.text(textField{"autoDownloadSchedule", &row.AutoDownloadSchedule, p.AutoDownloadSchedule})
 	}
 	for _, n := range []struct {
@@ -219,13 +225,6 @@ func (p *PodcastPatch) apply(row *db.Podcast, prefixes []string) columns {
 			c = append(c, n.column)
 		}
 	}
-	if slices.Contains(c, "title") {
-		row.TitleIgnorePrefix = db.Ptr(text.TitleIgnorePrefix(db.Val(row.Title), prefixes))
-		c = append(c, "titleIgnorePrefix")
-	}
-	if p.coverPath != nil {
-		row.CoverPath = p.coverPath
-		c = append(c, "coverPath")
-	}
+	c.applyTitleAndCover(row.Title, &row.TitleIgnorePrefix, &row.CoverPath, p.coverPath, prefixes, src)
 	return c
 }

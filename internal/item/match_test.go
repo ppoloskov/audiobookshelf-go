@@ -92,9 +92,13 @@ func TestMatchAppliesDetails(t *testing.T) {
 	}
 	// With overrideDetails everything is replaced; authors and series follow the
 	// match: Ben stays linked, Ada goes (and is swept), a new author and series appear.
+	// Quick match leaves titleIgnorePrefix unchanged (Scanner.js does not recompute it).
 	r.match("i1", `{"provider":"custom-1","overrideDetails":true,"overrideCover":false}`)
-	if got := r.values(`SELECT title||'|'||titleIgnorePrefix||'|'||narrators||'|'||publishedYear||'|'||genres||'|'||tags FROM books WHERE id='b1'`); got != `Matched Title|Matched Title|["N1","N2"]|2001|["G"]|["a","b"]` {
+	if got := r.values(`SELECT title||'|'||titleIgnorePrefix||'|'||narrators||'|'||publishedYear||'|'||genres||'|'||tags FROM books WHERE id='b1'`); got != `Matched Title|Book, The|["N1","N2"]|2001|["G"]|["a","b"]` {
 		t.Fatalf("overridden book %s", got)
+	}
+	if got := r.values(`SELECT title||'|'||titleIgnorePrefix FROM libraryItems WHERE id='i1'`); got != `Matched Title|Book, The` {
+		t.Fatalf("overridden libraryItem %s", got)
 	}
 	if got := r.values(`SELECT a.name FROM bookAuthors ba JOIN authors a ON a.id=ba.authorId WHERE ba.bookId='b1' ORDER BY ba.createdAt,ba.rowid`); got != "Ben Writer,New Person" {
 		t.Fatalf("authors %s", got)
@@ -129,7 +133,7 @@ func TestMatchPodcast(t *testing.T) {
 		t.Fatalf("podcast %s", got)
 	}
 	r.match("ip", `{"overrideDetails":true}`)
-	if got := r.values(`SELECT title||'|'||titleIgnorePrefix||'|'||author||'|'||feedURL FROM podcasts`); got != `Matched Cast|Matched Cast|Artist|https://other.test/f.xml` {
+	if got := r.values(`SELECT title||'|'||titleIgnorePrefix||'|'||author||'|'||feedURL FROM podcasts`); got != `Matched Cast|Science Now|Artist|https://other.test/f.xml` {
 		t.Fatalf("overridden podcast %s", got)
 	}
 	if strings.Join(episodes, ",") != "ipfalse,iptrue" {

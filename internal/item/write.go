@@ -63,7 +63,7 @@ func (h *Handler) update(ctx context.Context, ref itemRef, p patch, src source) 
 		if p.book != nil {
 			return h.updateBook(ctx, &out, p.book, src)
 		}
-		return h.updatePodcast(ctx, &out, p.podcast)
+		return h.updatePodcast(ctx, &out, p.podcast, src)
 	})
 	return out, err
 }
@@ -73,7 +73,7 @@ func (h *Handler) updateBook(ctx context.Context, out *outcome, p *BookPatch, sr
 	if err := h.db.Get(ctx, &row, `SELECT * FROM books WHERE id = ?`, out.ref.MediaID); err != nil {
 		return err
 	}
-	cols := p.apply(&row, h.prefixes())
+	cols := p.apply(&row, h.prefixes(), src)
 	out.updated = len(cols) > 0
 	if m := p.Metadata; m != nil {
 		if m.Authors != nil {
@@ -103,12 +103,12 @@ func (h *Handler) updateBook(ctx context.Context, out *outcome, p *BookPatch, sr
 	return h.save(ctx, "books", &row, append(cols, "updatedAt"), out.ref.ID, row.UpdatedAt)
 }
 
-func (h *Handler) updatePodcast(ctx context.Context, out *outcome, p *PodcastPatch) error {
+func (h *Handler) updatePodcast(ctx context.Context, out *outcome, p *PodcastPatch, src source) error {
 	var row db.Podcast
 	if err := h.db.Get(ctx, &row, `SELECT * FROM podcasts WHERE id = ?`, out.ref.MediaID); err != nil {
 		return err
 	}
-	cols := p.apply(&row, h.prefixes())
+	cols := p.apply(&row, h.prefixes(), src)
 	out.updated = len(cols) > 0
 	out.reschedule = slices.Contains(cols, "autoDownloadEpisodes") || slices.Contains(cols, "autoDownloadSchedule")
 	if !out.updated {
@@ -133,6 +133,17 @@ func (h *Handler) save(ctx context.Context, table string, row any, cols columns,
 // and announced and podcast cron entries are refreshed (js:273-280). A batch
 // finishes once for all its items, so a series another item relinks is not swept.
 func (h *Handler) finish(ctx context.Context, outs ...outcome) error {
+	_, err := h.finishWith(ctx, false, outs...)
+	return err
+}
+
+// finishOne finishes a single item mutation and returns the reloaded item
+// without querying it twice when item_updated was emitted.
+func (h *Handler) finishOne(ctx context.Context, out outcome) (*Item, error) {
+	return h.finishWith(ctx, true, out)
+}
+
+func (h *Handler) finishWith(ctx context.Context, wantLast bool, outs ...outcome) (*Item, error) {
 	var unlinked changes
 	for _, o := range outs {
 		unlinked.merge(changes{authorsUnlinked: o.changes.authorsUnlinked, seriesUnlinked: o.changes.seriesUnlinked})
@@ -143,42 +154,76 @@ func (h *Handler) finish(ctx context.Context, outs ...outcome) error {
 		h.deps.Filters.Invalidate(o.ref.LibraryID)
 	}
 	h.sweepAuthors(ctx, unlinked.authorsUnlinked)
-	for _, o := range outs {
+	var last *Item
+	for i, o := range outs {
 		if !o.updated {
 			continue
 		}
-		if err := h.ItemChanged(ctx, o.ref.ID); err != nil {
-			return err
+		needItem := wantLast && i == len(outs)-1
+		it, err := h.itemChanged(ctx, o.ref.ID, needItem)
+		if err != nil {
+			return nil, err
+		}
+		if needItem {
+			last = it
 		}
 		if o.reschedule && h.deps.ScheduleChanged != nil {
 			h.deps.ScheduleChanged(ctx, o.ref.ID)
 		}
 	}
-	return nil
+	if wantLast && last == nil && len(outs) > 0 {
+		return Get(ctx, h.db, outs[len(outs)-1].ref.ID, Options{Episodes: true})
+	}
+	return last, nil
 }
 
 // ItemChanged ends an item mutation: the metadata file is rewritten and
 // item_updated carries the expanded item. Other routes that edit an item
 // (admin tag and genre changes) use it too.
 func (h *Handler) ItemChanged(ctx context.Context, itemID string) error {
-	if h.deps.WriteMetadata != nil {
-		if err := h.deps.WriteMetadata(ctx, itemID); err != nil {
-			return err
-		}
-	}
-	return h.announce(ctx, itemID)
+	_, err := h.itemChanged(ctx, itemID, false)
+	return err
 }
 
-// announce sends item_updated with the expanded item.
+func (h *Handler) itemChanged(ctx context.Context, itemID string, needItem bool) (*Item, error) {
+	if h.deps.WriteMetadata != nil {
+		if err := h.deps.WriteMetadata(ctx, itemID); err != nil {
+			return nil, err
+		}
+	}
+	if needItem {
+		return h.announceItem(ctx, itemID)
+	}
+	return nil, h.announce(ctx, itemID)
+}
+
+// announce sends item_updated with the expanded item when listeners exist.
 func (h *Handler) announce(ctx context.Context, itemID string) error {
 	if h.emit == nil { // nobody listens: skip building the expanded item
 		return nil
 	}
+	_, err := h.announceItem(ctx, itemID)
+	return err
+}
+
+// announceItem loads the item, sends item_updated with its expanded view when
+// listeners exist, and returns the loaded item for callers that also respond with it.
+func (h *Handler) announceItem(ctx context.Context, itemID string) (*Item, error) {
 	it, err := Get(ctx, h.db, itemID, Options{Episodes: true})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	h.emit.ToAll("item_updated", it.Expanded(h.prefixes()))
+	if h.emit != nil {
+		h.emit.ToAll("item_updated", it.Expanded(h.prefixes()))
+	}
+	return it, nil
+}
+
+// announceHTTP announces item_updated and maps any reload failure to a 500.
+func (h *Handler) announceHTTP(ctx context.Context, itemID string) error {
+	if err := h.announce(ctx, itemID); err != nil {
+		return httpx.Internal("database read failed", err)
+	}
 	return nil
 }
 
@@ -192,12 +237,9 @@ type updateResult struct {
 // 403 (library, then update permission), then the body.
 func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
 	ctx := r.Context()
-	ref, err := h.loadRef(ctx, r.PathValue("id"))
+	ref, err := h.writable(ctx, user, r.PathValue("id"))
 	if err != nil {
 		return err
-	}
-	if !user.CanAccessLibrary(ref.LibraryID) || !user.CanUpdate() {
-		return httpx.Forbidden()
 	}
 	raw, err := httpx.DecodeLimit[json.RawMessage](w, r, 2<<20)
 	if err != nil {
@@ -217,12 +259,9 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user *auth
 	if err != nil {
 		return httpx.Internal("database write failed", err)
 	}
-	if err := h.finish(ctx, out); err != nil {
-		return httpx.Internal("metadata file write failed", err)
-	}
-	it, err := Get(ctx, h.db, ref.ID, Options{Episodes: true})
+	it, err := h.finishOne(ctx, out)
 	if err != nil {
-		return httpx.Internal("database read failed", err)
+		return httpx.Internal("metadata file write failed", err)
 	}
 	return httpx.JSON(w, r, updateResult{out.updated, it.Full()})
 }

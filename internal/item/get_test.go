@@ -16,7 +16,7 @@ func TestGetFullAndExpanded(t *testing.T) {
 		t.Error("full item carries expanded keys")
 	}
 	expanded := decode[map[string]any](t, r.do(rootUser, "GET", "/api/items/i1?expanded=1", ""))
-	for _, key := range []string{"lastScan", "libraryFiles", "scanVersion", "numFiles"} {
+	for _, key := range []string{"libraryFiles", "scanVersion", "numFiles"} {
 		if _, ok := expanded[key]; !ok {
 			t.Errorf("expanded item lacks %q", key)
 		}

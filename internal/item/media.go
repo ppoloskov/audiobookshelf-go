@@ -149,15 +149,11 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request, user *aut
 	if err != nil {
 		return httpx.Internal("database write failed", err)
 	}
-	it, err := Get(ctx, h.db, ref.ID, Options{Episodes: true})
+	it, err := h.announceItem(ctx, ref.ID)
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}
-	expanded := it.Expanded(h.prefixes())
-	if h.emit != nil {
-		h.emit.ToAll("item_updated", expanded)
-	}
-	return httpx.JSON(w, r, expanded)
+	return httpx.JSON(w, r, it.Full())
 }
 
 // updateEbookStatus is LibraryItemController.updateEbookFileStatus: it makes
@@ -214,8 +210,8 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user
 	if err != nil {
 		return httpx.Internal("database write failed", err)
 	}
-	if err := h.announce(ctx, ref.ID); err != nil {
-		return httpx.Internal("database read failed", err)
+	if err := h.announceHTTP(ctx, ref.ID); err != nil {
+		return err
 	}
 	return httpx.Status(w, http.StatusOK)
 }
@@ -286,16 +282,22 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request, user *a
 }
 
 // ffprobe is LibraryItemController.getFFprobeData: ffprobe's report of one
-// audio file of the item (a book's track or a podcast episode's file). Admin
-// only; 404, 403 (library), 404 for an unknown or outside file.
+// audio file of the item (a book's track or a podcast episode's file).
+// Order matches LibraryItemController.middleware + getFFprobeData:
+// 404 (item), 403 (library), 404 (unknown/outside library file), 403 (non-admin),
+// 404 (not an audio file).
 func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
 	ctx := r.Context()
-	if !user.IsAdmin() {
-		return httpx.Forbidden()
-	}
 	ref, err := h.readable(ctx, user, r.PathValue("id"))
 	if err != nil {
 		return err
+	}
+	ino := r.PathValue("ino")
+	if _, err := h.libraryFile(ctx, ref, ino); err != nil {
+		return err
+	}
+	if !user.IsAdmin() {
+		return httpx.Forbidden()
 	}
 	var files []db.AudioFile
 	switch ref.MediaType {
@@ -314,7 +316,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request, user *auth.Pri
 			files = append(files, e.AudioFile.V)
 		}
 	}
-	i := slices.IndexFunc(files, func(f db.AudioFile) bool { return f.Ino == r.PathValue("ino") })
+	i := slices.IndexFunc(files, func(f db.AudioFile) bool { return f.Ino == ino })
 	if i < 0 || files[i].Metadata.Path == "" || !h.inLibrary(ctx, files[i].Metadata.Path, ref.LibraryID) {
 		return httpx.NotFound()
 	}

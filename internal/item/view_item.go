@@ -68,7 +68,7 @@ type Full struct {
 // Expanded is toOldJSONExpanded: item detail, socket events, playlists.
 type Expanded struct {
 	Head
-	LastScan     *int64           `json:"lastScan"`
+	LastScan     *int64           `json:"lastScan,omitempty"`
 	ScanVersion  *string          `json:"scanVersion"`
 	LibraryFiles []db.LibraryFile `json:"libraryFiles"`
 	NumFiles     int              `json:"numFiles"`

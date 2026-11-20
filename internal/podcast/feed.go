@@ -30,18 +30,18 @@ type feed struct {
 }
 
 type feedMetadata struct {
-	Title            string   `json:"title"`
-	Language         string   `json:"language"`
-	Explicit         string   `json:"explicit"`
-	Author           string   `json:"author"`
-	PubDate          string   `json:"pubDate"`
-	Link             string   `json:"link"`
-	Image            string   `json:"image"`
+	Title            *string  `json:"title"`
+	Language         *string  `json:"language"`
+	Explicit         *string  `json:"explicit"`
+	Author           *string  `json:"author"`
+	PubDate          *string  `json:"pubDate"`
+	Link             *string  `json:"link"`
+	Image            *string  `json:"image"`
 	Categories       []string `json:"categories"`
-	FeedURL          string   `json:"feedUrl"`
-	Description      string   `json:"description"`
-	DescriptionPlain string   `json:"descriptionPlain"`
-	Type             string   `json:"type"`
+	FeedURL          *string  `json:"feedUrl"`
+	Description      *string  `json:"description"`
+	DescriptionPlain *string  `json:"descriptionPlain"`
+	Type             *string  `json:"type"`
 }
 
 // feedEpisode is a feed episode in the API shape. The web client posts these
@@ -153,9 +153,25 @@ func parseFeed(raw []byte, feedURL string) (*feed, error) {
 		image = parsed.Image.URL
 	}
 	description := strings.TrimSpace(parsed.Description)
-	out := &feed{Metadata: feedMetadata{Title: parsed.Title, Language: parsed.Language, Explicit: itunes.Explicit, Author: itunes.Author,
-		PubDate: parsed.Published, Link: parsed.Link, Image: image, Categories: categories(itunes), FeedURL: cmp.Or(itunes.NewFeedURL, feedURL, parsed.FeedLink),
-		Description: text.Sanitize(description), DescriptionPlain: text.Strip(description), Type: itunes.Type}}
+	var descSanitized, descPlain *string
+	if description != "" {
+		s, p := text.Sanitize(description), text.Strip(description)
+		descSanitized, descPlain = &s, &p
+	}
+	out := &feed{Metadata: feedMetadata{
+		Title:            ptrIfSet(parsed.Title),
+		Language:         ptrIfSet(parsed.Language),
+		Explicit:         ptrIfSet(itunes.Explicit),
+		Author:           ptrIfSet(itunes.Author),
+		PubDate:          ptrIfSet(parsed.Published),
+		Link:             ptrIfSet(parsed.Link),
+		Image:            ptrIfSet(image),
+		Categories:       categories(itunes),
+		FeedURL:          ptrIfSet(cmp.Or(feedURL, itunes.NewFeedURL, parsed.FeedLink)),
+		Description:      descSanitized,
+		DescriptionPlain: descPlain,
+		Type:             ptrIfSet(itunes.Type),
+	}}
 	for _, it := range parsed.Items {
 		if episode, ok := parseEpisode(it); ok {
 			out.Episodes = append(out.Episodes, episode)
@@ -168,9 +184,9 @@ func parseFeed(raw []byte, feedURL string) (*feed, error) {
 }
 
 // categories joins each itunes:category with its subcategory as "Parent:Child";
-// a category without a name is skipped.
+// a category without a name is skipped. Returns a non-nil slice ([] in JSON).
 func categories(itunes *ext.ITunesFeedExtension) []string {
-	var genres []string
+	genres := []string{}
 	for _, c := range itunes.Categories {
 		switch {
 		case c == nil || c.Text == "":
@@ -193,7 +209,11 @@ func parseEpisode(it *gofeed.Item) (feedEpisode, bool) {
 		return feedEpisode{}, false
 	}
 	desc := cmp.Or(strings.TrimSpace(it.Content), strings.TrimSpace(it.Description))
-	ep := feedEpisode{Title: it.Title, Subtitle: itunes.Subtitle, Description: text.Sanitize(desc), DescriptionPlain: text.Strip(desc), PubDate: it.Published,
+	subtitle := strings.TrimSpace(itunes.Subtitle)
+	if subtitle != "" {
+		subtitle = text.Sanitize(subtitle)
+	}
+	ep := feedEpisode{Title: it.Title, Subtitle: subtitle, Description: text.Sanitize(desc), DescriptionPlain: text.Strip(strings.TrimSpace(it.Description)), PubDate: it.Published,
 		EpisodeType: itunes.EpisodeType, Season: itunes.Season, Episode: itunes.Episode, Author: itunes.Author, Duration: itunes.Duration, Explicit: itunes.Explicit,
 		Chapters: []chapter{}, Enclosure: enc}
 	if it.GUID != "" {

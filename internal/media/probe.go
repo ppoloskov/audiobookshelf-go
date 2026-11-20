@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -113,25 +114,32 @@ func Run(ctx context.Context, args ...string) error {
 	return RunStarted(ctx, nil, args...)
 }
 
+// RunWithStdin runs ffmpeg with stdin connected and the given arguments. On
+// failure the error carries what ffmpeg wrote to stderr.
+func RunWithStdin(ctx context.Context, stdin io.Reader, args ...string) error {
+	_, err := runStarted(ctx, nil, stdin, binary("FFMPEG_PATH", "ffmpeg"), append([]string{"-hide_banner", "-loglevel", "error"}, args...))
+	return err
+}
+
 // RunStarted runs ffmpeg and calls onStarted only after the executable starts
 // successfully. The callback runs synchronously before waiting for completion.
 // It shares Run's command configuration and error handling.
 func RunStarted(ctx context.Context, onStarted func(), args ...string) error {
-	_, err := runStarted(ctx, onStarted, binary("FFMPEG_PATH", "ffmpeg"), append([]string{"-hide_banner", "-loglevel", "error"}, args...))
+	_, err := runStarted(ctx, onStarted, nil, binary("FFMPEG_PATH", "ffmpeg"), append([]string{"-hide_banner", "-loglevel", "error"}, args...))
 	return err
 }
 
 func run(ctx context.Context, bin string, args ...string) ([]byte, error) {
-	return runStarted(ctx, nil, bin, args)
+	return runStarted(ctx, nil, nil, bin, args)
 }
 
-func runStarted(ctx context.Context, onStarted func(), bin string, args []string) ([]byte, error) {
+func runStarted(ctx context.Context, onStarted func(), stdin io.Reader, bin string, args []string) ([]byte, error) {
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, bin, args...)
 	// WaitDelay bounds pipe draining after cancellation or direct-child exit;
 	// it does not impose a runtime limit on a command that is still running.
 	cmd.WaitDelay = commandWaitDelay
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, &stdout, &stderr
 	if err := cmd.Start(); err != nil {
 		return nil, commandError(err, stderr.String())
 	}

@@ -588,3 +588,193 @@ func TestScanInvalidatesFilterDataOnceAtTheEnd(t *testing.T) {
 		t.Fatalf("issues after the second scan: %+v", data)
 	}
 }
+
+func (r *rig) adminWithHeader(method, path, body, contentType string) *httptest.ResponseRecorder {
+	mux := http.NewServeMux()
+	r.s.Routes(mux)
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	user := db.User{ID: "u1", Type: db.Ptr("root"), IsActive: true}
+	req = req.WithContext(auth.WithUser(req.Context(), auth.NewPrincipal(user)))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	return w
+}
+
+func TestScanRoutesRejectInvalidJSON(t *testing.T) {
+	r := newRig(t)
+	r.write("A/Book/a.mp3", "aaa")
+
+	if w := r.adminWithHeader("POST", "/api/libraries/lib-1/scan", "{invalid json", "application/json"); w.Code != http.StatusBadRequest {
+		t.Fatalf("library scan bad json = %d, want 400", w.Code)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if r.running() || r.count(`SELECT COUNT(*) FROM libraryItems`) != 0 {
+		t.Fatal("invalid JSON library scan triggered a background scan")
+	}
+
+	if w := r.adminWithHeader("POST", "/api/libraries/lib-1/scan", "", "application/json"); w.Code != http.StatusOK {
+		t.Fatalf("library scan empty json body = %d, want 200", w.Code)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for r.count(`SELECT COUNT(*) FROM libraryItems`) == 0 || r.running() {
+		if time.Now().After(deadline) {
+			t.Fatal("library scan never finished")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	id := r.item("A/Book").ID
+
+	if w := r.adminWithHeader("POST", "/api/items/"+id+"/scan", "{invalid json", "application/json"); w.Code != http.StatusBadRequest {
+		t.Fatalf("item scan bad json = %d, want 400", w.Code)
+	}
+	if w := r.adminWithHeader("POST", "/api/items/"+id+"/scan", "{}", "application/json"); w.Code != http.StatusOK {
+		t.Fatalf("item scan empty object = %d, want 200", w.Code)
+	}
+}
+
+func fakeFFmpeg(t *testing.T, script string) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "ffmpeg")
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FFMPEG_PATH", path)
+}
+
+func TestScanExtractsEmbeddedCover(t *testing.T) {
+	for _, tc := range []struct {
+		codec    string
+		wantFile string
+	}{
+		{"mjpeg", "cover.jpg"},
+		{"png", "cover.png"},
+	} {
+		t.Run(tc.codec, func(t *testing.T) {
+			r := newRig(t)
+			fakeFFprobe(t, `#!/bin/sh
+printf '{"format":{"format_name":"mp3","duration":"2"},"streams":[{"codec_type":"audio","codec_name":"mp3","channels":2},{"codec_type":"video","codec_name":"`+tc.codec+`"}]}'`)
+			fakeFFmpeg(t, "#!/bin/sh\nfor a; do out=\"$a\"; done\nprintf 'IMG' > \"$out\"\n")
+
+			r.write("A/Embedded/book.mp3", "audio")
+			if res := r.scan(false); res.Added != 1 {
+				t.Fatalf("scan = %+v", res)
+			}
+			it := r.item("A/Embedded")
+			wantCover := filepath.Join(r.meta, "items", it.ID, tc.wantFile)
+			var coverPath *string
+			if err := r.d.Get(context.Background(), &coverPath, `SELECT coverPath FROM books WHERE id = ?`, db.Val(it.MediaID)); err != nil {
+				t.Fatal(err)
+			}
+			if db.Val(coverPath) != wantCover {
+				t.Fatalf("coverPath = %q, want %q", db.Val(coverPath), wantCover)
+			}
+			data, err := os.ReadFile(wantCover)
+			if err != nil || string(data) != "IMG" {
+				t.Fatalf("extracted cover = %q, err=%v", string(data), err)
+			}
+
+			// Force rescan preserves the extracted cover without overwriting it.
+			if err := os.WriteFile(wantCover, []byte("KEPT"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := r.s.RescanItem(context.Background(), it.ID); err != nil {
+				t.Fatal(err)
+			}
+			data, err = os.ReadFile(wantCover)
+			if err != nil || string(data) != "KEPT" {
+				t.Fatalf("force rescan overwrote cover: %q, err=%v", string(data), err)
+			}
+		})
+	}
+}
+
+func TestScanEbookFileParity(t *testing.T) {
+	r := newRig(t)
+	epub := r.write("Ada Example/Ebook Only/Ebook Only.epub", "epub-v1")
+	r.write("Ada Example/Ebook Only/extra.pdf", "pdf-v1")
+
+	if res := r.scan(false); res.Added != 1 {
+		t.Fatalf("initial scan = %+v", res)
+	}
+	it := r.item("Ada Example/Ebook Only")
+	var raw string
+	if err := r.d.Get(context.Background(), &raw, `SELECT ebookFile FROM books WHERE id = ?`, db.Val(it.MediaID)); err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		t.Fatalf("unmarshal ebookFile: %v", err)
+	}
+	info1, err := os.Stat(epub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m["ino"] != inode(info1) || m["ebookFormat"] != "epub" || m["fileType"] != "ebook" {
+		t.Fatalf("initial ebookFile = %s", raw)
+	}
+	if _, ok := m["isSupplementary"]; !ok || m["isSupplementary"] != nil {
+		t.Fatalf("initial ebookFile.isSupplementary = %v (%v), want null", m["isSupplementary"], ok)
+	}
+	if len(it.LibraryFiles.V) != 2 {
+		t.Fatalf("libraryFiles len = %d, want 2", len(it.LibraryFiles.V))
+	}
+	for _, lf := range it.LibraryFiles.V {
+		wantSupp := lf.Metadata.Filename != "Ebook Only.epub"
+		if lf.IsSupplementary == nil || *lf.IsSupplementary != wantSupp {
+			t.Fatalf("libraryFile %s isSupplementary = %v, want %v", lf.Metadata.Filename, lf.IsSupplementary, wantSupp)
+		}
+	}
+
+	// Replace with a new inode and rescan: ebookFile updates ino and uses EBookFile.toJSON shape.
+	tmp := filepath.Join(filepath.Dir(epub), ".tmp-new.epub")
+	if err := os.WriteFile(tmp, []byte("epub-v2-longer"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(tmp, epub); err != nil {
+		t.Fatal(err)
+	}
+	info2, err := os.Stat(epub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res := r.scan(false); res.Updated != 1 {
+		t.Fatalf("rescan after inode change = %+v", res)
+	}
+	if err := r.d.Get(context.Background(), &raw, `SELECT ebookFile FROM books WHERE id = ?`, db.Val(it.MediaID)); err != nil {
+		t.Fatal(err)
+	}
+	m = nil
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		t.Fatalf("unmarshal updated ebookFile: %v", err)
+	}
+	if m["ino"] != inode(info2) || m["ebookFormat"] != "epub" {
+		t.Fatalf("updated ebookFile = %s, want ino=%s", raw, inode(info2))
+	}
+	if _, hasFT := m["fileType"]; hasFT {
+		t.Fatalf("updated ebookFile should omit fileType: %s", raw)
+	}
+	if _, hasSupp := m["isSupplementary"]; hasSupp {
+		t.Fatalf("updated ebookFile should omit isSupplementary: %s", raw)
+	}
+
+	// Remove primary epub: falls back to extra.pdf; remove extra.pdf too: item becomes missing.
+	if err := os.Remove(epub); err != nil {
+		t.Fatal(err)
+	}
+	if res := r.scan(false); res.Updated != 1 {
+		t.Fatalf("rescan after removing epub = %+v", res)
+	}
+	if err := r.d.Get(context.Background(), &raw, `SELECT ebookFile FROM books WHERE id = ?`, db.Val(it.MediaID)); err != nil {
+		t.Fatal(err)
+	}
+	m = nil
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		t.Fatalf("unmarshal fallback ebookFile: %v", err)
+	}
+	if m["ebookFormat"] != "pdf" {
+		t.Fatalf("fallback ebookFile = %s, want pdf", raw)
+	}
+}

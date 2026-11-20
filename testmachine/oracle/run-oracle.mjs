@@ -703,19 +703,12 @@ fs.mkdirSync(v8Dir, { recursive: true })
 fs.mkdirSync(goCoverDir, { recursive: true })
 
 const { minV8Pct, minRoutePct, webE2E: runWebE2E, extraArgs } = parseCliArgs(process.argv.slice(2))
-const webpBin = '/private/tmp/abs-cleanup-checkpoint-20261105/ffmpeg-9.0.2-webp/bin'
-const hasWebp = fs.existsSync(path.join(webpBin, 'ffmpeg'))
 const env = {
   ...process.env,
   ORACLE_V8_DIR: v8Dir,
   ORACLE_GOCOVER_DIR: goCoverDir,
   ORACLE_SURFACE_OUT: surfaceOutPath,
   ...(process.version.startsWith('v22.') && !process.env.ORACLE_NODE ? { ORACLE_NODE: process.execPath } : {}),
-  ...(hasWebp && !process.env.FFMPEG_PATH ? {
-    PATH: `${webpBin}:${process.env.PATH || ''}`,
-    FFMPEG_PATH: path.join(webpBin, 'ffmpeg'),
-    FFPROBE_PATH: path.join(webpBin, 'ffprobe'),
-  } : {}),
 }
 
 console.log(`[oracle] running twin-server differential suite (v8=${v8Dir}, gocover=${goCoverDir})`)

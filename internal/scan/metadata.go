@@ -115,7 +115,7 @@ func (s *Scanner) recordSidecar(ctx context.Context, itemID, path string) error 
 	for _, f := range row.LibraryFiles.V {
 		size += f.Metadata.Size
 	}
-	mtime, ctime, birthtime := statTimes(db.Val(row.Path), dir)
-	row.Size, row.Mtime, row.Ctime, row.Birthtime, row.UpdatedAt = &size, db.Time{Time: mtime.UTC()}, db.Time{Time: ctime.UTC()}, db.Time{Time: birthtime.UTC()}, db.Now()
+	mtime, ctime, birthtime := statDBTimes(db.Val(row.Path), dir)
+	row.Size, row.Mtime, row.Ctime, row.Birthtime, row.UpdatedAt = &size, mtime, ctime, birthtime, db.Now()
 	return s.db.Update(ctx, "libraryItems", &row, "libraryFiles", "size", "mtime", "ctime", "birthtime", "updatedAt")
 }

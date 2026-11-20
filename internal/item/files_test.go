@@ -370,11 +370,25 @@ func TestTracksReplaceAndOrderTheAudioFiles(t *testing.T) {
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"libraryFiles"`) {
 		t.Fatalf("tracks: %d %s", rec.Code, rec.Body)
 	}
+	// HTTP response is non-expanded (toOldJSON); item_updated socket event is expanded.
+	resp := decode[map[string]any](t, rec)
+	if _, hasNumFiles := resp["numFiles"]; hasNumFiles {
+		t.Errorf("tracks HTTP response must not be expanded: %s", rec.Body)
+	}
+	if media, ok := resp["media"].(map[string]any); ok {
+		if _, hasTracks := media["tracks"]; hasTracks {
+			t.Errorf("tracks HTTP media must not carry expanded tracks: %s", rec.Body)
+		}
+	}
 	if got := r.values(`SELECT json_extract(audioFiles,'$[0].exclude')||'/'||json_extract(audioFiles,'$[0].index')||'/'||json_extract(audioFiles,'$[0].manuallyVerified') FROM books WHERE id='b1'`); got != "1/-1/1" {
 		t.Errorf("stored track %s", got)
 	}
-	if got := r.takeEventNames(); got != "item_updated" || len(r.touched) != 0 {
-		t.Errorf("events %q, metadata writes %v", got, r.touched)
+	events := r.takeEvents()
+	if len(events) != 1 || events[0].name != "item_updated" || len(r.touched) != 0 {
+		t.Errorf("events %+v, metadata writes %v", events, r.touched)
+	}
+	if exp, ok := events[0].payload.(Expanded); !ok || exp.NumFiles != 1 {
+		t.Errorf("item_updated payload must be expanded: %T %+v", events[0].payload, events[0].payload)
 	}
 }
 
@@ -458,8 +472,26 @@ func TestMetadataObjectIsAdminOnlyAndBuildsAudioTags(t *testing.T) {
 			t.Errorf("%s: %d", name, rec.Code)
 		}
 	}
-	if rec := r.request(readerUser, "GET", "/api/items/zz/ffprobe/1", "", ""); rec.Code != 403 {
-		t.Errorf("ffprobe is admin only, even for an unknown item: %d", rec.Code)
+	book := r.mount()
+	coverPath := filepath.Join(book, "cover.jpg")
+	mustWrite(t, coverPath, "img")
+	coverFile := strings.Replace(libraryFileJSON("cover-1", coverPath), `"fileType":"audio"`, `"fileType":"image"`, 1)
+	r.exec(`UPDATE libraryItems SET libraryFiles=json_insert(libraryFiles,'$[#]',json(?)) WHERE id='i1'`, coverFile)
+	for name, c := range map[string]struct {
+		user   *auth.Principal
+		id     string
+		ino    string
+		status int
+	}{
+		"unknown item as listener": {readerUser, "zz", "1", 404},
+		"unknown file as listener": {readerUser, "i1", "nope", 404},
+		"other library":            {otherLibUser, "i1", "audio-1", 403},
+		"existing file listener":   {readerUser, "i1", "audio-1", 403},
+		"non-audio file as admin":  {adminUser, "i1", "cover-1", 404},
+	} {
+		if rec := r.request(c.user, "GET", "/api/items/"+c.id+"/ffprobe/"+c.ino, "", ""); rec.Code != c.status {
+			t.Errorf("ffprobe %s: %d, want %d", name, rec.Code, c.status)
+		}
 	}
 }
 

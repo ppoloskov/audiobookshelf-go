@@ -1,8 +1,13 @@
 package scan
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -48,6 +53,9 @@ func (s *Scanner) batchScan(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (s *Scanner) scanLibraryRoute(w http.ResponseWriter, r *http.Request) error {
+	if err := rejectInvalidJSONBody(w, r); err != nil {
+		return err
+	}
 	id, err := url.PathUnescape(r.PathValue("id"))
 	if err != nil {
 		return httpx.BadRequest("")
@@ -65,6 +73,9 @@ func (s *Scanner) scanLibraryRoute(w http.ResponseWriter, r *http.Request) error
 }
 
 func (s *Scanner) scanItemRoute(w http.ResponseWriter, r *http.Request) error {
+	if err := rejectInvalidJSONBody(w, r); err != nil {
+		return err
+	}
 	var row db.LibraryItem
 	if err := s.db.Get(r.Context(), &row, `SELECT * FROM libraryItems WHERE id = ?`, r.PathValue("id")); err != nil {
 		return httpx.NotFound()
@@ -84,4 +95,32 @@ func (s *Scanner) scanItemRoute(w http.ResponseWriter, r *http.Request) error {
 		result = "NOTHING"
 	}
 	return httpx.JSON(w, r, map[string]string{"result": result})
+}
+
+// rejectInvalidJSONBody mirrors Express's express.json() middleware on
+// bodyless POST routes: an empty body passes, a malformed JSON payload with a
+// JSON Content-Type fails with 400 before triggering a scan.
+func rejectInvalidJSONBody(w http.ResponseWriter, r *http.Request) error {
+	if r.Body == nil {
+		return nil
+	}
+	mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || (mt != "application/json" && !strings.HasSuffix(mt, "+json")) {
+		return nil
+	}
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, httpx.DefaultBodyLimit))
+	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			return httpx.Error(http.StatusRequestEntityTooLarge, "Request body too large")
+		}
+		return httpx.BadRequest("Invalid JSON body")
+	}
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return nil
+	}
+	if !json.Valid(raw) {
+		return httpx.BadRequest("Invalid JSON body")
+	}
+	return nil
 }

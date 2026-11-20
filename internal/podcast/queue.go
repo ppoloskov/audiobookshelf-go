@@ -2,6 +2,7 @@ package podcast
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 	"monstrobook/internal/events"
 	"monstrobook/internal/ids"
 	"monstrobook/internal/item"
+	"monstrobook/internal/media"
 )
 
 // maxEpisodeBytes bounds one downloaded episode.
@@ -160,8 +163,10 @@ func (h *Handler) finish(d *download, runErr error) *download {
 	return next
 }
 
-// fetch downloads the episode into the item folder through a temporary file
-// and returns its final path. A name already taken gets " (<download id>)".
+// fetch downloads the episode into the item folder through a temporary file,
+// tags it with ffmpeg (falling back to the raw file if ffmpeg/ffprobe fails,
+// PodcastManager.js:125-160), and returns its final path. A name already taken
+// gets " (<download id>)".
 func (h *Handler) fetch(d *download) (string, error) {
 	dir := d.item.Path
 	if dir == nil {
@@ -177,20 +182,12 @@ func (h *Handler) fetch(d *download) (string, error) {
 		h.mu.Unlock()
 		target = filepath.Join(*dir, episodeFilename(d.title()+" ("+d.id+")", d.url))
 	}
-	req, err := http.NewRequestWithContext(h.ctx, http.MethodGet, d.url, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Accept", "*/*")
-	req.Header.Set("User-Agent", "audiobookshelf (+https://audiobookshelf.org; like iTMS)")
-	resp, err := h.client.Do(req)
+	resp, err := h.getEpisodeResponse(d.url)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("episode download returned %s", resp.Status)
-	}
+
 	tmp, err := os.CreateTemp(*dir, ".episode-*.download")
 	if err != nil {
 		return "", err
@@ -209,7 +206,121 @@ func (h *Handler) fetch(d *download) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if media.FFmpegAvailable() {
+		if err := tagEpisodeFile(h.ctx, *dir, tmp.Name(), target, d); err == nil {
+			return target, nil
+		}
+	}
 	return target, os.Rename(tmp.Name(), target)
+}
+
+func (h *Handler) getEpisodeResponse(rawURL string) (*http.Response, error) {
+	// Some podcast hosts require the iTMS user agent while others reject it (ffmpegHelpers.js:112).
+	userAgents := []string{
+		"audiobookshelf (+https://audiobookshelf.org; like iTMS)",
+		"audiobookshelf (+https://audiobookshelf.org)",
+	}
+	var lastErr error
+	for _, ua := range userAgents {
+		req, err := http.NewRequestWithContext(h.ctx, http.MethodGet, rawURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Accept", "*/*")
+		req.Header.Set("User-Agent", ua)
+		resp, err := h.client.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return resp, nil
+		}
+		lastErr = fmt.Errorf("episode download returned %s", resp.Status)
+		resp.Body.Close()
+	}
+	return nil, lastErr
+}
+
+// tagEpisodeFile muxes rawPath with ID3/container metadata tags into target
+// (ffmpegHelpers.js:153-196). An error leaves target untouched so the caller
+// can fall back to the untagged download.
+func tagEpisodeFile(ctx context.Context, dir, rawPath, target string, d *download) error {
+	tagged, err := os.CreateTemp(dir, ".episode-*.tagged"+filepath.Ext(target))
+	if err != nil {
+		return err
+	}
+	taggedPath := tagged.Name()
+	_ = tagged.Close()
+	defer os.Remove(taggedPath) // gone after rename or cleanup on error
+
+	rawFile, err := os.Open(rawPath)
+	if err != nil {
+		return err
+	}
+	defer rawFile.Close()
+
+	args := []string{"-y", "-i", "pipe:0", "-c:a", "copy", "-map", "0:a", "-metadata", "podcast=1"}
+	for _, tag := range episodeMetadataTags(d) {
+		val := tag.val
+		if val == "" {
+			continue
+		}
+		if len(val) > 10000 { // ffmpegHelpers.js:188: clamp very long descriptions
+			val = val[:10000]
+		}
+		args = append(args, "-metadata", tag.key+"="+val)
+	}
+	args = append(args, taggedPath)
+	if err := media.RunWithStdin(ctx, rawFile, args...); err != nil {
+		slog.Warn("podcast: ffmpeg episode tag failed, falling back to raw download", "episode", d.title(), "error", err)
+		return err
+	}
+	probed, err := media.ProbeAudio(ctx, taggedPath)
+	if err != nil || probed == nil {
+		slog.Warn("podcast: tagged episode probe failed, falling back to raw download", "episode", d.title(), "error", err)
+		if err == nil {
+			err = errors.New("tagged file has no audio stream")
+		}
+		return err
+	}
+	return os.Rename(taggedPath, target)
+}
+
+type metadataTag struct {
+	key, val string
+}
+
+func episodeMetadataTags(d *download) []metadataTag {
+	p := d.item.Podcast
+	ep := d.episode
+	var pubYear string
+	if ep.PublishedAt != nil && *ep.PublishedAt != 0 {
+		pubYear = strconv.Itoa(time.UnixMilli(*ep.PublishedAt).In(time.Local).Year())
+	}
+	return []metadataTag{
+		{"album", db.Val(p.Title)},
+		{"album-sort", db.Val(p.Title)},
+		{"artist", db.Val(p.Author)},
+		{"artist-sort", db.Val(p.Author)},
+		{"comment", ep.Description},
+		{"subtitle", ep.Subtitle},
+		{"disc", ep.Season},
+		{"genre", strings.Join(p.Genres.V, ";")},
+		{"language", db.Val(p.Language)},
+		{"MVNM", db.Val(p.Title)},
+		{"MVIN", ep.Episode},
+		{"track", ep.Episode},
+		{"series-part", ep.Episode},
+		{"title", ep.Title},
+		{"title-sort", ep.Title},
+		{"year", pubYear},
+		{"date", ep.PubDate},
+		{"releasedate", ep.PubDate},
+		{"itunes-id", db.Val(p.ItunesID)},
+		{"podcast-type", db.Val(p.PodcastType)},
+		{"episode-type", ep.EpisodeType},
+	}
 }
 
 // episodeFilename is the download's file name: the title without characters

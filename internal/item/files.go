@@ -204,8 +204,8 @@ func (h *Handler) deleteFile(w http.ResponseWriter, r *http.Request, user *auth.
 		slog.Warn("remove library file", "path", removed.Metadata.Path, "error", err)
 	}
 	h.announcePlaylists(ctx, playlists)
-	if err := h.announce(ctx, ref.ID); err != nil {
-		return httpx.Internal("database read failed", err)
+	if err := h.announceHTTP(ctx, ref.ID); err != nil {
+		return err
 	}
 	return httpx.Status(w, http.StatusOK)
 }
