@@ -787,28 +787,31 @@ func TestFeedOpenFilterAttachesFeedAndUsesFeedOrder(t *testing.T) {
 	}
 }
 
-func TestUnsortedItemsMatchMediaIDIndexOrder(t *testing.T) {
+func TestUnsortedItemsMatchUpstreamScanOrder(t *testing.T) {
 	d := dbtest.New(t)
 	s := seeder{t, d}
 	s.ins("users", "id", rootID, "username", "root", "type", "root", "isActive", 1, "permissions", "{}", "createdAt", old, "updatedAt", old)
 	s.ins("libraries", "id", "lib", "name", "Lib", "displayOrder", 1, "mediaType", "book", "provider", "google", "settings", "{}", "extraData", "{}", "createdAt", old, "updatedAt", old)
 	s.ins("libraryFolders", "id", "f", "path", "/books", "libraryId", "lib", "createdAt", old, "updatedAt", old)
 	s.author("au1", "Ada Example", "Example, Ada", "lib", old)
-	s.author("au2", "Zed Fixture", "Fixture, Zed", "lib", old)
+	s.author("au2", "John Smith", "Smith, John", "lib", old)
 	s.series("ser-long", "Long Saga", "Long Saga", "lib", old)
 	s.series("ser-alpha", "Oracle Subseries Alpha", "Oracle Subseries Alpha", "lib", old)
-	// Insert book with lexicographically larger book ID FIRST so rowid order != mediaId order.
-	s.book(bookRow{id: "b-zzzz", itemID: "li-first", title: "Single File Novel", titleIgnore: "Single File Novel", narrators: "[]", audio: "[]", ebook: "null", tags: "[]", genres: "[]", files: "[]", created: old, lib: "lib", folder: "f", mtimeDay: 1})
-	s.book(bookRow{id: "b-aaaa", itemID: "li-second", title: "Ebook Only", titleIgnore: "Ebook Only", narrators: "[]", audio: "[]", ebook: "null", tags: "[]", genres: "[]", files: "[]", created: old, lib: "lib", folder: "f", mtimeDay: 1})
-	s.linkAuthor("b-zzzz", "au1")
-	s.linkAuthor("b-aaaa", "au2")
-	s.linkSeries("b-zzzz", "ser-long", "1")
-	s.linkSeries("b-aaaa", "ser-long", "2")
-	s.linkSeries("b-aaaa", "ser-alpha", "1")
+	// Insert book with lexicographically larger book ID FIRST so rowid order != mediaId order,
+	// and give it a later authorNamesLastFirst so author-index order differs from rowid order too.
+	s.book(bookRow{id: "b-zzzz", itemID: "li-first", title: "The Middle", titleIgnore: "Middle, The", narrators: "[]", audio: "[]", ebook: "null", tags: "[]", genres: "[]", files: "[]", created: old, lib: "lib", folder: "f", mtimeDay: 1})
+	s.book(bookRow{id: "b-aaaa", itemID: "li-second", title: "The Beginning", titleIgnore: "Beginning, The", narrators: "[]", audio: "[]", ebook: "null", tags: "[]", genres: "[]", files: "[]", created: old, lib: "lib", folder: "f", mtimeDay: 1})
+	s.exec(`UPDATE libraryItems SET authorNamesLastFirst='Smith, John' WHERE id='li-first'`)
+	s.exec(`UPDATE libraryItems SET authorNamesLastFirst='Example, Ada' WHERE id='li-second'`)
+	s.linkAuthor("b-zzzz", "au2")
+	s.linkAuthor("b-aaaa", "au1")
+	s.linkSeries("b-aaaa", "ser-long", "1")
+	s.linkSeries("b-zzzz", "ser-long", "2")
+	s.linkSeries("b-zzzz", "ser-alpha", "1")
 
 	r, root := newRigOn(t, d), users()["root"]
-	// Even though b-aaaa has author "Zed Fixture" (later alphabetically) and later rowid,
-	// unsorted collapseseries=1&desc=1 scans library_items_library_id_media_id_media_type -> b-aaaa before b-zzzz.
+	// Unsorted collapseseries=1&desc=1 matches upstream's libraryItems rowid scan (li-first then li-second),
+	// not authorNamesLastFirst (which would put li-second before li-first).
 	var page struct {
 		Results []struct {
 			ID              string `json:"id"`
@@ -819,8 +822,8 @@ func TestUnsortedItemsMatchMediaIDIndexOrder(t *testing.T) {
 		} `json:"results"`
 	}
 	r.get(root, "/api/libraries/lib/items?collapseseries=1&desc=1", &page)
-	if len(page.Results) != 2 || page.Results[0].ID != "li-second" || page.Results[1].ID != "li-first" {
-		t.Fatalf("collapsed desc order = %+v, want [li-second li-first]", page.Results)
+	if len(page.Results) != 2 || page.Results[0].ID != "li-first" || page.Results[1].ID != "li-second" {
+		t.Fatalf("collapsed desc order = %+v, want [li-first li-second]", page.Results)
 	}
 	if page.Results[0].CollapsedSeries == nil || page.Results[0].CollapsedSeries.Name != "Oracle Subseries Alpha" || page.Results[0].CollapsedSeries.NumBooks != 1 {
 		t.Errorf("first collapsedSeries = %+v", page.Results[0].CollapsedSeries)
@@ -829,8 +832,9 @@ func TestUnsortedItemsMatchMediaIDIndexOrder(t *testing.T) {
 		t.Errorf("second collapsedSeries = %+v", page.Results[1].CollapsedSeries)
 	}
 
-	// Same for author filter without sort: both books share au1, b-aaaa comes before b-zzzz.
-	s.linkAuthor("b-aaaa", "au1")
+	// Author filter without sort matches upstream's covering bookAuthors (bookId, authorId) index scan:
+	// b-aaaa (li-second) comes before b-zzzz (li-first) regardless of rowid or authorNamesLastFirst.
+	s.linkAuthor("b-zzzz", "au1")
 	ids, _ := r.items(root, "/api/libraries/lib/items?filter=authors."+b64("au1"))
 	if !slices.Equal(ids, []string{"li-second", "li-first"}) {
 		t.Errorf("author filter unsorted = %v, want [li-second li-first]", ids)

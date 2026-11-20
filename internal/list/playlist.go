@@ -39,6 +39,14 @@ type playlistEntry struct {
 	mediaID       string
 }
 
+// newPlaylistView builds a playlistView from a playlists row and entries.
+func newPlaylistView(row db.Playlist, items []playlistEntry) playlistView {
+	return playlistView{
+		ID: row.ID, Name: db.Val(row.Name), LibraryID: db.Val(row.LibraryID), UserID: db.Val(row.UserID),
+		Description: row.Description, LastUpdate: row.UpdatedAt, CreatedAt: row.CreatedAt, Items: items,
+	}
+}
+
 // AnnouncePlaylists tells the owner of each playlist that a deletion of items
 // or episodes changed: playlist_removed for one left empty (and deleted),
 // shown with no items, as upstream expands it after its entries are gone and
@@ -49,9 +57,7 @@ func (h *Handler) AnnouncePlaylists(ctx context.Context, changes []item.Playlist
 	for _, change := range changes {
 		owner := db.Val(change.Playlist.UserID)
 		if change.Removed {
-			view := playlistView{ID: change.Playlist.ID, Name: db.Val(change.Playlist.Name), LibraryID: db.Val(change.Playlist.LibraryID), UserID: owner,
-				Description: change.Playlist.Description, LastUpdate: change.Playlist.UpdatedAt, CreatedAt: change.Playlist.CreatedAt, Items: []playlistEntry{}}
-			h.emit.ToUser(owner, "playlist_removed", view)
+			h.emit.ToUser(owner, "playlist_removed", newPlaylistView(change.Playlist, []playlistEntry{}))
 			continue
 		}
 		view, err := h.playlistViewOf(ctx, change.Playlist)
@@ -79,9 +85,6 @@ type playlistRequest struct {
 	UserID      string        `json:"userId"`    // refused on update
 	Items       []itemRequest `json:"items"`
 }
-
-// newEntry is a playlist item resolved to its media row.
-type newEntry struct{ mediaID, mediaType string }
 
 // playlistViewOf builds the playlist with its items; entries whose media or
 // library item is gone are left out (upstream reconciles them away).
@@ -111,15 +114,11 @@ WHERE pmi.playlistId=? ORDER BY pmi."order" ASC`, row.ID)
 	if len(episodeIDs) > 0 {
 		options = item.Options{Episodes: true, EpisodeIDs: episodeIDs}
 	}
-	loaded, err := item.Load(ctx, h.db, itemIDs, options)
+	loaded, prefixes, err := h.loadItems(ctx, itemIDs, options)
 	if err != nil {
 		return playlistView{}, err
 	}
-	byID := make(map[string]item.Item, len(loaded))
-	for _, it := range loaded {
-		byID[it.ID] = it
-	}
-	prefixes, entries := h.settings.Server().SortingPrefixes, make([]playlistEntry, 0, len(rows))
+	byID, entries := indexItems(loaded), make([]playlistEntry, 0, len(rows))
 	for _, e := range rows {
 		it, ok := byID[e.LibraryItemID]
 		if !ok {
@@ -139,8 +138,7 @@ WHERE pmi.playlistId=? ORDER BY pmi."order" ASC`, row.ID)
 			}
 		}
 	}
-	return playlistView{ID: row.ID, Name: db.Val(row.Name), LibraryID: db.Val(row.LibraryID), UserID: db.Val(row.UserID),
-		Description: row.Description, LastUpdate: row.UpdatedAt, CreatedAt: row.CreatedAt, Items: entries}, nil
+	return newPlaylistView(row, entries), nil
 }
 
 // owned loads the user's playlist: 404 when missing, 403 when it is someone
@@ -186,10 +184,7 @@ func (h *Handler) finishAdjusted(w http.ResponseWriter, r *http.Request, id, eve
 	if adjust != nil {
 		adjust(r.Context(), &view)
 	}
-	if event != "" {
-		h.emit.ToUser(view.UserID, event, view)
-	}
-	return httpx.JSON(w, r, view)
+	return emitAndJSON(w, r, view, func(ev string, payload any) { h.emit.ToUser(view.UserID, ev, payload) }, event)
 }
 
 // episodeTotals gives the last entry's minified podcast the numEpisodes and
@@ -219,15 +214,11 @@ func (h *Handler) userPlaylists(ctx context.Context, user *auth.Principal, libra
 	if err := h.db.Select(ctx, &rows, `SELECT * FROM playlists WHERE userId=? AND (?='' OR libraryId=?)`, user.ID, libraryID, libraryID); err != nil {
 		return nil, err
 	}
-	views := make([]playlistView, 0, len(rows))
-	for _, row := range rows {
-		if user.CanAccessLibrary(db.Val(row.LibraryID)) {
-			view, err := h.playlistViewOf(ctx, row)
-			if err != nil {
-				return nil, err
-			}
-			views = append(views, view)
-		}
+	views, err := accessibleViews(rows, user, func(r db.Playlist) string { return db.Val(r.LibraryID) }, func(r db.Playlist) (playlistView, error) {
+		return h.playlistViewOf(ctx, r)
+	})
+	if err != nil {
+		return nil, err
 	}
 	slices.SortStableFunc(views, func(a, b playlistView) int { return text.LocaleCompare(a.Name, b.Name) })
 	return views, nil
@@ -278,11 +269,14 @@ func (h *Handler) itemRefsOf(ctx context.Context, items []itemRequest) (map[stri
 	return h.itemRefs(ctx, ids...)
 }
 
-// episodeIn reports whether the podcast has the episode.
-func (h *Handler) episodeIn(ctx context.Context, podcastID, episodeID string) (bool, error) {
+// requireEpisode checks that podcastID owns episodeID, returning badMsg if not.
+func (h *Handler) requireEpisode(ctx context.Context, podcastID, episodeID, badMsg string) (newEntry, error) {
 	var n int
 	err := h.db.Get(ctx, &n, `SELECT COUNT(*) FROM podcastEpisodes WHERE id=? AND podcastId=?`, episodeID, podcastID)
-	return n > 0, err
+	if err == nil && n == 0 {
+		err = httpx.BadRequest(badMsg)
+	}
+	return newEntry{episodeID, "podcastEpisode"}, err
 }
 
 // createEntry resolves an item of a new playlist: all items are books, or all
@@ -298,11 +292,7 @@ func (h *Handler) createEntry(ctx context.Context, libraryID string, podcast boo
 	case !podcast:
 		return newEntry{ref.MediaID, "book"}, nil
 	}
-	found, err := h.episodeIn(ctx, ref.MediaID, it.EpisodeID)
-	if err == nil && !found {
-		err = httpx.BadRequest("Invalid playlist data. Invalid podcast episodes")
-	}
-	return newEntry{it.EpisodeID, "podcastEpisode"}, err
+	return h.requireEpisode(ctx, ref.MediaID, it.EpisodeID, "Invalid playlist data. Invalid podcast episodes")
 }
 
 // addEntry resolves an item to add to a playlist of libraryID; batch picks the
@@ -317,31 +307,11 @@ func (h *Handler) addEntry(ctx context.Context, libraryID string, batch bool, it
 	case ref.LibraryID != libraryID:
 		return newEntry{}, httpx.BadRequest("Library item in different library")
 	case ref.MediaType == "podcast" && it.EpisodeID != "":
-		found, err := h.episodeIn(ctx, ref.MediaID, it.EpisodeID)
-		if err == nil && !found {
-			err = httpx.BadRequest("Episode not found in library item")
-		}
-		return newEntry{it.EpisodeID, "podcastEpisode"}, err
+		return h.requireEpisode(ctx, ref.MediaID, it.EpisodeID, "Episode not found in library item")
 	case ref.MediaType == "podcast" || it.EpisodeID != "":
 		return newEntry{}, httpx.BadRequest("Invalid item to add for this library type")
 	}
 	return newEntry{ref.MediaID, "book"}, nil
-}
-
-// insertEntries appends entries to a playlist that already has have of them.
-func (h *Handler) insertEntries(ctx context.Context, playlistID string, have int, entries []newEntry) error {
-	for i, e := range entries {
-		id, err := ids.New()
-		if err != nil {
-			return err
-		}
-		order := int64(have + i + 1)
-		row := db.PlaylistMediaItem{ID: id, MediaItemID: &e.mediaID, MediaItemType: &e.mediaType, Order: &order, CreatedAt: db.Now(), PlaylistID: &playlistID}
-		if err := h.db.Insert(ctx, "playlistMediaItems", &row); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // insertPlaylist writes a playlist with its entries in one transaction and
@@ -357,7 +327,7 @@ func (h *Handler) insertPlaylist(ctx context.Context, userID, libraryID, name st
 		if err = h.db.Insert(ctx, "playlists", &row); err != nil {
 			return err
 		}
-		return h.insertEntries(ctx, id, 0, entries)
+		return playlistLinks.append(ctx, h.db, id, 0, entries)
 	})
 	return id, err
 }
@@ -368,12 +338,9 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user *a
 	if err != nil {
 		return err
 	}
-	name := cleanName(db.Val(req.Name))
-	if name == "" || req.LibraryID == "" {
-		return httpx.BadRequest("Invalid playlist data")
-	}
-	if !user.CanAccessLibrary(req.LibraryID) {
-		return httpx.Forbidden()
+	name, err := validateCreate(user, req.Name, req.LibraryID, "Invalid playlist data")
+	if err != nil {
+		return err
 	}
 	refs, err := h.itemRefsOf(r.Context(), req.Items)
 	if err != nil {
@@ -479,12 +446,7 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request, user *a
 	}
 	changed, moved := false, false
 	err = h.db.Tx(r.Context(), func(ctx context.Context) error {
-		if name := cleanName(db.Val(req.Name)); name != "" && name != db.Val(row.Name) {
-			row.Name, changed = &name, true
-		}
-		if req.Description != nil && *req.Description != db.Val(row.Description) {
-			row.Description, changed = emptyAsNull(req.Description), true
-		}
+		changed = patchListMeta(&row.Name, &row.Description, req.Name, req.Description, true)
 		if changed {
 			row.UpdatedAt = db.Now()
 			if err := h.db.Update(ctx, "playlists", &row, "name", "description", "updatedAt"); err != nil {
@@ -561,29 +523,20 @@ func (h *Handler) addItems(w http.ResponseWriter, r *http.Request, row db.Playli
 	if err != nil {
 		return err
 	}
-	added := 0
-	err = h.db.Tx(r.Context(), func(ctx context.Context) error {
-		links, err := playlistLinks.list(ctx, h.db, row.ID)
-		if err != nil {
+	entries := make([]newEntry, len(items))
+	for i, it := range items {
+		if entries[i], err = h.addEntry(r.Context(), db.Val(row.LibraryID), batch, it, refs); err != nil {
 			return err
 		}
-		for _, it := range items {
-			e, err := h.addEntry(ctx, db.Val(row.LibraryID), batch, it, refs)
-			if err != nil {
-				return err
-			}
-			if slices.ContainsFunc(links, func(l link) bool { return l.MediaID == e.mediaID }) {
-				if !batch {
-					return httpx.BadRequest("Item already in playlist")
-				}
-				continue
-			}
-			if err := h.insertEntries(ctx, row.ID, len(links), []newEntry{e}); err != nil {
-				return err
-			}
-			links, added = append(links, link{MediaID: e.mediaID}), added+1
-		}
-		return nil
+	}
+	dupMsg := "Item already in playlist"
+	if batch {
+		dupMsg = ""
+	}
+	added := 0
+	err = h.db.Tx(r.Context(), func(ctx context.Context) error {
+		added, err = playlistLinks.add(ctx, h.db, row.ID, entries, dupMsg)
+		return err
 	})
 	if err != nil {
 		return err
@@ -596,7 +549,8 @@ func (h *Handler) addItems(w http.ResponseWriter, r *http.Request, row db.Playli
 }
 
 // removePlaylistItems serves POST /api/playlists/{id}/batch/remove; unknown
-// items are ignored.
+// items are ignored. Like PlaylistController.removeBatch, remaining entries
+// keep their existing order values.
 func (h *Handler) removePlaylistItems(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
 	row, req, err := h.ownedWithBody(w, r, user)
 	if err != nil {
@@ -609,7 +563,7 @@ func (h *Handler) removePlaylistItems(w http.ResponseWriter, r *http.Request, us
 	if err != nil {
 		return err
 	}
-	return h.removeEntries(w, r, user, row, media)
+	return h.removeEntries(w, r, user, row, media, false)
 }
 
 // removePlaylistItem serves DELETE /api/playlists/{id}/item/{libraryItemId}[/{episodeId}].
@@ -630,12 +584,13 @@ func (h *Handler) removePlaylistItem(w http.ResponseWriter, r *http.Request, use
 	if !slices.ContainsFunc(links, func(l link) bool { return l.MediaID == media[0] }) {
 		return httpx.Error(http.StatusNotFound, "Media item not found in playlist")
 	}
-	return h.removeEntries(w, r, user, row, media)
+	return h.removeEntries(w, r, user, row, media, true)
 }
 
-// removeEntries deletes entries by media id, renumbers the rest and deletes the
-// playlist when it is left empty. It answers with the playlist as it is then.
-func (h *Handler) removeEntries(w http.ResponseWriter, r *http.Request, user *auth.Principal, row db.Playlist, media []string) error {
+// removeEntries deletes entries by media id, optionally renumbers the rest,
+// and deletes the playlist when it is left empty. It answers with the playlist
+// as it is then.
+func (h *Handler) removeEntries(w http.ResponseWriter, r *http.Request, user *auth.Principal, row db.Playlist, media []string, recompact bool) error {
 	view, err := h.playlistViewOf(r.Context(), row)
 	if err != nil {
 		return err
@@ -643,7 +598,7 @@ func (h *Handler) removeEntries(w http.ResponseWriter, r *http.Request, user *au
 	view.Items = slices.DeleteFunc(view.Items, func(e playlistEntry) bool { return slices.Contains(media, e.mediaID) })
 	var removed, remaining int
 	err = h.db.Tx(r.Context(), func(ctx context.Context) (err error) {
-		if removed, remaining, err = playlistLinks.remove(ctx, h.db, row.ID, media); err == nil && removed > 0 && remaining == 0 {
+		if removed, remaining, err = playlistLinks.remove(ctx, h.db, row.ID, media, recompact); err == nil && removed > 0 && remaining == 0 {
 			_, err = h.db.Exec(ctx, `DELETE FROM playlists WHERE id=?`, row.ID)
 		}
 		return err

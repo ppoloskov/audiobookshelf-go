@@ -53,15 +53,15 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
 		start = 0
 	}
 	start = math.Trunc(start)
-	var sessionID string
+	var shareSessionID string
 	if cookie, err := r.Cookie(sessionCookie); err == nil && ids.ValidV4(cookie.Value) {
-		sessionID = cookie.Value // a session lost on restart keeps its id
-		if existing, ok := h.sessions.get(sessionID); ok {
+		shareSessionID = cookie.Value // a session lost on restart keeps its id
+		if existing, ok := h.sessions.get(shareSessionID); ok {
 			if existing.shareID != share.ID {
-				h.sessions.remove(sessionID) // the cookie came from another share
+				h.sessions.remove(shareSessionID) // the cookie came from another share
 			} else {
 				if start > 0 && start < existing.Duration {
-					existing, _ = h.sessions.update(sessionID, func(s *session) { s.CurrentTime = start })
+					existing, _ = h.sessions.update(shareSessionID, func(s *session) { s.CurrentTime = start })
 				}
 				return httpx.JSON(w, r, publicShareResponse{viewOf(share), existing})
 			}
@@ -70,25 +70,29 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
 	if db.Val(share.MediaItemType) != "book" {
 		return notFound("Media item not found")
 	}
-	if sessionID == "" {
-		if sessionID, err = ids.New(); err != nil {
+	if shareSessionID == "" {
+		if shareSessionID, err = ids.New(); err != nil {
 			return fmt.Errorf("new share session id: %w", err)
 		}
 	}
-	sess, err := h.openSession(r.Context(), r, share, sessionID, start)
+	sess, err := h.openSession(r.Context(), r, share, shareSessionID, start)
 	if err != nil {
 		return err
 	}
 	h.sessions.put(sess)
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: sessionID, Path: "/", HttpOnly: true, MaxAge: 30 * 24 * 60 * 60})
+	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: shareSessionID, Path: "/", HttpOnly: true, MaxAge: 30 * 24 * 60 * 60})
 	return httpx.JSON(w, r, publicShareResponse{viewOf(share), sess})
 }
 
 // openSession builds the playback session of the shared book, starting at
 // start seconds (0 when beyond the audio).
-func (h *Handler) openSession(ctx context.Context, r *http.Request, share db.MediaItemShare, id string, start float64) (session, error) {
+func (h *Handler) openSession(ctx context.Context, r *http.Request, share db.MediaItemShare, shareSessionID string, start float64) (session, error) {
+	playbackSessionID, err := ids.New()
+	if err != nil {
+		return session{}, fmt.Errorf("new playback session id: %w", err)
+	}
 	var itemID string
-	err := h.db.Get(ctx, &itemID, `SELECT id FROM libraryItems WHERE mediaId = ? LIMIT 1`, db.Val(share.MediaItemID))
+	err = h.db.Get(ctx, &itemID, `SELECT id FROM libraryItems WHERE mediaId = ? LIMIT 1`, db.Val(share.MediaItemID))
 	if err != nil {
 		return session{}, lookupError(err, "find shared item")
 	}
@@ -119,7 +123,7 @@ func (h *Handler) openSession(ctx context.Context, r *http.Request, share db.Med
 	if start > total {
 		start = 0
 	}
-	device, err := h.recordDevice(ctx, r, id)
+	device, err := h.recordDevice(ctx, r, shareSessionID)
 	if err != nil {
 		return session{}, err
 	}
@@ -129,13 +133,13 @@ func (h *Handler) openSession(ctx context.Context, r *http.Request, share db.Med
 	}
 	now := time.Now()
 	sess := session{
-		ID: id, LibraryID: db.Val(it.LibraryID), LibraryItemID: it.ID, BookID: db.Val(share.MediaItemID), MediaType: "book",
+		ID: playbackSessionID, LibraryID: db.Val(it.LibraryID), LibraryItemID: it.ID, BookID: db.Val(share.MediaItemID), MediaType: "book",
 		MediaMetadata: book.Full(it.ID).Metadata, ServerVersion: version.Server, MediaPlayer: "web-share",
 		DeviceInfo: device,
 		Date:       now.Local().Format("2006-01-02"), DayOfWeek: now.Local().Weekday().String(), StartedAt: now.UnixMilli(), UpdatedAt: now.UnixMilli(),
 		Chapters: book.Chapters.V, DisplayTitle: db.Val(book.Title), DisplayAuthor: book.AuthorName(),
 		CoverPath: book.CoverPath, CoverAspectRatio: library.Settings.V.CoverAspectRatio, Duration: db.Val(book.Duration),
-		StartTime: start, CurrentTime: start, AudioTracks: tracks, shareID: share.ID,
+		StartTime: start, CurrentTime: start, AudioTracks: tracks, shareID: share.ID, shareSessionID: shareSessionID,
 	}
 	if sess.CoverPath != nil && *sess.CoverPath == "" {
 		sess.CoverPath = nil

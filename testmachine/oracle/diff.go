@@ -12,8 +12,12 @@ import (
 	"io/fs"
 	"math"
 	"mime"
+	"mime/multipart"
+	"mime/quotedprintable"
 	"net"
 	"net/http"
+	"net/mail"
+	"net/url"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -577,6 +581,10 @@ func (d *Differ) diffHTTPBody(step string, tsResp, goResp Response) []Finding {
 	if isTextBody(tsCT, tsResp.Body) && isTextBody(goCT, goResp.Body) {
 		tsText := d.Corr.NormalizeString("ts", string(tsResp.Body))
 		goText := d.Corr.NormalizeString("go", string(goResp.Body))
+		if isXMLBody(tsCT, tsResp.Body) && isXMLBody(goCT, goResp.Body) {
+			tsText = normalizeXML(tsText)
+			goText = normalizeXML(goText)
+		}
 		if tsText != goText {
 			return []Finding{{
 				Step:    step,
@@ -1393,6 +1401,10 @@ func (d *Differ) DiffStubs(step string, tsCalls, goCalls []StubCall) []Finding {
 		}
 		tsPath := d.Corr.NormalizeString("ts", tc.Path)
 		goPath := d.Corr.NormalizeString("go", gc.Path)
+		if strings.EqualFold(tc.Kind, "http") && strings.EqualFold(gc.Kind, "http") {
+			tsPath = canonicalStubPath(tsPath)
+			goPath = canonicalStubPath(goPath)
+		}
 		if tsPath != goPath {
 			findings = append(findings, Finding{Step: step, Surface: "stubs", Path: prefix + ".path", TSValue: tsPath, GoValue: goPath, Detail: "stub path mismatch"})
 		}
@@ -1401,6 +1413,8 @@ func (d *Differ) DiffStubs(step string, tsCalls, goCalls []StubCall) []Finding {
 			goVal, goErr := decodeJSONBytes([]byte(gc.Body))
 			if tsErr == nil && goErr == nil {
 				findings = append(findings, d.diffJSON(step, "stubs", prefix+".body", tsVal, goVal)...)
+			} else if isSMTPEmailStub(tc, gc) {
+				findings = append(findings, d.diffSMTPEmail(step, prefix+".body", tc.Body, gc.Body)...)
 			} else {
 				tsBody := d.Corr.NormalizeString("ts", tc.Body)
 				goBody := d.Corr.NormalizeString("go", gc.Body)
@@ -1678,4 +1692,288 @@ func isHexString(s string) bool {
 		}
 	}
 	return true
+}
+
+func isXMLBody(ct string, body []byte) bool {
+	if strings.Contains(strings.ToLower(ct), "xml") {
+		return true
+	}
+	return bytes.HasPrefix(bytes.TrimSpace(body), []byte("<?xml"))
+}
+
+// normalizeXML strips whitespace-only spans between XML tags while preserving
+// tag names, attributes, text content, CDATA sections, and comments verbatim.
+func normalizeXML(s string) string {
+	s = strings.TrimSpace(s)
+	var b strings.Builder
+	b.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		if strings.HasPrefix(s[i:], "<![CDATA[") {
+			end := strings.Index(s[i+len("<![CDATA["):], "]]>")
+			if end < 0 {
+				b.WriteString(s[i:])
+				break
+			}
+			endIdx := i + len("<![CDATA[") + end + len("]]>")
+			b.WriteString(s[i:endIdx])
+			i = endIdx
+			continue
+		}
+		if strings.HasPrefix(s[i:], "<!--") {
+			end := strings.Index(s[i+len("<!--"):], "-->")
+			if end < 0 {
+				b.WriteString(s[i:])
+				break
+			}
+			endIdx := i + len("<!--") + end + len("-->")
+			b.WriteString(s[i:endIdx])
+			i = endIdx
+			continue
+		}
+		if s[i] == '>' {
+			b.WriteByte('>')
+			j := i + 1
+			for j < len(s) && isXMLWhitespace(s[j]) {
+				j++
+			}
+			if j < len(s) && s[j] == '<' {
+				i = j
+				continue
+			}
+			i++
+			continue
+		}
+		b.WriteByte(s[i])
+		i++
+	}
+	return b.String()
+}
+
+func isXMLWhitespace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
+}
+
+func canonicalStubPath(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.RawQuery == "" {
+		return raw
+	}
+	u.RawQuery = u.Query().Encode()
+	return u.String()
+}
+
+func isSMTPEmailStub(tc, gc StubCall) bool {
+	if strings.EqualFold(tc.Kind, "smtp") && strings.EqualFold(gc.Kind, "smtp") {
+		return true
+	}
+	return strings.Contains(tc.Body, "MIME-Version: 1.0") && strings.Contains(gc.Body, "MIME-Version: 1.0")
+}
+
+type parsedEmailPart struct {
+	Filename string
+	Body     []byte
+	IsText   bool
+}
+
+type parsedEmail struct {
+	From    string
+	To      string
+	Subject string
+	Parts   []parsedEmailPart
+}
+
+func (d *Differ) diffSMTPEmail(step, path, tsRaw, goRaw string) []Finding {
+	tsEmail, tsErr := parseEmailMessage(tsRaw)
+	goEmail, goErr := parseEmailMessage(goRaw)
+	if tsErr != nil || goErr != nil {
+		tsBody := d.Corr.NormalizeString("ts", tsRaw)
+		goBody := d.Corr.NormalizeString("go", goRaw)
+		if tsBody != goBody {
+			return []Finding{{Step: step, Surface: "stubs", Path: path, TSValue: tsBody, GoValue: goBody, Detail: "stub body mismatch"}}
+		}
+		return nil
+	}
+
+	var findings []Finding
+	findings = append(findings, d.diffStringValue(step, "stubs", path+".from", tsEmail.From, goEmail.From)...)
+	findings = append(findings, d.diffStringValue(step, "stubs", path+".to", tsEmail.To, goEmail.To)...)
+	findings = append(findings, d.diffStringValue(step, "stubs", path+".subject", tsEmail.Subject, goEmail.Subject)...)
+
+	if len(tsEmail.Parts) != len(goEmail.Parts) {
+		findings = append(findings, Finding{
+			Step:    step,
+			Surface: "stubs",
+			Path:    path + ".parts.count",
+			TSValue: strconv.Itoa(len(tsEmail.Parts)),
+			GoValue: strconv.Itoa(len(goEmail.Parts)),
+			Detail:  "MIME part count mismatch",
+		})
+	}
+	n := min(len(tsEmail.Parts), len(goEmail.Parts))
+	for i := range n {
+		partPath := fmt.Sprintf("%s.parts[%d]", path, i)
+		tp := tsEmail.Parts[i]
+		gp := goEmail.Parts[i]
+		findings = append(findings, d.diffStringValue(step, "stubs", partPath+".filename", tp.Filename, gp.Filename)...)
+		if tp.IsText && gp.IsText {
+			tsText := d.Corr.NormalizeString("ts", normalizeEmailText(tp.Body))
+			goText := d.Corr.NormalizeString("go", normalizeEmailText(gp.Body))
+			if tsText != goText {
+				findings = append(findings, Finding{
+					Step:    step,
+					Surface: "stubs",
+					Path:    partPath + ".body",
+					TSValue: truncateText(tsText, 200),
+					GoValue: truncateText(goText, 200),
+					Detail:  "MIME text part mismatch",
+				})
+			}
+			continue
+		}
+		if !bytes.Equal(tp.Body, gp.Body) {
+			findings = append(findings, d.diffBinary(step, "stubs", partPath+".body", tp.Body, gp.Body)...)
+		}
+	}
+	return findings
+}
+
+func parseEmailMessage(raw string) (*parsedEmail, error) {
+	msg, err := mail.ReadMessage(strings.NewReader(raw))
+	if err != nil {
+		return nil, err
+	}
+	from, err := normalizeEmailAddresses(msg.Header.Get("From"))
+	if err != nil {
+		return nil, err
+	}
+	to, err := normalizeEmailAddresses(msg.Header.Get("To"))
+	if err != nil {
+		return nil, err
+	}
+	parts, err := parseEmailParts(
+		msg.Header.Get("Content-Type"),
+		msg.Header.Get("Content-Transfer-Encoding"),
+		msg.Header.Get("Content-Disposition"),
+		msg.Body,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &parsedEmail{
+		From:    from,
+		To:      to,
+		Subject: decodeMIMEHeader(msg.Header.Get("Subject")),
+		Parts:   parts,
+	}, nil
+}
+
+func parseEmailParts(contentType, transferEncoding, contentDisposition string, body io.Reader) ([]parsedEmailPart, error) {
+	mediaType := "text/plain"
+	var params map[string]string
+	if strings.TrimSpace(contentType) != "" {
+		var err error
+		mediaType, params, err = mime.ParseMediaType(contentType)
+		if err != nil {
+			return nil, err
+		}
+	}
+	mediaLower := strings.ToLower(mediaType)
+	if strings.HasPrefix(mediaLower, "multipart/") {
+		boundary := params["boundary"]
+		if boundary == "" {
+			return nil, fmt.Errorf("multipart missing boundary")
+		}
+		mr := multipart.NewReader(body, boundary)
+		var out []parsedEmailPart
+		for {
+			part, err := mr.NextPart()
+			if err == io.EOF {
+				return out, nil
+			}
+			if err != nil {
+				return nil, err
+			}
+			sub, err := parseEmailParts(
+				part.Header.Get("Content-Type"),
+				part.Header.Get("Content-Transfer-Encoding"),
+				part.Header.Get("Content-Disposition"),
+				part,
+			)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, sub...)
+		}
+	}
+
+	r := body
+	switch strings.ToLower(strings.TrimSpace(transferEncoding)) {
+	case "", "7bit", "8bit", "binary":
+	case "base64":
+		r = base64.NewDecoder(base64.StdEncoding, body)
+	case "quoted-printable":
+		r = quotedprintable.NewReader(body)
+	default:
+		return nil, fmt.Errorf("unsupported Content-Transfer-Encoding %q", transferEncoding)
+	}
+	decoded, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var filename string
+	if strings.TrimSpace(contentDisposition) != "" {
+		_, dispParams, dispErr := mime.ParseMediaType(contentDisposition)
+		if dispErr == nil && dispParams["filename"] != "" {
+			filename = decodeMIMEHeader(dispParams["filename"])
+		}
+	}
+	if filename == "" && params["name"] != "" {
+		filename = decodeMIMEHeader(params["name"])
+	}
+
+	return []parsedEmailPart{{
+		Filename: filename,
+		Body:     decoded,
+		IsText:   strings.HasPrefix(mediaLower, "text/") && filename == "",
+	}}, nil
+}
+
+func normalizeEmailAddresses(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", nil
+	}
+	addrs, err := mail.ParseAddressList(trimmed)
+	if err != nil {
+		addr, singleErr := mail.ParseAddress(trimmed)
+		if singleErr != nil {
+			return "", err
+		}
+		addrs = []*mail.Address{addr}
+	}
+	parts := make([]string, len(addrs))
+	for i, a := range addrs {
+		parts[i] = a.String()
+	}
+	return strings.Join(parts, ", "), nil
+}
+
+func decodeMIMEHeader(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+	var dec mime.WordDecoder
+	decoded, err := dec.DecodeHeader(trimmed)
+	if err != nil {
+		return trimmed
+	}
+	return decoded
+}
+
+func normalizeEmailText(b []byte) string {
+	s := strings.ReplaceAll(string(b), "\r\n", "\n")
+	return strings.TrimRight(s, "\r\n")
 }

@@ -23,16 +23,25 @@ func (f *field[T]) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &f.Value)
 }
 
+type notificationData struct {
+	Events []Event `json:"events"`
+}
+
+type notificationsResponse struct {
+	Data     notificationData       `json:"data"`
+	Settings settings.Notifications `json:"settings"`
+}
+
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) error {
 	current, err := h.settings.Notifications(r.Context())
 	if err != nil {
 		return err
 	}
-	return httpx.JSON(w, r, map[string]any{"data": map[string]any{"events": catalogue}, "settings": current})
+	return httpx.JSON(w, r, notificationsResponse{Data: notificationData{Events: catalogue}, Settings: current})
 }
 
 func (h *Handler) getData(w http.ResponseWriter, r *http.Request) error {
-	return httpx.JSON(w, r, map[string]any{"events": catalogue})
+	return httpx.JSON(w, r, notificationData{Events: catalogue})
 }
 
 // updateSettings sets the three editable settings; a missing key resets to its
@@ -116,10 +125,18 @@ func (h *Handler) remove(w http.ResponseWriter, r *http.Request) error {
 }
 
 // update patches the notification named in the path (the route id, not a body
-// id; 404 for an unknown id comes after the body check). Enabling a disabled notification resets its failure record
-// (Notification.update).
+// id; 404 for an unknown id comes before the body check, matching
+// NotificationController.middleware). Enabling a disabled notification resets
+// its failure record (Notification.update).
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) error {
 	id := r.PathValue("id")
+	current, err := h.settings.Notifications(r.Context())
+	if err != nil {
+		return err
+	}
+	if current.Find(id) == nil {
+		return httpx.NotFound()
+	}
 	req, err := httpx.Decode[struct {
 		LibraryID     field[*string] `json:"libraryId"`
 		EventName     *string        `json:"eventName"`

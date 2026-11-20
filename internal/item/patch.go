@@ -212,8 +212,11 @@ func (p *PodcastPatch) apply(row *db.Podcast, prefixes []string, src source) col
 	}
 	c.list("tags", &row.Tags, p.Tags)
 	c.flag("autoDownloadEpisodes", &row.AutoDownloadEpisodes, p.AutoDownloadEpisodes)
-	if p.AutoDownloadSchedule != nil {
-		c.text(textField{"autoDownloadSchedule", &row.AutoDownloadSchedule, p.AutoDownloadSchedule})
+	// Unlike metadata strings, Podcast.updateFromRequest (Podcast.js:276-280)
+	// stores autoDownloadSchedule verbatim without converting "" to NULL.
+	if p.AutoDownloadSchedule != nil && (row.AutoDownloadSchedule == nil || *row.AutoDownloadSchedule != *p.AutoDownloadSchedule) {
+		row.AutoDownloadSchedule = db.Ptr(*p.AutoDownloadSchedule)
+		c = append(c, "autoDownloadSchedule")
 	}
 	for _, n := range []struct {
 		column string

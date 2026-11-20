@@ -7,7 +7,8 @@ import (
 )
 
 // session is one open share playback session and, as JSON, the playbackSession
-// of GET /public/share/{slug}. It lives in memory, keyed by the share_session_id cookie.
+// of GET /public/share/{slug}. It lives in memory, keyed by shareSessionID
+// (the share_session_id cookie), while ID is its own random v4 UUID.
 type session struct {
 	ID               string       `json:"id"`
 	UserID           *string      `json:"userId"`
@@ -37,6 +38,7 @@ type session struct {
 	AudioTracks      []track      `json:"audioTracks"`
 	LibraryItem      *struct{}    `json:"libraryItem"`
 	shareID          string
+	shareSessionID   string
 }
 
 // track is one entry of audioTracks: an audio file with its running offset and public URL.
@@ -64,7 +66,7 @@ func (s *sessions) get(id string) (session, bool) {
 func (s *sessions) put(sess session) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.byID[sess.ID] = &sess
+	s.byID[sess.shareSessionID] = &sess
 }
 
 func (s *sessions) remove(id string) {

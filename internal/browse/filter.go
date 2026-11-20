@@ -283,7 +283,17 @@ func orderSQL(sortBy, filter string, desc, ignorePrefix, podcast bool, user *aut
 		args = append(args, seriesID)
 	}
 	if len(terms) == 0 {
-		return "", nil, nil
+		if podcast || filter == "feed-open" {
+			return "", nil, nil
+		}
+		// Without a sort key, upstream (after ANALYZE on startup, Database.js:203)
+		// scans bookAuthors's (bookId, authorId) index for authors.<id> and scans
+		// libraryItems in rowid order otherwise; Go's li.mediaType predicate would
+		// otherwise make SQLite scan authorNamesLastFirst.
+		if strings.HasPrefix(filter, "authors.") {
+			return " ORDER BY b.id", nil, nil
+		}
+		return " ORDER BY li.rowid", nil, nil
 	}
 	return " ORDER BY " + strings.Join(terms, ", "), args, nil
 }

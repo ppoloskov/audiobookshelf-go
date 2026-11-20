@@ -87,7 +87,7 @@ Baseline from `make oracle` (2026-11-20, pinned upstream TS v2.37.2 @ `edb1f7ef`
 
 - **Soft architectural target:** **~20K prod LOC (excluding tests)**, down from ~35.8K today — achieved **strictly through simplification and better higher-order abstractions** (never golfing or sacrificing structure/readability).
 - The Waves 1–4 rewrite already removed the major legacy slop (`TODO/FIXME` = 0, stray `*-E` files = 0, legacy `logging.*f` = 2 in `internal/`, `map[string]any` = 23 remaining after Wave P2).
-- **Progress so far:** Waves P1–P3 reduced the oracle parity backlog from **768 → 131 findings (-82.9%)**, raised Flow Steps PASS **309 → 341**, Complex Tests PASS **10 → 13**, and cut Route Matrix unexpected findings **97 → 1** (653/654 checks passing).
+- **Progress so far:** Waves P1–P4 reduced the oracle parity backlog from **768 → 47 findings (-93.9%)**, raised Flow Steps PASS **309 → 366 / 377 (97.1%)**, Complex Tests PASS **10 → 14 / 17**, and brought Route Matrix to **PASS (654/654 checks, 0 unexpected)**.
 
 | Opportunity | Target Package(s) | Est. LOC Reduction | Parity Findings Closed |
 | --- | --- | ---: | ---: |
@@ -140,16 +140,20 @@ Baseline from `make oracle` (2026-11-20, pinned upstream TS v2.37.2 @ `edb1f7ef`
   - `internal/list`: unify `playlist.go` (662 LOC) + `collection.go` (521 LOC) ordered-container helpers (~350–450 LOC savings) and fix `playlist-batch-remove` `order` re-indexing.
   - `internal/mail` & `internal/notify`: set `application/epub+zip` attachment MIME in `mail`; replace the 14 `map[string]any` usages in `notify` with typed structs.
 
-#### Wave P4 — Oracle Differ Calibration & Final Polish (~20 false positives + housekeeping)
+#### Wave P4 — Remaining Parity, List Desloping & Oracle Calibration — DONE (`131 -> 47` findings, `-93.9%` cumulative; Route Matrix `654/654 PASS`)
 
-- [ ] **`testmachine/oracle` (`diff.go` & `divergences.json`)**
-  - Canonicalize XML whitespace after `<?xml ...?>` in `diff.go` (fixes 4 RSS feed XML false positives).
-  - Compare SMTP stub bodies by parsed MIME headers/parts rather than raw header order/boundary strings (fixes 2 email stub false positives).
-  - Canonicalize outbound HTTP stub query-param order (fixes 1 `quick-match-saga1` stub false positive).
-  - Record `Accept-Ranges: bytes` from `http.ServeFile` on cover/author images & 416 responses in `divergences.json` (7 findings).
-- [ ] **Housekeeping**
-  - Replace the last 2 `logging.*f` calls in `internal/` (and `cmd/monstrobook/main.go`) with `slog` and delete the legacy printf helpers.
-  - [x] ~~Delete the 12 stray `*-E` files in `internal/text` and `internal/media`.~~ (already removed)
+- [x] **`internal/item/patch.go` & `internal/browse/filter.go`**
+  - Preserved `autoDownloadSchedule: ""` as SQLite `text` empty string (eliminated 16 findings across SQLite/HTTP/Socket.IO).
+  - Added deterministic unsorted tie-breakers (`ORDER BY b.id` for `filter=authors.<id>`, `ORDER BY li.rowid` for other unsorted book queries, matching upstream post-`ANALYZE` SQLite plans).
+- [x] **`internal/notify`, `internal/list`, `internal/share`**
+  - `PATCH /api/notifications/{id}` checks existence (`404`) before body decode (**Route Matrix hits 654/654 = 100% PASS**); replaced `map[string]any` in `notify` responses with typed structs.
+  - Extracted shared ordered-container helpers into `internal/list/list.go` (`-90 LOC` across `collection.go` + `playlist.go`) and fixed `playlist-batch-remove` `order` parity (**0 SQLite findings**).
+  - Separated `share` `playbackSession.id` (fresh random v4 UUID) from the `share_session_id` cookie.
+- [x] **`testmachine/oracle` (`diff.go` & `divergences.json`)**
+  - Added semantic XML inter-tag whitespace normalization, parsed SMTP MIME part comparison, canonical HTTP stub query-param sorting, and recorded `Accept-Ranges: bytes` + `backups` Content-Type intentional divergences.
+- [ ] **Final 47 findings (20 groups)** → zero-divergence CI!
+- [ ] **Higher-order structural compression waves** (protected by green `make verify`) toward the **~20K prod LOC** soft goal.
+- [ ] **Housekeeping**: replace the last 2 `logging.*f` calls in `internal/` (and `cmd/monstrobook/main.go`) with `slog` and delete the legacy printf helpers.
 - [ ] **Device acceptance of the mobile apps** (using `cmd/abs-record` against real iOS/Android apps).
 
 ## Open decisions

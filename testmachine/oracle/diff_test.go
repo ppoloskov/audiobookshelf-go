@@ -508,3 +508,226 @@ func TestPodcastSocketLedgerRule(t *testing.T) {
 		t.Fatalf("expected podcast socket item filter rule to acknowledge 0 events, got unexp=%d ack=%d", len(unexp), len(ack))
 	}
 }
+
+func TestDiffHTTPXMLWhitespaceNormalization(t *testing.T) {
+	d := NewDiffer("", "", nil)
+	xmlResp := func(ct, body string) Response {
+		return Response{
+			Status: 200,
+			Header: http.Header{"Content-Type": {ct}},
+			Body:   []byte(body),
+		}
+	}
+
+	tsXML := `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title><![CDATA[My  Feed]]></title><link>https://example.test/feed</link></channel></rss>`
+	goXML := "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\">\n  <channel>\n    <title><![CDATA[My  Feed]]></title>\n    <link>https://example.test/feed</link>\n  </channel>\n</rss>\n"
+
+	if f := d.DiffHTTP("get-feed-xml", xmlResp("application/xml; charset=utf-8", tsXML), xmlResp("application/xml; charset=utf-8", goXML)); len(f) != 0 {
+		t.Fatalf("expected semantically identical XML with declaration/inter-tag whitespace to pass, got:\n%s", FormatFindings(f))
+	}
+
+	if f := d.DiffHTTP("get-feed-xml-prefix", xmlResp("", tsXML), xmlResp("", goXML)); len(f) != 0 {
+		t.Fatalf("expected <?xml-prefixed bodies without Content-Type to pass, got:\n%s", FormatFindings(f))
+	}
+
+	diffTextXML := strings.Replace(goXML, "https://example.test/feed", "https://example.test/other", 1)
+	if f := d.DiffHTTP("get-feed-xml-text-diff", xmlResp("text/xml", tsXML), xmlResp("text/xml", diffTextXML)); len(f) != 1 {
+		t.Fatalf("expected XML text content difference to fail, got:\n%s", FormatFindings(f))
+	}
+
+	diffCDATAXML := strings.Replace(goXML, "My  Feed", "My Feed", 1)
+	if f := d.DiffHTTP("get-feed-xml-cdata-diff", xmlResp("application/xml", tsXML), xmlResp("application/xml", diffCDATAXML)); len(f) != 1 {
+		t.Fatalf("expected XML CDATA whitespace difference to fail, got:\n%s", FormatFindings(f))
+	}
+
+	diffAttrXML := strings.Replace(goXML, `version="2.0"`, `version="1.0"`, 1)
+	if f := d.DiffHTTP("get-feed-xml-attr-diff", xmlResp("application/xml", tsXML), xmlResp("application/xml", diffAttrXML)); len(f) != 1 {
+		t.Fatalf("expected XML attribute difference to fail, got:\n%s", FormatFindings(f))
+	}
+}
+
+func TestDiffStubsSMTPEmailMIME(t *testing.T) {
+	d := NewDiffer("", "", nil)
+
+	tsPlain := "Content-Type: text/plain; charset=utf-8\r\n" +
+		"From: abs@example.test\r\n" +
+		"To: user@example.test\r\n" +
+		"Subject: Test email from Audiobookshelf\r\n" +
+		"Message-ID: <ts-msg-1@example.test>\r\n" +
+		"Date: Fri, 20 Nov 2026 10:00:00 +0000\r\n" +
+		"MIME-Version: 1.0\r\n" +
+		"Content-Transfer-Encoding: 7bit\r\n" +
+		"\r\n" +
+		"Success!\r\n"
+
+	goPlain := "From: <abs@example.test>\r\n" +
+		"To: <user@example.test>\r\n" +
+		"Subject: Test email from Audiobookshelf\r\n" +
+		"Date: Fri, 20 Nov 2026 10:00:01 +0000\r\n" +
+		"Message-ID: <go-msg-2@example.test>\r\n" +
+		"MIME-Version: 1.0\r\n" +
+		"Content-Type: text/plain; charset=utf-8\r\n" +
+		"\r\n" +
+		"Success!\r\n"
+
+	if f := d.DiffStubs("emails-send-test",
+		[]StubCall{{Kind: "smtp", Method: "DATA", Path: "user@example.test", Body: tsPlain}},
+		[]StubCall{{Kind: "smtp", Method: "DATA", Path: "user@example.test", Body: goPlain}},
+	); len(f) != 0 {
+		t.Fatalf("expected semantically identical plain SMTP emails to pass, got:\n%s", FormatFindings(f))
+	}
+
+	ebookBytes := []byte("EPUB-BINARY-PAYLOAD-0123456789")
+	ebookB64 := base64.StdEncoding.EncodeToString(ebookBytes)
+
+	tsMulti := "Content-Type: multipart/mixed; boundary=\"----=_Part_TS_123\"\r\n" +
+		"From: abs@example.test\r\n" +
+		"To: kindle@example.test\r\n" +
+		"Subject: Here is your Ebook!\r\n" +
+		"Message-ID: <ts-eb-1@example.test>\r\n" +
+		"Date: Fri, 20 Nov 2026 10:00:00 +0000\r\n" +
+		"MIME-Version: 1.0\r\n" +
+		"\r\n" +
+		"------=_Part_TS_123\r\n" +
+		"Content-Type: text/html; charset=utf-8\r\n" +
+		"Content-Transfer-Encoding: 7bit\r\n" +
+		"\r\n" +
+		"<div dir=\"auto\"></div>\r\n" +
+		"------=_Part_TS_123\r\n" +
+		"Content-Type: application/epub+zip; name=\"book.epub\"\r\n" +
+		"Content-Disposition: attachment; filename=\"book.epub\"\r\n" +
+		"Content-Transfer-Encoding: base64\r\n" +
+		"\r\n" +
+		ebookB64[:12] + "\r\n" + ebookB64[12:] + "\r\n" +
+		"------=_Part_TS_123--\r\n"
+
+	goMulti := "From: <abs@example.test>\r\n" +
+		"To: <kindle@example.test>\r\n" +
+		"Subject: Here is your Ebook!\r\n" +
+		"Date: Fri, 20 Nov 2026 10:00:01 +0000\r\n" +
+		"Message-ID: <go-eb-2@example.test>\r\n" +
+		"MIME-Version: 1.0\r\n" +
+		"Content-Type: multipart/mixed; boundary=goBoundary999\r\n" +
+		"\r\n" +
+		"--goBoundary999\r\n" +
+		"Content-Type: text/html; charset=utf-8\r\n" +
+		"\r\n" +
+		"<div dir=\"auto\"></div>\r\n" +
+		"--goBoundary999\r\n" +
+		"Content-Disposition: attachment; filename=\"book.epub\"\r\n" +
+		"Content-Transfer-Encoding: base64\r\n" +
+		"Content-Type: application/octet-stream; name=\"book.epub\"\r\n" +
+		"\r\n" +
+		ebookB64 + "\r\n" +
+		"--goBoundary999--\r\n"
+
+	if f := d.DiffStubs("emails-send-ebook-to-device",
+		[]StubCall{{Kind: "smtp", Method: "DATA", Path: "kindle@example.test", Body: tsMulti}},
+		[]StubCall{{Kind: "smtp", Method: "DATA", Path: "kindle@example.test", Body: goMulti}},
+	); len(f) != 0 {
+		t.Fatalf("expected semantically identical multipart SMTP emails to pass, got:\n%s", FormatFindings(f))
+	}
+
+	// Verify attachment byte mismatch still fails.
+	badMulti := strings.Replace(goMulti, ebookB64, base64.StdEncoding.EncodeToString([]byte("WRONG-PAYLOAD")), 1)
+	if f := d.DiffStubs("emails-bad-attachment",
+		[]StubCall{{Kind: "smtp", Method: "DATA", Path: "kindle@example.test", Body: tsMulti}},
+		[]StubCall{{Kind: "smtp", Method: "DATA", Path: "kindle@example.test", Body: badMulti}},
+	); len(f) != 1 || !strings.HasSuffix(f[0].Path, ".parts[1].body") {
+		t.Fatalf("expected attachment byte mismatch to fail, got:\n%s", FormatFindings(f))
+	}
+
+	// Verify filename and header mismatches still fail.
+	badNameMulti := strings.ReplaceAll(goMulti, "book.epub", "other.epub")
+	if f := d.DiffStubs("emails-bad-filename",
+		[]StubCall{{Kind: "smtp", Method: "DATA", Path: "kindle@example.test", Body: tsMulti}},
+		[]StubCall{{Kind: "smtp", Method: "DATA", Path: "kindle@example.test", Body: badNameMulti}},
+	); len(f) != 1 || !strings.HasSuffix(f[0].Path, ".parts[1].filename") {
+		t.Fatalf("expected attachment filename mismatch to fail, got:\n%s", FormatFindings(f))
+	}
+
+	badSubjPlain := strings.Replace(goPlain, "Test email from Audiobookshelf", "Wrong subject", 1)
+	if f := d.DiffStubs("emails-bad-subject",
+		[]StubCall{{Kind: "smtp", Method: "DATA", Path: "user@example.test", Body: tsPlain}},
+		[]StubCall{{Kind: "smtp", Method: "DATA", Path: "user@example.test", Body: badSubjPlain}},
+	); len(f) != 1 || !strings.HasSuffix(f[0].Path, ".subject") {
+		t.Fatalf("expected email subject mismatch to fail, got:\n%s", FormatFindings(f))
+	}
+
+	// Verify fallback to raw string diff when email headers cannot be parsed.
+	if f := d.DiffStubs("emails-unparseable-fallback",
+		[]StubCall{{Kind: "smtp", Method: "DATA", Path: "user@example.test", Body: "not-valid-rfc5322-a"}},
+		[]StubCall{{Kind: "smtp", Method: "DATA", Path: "user@example.test", Body: "not-valid-rfc5322-b"}},
+	); len(f) != 1 || f[0].Detail != "stub body mismatch" {
+		t.Fatalf("expected unparseable SMTP body to fall back to raw string diff, got:\n%s", FormatFindings(f))
+	}
+}
+
+func TestDiffStubsHTTPQueryParamCanonicalization(t *testing.T) {
+	d := NewDiffer("", "", nil)
+	tsCall := StubCall{Kind: "http", Method: "GET", Path: "/qm/search?mediaType=book&query=The+Beginning&author=Terry+Fixture"}
+	goCall := StubCall{Kind: "http", Method: "GET", Path: "/qm/search?author=Terry+Fixture&mediaType=book&query=The+Beginning"}
+
+	if f := d.DiffStubs("quick-match-saga1", []StubCall{tsCall}, []StubCall{goCall}); len(f) != 0 {
+		t.Fatalf("expected reordered query parameters to pass, got:\n%s", FormatFindings(f))
+	}
+
+	badGoCall := StubCall{Kind: "http", Method: "GET", Path: "/qm/search?author=Other+Author&mediaType=book&query=The+Beginning"}
+	if f := d.DiffStubs("quick-match-mismatch", []StubCall{tsCall}, []StubCall{badGoCall}); len(f) != 1 || f[0].Path != "calls[0].path" {
+		t.Fatalf("expected differing query parameter value to fail, got:\n%s", FormatFindings(f))
+	}
+}
+
+func TestDefaultDivergencesHTTPHeaderRules(t *testing.T) {
+	ledger := DefaultDivergences()
+	d := NewDiffer("", "", ledger)
+
+	cases := []struct {
+		name    string
+		finding Finding
+		wantAck bool
+	}{
+		{
+			name:    "accept-ranges bytes on Go vs empty on TS acknowledged",
+			finding: Finding{Step: "get-cover-raw", Surface: "http", Path: "header.Accept-Ranges", TSValue: "", GoValue: "bytes"},
+			wantAck: true,
+		},
+		{
+			name:    "accept-ranges regression empty on Go not masked",
+			finding: Finding{Step: "get-cover-raw", Surface: "http", Path: "header.Accept-Ranges", TSValue: "bytes", GoValue: ""},
+			wantAck: false,
+		},
+		{
+			name:    "backups-download application/zip acknowledged",
+			finding: Finding{Step: "backups-download", Surface: "http", Path: "header.Content-Type", TSValue: "application/octet-stream", GoValue: "application/zip"},
+			wantAck: true,
+		},
+		{
+			name:    "backups-download wrong content-type not masked",
+			finding: Finding{Step: "backups-download", Surface: "http", Path: "header.Content-Type", TSValue: "application/octet-stream", GoValue: "text/plain"},
+			wantAck: false,
+		},
+		{
+			name:    "backups-patch-path-unchanged text/plain acknowledged",
+			finding: Finding{Step: "backups-patch-path-unchanged", Surface: "http", Path: "header.Content-Type", TSValue: "text/html; charset=utf-8", GoValue: "text/plain; charset=utf-8"},
+			wantAck: true,
+		},
+		{
+			name:    "backups-patch-path-unchanged wrong content-type not masked",
+			finding: Finding{Step: "backups-patch-path-unchanged", Surface: "http", Path: "header.Content-Type", TSValue: "text/html; charset=utf-8", GoValue: "application/json"},
+			wantAck: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			unexp, ack := d.Filter([]Finding{tc.finding})
+			if tc.wantAck && (len(unexp) != 0 || len(ack) != 1) {
+				t.Fatalf("expected finding to be acknowledged, got unexp=%d ack=%d", len(unexp), len(ack))
+			}
+			if !tc.wantAck && (len(unexp) != 1 || len(ack) != 0) {
+				t.Fatalf("expected finding NOT to be acknowledged, got unexp=%d ack=%d", len(unexp), len(ack))
+			}
+		})
+	}
+}

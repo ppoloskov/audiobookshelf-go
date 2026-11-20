@@ -86,13 +86,13 @@ type apprise struct {
 	*httptest.Server
 	mu       sync.Mutex
 	status   int
-	payloads []map[string]any
+	payloads []apprisePayload
 }
 
 func newApprise(t *testing.T) *apprise {
 	a := &apprise{status: 200}
 	a.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var payload map[string]any
+		var payload apprisePayload
 		_ = json.NewDecoder(r.Body).Decode(&payload)
 		a.mu.Lock()
 		a.payloads = append(a.payloads, payload)
@@ -106,10 +106,10 @@ func newApprise(t *testing.T) *apprise {
 
 func (a *apprise) setStatus(status int) { a.mu.Lock(); a.status = status; a.mu.Unlock() }
 
-func (a *apprise) received() []map[string]any {
+func (a *apprise) received() []apprisePayload {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return append([]map[string]any(nil), a.payloads...)
+	return append([]apprisePayload(nil), a.payloads...)
 }
 
 func TestSettingsDefaultsAndPatch(t *testing.T) {
@@ -171,6 +171,9 @@ func TestCreateUpdateDelete(t *testing.T) {
 	if w := e.admin("PATCH", "/api/notifications/missing", `{}`); w.Code != 404 {
 		t.Errorf("PATCH missing: %d", w.Code)
 	}
+	if w := e.admin("PATCH", "/api/notifications/missing", ""); w.Code != 404 {
+		t.Errorf("PATCH missing empty body: %d", w.Code)
+	}
 	if w := e.admin("DELETE", "/api/notifications/missing", ""); w.Code != 404 || w.Body.String() != "Not Found" {
 		t.Fatalf("DELETE missing: %d %q", w.Code, w.Body)
 	}
@@ -217,11 +220,11 @@ func TestTriggerEventDeliversRenderedPayload(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := a.received()
-	if len(got) != 1 || got[0]["title"] != "Backup failed" || got[0]["body"] != "disk full / disk full / {{missing}}" {
+	if len(got) != 1 || got[0].Title != "Backup failed" || got[0].Body != "disk full / disk full / {{missing}}" {
 		t.Fatalf("payload: %#v", got)
 	}
-	if urls, _ := got[0]["urls"].([]any); len(urls) != 1 || urls[0] != "discord://t" {
-		t.Fatalf("urls: %#v", got[0]["urls"])
+	if len(got[0].URLs) != 1 || got[0].URLs[0] != "discord://t" {
+		t.Fatalf("urls: %#v", got[0].URLs)
 	}
 }
 
@@ -236,7 +239,7 @@ func TestTriggerEventOnlyEnabledMatching(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if got := a.received(); len(got) != 1 || got[0]["title"] != "enabled" {
+	if got := a.received(); len(got) != 1 || got[0].Title != "enabled" {
 		t.Fatalf("delivered %#v, want only the enabled match", got)
 	}
 	for _, n := range e.current().Notifications {
@@ -298,7 +301,7 @@ func TestTestNotificationRoute(t *testing.T) {
 	if w := e.admin("GET", "/api/notifications/"+n.ID+"/test", ""); w.Code != 200 || w.Body.String() != "OK" {
 		t.Fatalf("test: %d %q", w.Code, w.Body)
 	}
-	if got := a.received(); len(got) != 1 || got[0]["title"] != "Version v2.37.2" || got[0]["body"] != "Hi v2.37.2" {
+	if got := a.received(); len(got) != 1 || got[0].Title != "Version v2.37.2" || got[0].Body != "Hi v2.37.2" {
 		t.Fatalf("payload: %#v", got)
 	}
 	a.setStatus(503)
@@ -325,7 +328,7 @@ func TestTestEventRoute(t *testing.T) {
 	if w := e.admin("GET", "/api/notifications/test", ""); w.Code != 200 || w.Body.String() != "OK" {
 		t.Fatalf("test event: %d %q", w.Code, w.Body)
 	}
-	if got := a.received(); len(got) != 1 || got[0]["title"] != "v2.37.2" {
+	if got := a.received(); len(got) != 1 || got[0].Title != "v2.37.2" {
 		t.Fatalf("payload: %#v", got)
 	}
 	// ?fail=1 records a failed attempt without sending.

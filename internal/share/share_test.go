@@ -14,6 +14,7 @@ import (
 	"monstrobook/internal/auth"
 	"monstrobook/internal/db"
 	"monstrobook/internal/db/dbtest"
+	"monstrobook/internal/ids"
 )
 
 const (
@@ -271,5 +272,46 @@ func TestShareCreateValidationAndDates(t *testing.T) {
 	}
 	if share["expiresAt"] != "2100-01-01T00:00:00.000Z" {
 		t.Errorf("expiresAt = %v", share["expiresAt"])
+	}
+}
+
+func TestSharePlaybackSessionIDIsSeparateFromCookie(t *testing.T) {
+	e := newEnv(t)
+	e.share("sess-id", false)
+	cookieVal := "11111111-1111-4111-8111-111111111111"
+	cookie := &http.Cookie{Name: sessionCookie, Value: cookieVal}
+
+	w := e.do("", "GET", "/public/share/sess-id", "", cookie)
+	if w.Code != 200 {
+		t.Fatalf("get = %d %s", w.Code, w.Body)
+	}
+	var got struct {
+		PlaybackSession struct {
+			ID         string `json:"id"`
+			DeviceInfo struct {
+				DeviceID string `json:"deviceId"`
+			} `json:"deviceInfo"`
+		} `json:"playbackSession"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if !ids.ValidV4(got.PlaybackSession.ID) || got.PlaybackSession.ID == cookieVal {
+		t.Fatalf("playbackSession.id = %q, want fresh random v4 UUID != %q", got.PlaybackSession.ID, cookieVal)
+	}
+	if got.PlaybackSession.DeviceInfo.DeviceID != cookieVal {
+		t.Fatalf("deviceInfo.deviceId = %q, want %q", got.PlaybackSession.DeviceInfo.DeviceID, cookieVal)
+	}
+
+	// Reusing the same cookie returns the same open playbackSession.
+	again := e.do("", "GET", "/public/share/sess-id", "", cookie)
+	var second struct {
+		PlaybackSession struct {
+			ID string `json:"id"`
+		} `json:"playbackSession"`
+	}
+	_ = json.Unmarshal(again.Body.Bytes(), &second)
+	if second.PlaybackSession.ID != got.PlaybackSession.ID {
+		t.Fatalf("reused cookie session id = %q, want %q", second.PlaybackSession.ID, got.PlaybackSession.ID)
 	}
 }

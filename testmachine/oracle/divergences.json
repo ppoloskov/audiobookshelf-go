@@ -91,6 +91,38 @@
       "go_expect": "0 events",
       "reason": "go-backend/handover.md — Go filters podcast item_added/item_updated socket events from users without podcast library access whereas upstream SocketAuthority broadcasts them",
       "client_impact": "intentional security hardening — restricted listeners do not receive unauthorized podcast item events"
+    },
+    {
+      "id": "adj-accept-ranges",
+      "scope": "adjudication",
+      "surface": "http",
+      "field_pattern": "header.Accept-Ranges",
+      "ts_expect": "",
+      "go_expect": "bytes",
+      "reason": "http.ServeFile/http.ServeContent advertises Accept-Ranges: bytes on image, cover, and file-range responses where Express sendFile/sharp buffer or 416 responses omit it",
+      "client_impact": "positive — standards-compliant HTTP Range advertisement for media and image clients"
+    },
+    {
+      "id": "adj-backup-download-content-type",
+      "scope": "adjudication",
+      "surface": "http",
+      "step_pattern": "backups-download",
+      "field_pattern": "header.Content-Type",
+      "ts_expect": "application/octet-stream",
+      "go_expect": "application/zip",
+      "reason": "Go serves .audiobookshelf backup zip archives with accurate application/zip MIME type instead of Express application/octet-stream",
+      "client_impact": "none — clients download the .audiobookshelf archive via Content-Disposition attachment"
+    },
+    {
+      "id": "adj-backup-patch-path-unchanged-content-type",
+      "scope": "adjudication",
+      "surface": "http",
+      "step_pattern": "backups-patch-path-unchanged",
+      "field_pattern": "header.Content-Type",
+      "ts_expect": "text/html; charset=utf-8",
+      "go_expect": "text/plain; charset=utf-8",
+      "reason": "Go returns text/plain; charset=utf-8 for the plain text 'Backup path unchanged' 200 response where Express res.send(string) defaults to text/html; charset=utf-8",
+      "client_impact": "none — clients branch on HTTP 200 status for PATCH /api/backups/path"
     }
   ]
 }

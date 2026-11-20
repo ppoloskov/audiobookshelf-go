@@ -125,6 +125,18 @@ func TestUpdateMediaPodcastReschedulesOnlyWhenTheScheduleChanged(t *testing.T) {
 	if got := r.values(`SELECT title||'|'||titleIgnorePrefix||'|'||author||'|'||podcastType||'|'||genres||'|'||tags||'|'||maxEpisodesToKeep||'|'||maxNewEpisodesToDownload||'|'||autoDownloadSchedule||'|'||autoDownloadEpisodes FROM podcasts WHERE id='p1'`); got != `The Cast|Cast|Me|serial|["News"]|["x"]|5|2|0 3 * * *|1` {
 		t.Errorf("podcast row = %s", got)
 	}
+	// Clearing autoDownloadSchedule to "" stores empty text (not NULL) and reschedules once.
+	rec := r.do(rootUser, "PATCH", "/api/items/ip/media", `{"autoDownloadSchedule":""}`)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"autoDownloadSchedule":""`) {
+		t.Fatalf("clear schedule: %d %s", rec.Code, rec.Body)
+	}
+	if got := r.values(`SELECT typeof(autoDownloadSchedule)||':'||autoDownloadSchedule FROM podcasts WHERE id='p1'`); got != "text:" {
+		t.Errorf("cleared autoDownloadSchedule = %q, want text:", got)
+	}
+	patch(`{"autoDownloadSchedule":""}`)
+	if strings.Join(r.scheduled, ",") != "ip,ip,ip" {
+		t.Errorf("rescheduled after clear = %v", r.scheduled)
+	}
 }
 
 func TestBatchUpdateValidation(t *testing.T) {

@@ -13,6 +13,8 @@ import (
 	"monstrobook/internal/db"
 	"monstrobook/internal/events"
 	"monstrobook/internal/httpx"
+	"monstrobook/internal/ids"
+	"monstrobook/internal/item"
 	"monstrobook/internal/settings"
 )
 
@@ -95,6 +97,79 @@ func eventIf(changed bool, name string) string {
 	return ""
 }
 
+// patchListMeta applies optional name (tag-stripped, ignoring empty) and
+// description updates, reporting whether either field changed.
+func patchListMeta(dstName, dstDesc **string, reqName, reqDesc *string, clearEmptyDesc bool) bool {
+	changed := false
+	if name := cleanName(db.Val(reqName)); name != "" && name != db.Val(*dstName) {
+		*dstName, changed = &name, true
+	}
+	if reqDesc != nil && *reqDesc != db.Val(*dstDesc) {
+		if clearEmptyDesc {
+			*dstDesc = emptyAsNull(reqDesc)
+		} else {
+			*dstDesc = reqDesc
+		}
+		changed = true
+	}
+	return changed
+}
+
+// emitAndJSON emits event (if non-empty) and writes view as JSON.
+func emitAndJSON[V any](w http.ResponseWriter, r *http.Request, view V, emit func(string, any), event string) error {
+	if event != "" {
+		emit(event, view)
+	}
+	return httpx.JSON(w, r, view)
+}
+
+// validateCreate cleans name and checks that name, libraryID and library
+// access are valid for creating a collection or playlist.
+func validateCreate(user *auth.Principal, rawName *string, libraryID, badReqMsg string) (string, error) {
+	name := cleanName(db.Val(rawName))
+	if name == "" || libraryID == "" {
+		return "", httpx.BadRequest(badReqMsg)
+	}
+	if !user.CanAccessLibrary(libraryID) {
+		return "", httpx.Forbidden()
+	}
+	return name, nil
+}
+
+// accessibleViews builds views for rows whose library the user may access.
+func accessibleViews[R, V any](rows []R, user *auth.Principal, libID func(R) string, build func(R) (V, error)) ([]V, error) {
+	views := make([]V, 0, len(rows))
+	for _, row := range rows {
+		if !user.CanAccessLibrary(libID(row)) {
+			continue
+		}
+		view, err := build(row)
+		if err != nil {
+			return nil, err
+		}
+		views = append(views, view)
+	}
+	return views, nil
+}
+
+// loadItems loads library items by id and returns them with the server sorting prefixes.
+func (h *Handler) loadItems(ctx context.Context, itemIDs []string, opts item.Options) ([]item.Item, []string, error) {
+	loaded, err := item.Load(ctx, h.db, itemIDs, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	return loaded, h.settings.Server().SortingPrefixes, nil
+}
+
+// indexItems indexes loaded library items by library item id.
+func indexItems(items []item.Item) map[string]item.Item {
+	byID := make(map[string]item.Item, len(items))
+	for _, it := range items {
+		byID[it.ID] = it
+	}
+	return byID
+}
+
 // itemRef is what list membership depends on of a library item.
 type itemRef struct {
 	ID        string `db:"id"`
@@ -152,6 +227,9 @@ func pageOf[T any](all []T, limit, page int) []T {
 	return all[start:min(start+limit, len(all))]
 }
 
+// newEntry is a resolved member to append to a collection or playlist.
+type newEntry struct{ mediaID, mediaType string }
+
 // linkTable is an ordered membership table (collectionBooks or
 // playlistMediaItems); the names are constants, never input.
 type linkTable struct{ table, mediaCol, ownerCol string }
@@ -171,6 +249,56 @@ func (t linkTable) list(ctx context.Context, d *db.DB, owner string) ([]link, er
 	var links []link
 	err := d.Select(ctx, &links, `SELECT id, COALESCE(`+t.mediaCol+`,'') AS mediaId, COALESCE("order",0) AS "order" FROM `+t.table+` WHERE `+t.ownerCol+`=? ORDER BY "order", rowid`, owner)
 	return links, err
+}
+
+// append inserts entries into owner starting at order have + 1.
+func (t linkTable) append(ctx context.Context, d *db.DB, owner string, have int, entries []newEntry) error {
+	now := db.Now()
+	for i, e := range entries {
+		id, err := ids.New()
+		if err != nil {
+			return err
+		}
+		order := int64(have + i + 1)
+		if t.table == collectionLinks.table {
+			err = d.Insert(ctx, t.table, &db.CollectionBook{ID: id, Order: &order, CreatedAt: now, BookID: &e.mediaID, CollectionID: &owner})
+		} else {
+			err = d.Insert(ctx, t.table, &db.PlaylistMediaItem{ID: id, MediaItemID: &e.mediaID, MediaItemType: &e.mediaType, Order: &order, CreatedAt: now, PlaylistID: &owner})
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// add appends entries not yet in owner, deduplicating within the batch. If
+// dupMsg is non-empty, encountering an already-present member returns a 400
+// with dupMsg instead of skipping it.
+func (t linkTable) add(ctx context.Context, d *db.DB, owner string, entries []newEntry, dupMsg string) (int, error) {
+	links, err := t.list(ctx, d, owner)
+	if err != nil {
+		return 0, err
+	}
+	seen := make(map[string]bool, len(links)+len(entries))
+	for _, l := range links {
+		seen[l.MediaID] = true
+	}
+	fresh := make([]newEntry, 0, len(entries))
+	for _, e := range entries {
+		if seen[e.mediaID] {
+			if dupMsg != "" {
+				return 0, httpx.BadRequest(dupMsg)
+			}
+			continue
+		}
+		seen[e.mediaID] = true
+		fresh = append(fresh, e)
+	}
+	if err := t.append(ctx, d, owner, len(links), fresh); err != nil {
+		return 0, err
+	}
+	return len(fresh), nil
 }
 
 // renumber gives links the orders 1..n in slice order and reports whether any
@@ -205,9 +333,10 @@ func (t linkTable) reorder(ctx context.Context, d *db.DB, owner string, wanted [
 	return t.renumber(ctx, d, links)
 }
 
-// remove deletes the members of owner whose media id is in media, renumbers
-// the rest and returns how many were deleted and remain. Call it in a transaction.
-func (t linkTable) remove(ctx context.Context, d *db.DB, owner string, media []string) (removed, remaining int, err error) {
+// remove deletes the members of owner whose media id is in media, optionally
+// renumbers the remaining rows, and returns how many were deleted and remain.
+// Call it in a transaction.
+func (t linkTable) remove(ctx context.Context, d *db.DB, owner string, media []string, recompact bool) (removed, remaining int, err error) {
 	links, err := t.list(ctx, d, owner)
 	if err != nil {
 		return 0, 0, err
@@ -220,6 +349,8 @@ func (t linkTable) remove(ctx context.Context, d *db.DB, owner string, media []s
 			return 0, 0, err
 		}
 	}
-	_, err = t.renumber(ctx, d, kept)
+	if recompact {
+		_, err = t.renumber(ctx, d, kept)
+	}
 	return len(links) - len(kept), len(kept), err
 }

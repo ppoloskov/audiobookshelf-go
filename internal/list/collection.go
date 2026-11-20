@@ -135,11 +135,11 @@ WHERE cb.collectionId = ? ORDER BY cb."order" ASC`, row.ID)
 	if err != nil {
 		return collectionView{}, err
 	}
-	loaded, err := item.Load(ctx, h.db, itemIDs, item.Options{})
+	loaded, prefixes, err := h.loadItems(ctx, itemIDs, item.Options{})
 	if err != nil {
 		return collectionView{}, err
 	}
-	prefixes, books := h.settings.Server().SortingPrefixes, make([]item.Expanded, 0, len(loaded))
+	books := make([]item.Expanded, 0, len(loaded))
 	for _, it := range loaded {
 		if a := it.Access(); user.CanAccessItem(a.LibraryID, a.Explicit, a.Tags) {
 			books = append(books, it.Expanded(prefixes))
@@ -173,10 +173,7 @@ func (h *Handler) finish(w http.ResponseWriter, r *http.Request, user *auth.Prin
 	if err != nil {
 		return err
 	}
-	if event != "" {
-		h.emit.ToAll(event, view)
-	}
-	return httpx.JSON(w, r, view)
+	return emitAndJSON(w, r, view, h.emit.ToAll, event)
 }
 
 // collections lists the collections of libraryID ("" for every library) that
@@ -186,17 +183,9 @@ func (h *Handler) collections(ctx context.Context, user *auth.Principal, library
 	if err := h.db.Select(ctx, &rows, `SELECT * FROM collections WHERE (?='' OR libraryId=?) ORDER BY createdAt ASC`, libraryID, libraryID); err != nil {
 		return nil, err
 	}
-	views := make([]collectionView, 0, len(rows))
-	for _, row := range rows {
-		if user.CanAccessLibrary(db.Val(row.LibraryID)) {
-			view, err := h.viewOf(ctx, user, row)
-			if err != nil {
-				return nil, err
-			}
-			views = append(views, view)
-		}
-	}
-	return views, nil
+	return accessibleViews(rows, user, func(r db.Collection) string { return db.Val(r.LibraryID) }, func(r db.Collection) (collectionView, error) {
+		return h.viewOf(ctx, user, r)
+	})
 }
 
 func (h *Handler) listCollections(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
@@ -272,21 +261,6 @@ func (h *Handler) getCollection(w http.ResponseWriter, r *http.Request, user *au
 	return httpx.JSON(w, r, view)
 }
 
-// insertBooks appends books to a collection that already has have of them.
-func (h *Handler) insertBooks(ctx context.Context, collectionID string, have int, bookIDs []string) error {
-	for i, bookID := range bookIDs {
-		id, err := ids.New()
-		if err != nil {
-			return err
-		}
-		order := int64(have + i + 1)
-		if err := h.db.Insert(ctx, "collectionBooks", &db.CollectionBook{ID: id, Order: &order, CreatedAt: db.Now(), BookID: &bookID, CollectionID: &collectionID}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // createCollection serves POST /api/collections (update permission). Every
 // book must be a book of the collection's library.
 func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
@@ -297,12 +271,9 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 	if err != nil {
 		return err
 	}
-	name := cleanName(db.Val(req.Name))
-	if name == "" || req.LibraryID == "" {
-		return httpx.BadRequest("Invalid collection data")
-	}
-	if !user.CanAccessLibrary(req.LibraryID) {
-		return httpx.Forbidden()
+	name, err := validateCreate(user, req.Name, req.LibraryID, "Invalid collection data")
+	if err != nil {
+		return err
 	}
 	if len(req.Books) == 0 {
 		return httpx.BadRequest("Invalid collection data. No books")
@@ -311,13 +282,13 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 	if err != nil {
 		return err
 	}
-	bookIDs := make([]string, len(req.Books))
+	entries := make([]newEntry, len(req.Books))
 	for i, id := range req.Books {
 		ref, ok := refs[id]
 		if !ok || ref.MediaType != "book" || ref.LibraryID != req.LibraryID {
 			return httpx.BadRequest("Invalid collection data. Invalid books")
 		}
-		bookIDs[i] = ref.MediaID
+		entries[i] = newEntry{ref.MediaID, "book"}
 	}
 	id, now := "", db.Now()
 	err = h.db.Tx(r.Context(), func(ctx context.Context) (err error) {
@@ -328,7 +299,7 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 		if err = h.db.Insert(ctx, "collections", &row); err != nil {
 			return err
 		}
-		return h.insertBooks(ctx, id, 0, bookIDs)
+		return collectionLinks.append(ctx, h.db, id, 0, entries)
 	})
 	if err != nil {
 		return err
@@ -349,12 +320,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 	}
 	changed := false
 	err = h.db.Tx(r.Context(), func(ctx context.Context) error {
-		if name := cleanName(db.Val(req.Name)); name != "" && name != db.Val(row.Name) {
-			row.Name, changed = &name, true
-		}
-		if req.Description != nil && *req.Description != db.Val(row.Description) {
-			row.Description, changed = req.Description, true
-		}
+		changed = patchListMeta(&row.Name, &row.Description, req.Name, req.Description, false)
 		if len(req.Books) > 0 {
 			wanted := make([]string, len(req.Books))
 			for i, id := range req.Books {
@@ -432,10 +398,7 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user
 	case ref.MediaType != "book":
 		return httpx.Error(http.StatusNotFound, "Book not found")
 	}
-	changed, err := h.changeBooks(r.Context(), row, []string{req.ID}, true)
-	if err == nil && changed == 0 {
-		err = httpx.BadRequest("Book already in collection")
-	}
+	changed, err := h.changeBooks(r.Context(), row, []string{req.ID}, true, "Book already in collection")
 	return h.respondBooks(w, r, user, row.ID, changed, err)
 }
 
@@ -453,7 +416,7 @@ func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request, u
 	if _, ok := refs[itemID]; !ok {
 		return httpx.NotFound()
 	}
-	changed, err := h.changeBooks(r.Context(), row, []string{itemID}, false)
+	changed, err := h.changeBooks(r.Context(), row, []string{itemID}, false, "")
 	return h.respondBooks(w, r, user, row.ID, changed, err)
 }
 
@@ -470,44 +433,36 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 	if len(req.Books) == 0 {
 		return httpx.BadRequest("Invalid request body")
 	}
-	changed, err := h.changeBooks(r.Context(), row, req.Books, action == "add")
+	changed, err := h.changeBooks(r.Context(), row, req.Books, action == "add", "")
 	return h.respondBooks(w, r, user, row.ID, changed, err)
 }
 
 // changeBooks adds the books among the given items to the collection (those of
 // its library, not yet in it) or removes them, and answers with the collection;
 // a change that did nothing is not announced. Items that are not books are skipped.
-func (h *Handler) changeBooks(ctx context.Context, row db.Collection, itemIDs []string, add bool) (changed int, err error) {
+func (h *Handler) changeBooks(ctx context.Context, row db.Collection, itemIDs []string, add bool, dupMsg string) (changed int, err error) {
 	refs, err := h.itemRefs(ctx, itemIDs...)
 	if err != nil {
 		return 0, err
 	}
-	var bookIDs []string // in request order
+	var bookIDs []string
+	var entries []newEntry
 	for _, id := range itemIDs {
 		if ref, ok := refs[id]; ok && ref.MediaType == "book" && (!add || ref.LibraryID == db.Val(row.LibraryID)) {
 			bookIDs = append(bookIDs, ref.MediaID)
+			entries = append(entries, newEntry{ref.MediaID, "book"})
 		}
 	}
-	if add && len(bookIDs) == 0 {
+	if add && len(entries) == 0 {
 		return 0, httpx.BadRequest("Invalid request body. No valid books")
 	}
 	err = h.db.Tx(ctx, func(ctx context.Context) (err error) {
 		if !add {
-			changed, _, err = collectionLinks.remove(ctx, h.db, row.ID, bookIDs)
+			changed, _, err = collectionLinks.remove(ctx, h.db, row.ID, bookIDs, true)
 			return err
 		}
-		links, err := collectionLinks.list(ctx, h.db, row.ID)
-		if err != nil {
-			return err
-		}
-		var fresh []string
-		for _, id := range bookIDs {
-			if !slices.ContainsFunc(links, func(l link) bool { return l.MediaID == id }) && !slices.Contains(fresh, id) {
-				fresh = append(fresh, id)
-			}
-		}
-		changed = len(fresh)
-		return h.insertBooks(ctx, row.ID, len(links), fresh)
+		changed, err = collectionLinks.add(ctx, h.db, row.ID, entries, dupMsg)
+		return err
 	})
 	return changed, err
 }

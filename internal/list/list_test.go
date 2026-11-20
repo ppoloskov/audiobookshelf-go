@@ -162,6 +162,27 @@ func TestPlaylistRemoveItemRemovesEmptiedPlaylist(t *testing.T) {
 	}
 }
 
+// POST /api/playlists/{id}/batch/remove deletes matching entries without
+// re-compacting the order column of remaining rows (matching PlaylistController.removeBatch).
+func TestPlaylistBatchRemoveKeepsRemainingOrder(t *testing.T) {
+	r := newRig(t)
+	r.addBook("item-3", "book-3", "Third", false)
+	r.playlist("pl", "book-1", "book-2", "book-3")
+
+	if w := r.do("owner", "POST", "/api/playlists/pl/batch/remove", `{"items":[{"libraryItemId":"item-2"}]}`); w.Code != 200 {
+		t.Fatalf("batch remove: %d %s", w.Code, w.Body)
+	}
+	if got := r.count(`SELECT "order" FROM playlistMediaItems WHERE playlistId='pl' AND mediaItemId='book-1'`); got != 1 {
+		t.Fatalf("book-1 order = %d, want 1", got)
+	}
+	if got := r.count(`SELECT "order" FROM playlistMediaItems WHERE playlistId='pl' AND mediaItemId='book-3'`); got != 3 {
+		t.Fatalf("book-3 order = %d, want 3 (no re-compaction)", got)
+	}
+	if ev := r.take(); len(ev) != 1 || ev[0].event != "playlist_updated" || ev[0].audience != "owner" {
+		t.Fatalf("events %+v", ev)
+	}
+}
+
 // Only the owner may touch a playlist; deleting it drops its entries, not the items.
 func TestPlaylistDeleteIsOwnerOnlyAndKeepsItems(t *testing.T) {
 	r := newRig(t)
