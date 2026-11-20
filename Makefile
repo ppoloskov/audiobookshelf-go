@@ -7,7 +7,7 @@ ORACLE_ARGS ?=
 .PHONY: build test upstream check verify oracle openapi oracle-unit oracle-routes client-audit web-e2e nix-shell nix-verify nix-test
 
 build:
-	go build -o monstrobook ./cmd/monstrobook
+	CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o monstrobook ./cmd/monstrobook
 
 test:
 	go test ./... -count=1
