@@ -201,7 +201,10 @@ func (h *Handler) syncLocal(r *http.Request, user *auth.Principal, upload localS
 		// recompute them from updatedAt (PlaybackSessionManager.js:182, :212).
 		s.Date, s.DayOfWeek = cmp.Or(upload.Date, s.Date), cmp.Or(upload.DayOfWeek, s.DayOfWeek)
 	}
-	s.DisplayTitle, s.DisplayAuthor = cmp.Or(upload.DisplayTitle, m.title), cmp.Or(upload.DisplayAuthor, m.author)
+	// Upstream falls back to libraryItem.title and libraryItem.authorNamesFirstLast
+	// (PlaybackSessionManager.js:197-202), not episode title or podcast.author.
+	s.DisplayTitle = cmp.Or(upload.DisplayTitle, db.Val(m.item.Title))
+	s.DisplayAuthor = cmp.Or(upload.DisplayAuthor, db.Val(m.item.AuthorNamesFirstLast))
 	s.CoverPath = upload.CoverPath // the client's, not the item's
 	s.MediaPlayer, s.PlayMethod = cmp.Or(upload.MediaPlayer, "unknown"), playLocal
 	if upload.PlayMethod != nil {

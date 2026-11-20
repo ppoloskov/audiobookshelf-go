@@ -209,6 +209,14 @@ func TestSortsOrderItemsByTheirKey(t *testing.T) {
 		// Series sequence within s2: b4 #1, b5 #2.5, b3 #3.
 		{"sequence in series", "sort=sequence&desc=0&filter=series." + b64("s2"), false, []string{"i4", "i5", "i3"}},
 		{"sequence in series desc", "sort=sequence&desc=1&filter=series." + b64("s2"), false, []string{"i3", "i5", "i4"}},
+		// Author sort breaks ties by title in the same direction (respecting sortingIgnorePrefix).
+		// a1 books: b1 ("The Alpha"), b3 ("A Gamma"), b5 ("Epsilon"); a2 books: b2 ("Beta"), b4 ("delta").
+		{"authorName asc", "sort=media.metadata.authorName&desc=0", false, []string{"i6", "i3", "i5", "i1", "i2", "i4"}},
+		{"authorName asc ignore prefix", "sort=media.metadata.authorName&desc=0", true, []string{"i6", "i1", "i5", "i3", "i2", "i4"}},
+		{"authorName desc", "sort=media.metadata.authorName&desc=1", false, []string{"i4", "i2", "i1", "i5", "i3", "i6"}},
+		{"authorNameLF asc", "sort=media.metadata.authorNameLF&desc=0", false, []string{"i6", "i3", "i5", "i1", "i2", "i4"}},
+		// Series filter without sort orders by sequence ASC NULLS LAST; with non-sequence sort it breaks ties by sequence.
+		{"series filter default sequence", "filter=series." + b64("s2"), false, []string{"i4", "i5", "i3"}},
 		{"page", "sort=addedAt&limit=2&page=1", false, []string{"i3", "i4"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -687,5 +695,144 @@ func TestSearch(t *testing.T) {
 		if got := r.status(root, "GET", "/api/libraries/l1/search?q="+q, ""); got != 400 {
 			t.Errorf("empty query answered %d", got)
 		}
+	}
+}
+
+func TestSeriesFilterEnrichesMetadataSeriesAndBreaksTiesBySequence(t *testing.T) {
+	d := seeded(t)
+	s := seeder{t, d}
+	// Make i3 and i4 share the same createdAt so sort=addedAt ties and falls back to sequence (#1 before #3).
+	s.exec(`UPDATE libraryItems SET createdAt='2024-01-01T00:00:00Z' WHERE id IN ('i3','i4')`)
+	// Empty string sequence in bookSeries should serialize as null on media.metadata.series.
+	s.exec(`UPDATE bookSeries SET sequence='' WHERE bookId='b5' AND seriesId='s2'`)
+	r, root := newRigOn(t, d), users()["root"]
+
+	var page struct {
+		Results []struct {
+			ID    string `json:"id"`
+			Media struct {
+				Metadata struct {
+					SeriesName string `json:"seriesName"`
+					Series     *struct {
+						ID       string  `json:"id"`
+						Name     string  `json:"name"`
+						Sequence *string `json:"sequence"`
+					} `json:"series"`
+				} `json:"metadata"`
+			} `json:"media"`
+		} `json:"results"`
+	}
+	r.get(root, "/api/libraries/l1/items?sort=addedAt&filter=series."+b64("s2"), &page)
+	if len(page.Results) != 3 {
+		t.Fatalf("got %d results, want 3", len(page.Results))
+	}
+	// i4 (#1) and i3 (#3) tie on addedAt so sequence puts i4 first, i3 second; i5 has empty sequence -> NULLS LAST.
+	if page.Results[0].ID != "i4" || page.Results[1].ID != "i3" || page.Results[2].ID != "i5" {
+		t.Fatalf("order = [%s %s %s], want [i4 i3 i5]", page.Results[0].ID, page.Results[1].ID, page.Results[2].ID)
+	}
+	for _, res := range page.Results {
+		ser := res.Media.Metadata.Series
+		if ser == nil || ser.ID != "s2" || ser.Name != "The Beta Cycle" {
+			t.Fatalf("%s metadata.series = %+v", res.ID, ser)
+		}
+		if res.Media.Metadata.SeriesName == "" {
+			t.Errorf("%s lost metadata.seriesName", res.ID)
+		}
+		if res.ID == "i4" && (ser.Sequence == nil || *ser.Sequence != "1") {
+			t.Errorf("i4 sequence = %v, want 1", ser.Sequence)
+		}
+		if res.ID == "i5" && ser.Sequence != nil {
+			t.Errorf("i5 empty sequence = %q, want nil", *ser.Sequence)
+		}
+	}
+}
+
+func TestFeedOpenFilterAttachesFeedAndUsesFeedOrder(t *testing.T) {
+	d := seeded(t)
+	s := seeder{t, d}
+	// Open a second feed on i1 AFTER feed-i2: feed-open scans feeds in rowid order (i2 then i1).
+	s.ins("feeds", "id", "feed-i1", "entityType", "libraryItem", "entityId", "i1", "feedURL", "/feed/i1", "title", "Alpha", "preventIndexing", 0, "createdAt", old, "updatedAt", old)
+	r, root := newRigOn(t, d), users()["root"]
+
+	var page struct {
+		Include string `json:"include"`
+		Results []struct {
+			ID      string `json:"id"`
+			RSSFeed *struct {
+				ID         string  `json:"id"`
+				EntityType *string `json:"entityType"`
+				EntityID   *string `json:"entityId"`
+				FeedURL    *string `json:"feedUrl"`
+				Meta       struct {
+					Title *string `json:"title"`
+				} `json:"meta"`
+			} `json:"rssFeed"`
+		} `json:"results"`
+	}
+	r.get(root, "/api/libraries/l1/items?filter=feed-open", &page)
+	if page.Include != "" {
+		t.Errorf("include = %q, want empty", page.Include)
+	}
+	if len(page.Results) != 2 || page.Results[0].ID != "i2" || page.Results[1].ID != "i1" {
+		t.Fatalf("feed-open results = %+v, want [i2 i1]", page.Results)
+	}
+	if page.Results[0].RSSFeed == nil || page.Results[0].RSSFeed.ID != "feed-i2" || page.Results[1].RSSFeed == nil || page.Results[1].RSSFeed.ID != "feed-i1" {
+		t.Fatalf("rssFeed missing: %+v", page.Results)
+	}
+
+	// Podcast feed-open also attaches rssFeed without include=rssfeed.
+	r.get(root, "/api/libraries/l2/items?filter=feed-open", &page)
+	if len(page.Results) != 1 || page.Results[0].ID != "pip2" || page.Results[0].RSSFeed == nil || page.Results[0].RSSFeed.ID != "feed-pip2" {
+		t.Fatalf("podcast feed-open results = %+v", page.Results)
+	}
+}
+
+func TestUnsortedItemsMatchMediaIDIndexOrder(t *testing.T) {
+	d := dbtest.New(t)
+	s := seeder{t, d}
+	s.ins("users", "id", rootID, "username", "root", "type", "root", "isActive", 1, "permissions", "{}", "createdAt", old, "updatedAt", old)
+	s.ins("libraries", "id", "lib", "name", "Lib", "displayOrder", 1, "mediaType", "book", "provider", "google", "settings", "{}", "extraData", "{}", "createdAt", old, "updatedAt", old)
+	s.ins("libraryFolders", "id", "f", "path", "/books", "libraryId", "lib", "createdAt", old, "updatedAt", old)
+	s.author("au1", "Ada Example", "Example, Ada", "lib", old)
+	s.author("au2", "Zed Fixture", "Fixture, Zed", "lib", old)
+	s.series("ser-long", "Long Saga", "Long Saga", "lib", old)
+	s.series("ser-alpha", "Oracle Subseries Alpha", "Oracle Subseries Alpha", "lib", old)
+	// Insert book with lexicographically larger book ID FIRST so rowid order != mediaId order.
+	s.book(bookRow{id: "b-zzzz", itemID: "li-first", title: "Single File Novel", titleIgnore: "Single File Novel", narrators: "[]", audio: "[]", ebook: "null", tags: "[]", genres: "[]", files: "[]", created: old, lib: "lib", folder: "f", mtimeDay: 1})
+	s.book(bookRow{id: "b-aaaa", itemID: "li-second", title: "Ebook Only", titleIgnore: "Ebook Only", narrators: "[]", audio: "[]", ebook: "null", tags: "[]", genres: "[]", files: "[]", created: old, lib: "lib", folder: "f", mtimeDay: 1})
+	s.linkAuthor("b-zzzz", "au1")
+	s.linkAuthor("b-aaaa", "au2")
+	s.linkSeries("b-zzzz", "ser-long", "1")
+	s.linkSeries("b-aaaa", "ser-long", "2")
+	s.linkSeries("b-aaaa", "ser-alpha", "1")
+
+	r, root := newRigOn(t, d), users()["root"]
+	// Even though b-aaaa has author "Zed Fixture" (later alphabetically) and later rowid,
+	// unsorted collapseseries=1&desc=1 scans library_items_library_id_media_id_media_type -> b-aaaa before b-zzzz.
+	var page struct {
+		Results []struct {
+			ID              string `json:"id"`
+			CollapsedSeries *struct {
+				Name     string `json:"name"`
+				NumBooks int    `json:"numBooks"`
+			} `json:"collapsedSeries"`
+		} `json:"results"`
+	}
+	r.get(root, "/api/libraries/lib/items?collapseseries=1&desc=1", &page)
+	if len(page.Results) != 2 || page.Results[0].ID != "li-second" || page.Results[1].ID != "li-first" {
+		t.Fatalf("collapsed desc order = %+v, want [li-second li-first]", page.Results)
+	}
+	if page.Results[0].CollapsedSeries == nil || page.Results[0].CollapsedSeries.Name != "Oracle Subseries Alpha" || page.Results[0].CollapsedSeries.NumBooks != 1 {
+		t.Errorf("first collapsedSeries = %+v", page.Results[0].CollapsedSeries)
+	}
+	if page.Results[1].CollapsedSeries == nil || page.Results[1].CollapsedSeries.Name != "Long Saga" || page.Results[1].CollapsedSeries.NumBooks != 2 {
+		t.Errorf("second collapsedSeries = %+v", page.Results[1].CollapsedSeries)
+	}
+
+	// Same for author filter without sort: both books share au1, b-aaaa comes before b-zzzz.
+	s.linkAuthor("b-aaaa", "au1")
+	ids, _ := r.items(root, "/api/libraries/lib/items?filter=authors."+b64("au1"))
+	if !slices.Equal(ids, []string{"li-second", "li-first"}) {
+		t.Errorf("author filter unsorted = %v, want [li-second li-first]", ids)
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"monstrobook/internal/events"
 	"monstrobook/internal/filterdata"
 	"monstrobook/internal/httpx"
+	"monstrobook/internal/item"
 	"monstrobook/internal/library"
 	"monstrobook/internal/settings"
 )
@@ -75,3 +76,36 @@ func page[T any](list []T, pageNo, limit int) []T {
 
 // isAdmin is an active root or admin user (the web client's admin checks).
 func isAdmin(user *auth.Principal) bool { return user.IsAdmin() && bool(user.IsActive) }
+
+func sortDir(desc bool) string {
+	if desc {
+		return "DESC"
+	}
+	return "ASC"
+}
+
+func pagedQuery(query string, args []any, s library.Scope) (string, []any) {
+	if s.Limit > 0 {
+		return query + ` LIMIT ? OFFSET ?`, append(args, s.Limit, s.Page*s.Limit)
+	}
+	return query, args
+}
+
+func updateBookMedia(row *item.Minified, fn func(*item.BookMinified)) {
+	if media, ok := row.Media.(item.BookMinified); ok {
+		fn(&media)
+		row.Media = media
+	}
+}
+
+func seriesRefOf(it item.Item, seriesID string) (item.SeriesRef, bool) {
+	if it.Book == nil {
+		return item.SeriesRef{}, false
+	}
+	for _, ref := range it.Book.Series {
+		if ref.ID == seriesID {
+			return ref, true
+		}
+	}
+	return item.SeriesRef{}, false
+}

@@ -106,11 +106,12 @@ var filterDefs = map[string]filterDef{
 }
 
 type sortDef struct {
-	expr     string // ORDER BY expression
-	books    string // expression for book libraries when it differs
-	prefixed string // expression when the server ignores title prefixes
-	bookOnly bool   // podcast libraries add no ORDER BY
-	nulls    string // "flip": NULLS LAST ascending, FIRST descending; "last": always last
+	expr      string // ORDER BY expression
+	books     string // expression for book libraries when it differs
+	prefixed  string // expression when the server ignores title prefixes
+	bookOnly  bool   // podcast libraries add no ORDER BY
+	thenTitle bool   // secondary sort by title (libraryItemsBookFilters.js:277-283)
+	nulls     string // "flip": NULLS LAST ascending, FIRST descending; "last": always last
 }
 
 func progressSort(column string) sortDef {
@@ -128,8 +129,8 @@ var sortDefs = map[string]sortDef{
 	"media.metadata.title":         {expr: "li.title COLLATE NOCASE", prefixed: "li.titleIgnorePrefix COLLATE NOCASE"},
 	"media.duration":               {expr: "b.duration", bookOnly: true},
 	"media.metadata.publishedYear": {expr: "CAST(b.publishedYear AS INTEGER)", bookOnly: true},
-	"media.metadata.authorName":    {expr: "li.authorNamesFirstLast COLLATE NOCASE", bookOnly: true},
-	"media.metadata.authorNameLF":  {expr: "li.authorNamesLastFirst COLLATE NOCASE", bookOnly: true},
+	"media.metadata.authorName":    {expr: "li.authorNamesFirstLast COLLATE NOCASE", bookOnly: true, thenTitle: true},
+	"media.metadata.authorNameLF":  {expr: "li.authorNamesLastFirst COLLATE NOCASE", bookOnly: true, thenTitle: true},
 	"sequence":                     {expr: `CAST((SELECT bs.sequence FROM bookSeries bs WHERE bs.bookId=b.id AND bs.seriesId=:v LIMIT 1) AS FLOAT)`, bookOnly: true, nulls: "flip"},
 	"progress":                     progressSort("updatedAt"),
 	"progress.updatedAt":           progressSort("updatedAt"),
@@ -216,44 +217,75 @@ func filterSQL(raw string, podcast bool, user *auth.Principal) (string, []any, e
 	return bind(clause, value, user)
 }
 
-// orderSQL is the ORDER BY clause of a sort key. A book library answers 400
-// for an unknown key; a podcast library adds no ORDER BY for one.
-func orderSQL(sortBy, filter string, desc, ignorePrefix, podcast bool, user *auth.Principal) (string, []any, error) {
-	if sortBy == "" {
-		return "", nil, nil
+func titleColumn(ignorePrefix bool) string {
+	if ignorePrefix {
+		return "li.titleIgnorePrefix"
 	}
-	value := ""
-	if rest, ok := strings.CutPrefix(filter, "series."); ok {
-		value = decodeValue(rest)
-	} else if sortBy == "sequence" && !podcast {
+	return "li.title"
+}
+
+// seriesFilterID returns the decoded series id when filter is "series.<id>"
+// (excluding "series.no-series").
+func seriesFilterID(filter string) (string, bool) {
+	rest, ok := strings.CutPrefix(filter, "series.")
+	if !ok {
+		return "", false
+	}
+	id := decodeValue(rest)
+	return id, id != "no-series"
+}
+
+// orderSQL is the ORDER BY clause of a sort key. A book library answers 400
+// for an unknown key; a podcast library adds no ORDER BY for one. Filtering by
+// a specific series adds a secondary ascending sort by sequence
+// (libraryItemsBookFilters.js:504-507).
+func orderSQL(sortBy, filter string, desc, ignorePrefix, podcast bool, user *auth.Principal) (string, []any, error) {
+	seriesID, hasSeriesFilter := seriesFilterID(filter)
+	if sortBy == "sequence" && !podcast && !strings.HasPrefix(filter, "series.") {
 		sortBy = "media.metadata.title"
 	}
-	def, ok := sortDefs[sortBy]
-	if !ok && !podcast {
-		return "", nil, httpx.BadRequest("unsupported sort field")
+	var terms []string
+	var args []any
+	if sortBy != "" {
+		def, ok := sortDefs[sortBy]
+		if !ok && !podcast {
+			return "", nil, httpx.BadRequest("unsupported sort field")
+		}
+		if ok && !(podcast && def.bookOnly) {
+			expr := def.expr
+			switch {
+			case ignorePrefix && def.prefixed != "":
+				expr = def.prefixed
+			case !podcast && def.books != "":
+				expr = def.books
+			}
+			dir := sortDir(desc)
+			nullClause := ""
+			switch def.nulls {
+			case "flip":
+				nullClause = map[bool]string{false: " NULLS LAST", true: " NULLS FIRST"}[desc]
+			case "last":
+				nullClause = " NULLS LAST"
+			}
+			clause, exprArgs, err := bind(expr, seriesID, user)
+			if err != nil {
+				return "", nil, err
+			}
+			terms = append(terms, clause+" "+dir+nullClause)
+			args = append(args, exprArgs...)
+			if def.thenTitle {
+				terms = append(terms, titleColumn(ignorePrefix)+" COLLATE NOCASE "+dir)
+			}
+		}
 	}
-	if !ok || (podcast && def.bookOnly) {
+	if !podcast && hasSeriesFilter && sortBy != "sequence" {
+		terms = append(terms, `CAST((SELECT bs.sequence FROM bookSeries bs WHERE bs.bookId=b.id AND bs.seriesId=? LIMIT 1) AS FLOAT) ASC NULLS LAST`)
+		args = append(args, seriesID)
+	}
+	if len(terms) == 0 {
 		return "", nil, nil
 	}
-	expr := def.expr
-	switch {
-	case ignorePrefix && def.prefixed != "":
-		expr = def.prefixed
-	case !podcast && def.books != "":
-		expr = def.books
-	}
-	dir := "ASC"
-	if desc {
-		dir = "DESC"
-	}
-	switch def.nulls {
-	case "flip":
-		dir += map[bool]string{false: " NULLS LAST", true: " NULLS FIRST"}[desc]
-	case "last":
-		dir += " NULLS LAST"
-	}
-	clause, args, err := bind(expr, value, user)
-	return " ORDER BY " + clause + " " + dir, args, err
+	return " ORDER BY " + strings.Join(terms, ", "), args, nil
 }
 
 // decodeValue decodes a filter value: base64, standard or URL-safe alphabet,

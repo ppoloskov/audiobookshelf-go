@@ -64,12 +64,8 @@ type subSeries struct {
 }
 
 func (b *subBook) ref(seriesID string) item.SeriesRef {
-	for _, ref := range b.it.Book.Series {
-		if ref.ID == seriesID {
-			return ref
-		}
-	}
-	return item.SeriesRef{}
+	ref, _ := seriesRefOf(b.it, seriesID)
+	return ref
 }
 
 // collapsedSubseries is libraryItem.collapsedSeries of such a page
@@ -122,10 +118,7 @@ func (h *Handler) subseriesPage(w http.ResponseWriter, r *http.Request, s librar
 	out.Results = make([]item.Minified, len(books))
 	for i, b := range books {
 		row := b.it.Minified(prefixes)
-		if media, ok := row.Media.(item.BookMinified); ok {
-			media.Metadata.Series = b.ref(seriesID)
-			row.Media = media
-		}
+		updateBookMedia(&row, func(m *item.BookMinified) { m.Metadata.Series = b.ref(seriesID) })
 		if c := b.collapsed; c != nil {
 			itemIDs := make([]string, len(c.books))
 			for j, member := range c.books {

@@ -246,11 +246,10 @@ func (e *shelfEnv) continueSeries() (any, int, int, error) {
 	}
 	_, rows, err := e.items(ids, itemExtras{rssFeed: e.extras.rssFeed})
 	for i := range rows {
-		if media, ok := rows[i].Media.(item.BookMinified); ok {
+		updateBookMedia(&rows[i], func(m *item.BookMinified) {
 			// book.series is emptied before minifying, then metadata.series is the continued series.
-			media.Metadata.SeriesName, media.Metadata.Series = "", chosen[i]
-			rows[i].Media = media
-		}
+			m.Metadata.SeriesName, m.Metadata.Series = "", chosen[i]
+		})
 	}
 	return rows, len(rows), total, err
 }
@@ -301,9 +300,9 @@ func (e *shelfEnv) recentSeries() (any, int, int, error) {
 	byID := make(map[string]item.Minified, len(loaded))
 	for _, it := range loaded {
 		row := it.Minified(e.prefixes)
-		media := row.Media.(item.BookMinified)
-		media.Metadata.AuthorName, media.Metadata.AuthorNameLF, media.Metadata.SeriesName = "", "", ""
-		row.Media = media
+		updateBookMedia(&row, func(m *item.BookMinified) {
+			m.Metadata.AuthorName, m.Metadata.AuthorNameLF, m.Metadata.SeriesName = "", "", ""
+		})
 		byID[it.ID] = row
 	}
 	bookIDs := bookIDsBySequence(linked)

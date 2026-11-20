@@ -39,12 +39,12 @@ type startRequest struct {
 
 // onlineUser is the payload of user_stream_update (OnlineUserDTO).
 type onlineUser struct {
-	ID        string  `json:"id"`
-	Username  string  `json:"username"`
-	Type      string  `json:"type"`
-	Session   Session `json:"session"`
-	LastSeen  *int64  `json:"lastSeen"`
-	CreatedAt *int64  `json:"createdAt"`
+	ID        string   `json:"id"`
+	Username  string   `json:"username"`
+	Type      string   `json:"type"`
+	Session   *Session `json:"session"`
+	LastSeen  *int64   `json:"lastSeen"`
+	CreatedAt *int64   `json:"createdAt"`
 }
 
 // start is POST /api/items/{id}[/play/{episodeId}]: the user must have access to
@@ -112,11 +112,11 @@ func (h *Handler) start(w http.ResponseWriter, r *http.Request, user *auth.Princ
 		stream.start()
 	}
 	slog.Debug("playback session started", "session", s.ID, "user", user.ID, "item", m.item.ID, "playMethod", s.PlayMethod, "device", device.description())
-	h.emit.ToAdmins("user_stream_update", onlineUserOf(user, announce))
+	h.emit.ToAdmins("user_stream_update", onlineUserOf(user, &announce))
 	return httpx.JSON(w, r, response)
 }
 
-func onlineUserOf(user *auth.Principal, session Session) onlineUser {
+func onlineUserOf(user *auth.Principal, session *Session) onlineUser {
 	out := onlineUser{ID: user.ID, Username: db.Val(user.Username), Type: db.Val(user.Type), Session: session}
 	if !user.LastSeen.IsZero() && user.LastSeen.Millis() != 0 {
 		out.LastSeen = db.Ptr(user.LastSeen.Millis())
@@ -125,6 +125,19 @@ func onlineUserOf(user *auth.Principal, session Session) onlineUser {
 		out.CreatedAt = db.Ptr(user.CreatedAt.Millis())
 	}
 	return out
+}
+
+// userStreamSession returns the user's first open session formatted for
+// user_stream_update (toJSONForClient with null libraryItem), or nil.
+func (h *Handler) userStreamSession(userID string) *Session {
+	for _, open := range h.snapshot() {
+		if open.UserID == userID {
+			view := open.forClient()
+			view.LibraryItem = item.JSONNull
+			return &view
+		}
+	}
+	return nil
 }
 
 // allSupported reports whether the client can play every file as is.
@@ -251,8 +264,10 @@ func (h *Handler) closeSession(w http.ResponseWriter, r *http.Request, user *aut
 	if err != nil {
 		return err
 	}
-	h.remove(s.ID)
+	// Upstream emits user_stream_update before removing the session from memory.
+	h.emit.ToAdmins("user_stream_update", onlineUserOf(user, h.userStreamSession(user.ID)))
 	h.emit.ToUser(s.UserID, "user_session_closed", s.ID)
+	h.remove(s.ID)
 	return ok(w)
 }
 

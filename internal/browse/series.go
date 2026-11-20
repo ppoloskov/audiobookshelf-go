@@ -102,9 +102,10 @@ type seriesPage struct {
 // Series sort keys. A podcast library has no series rows, so the same query
 // yields the empty list.
 const (
-	seriesBookCount = `(SELECT COUNT(*) FROM bookSeries bs WHERE bs.seriesId=s.id)`
-	seriesDuration  = `(SELECT COALESCE(SUM(b.duration),0) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id)`
-	seriesLastAdded = `(SELECT MAX(b.createdAt) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id)`
+	seriesBookCount   = `(SELECT COUNT(*) FROM bookSeries bs WHERE bs.seriesId=s.id)`
+	seriesDuration    = `(SELECT COALESCE(SUM(b.duration),0) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id)`
+	seriesLastAdded   = `(SELECT MAX(b.createdAt) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id)`
+	seriesLastUpdated = `(SELECT MAX(b.updatedAt) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id)`
 )
 
 // seriesFilter turns the series filter into clauses on the books b of a
@@ -152,32 +153,37 @@ func (h *Handler) seriesList(w http.ResponseWriter, r *http.Request, s library.S
 	if none != "" {
 		where, args = where+` AND NOT EXISTS `+books+none+`)`, append(args, noneArgs...)
 	}
-	dir := "ASC"
-	if desc {
-		dir = "DESC"
-	}
-	key := map[string]string{"name": `s.name COLLATE NOCASE`, "addedAt": `s.createdAt`, "numBooks": seriesBookCount,
-		"totalDuration": seriesDuration, "lastBookAdded": seriesLastAdded}[sortBy]
+	include := includes(r)
+	dir := sortDir(desc)
+	key := map[string]string{
+		"name":            `s.name COLLATE NOCASE`,
+		"addedAt":         `s.createdAt`,
+		"numBooks":        seriesBookCount,
+		"totalDuration":   seriesDuration,
+		"lastBookAdded":   seriesLastAdded,
+		"lastBookUpdated": seriesLastUpdated,
+	}[sortBy]
 	if server.SortingIgnorePrefix && sortBy == "name" {
 		key = `s.nameIgnorePrefix COLLATE NOCASE`
 	}
 	order := ` ORDER BY s.rowid`
-	if key != "" {
-		order = ` ORDER BY ` + key + ` ` + dir + `, s.rowid ` + dir // ties by creation, like upstream's stable ORDER BY
+	switch {
+	case sortBy == "random":
+		order = ` ORDER BY RANDOM()`
+	case key != "":
+		// Ties stay in series scan order (rowid ASC), matching SQLite's stable sort in seriesFilters.js.
+		order = ` ORDER BY ` + key + ` ` + dir + `, s.rowid ASC`
 	}
 	duration := `0`
 	if sortBy == "totalDuration" {
 		duration = seriesDuration
 	}
 	out := seriesPage{Results: []seriesListEntry{}, Limit: s.Limit, Page: s.Page, SortBy: sortBy, SortDesc: desc, FilterBy: filter,
-		Minified: q.Get("minified") == "1", Include: strings.Join(includes(r), ",")}
+		Minified: q.Get("minified") == "1", Include: strings.Join(include, ",")}
 	if err := h.db.Get(ctx, &out.Total, `SELECT COUNT(*)`+where, args...); err != nil {
 		return httpx.Internal("database read failed", err)
 	}
-	query := `SELECT s.*, ` + duration + ` AS totalDuration` + where + order
-	if s.Limit > 0 {
-		query, args = query+` LIMIT ? OFFSET ?`, append(args, s.Limit, s.Page*s.Limit)
-	}
+	query, args := pagedQuery(`SELECT s.*, `+duration+` AS totalDuration`+where+order, args, s)
 	var rows []struct {
 		db.Series
 		TotalDuration float64 `db:"totalDuration"`
@@ -185,7 +191,7 @@ func (h *Handler) seriesList(w http.ResponseWriter, r *http.Request, s library.S
 	if err := h.db.Select(ctx, &rows, query, args...); err != nil {
 		return httpx.Internal("database read failed", err)
 	}
-	entries, err := h.listEntries(ctx, s.User, slices.Contains(includes(r), "rssfeed"), server.SortingPrefixes, rows)
+	entries, err := h.listEntries(ctx, s.User, slices.Contains(include, "rssfeed"), server.SortingPrefixes, rows)
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}

@@ -52,8 +52,9 @@ func (h *Handler) items(w http.ResponseWriter, r *http.Request, s library.Scope)
 	if err != nil {
 		return err
 	}
-	filter, mediaType := q.Get("filter"), db.Val(s.Library.MediaType)
-	order, orderArgs, err := orderSQL(q.Get("sort"), filter, q.Get("desc") == "1", server.SortingIgnorePrefix, s.Podcast(), s.User)
+	filter, sortBy, desc := q.Get("filter"), q.Get("sort"), q.Get("desc") == "1"
+	seriesID, hasSeriesFilter := seriesFilterID(filter)
+	order, orderArgs, err := orderSQL(sortBy, filter, desc, server.SortingIgnorePrefix, s.Podcast(), s.User)
 	if err != nil {
 		return err
 	}
@@ -71,21 +72,25 @@ func (h *Handler) items(w http.ResponseWriter, r *http.Request, s library.Scope)
 			permClause += ` AND b.id NOT IN (?)`
 			permArgs = append(permArgs, collapsed.hidden)
 		}
-		if q.Get("sort") == "media.metadata.title" {
-			order, orderArgs = collapsed.titleOrder(server.SortingIgnorePrefix, q.Get("desc") == "1")
+		if sortBy == "media.metadata.title" || (sortBy == "sequence" && !strings.HasPrefix(filter, "series.")) {
+			order, orderArgs = collapsed.titleOrder(server.SortingIgnorePrefix, desc)
 		}
 	}
-	from := ` FROM libraryItems li JOIN ` + table + ` b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType=?` + filterClause + permClause
-	args := append([]any{s.Library.ID, mediaType}, filterArgs...)
-	args = append(args, permArgs...)
+	joinFeed, countExpr, selectCol := "", "*", "li.id"
+	if filter == "feed-open" {
+		// Join feeds directly (like upstream's required feed include) so SQLite
+		// scans feeds first instead of libraryItems.
+		joinFeed = ` JOIN feeds f ON f.entityType='libraryItem' AND f.entityId=li.id`
+		countExpr, selectCol = "DISTINCT li.id", "DISTINCT li.id"
+		filterClause, filterArgs = "", nil
+	}
+	from := ` FROM libraryItems li JOIN ` + table + ` b ON b.id=li.mediaId` + joinFeed + ` WHERE li.libraryId=? AND li.mediaType=?` + filterClause + permClause
+	args := append(append([]any{s.Library.ID, db.Val(s.Library.MediaType)}, filterArgs...), permArgs...)
 	out := newItemsPage(q, s, collapse, include)
-	if err := h.db.Get(ctx, &out.Total, `SELECT COUNT(*)`+from, args...); err != nil {
+	if err := h.db.Get(ctx, &out.Total, `SELECT COUNT(`+countExpr+`)`+from, args...); err != nil {
 		return httpx.Internal("database read failed", err)
 	}
-	query, args := `SELECT li.id`+from+order, append(args, orderArgs...)
-	if s.Limit > 0 {
-		query, args = query+` LIMIT ? OFFSET ?`, append(args, s.Limit, s.Page*s.Limit)
-	}
+	query, args := pagedQuery(`SELECT `+selectCol+from+order, append(args, orderArgs...), s)
 	var ids []string
 	if err := h.db.Select(ctx, &ids, query, args...); err != nil {
 		return httpx.Internal("database read failed", err)
@@ -100,8 +105,18 @@ func (h *Handler) items(w http.ResponseWriter, r *http.Request, s library.Scope)
 		if series := collapsed.seriesOf(it); series != nil {
 			rows[i].CollapsedSeries = series
 		}
+		if !s.Podcast() && hasSeriesFilter {
+			if ref, ok := seriesRefOf(it, seriesID); ok {
+				if ref.Sequence != nil && *ref.Sequence == "" {
+					ref.Sequence = nil
+				}
+				updateBookMedia(&rows[i], func(m *item.BookMinified) { m.Metadata.Series = ref })
+			}
+		}
 	}
-	if err := h.attach(ctx, s.User.ID, extrasOf(include, isAdmin(s.User)), loaded, rows); err != nil {
+	extras := extrasOf(include, isAdmin(s.User))
+	extras.rssFeed = extras.rssFeed || filter == "feed-open"
+	if err := h.attach(ctx, s.User.ID, extras, loaded, rows); err != nil {
 		return httpx.Internal("database read failed", err)
 	}
 	out.Results = rows

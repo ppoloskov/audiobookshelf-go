@@ -102,19 +102,15 @@ The Waves 1–4 rewrite already removed the major legacy slop (`TODO/FIXME` = 0,
 
 ### Parity Backlog by Module (Prioritized Waves to Zero Findings)
 
-#### Wave P1 — Highest-Impact Parity + Desloping (~470 findings, ~61% of backlog)
+#### Wave P1 — Highest-Impact Parity + Desloping (~470 findings, ~61% of backlog) — DONE (`768 -> 349` findings, `-54.6%`)
 
-- [ ] **`internal/playback` (~245 findings: 231 HTTP, 9 Socket.IO, 4 SQLite)**
-  - **Refactor:** Split stored-session DTO (`PlaybackSessionView`) from active-stream DTO (`LivePlaybackSessionView`) in `history.go` / `session.go` so historical endpoints (`/api/me/listening-sessions`, `/api/me/listening-stats`, `/api/users/:id/listening-stats`, `/api/me/item/listening-sessions/*`) do not emit 7 extra fields (`audioTracks`, `coverAspectRatio`, `lastSave`, `mediaItemShareId`, `shareSessionId`, `stream`, `user`) — closes **231 findings**.
-  - Fix `deviceDescription` formatting when device fields are empty/null (`"null null / null"` vs `"  / "`) on `user_item_progress_updated` (5 socket findings) or record in `divergences.json` if clients ignore it.
-  - Emit `user_stream_update` on session close (`close-open-session`, `close-episode-playback-session`) and `user_updated` on progress delete (`me-delete-progress-saga2`).
-  - Fix podcast playback session `displayTitle` (podcast title vs episode title) and `displayAuthor` SQLite `NULL` vs `""` (`delete-playback-session`, `sync-local-sessions-batch`).
-  - Align `PATCH /api/me/progress/:libraryItemId/:episodeId?` missing-ID status (`404` vs `400`).
+- [x] **`internal/playback` + `internal/user` progress/sessions (~245 findings closed)**
+  - Split stored-session DTO (`HistorySession`) from admin-enriched DTO (`AdminHistorySession`, used on `GET /api/sessions` and `GET /api/users/{id}/listening-sessions`) — closed all **231** historical session extra-field findings.
+  - Fixed `deviceDescription` formatting (`"null null / null"`), emitted `user_stream_update` on session close and `user_updated` on progress delete, fixed podcast session `displayTitle`/`displayAuthor` SQLite `NULL`, and aligned `PATCH /api/me/progress/:id` missing-ID `404`.
 
-- [ ] **`internal/browse` (~226 findings: 226 HTTP)**
-  - **Refactor:** Consolidate ad-hoc sort/filter/pagination pipelines across `items.go`, `filter.go`, `series.go`, `subseries.go`, `collapse.go`, and `shelves.go` (2,205 LOC) onto one deterministic tie-breaker comparator and shared view-enrichment hook (~300–400 LOC savings).
-  - Match upstream secondary sort tie-breakers for `books-sort-author-name`, `library-items-filter-author`, `books-filter-series-id`, `books-filter-feed-open`, `library-items-collapseseries-desc`, and `library-series-sort-numbooks-desc`.
-  - Populate `rssFeed` on `filter=feed-open` responses (`books-filter-feed-open`, 2 findings) and `media.metadata.series` on `filter=series` responses (`books-filter-series-id`, 2 findings).
+- [x] **`internal/browse` (~175 findings closed)**
+  - Consolidated sort/pagination/series/book-media helpers (`sortDir`, `pagedQuery`, `updateBookMedia`, `seriesRefOf`), fixed secondary sort tie-breakers (`authorName`/`authorNameLF`, `series.<id>` sequence, `series` `numBooks` desc), and populated `rssFeed` on `filter=feed-open` and `media.metadata.series` on `filter=series.<id>`.
+  - Remaining in `browse`: `library-items-filter-author` & `library-items-collapseseries-desc` tie order (tracked for quick follow-up).
 
 #### Wave P2 — Podcast, Scanner & Item Media Pipeline (~155 findings)
 

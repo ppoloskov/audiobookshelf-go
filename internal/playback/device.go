@@ -36,7 +36,8 @@ type deviceInfo struct {
 	SDKVersion     string `json:"sdkVersion,omitempty"`
 }
 
-// description is the device as the server log and progress events name it.
+// description is the device as the server log and progress events name it
+// (DeviceInfo.deviceDescription: unset UA fields interpolate as JS "null").
 func (d deviceInfo) description() string {
 	if d.Model != "" {
 		if d.SDKVersion != "" {
@@ -44,7 +45,7 @@ func (d deviceInfo) description() string {
 		}
 		return d.Model + " / v" + d.ClientVersion
 	}
-	return d.OSName + " " + d.OSVersion + " / " + d.BrowserName
+	return cmp.Or(d.OSName, "null") + " " + cmp.Or(d.OSVersion, "null") + " / " + cmp.Or(d.BrowserName, "null")
 }
 
 // clientDevice is the deviceInfo object a client sends.

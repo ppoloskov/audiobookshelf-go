@@ -135,7 +135,7 @@ func (s *session) row() (db.PlaybackSession, error) {
 		deviceID = &s.DeviceInfo.ID
 	}
 	return db.PlaybackSession{
-		ID: s.ID, MediaItemID: &mediaItemID, MediaItemType: &kind, DisplayTitle: &s.DisplayTitle, DisplayAuthor: &s.DisplayAuthor,
+		ID: s.ID, MediaItemID: &mediaItemID, MediaItemType: &kind, DisplayTitle: nilIfEmpty(s.DisplayTitle), DisplayAuthor: nilIfEmpty(s.DisplayAuthor),
 		Duration: &s.Duration, PlayMethod: db.Ptr(float64(s.PlayMethod)), MediaPlayer: &s.MediaPlayer, StartTime: &s.StartTime,
 		CurrentTime: &s.CurrentTime, ServerVersion: db.Ptr(version.Server), CoverPath: s.CoverPath, TimeListening: &s.TimeListening,
 		MediaMetadata: db.JSON[json.RawMessage]{V: metadata}, Date: &s.Date, DayOfWeek: &s.DayOfWeek,

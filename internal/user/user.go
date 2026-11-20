@@ -86,7 +86,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("PATCH /api/me/item/{id}/bookmark", member(h.updateBookmark))
 	mux.Handle("DELETE /api/me/item/{id}/bookmark/{time}", member(h.deleteBookmark))
 	// A user reads their own statistics, an admin anyone's.
-	mux.Handle("GET /api/users/{id}/listening-sessions", member(h.ofUser(h.listeningSessions)))
+	mux.Handle("GET /api/users/{id}/listening-sessions", member(h.ofUser(h.userListeningSessions)))
 	mux.Handle("GET /api/users/{id}/listening-stats", member(h.ofUser(h.listeningStats)))
 
 	mux.Handle("GET /api/api-keys", admin(h.listAPIKeys))

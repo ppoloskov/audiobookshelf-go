@@ -57,6 +57,9 @@ func (h *Handler) deleteProgress(w http.ResponseWriter, r *http.Request, me *aut
 	if n, _ := result.RowsAffected(); n == 0 { // sqlite always reports it
 		return httpx.NotFound()
 	}
+	if _, err := h.emitUserUpdate(r.Context(), me.User); err != nil {
+		return err
+	}
 	return ok(w)
 }
 
@@ -82,9 +85,12 @@ func (h *Handler) batchUpdateProgress(w http.ResponseWriter, r *http.Request, me
 
 // updateProgress is PATCH /api/me/progress/{id}[/{episodeId}]; the URL names the item and episode.
 func (h *Handler) updateProgress(w http.ResponseWriter, r *http.Request, me *auth.Principal) error {
-	update, err := httpx.Decode[playback.Update](w, r)
-	if err != nil {
-		return err
+	var update playback.Update
+	if r.ContentLength != 0 {
+		var err error
+		if update, err = httpx.Decode[playback.Update](w, r); err != nil {
+			return err
+		}
 	}
 	update.LibraryItemID, update.EpisodeID = r.PathValue("id"), r.PathValue("episodeId")
 	if _, err := h.playback.Progress().Apply(r.Context(), me, update); err != nil {

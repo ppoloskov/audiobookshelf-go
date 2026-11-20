@@ -20,9 +20,9 @@ import (
 // sortColumns are the playbackSessions columns the history can be sorted by.
 var sortColumns = []string{"displayTitle", "duration", "playMethod", "startTime", "currentTime", "timeListening", "updatedAt", "createdAt"}
 
-// historySession is a stored session as the admin history lists it
-// (PlaybackSession from the row: legacy ids dropped, nullable columns null).
-type historySession struct {
+// HistorySession is a stored playback session as clients read it
+// (PlaybackSession.toJSON: legacy ids dropped, nullable columns null).
+type HistorySession struct {
 	ID            string          `json:"id"`
 	UserID        *string         `json:"userId"`
 	LibraryID     *string         `json:"libraryId"`
@@ -47,11 +47,19 @@ type historySession struct {
 	CurrentTime   float64         `json:"currentTime"`
 	StartedAt     int64           `json:"startedAt"`
 	UpdatedAt     int64           `json:"updatedAt"`
+}
+
+// adminHistorySession is a stored session as GET /api/sessions lists it
+// (SessionController.getAllWithUserData spreads the PlaybackSession instance
+// and attaches user when the user still exists).
+// AdminHistorySession is a stored session with the extra admin/user fields
+// included by GET /api/sessions and GET /api/users/{id}/listening-sessions.
+type AdminHistorySession struct {
+	HistorySession
 	*withUser
 }
 
-// withUser is what the listing adds to a session whose user still exists
-// (the fields of an open session that a stored one lacks).
+// withUser is what GET /api/sessions adds to a session whose user still exists.
 type withUser struct {
 	User             userStub   `json:"user"`
 	LastSave         int        `json:"lastSave"`
@@ -63,12 +71,12 @@ type withUser struct {
 }
 
 type historyPage struct {
-	Total        int              `json:"total"`
-	NumPages     int              `json:"numPages"`
-	Page         int              `json:"page"`
-	ItemsPerPage int              `json:"itemsPerPage"`
-	Sessions     []historySession `json:"sessions"`
-	UserID       string           `json:"userId,omitempty"`
+	Total        int                   `json:"total"`
+	NumPages     int                   `json:"numPages"`
+	Page         int                   `json:"page"`
+	ItemsPerPage int                   `json:"itemsPerPage"`
+	Sessions     []AdminHistorySession `json:"sessions"`
+	UserID       string                `json:"userId,omitempty"`
 }
 
 // history is GET /api/sessions: admins only, answered 404 to others as upstream
@@ -107,70 +115,44 @@ func (h *Handler) history(w http.ResponseWriter, r *http.Request, user *auth.Pri
 	if err != nil {
 		return fmt.Errorf("list sessions: %w", err)
 	}
-	sessions, err := h.historyOf(ctx, rows)
+	sessions, err := h.AdminSessionsOf(ctx, rows)
 	if err != nil {
 		return err
 	}
 	return httpx.JSON(w, r, historyPage{Total: total, NumPages: int(math.Ceil(float64(total) / float64(perPage))), Page: page, ItemsPerPage: perPage, Sessions: sessions, UserID: userID})
 }
 
-// HistorySession is a stored session as the history lists it.
-type HistorySession = historySession
-
-// SessionsOf lists stored session rows the way the admin history does.
+// SessionsOf lists stored session rows with their devices, without user/live fields.
 func (h *Handler) SessionsOf(ctx context.Context, rows []db.PlaybackSession) ([]HistorySession, error) {
-	return h.historyOf(ctx, rows)
-}
-
-// StoredSession is a stored session row without its device and user.
-func StoredSession(row db.PlaybackSession) HistorySession { return historyOf(row) }
-
-// historyOf builds the listing of rows with one query for their devices and one
-// for their users.
-func (h *Handler) historyOf(ctx context.Context, rows []db.PlaybackSession) ([]historySession, error) {
-	var deviceIDs, userIDs []string
+	if len(rows) == 0 {
+		return []HistorySession{}, nil
+	}
+	deviceIDs := make([]string, 0, len(rows))
 	for _, row := range rows {
 		deviceIDs = append(deviceIDs, db.Val(row.DeviceID))
-		userIDs = append(userIDs, db.Val(row.UserID))
 	}
 	var devices []db.Device
-	var users []struct {
-		ID       string  `db:"id"`
-		Username *string `db:"username"`
-	}
 	if err := h.db.Select(ctx, &devices, `SELECT * FROM devices WHERE id IN (?)`, deviceIDs); err != nil {
 		return nil, fmt.Errorf("list session devices: %w", err)
 	}
-	if err := h.db.Select(ctx, &users, `SELECT id, username FROM users WHERE id IN (?)`, userIDs); err != nil {
-		return nil, fmt.Errorf("list session users: %w", err)
-	}
-	deviceByID, nameByID := map[string]storedDevice{}, map[string]string{}
+	deviceByID := make(map[string]storedDevice, len(devices))
 	for _, d := range devices {
 		deviceByID[d.ID] = storedDeviceOf(d)
 	}
-	for _, u := range users {
-		if u.Username != nil {
-			nameByID[u.ID] = *u.Username
-		}
-	}
-	out := make([]historySession, len(rows))
+	out := make([]HistorySession, len(rows))
 	for i, row := range rows {
-		out[i] = historyOf(row)
+		out[i] = StoredSession(row)
 		out[i].DeviceInfo = struct{}{}
 		if d, found := deviceByID[db.Val(row.DeviceID)]; found {
 			out[i].DeviceInfo = d
-		}
-		if name, found := nameByID[db.Val(row.UserID)]; found {
-			out[i].withUser = &withUser{User: userStub{ID: db.Val(row.UserID), Username: name}, AudioTracks: []struct{}{}}
 		}
 	}
 	return out, nil
 }
 
-// historyOf maps a row: NULLs stay null, 0 listening time is null, and ids that
-// older upstream versions prefixed (lib_, li_, ep_, local_) are dropped.
-func historyOf(row db.PlaybackSession) historySession {
-	s := historySession{
+// StoredSession is a stored session row without its device and user.
+func StoredSession(row db.PlaybackSession) HistorySession {
+	s := HistorySession{
 		ID: row.ID, UserID: row.UserID, LibraryID: legacyID(row.LibraryID, "lib_"), MediaType: "book", Chapters: []db.Chapter{},
 		DisplayTitle: db.Val(row.DisplayTitle), DisplayAuthor: db.Val(row.DisplayAuthor), CoverPath: row.CoverPath,
 		Duration: row.Duration, PlayMethod: row.PlayMethod, MediaPlayer: legacyID(row.MediaPlayer), ServerVersion: row.ServerVersion,
@@ -200,6 +182,42 @@ func historyOf(row db.PlaybackSession) historySession {
 		}
 	}
 	return s
+}
+
+// AdminSessionsOf builds the admin history listing with device and user info.
+func (h *Handler) AdminSessionsOf(ctx context.Context, rows []db.PlaybackSession) ([]AdminHistorySession, error) {
+	base, err := h.SessionsOf(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return []AdminHistorySession{}, nil
+	}
+	userIDs := make([]string, 0, len(rows))
+	for _, row := range rows {
+		userIDs = append(userIDs, db.Val(row.UserID))
+	}
+	var users []struct {
+		ID       string  `db:"id"`
+		Username *string `db:"username"`
+	}
+	if err := h.db.Select(ctx, &users, `SELECT id, username FROM users WHERE id IN (?)`, userIDs); err != nil {
+		return nil, fmt.Errorf("list session users: %w", err)
+	}
+	nameByID := make(map[string]string, len(users))
+	for _, u := range users {
+		if u.Username != nil {
+			nameByID[u.ID] = *u.Username
+		}
+	}
+	out := make([]AdminHistorySession, len(base))
+	for i, row := range rows {
+		out[i] = AdminHistorySession{HistorySession: base[i]}
+		if name, found := nameByID[db.Val(row.UserID)]; found {
+			out[i].withUser = &withUser{User: userStub{ID: db.Val(row.UserID), Username: name}, AudioTracks: []struct{}{}}
+		}
+	}
+	return out, nil
 }
 
 // legacyID is *s, nil when it is empty or starts with one of the prefixes.

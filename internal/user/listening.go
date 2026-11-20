@@ -28,9 +28,31 @@ func (h *Handler) userSessions(ctx context.Context, userID, mediaItemID string) 
 	return rows, err
 }
 
-// listeningSessions answers a page of the user's sessions, listed as the admin history lists them.
+// listeningSessions answers a page of the user's own sessions (GET /api/me/listening-sessions).
 func (h *Handler) listeningSessions(w http.ResponseWriter, r *http.Request, userID string) error {
 	return h.sessionsOf(w, r, userID, "")
+}
+
+// userListeningSessions answers GET /api/users/{id}/listening-sessions with the
+// admin/user-enriched session shape upstream returns on that route.
+func (h *Handler) userListeningSessions(w http.ResponseWriter, r *http.Request, userID string) error {
+	rows, err := h.userSessions(r.Context(), userID, "")
+	if err != nil {
+		return err
+	}
+	page, perPage := pageOf(r)
+	if perPage <= 0 {
+		perPage = 10
+	}
+	start := len(rows)
+	if page <= len(rows)/perPage {
+		start = min(page*perPage, len(rows))
+	}
+	sessions, err := h.playback.AdminSessionsOf(r.Context(), rows[start:start+min(perPage, len(rows)-start)])
+	if err != nil {
+		return err
+	}
+	return httpx.JSON(w, r, sessionsPage[playback.AdminHistorySession]{len(rows), int(math.Ceil(float64(len(rows)) / float64(perPage))), page, perPage, sessions})
 }
 
 func (h *Handler) sessionsOf(w http.ResponseWriter, r *http.Request, userID, mediaItemID string) error {

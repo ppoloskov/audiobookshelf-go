@@ -209,6 +209,32 @@ func TestSeriesList(t *testing.T) {
 	}
 }
 
+func TestSeriesListDescPreservesCreationOrderOnTies(t *testing.T) {
+	r := newRig(t)
+	s := seeder{t, r.d}
+	// Add two 1-book series to l1 after s1 (2 books) and s2 (3 books).
+	s.series("s-alpha", "Oracle Subseries Alpha", "Oracle Subseries Alpha", "l1", old)
+	s.series("s-beta", "Oracle Subseries Beta", "Oracle Subseries Beta", "l1", old)
+	s.linkSeries("b6", "s-alpha", "1")
+	s.linkSeries("b6", "s-beta", "2")
+
+	var out seriesResults
+	r.get(users()["root"], "/api/libraries/l1/series?sort=numBooks&desc=1", &out)
+	// s2 (3), s1 (2), then s-alpha (1) before s-beta (1) in rowid ASC order.
+	if want := []string{"s2", "s1", "s-alpha", "s-beta"}; !slices.Equal(out.ids(), want) {
+		t.Fatalf("numBooks desc = %v, want %v", out.ids(), want)
+	}
+	// Also verify lastBookUpdated and random sort keys execute cleanly.
+	r.get(users()["root"], "/api/libraries/l1/series?sort=lastBookUpdated&desc=1", &out)
+	if len(out.ids()) != 4 {
+		t.Errorf("lastBookUpdated count = %d", len(out.ids()))
+	}
+	r.get(users()["root"], "/api/libraries/l1/series?sort=random", &out)
+	if len(out.ids()) != 4 {
+		t.Errorf("random count = %d", len(out.ids()))
+	}
+}
+
 func TestSeriesBooksUseTheMinifiedBookShape(t *testing.T) {
 	r, root := newRig(t), users()["root"]
 	var page struct {

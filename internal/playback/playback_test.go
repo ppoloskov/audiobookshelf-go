@@ -270,7 +270,105 @@ func TestDirectPlayRangeOwnershipAndProgress(t *testing.T) {
 	if got := e.lastEvent(); got != (emitted{listenerID, "user_session_closed"}) {
 		t.Fatalf("event = %+v", got)
 	}
+	if n := e.events("user_stream_update"); n != 2 {
+		t.Fatalf("user_stream_update sent %d times, want 2 (start + close)", n)
+	}
+	raw, _ = json.Marshal(e.payload["user_stream_update"])
+	_ = json.Unmarshal(raw, &announced)
+	if announced.Session == nil || announced.Session["id"] != id {
+		t.Fatalf("close user_stream_update session = %v, want %s (emitted before remove)", announced.Session, id)
+	}
 	e.expect(t, 404, "", "GET", "/public/session/"+id+"/track/1", "")
+}
+
+func TestStoredSessionOmitsAdminAndLiveFields(t *testing.T) {
+	e := newEnv(t)
+	var rows []db.PlaybackSession
+	if err := e.d.Select(context.Background(), &rows, `SELECT * FROM playbackSessions ORDER BY updatedAt DESC`); err != nil {
+		t.Fatal(err)
+	}
+	sessions, err := e.SessionsOf(context.Background(), rows)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sessions) == 0 {
+		t.Fatal("expected fixture playback sessions")
+	}
+	raw, err := json.Marshal(sessions[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"audioTracks", "coverAspectRatio", "lastSave", "mediaItemShareId", "shareSessionId", "stream", "user", "libraryItem"} {
+		if _, present := got[forbidden]; present {
+			t.Errorf("stored HistorySession unexpectedly includes %q", forbidden)
+		}
+	}
+	if _, ok := got["deviceInfo"]; !ok {
+		t.Errorf("stored HistorySession lacks deviceInfo")
+	}
+}
+
+func TestDeviceDescriptionAndPodcastLocalSessionNulls(t *testing.T) {
+	cases := map[string]struct {
+		info deviceInfo
+		want string
+	}{
+		"unset":          {deviceInfo{}, "null null / null"},
+		"partial ua":     {deviceInfo{OSName: "Linux", BrowserName: "Chrome"}, "Linux null / Chrome"},
+		"mobile ios":     {deviceInfo{Model: "iPhone", ClientVersion: "1.0"}, "iPhone / v1.0"},
+		"mobile android": {deviceInfo{Model: "Pixel 8", SDKVersion: "34", ClientVersion: "0.9"}, "Pixel 8 SDK 34 / v0.9"},
+	}
+	for name, tc := range cases {
+		if got := tc.info.description(); got != tc.want {
+			t.Errorf("%s: got %q, want %q", name, got, tc.want)
+		}
+	}
+
+	e := newEnv(t)
+	id := e.startDirect(t, novelItem)
+	e.expect(t, 200, listenerID, "POST", "/api/session/"+id+"/sync", `{"currentTime":5,"timeListened":2}`)
+	raw, _ := json.Marshal(e.payload["user_item_progress_updated"])
+	var ev struct {
+		DeviceDescription string `json:"deviceDescription"`
+	}
+	if err := json.Unmarshal(raw, &ev); err != nil {
+		t.Fatal(err)
+	}
+	if ev.DeviceDescription != "null null / null" {
+		t.Fatalf("deviceDescription = %q, want %q", ev.DeviceDescription, "null null / null")
+	}
+
+	// Admin closing another user's session emits user_stream_update with null session when admin has none.
+	e.expect(t, 200, rootID, "POST", "/api/session/"+id+"/close", `{}`)
+	raw, _ = json.Marshal(e.payload["user_stream_update"])
+	var closeAnnounce map[string]any
+	if err := json.Unmarshal(raw, &closeAnnounce); err != nil {
+		t.Fatal(err)
+	}
+	if sess, ok := closeAnnounce["session"]; !ok || sess != nil {
+		t.Fatalf("admin closing listener session emitted session = %v, want explicit null", sess)
+	}
+
+	// Local podcast episode session without displayTitle/displayAuthor uses libraryItem.title and NULL displayAuthor.
+	podSessID := "55555555-5555-4555-8555-555555555555"
+	batchBody := fmt.Sprintf(`{"deviceInfo":{"clientName":"OracleOffline","clientVersion":"1.0","deviceId":"pod-dev"},"sessions":[{"id":%q,"libraryItemId":%q,"episodeId":%q,"mediaType":"podcast","playMethod":0,"mediaPlayer":"exo-player","timeListening":15,"startTime":10,"currentTime":25,"duration":180,"startedAt":1800000200000,"updatedAt":1800000215000}]}`,
+		podSessID, podcast, episode1)
+	e.expect(t, 200, listenerID, "POST", "/api/session/local-all", batchBody)
+	var stored struct {
+		Title      *string `db:"displayTitle"`
+		AuthorType string  `db:"authorType"`
+	}
+	e.row(t, &stored, `SELECT displayTitle, typeof(displayAuthor) AS authorType FROM playbackSessions WHERE id = ?`, podSessID)
+	if db.Val(stored.Title) != "Fixture Cast" {
+		t.Errorf("podcast local displayTitle = %q, want %q", db.Val(stored.Title), "Fixture Cast")
+	}
+	if stored.AuthorType != "null" {
+		t.Errorf("podcast local displayAuthor typeof = %q, want %q", stored.AuthorType, "null")
+	}
 }
 
 func TestPlayRefusals(t *testing.T) {

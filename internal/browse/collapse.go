@@ -134,12 +134,9 @@ func (c collapsedSeries) seriesOf(it item.Item) *collapsedSeriesView {
 // titleOrder is the display-title sort used when collapsing series: a kept
 // book sorts by the name of its series (libraryItemsBookFilters.js:596-600).
 func (c collapsedSeries) titleOrder(ignorePrefix, desc bool) (string, []any) {
-	seriesColumn, itemColumn, dir := "s.name", "li.title", "ASC"
+	seriesColumn := "s.name"
 	if ignorePrefix {
-		seriesColumn, itemColumn = "s.nameIgnorePrefix", "li.titleIgnorePrefix"
+		seriesColumn = "s.nameIgnorePrefix"
 	}
-	if desc {
-		dir = "DESC"
-	}
-	return ` ORDER BY IFNULL((SELECT ` + seriesColumn + ` FROM bookSeries AS bs, series AS s WHERE bs.seriesId = s.id AND bs.bookId = b.id AND bs.id IN (?)), ` + itemColumn + `) COLLATE NOCASE ` + dir, []any{c.kept}
+	return ` ORDER BY IFNULL((SELECT ` + seriesColumn + ` FROM bookSeries AS bs, series AS s WHERE bs.seriesId = s.id AND bs.bookId = b.id AND bs.id IN (?)), ` + titleColumn(ignorePrefix) + `) COLLATE NOCASE ` + sortDir(desc), []any{c.kept}
 }
