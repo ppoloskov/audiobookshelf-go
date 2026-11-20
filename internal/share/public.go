@@ -80,7 +80,7 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	h.sessions.put(sess)
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: shareSessionID, Path: "/", HttpOnly: true, MaxAge: 30 * 24 * 60 * 60})
+	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: shareSessionID, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 60 * 60})
 	return httpx.JSON(w, r, publicShareResponse{viewOf(share), sess})
 }
 

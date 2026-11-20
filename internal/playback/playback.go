@@ -6,10 +6,12 @@ package playback
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"net/http"
 	"sync"
+	"time"
 
 	"monstrobook/internal/auth"
 	"monstrobook/internal/config"
@@ -19,24 +21,66 @@ import (
 	"monstrobook/internal/settings"
 )
 
+const (
+	defaultIdleTTL      = 30 * time.Minute
+	defaultReapInterval = 5 * time.Minute
+	maxLocalIDs         = 10000
+)
+
 // Handler owns the playback routes and the open sessions.
 type Handler struct {
-	db       *db.DB
-	settings *settings.Store
-	cfg      config.Config
-	emit     events.Emitter
-	progress *Progress
+	db           *db.DB
+	settings     *settings.Store
+	cfg          config.Config
+	emit         events.Emitter
+	progress     *Progress
+	idleTTL      time.Duration
+	reapInterval time.Duration
+	ctx          context.Context
+	stop         context.CancelFunc
+	wg           sync.WaitGroup
 
 	mu       sync.Mutex // guards sessions, localIDs and the mutable fields of every session
 	sessions map[string]*session
-	localIDs map[string]string // client play_local_* id -> the server id it was stored under, as upstream keeps it in memory
+	localIDs map[string]string // (userID + "\x00" + client play_local_* id) -> the server id it was stored under
 }
 
 // New returns a Handler; settings supplies the sorting prefixes of the item view
 // a session carries.
 func New(d *db.DB, settings *settings.Store, cfg config.Config, emit events.Emitter) *Handler {
-	return &Handler{db: d, settings: settings, cfg: cfg, emit: emit, progress: NewProgress(d),
-		sessions: map[string]*session{}, localIDs: map[string]string{}}
+	return newHandler(d, settings, cfg, emit, defaultIdleTTL, defaultReapInterval)
+}
+
+func newHandler(d *db.DB, settings *settings.Store, cfg config.Config, emit events.Emitter, idleTTL, reapInterval time.Duration) *Handler {
+	ctx, stop := context.WithCancel(context.Background())
+	h := &Handler{
+		db: d, settings: settings, cfg: cfg, emit: emit, progress: NewProgress(d),
+		idleTTL: idleTTL, reapInterval: reapInterval,
+		ctx: ctx, stop: stop,
+		sessions: map[string]*session{}, localIDs: map[string]string{},
+	}
+	h.startReaper()
+	return h
+}
+
+func (h *Handler) startReaper() {
+	if h.idleTTL <= 0 || h.reapInterval <= 0 {
+		return
+	}
+	h.wg.Add(1)
+	go func() {
+		defer h.wg.Done()
+		ticker := time.NewTicker(h.reapInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-h.ctx.Done():
+				return
+			case now := <-ticker.C:
+				h.reapIdle(now)
+			}
+		}
+	}()
 }
 
 // Progress is the media progress store the playback routes write through.

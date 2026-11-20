@@ -216,7 +216,7 @@ type userDetail struct {
 	MediaProgress []adminProgress `json:"mediaProgress"`
 }
 
-func (h *Handler) getUser(w http.ResponseWriter, r *http.Request, _ *auth.Principal) error {
+func (h *Handler) getUser(w http.ResponseWriter, r *http.Request, me *auth.Principal) error {
 	ctx := r.Context()
 	target, err := h.userRow(ctx, r.PathValue("id"))
 	if err != nil {
@@ -230,7 +230,11 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request, _ *auth.Princi
 	if err != nil {
 		return err
 	}
-	return httpx.JSON(w, r, userDetail{auth.ViewOf(target), decorated})
+	view := auth.ViewOf(target)
+	if db.Val(target.Type) == "root" && !me.IsRoot() {
+		view.Token = db.Ptr("")
+	}
+	return httpx.JSON(w, r, userDetail{view, decorated})
 }
 
 // deleteUser is DELETE /api/users/{id}: not the acting admin, not root; playlists go, sessions stay unowned.

@@ -36,6 +36,7 @@ type job struct {
 	itemID      string
 	ctx         context.Context
 	cancel      context.CancelFunc
+	done        chan struct{}
 	cache       string // the item's folder in the item cache
 }
 
@@ -45,7 +46,7 @@ func (h *Handler) newJob(action, userID string, b book, title, key, description,
 	ctx, cancel := context.WithCancel(context.Background())
 	j := &job{
 		data:   taskData{LibraryItemID: b.item.ID, LibraryItemDir: db.Val(b.item.Path), UserID: userID, Duration: b.duration},
-		itemID: b.item.ID, ctx: ctx, cancel: cancel, cache: filepath.Join(h.cfg.Dirs().ItemCache, b.item.ID),
+		itemID: b.item.ID, ctx: ctx, cancel: cancel, done: make(chan struct{}), cache: filepath.Join(h.cfg.Dirs().ItemCache, b.item.ID),
 	}
 	j.Task = events.NewTask(ids.Must(), action, nil).Titled(title, key, []string{}).Described(description, descriptionKey, db.Val(b.media.Title))
 	j.Data = j.data
@@ -55,11 +56,23 @@ func (h *Handler) newJob(action, userID string, b book, title, key, description,
 // start registers a running job, announces it and runs work in the background.
 func (h *Handler) start(j *job, work func() error) {
 	h.mu.Lock()
+	if h.closed {
+		h.mu.Unlock()
+		j.cancel()
+		close(j.done)
+		return
+	}
 	h.running = append(h.running, j)
+	h.wg.Add(1)
 	started := j.Task
 	h.mu.Unlock()
 	h.emit.TaskStarted(started)
-	go func() { h.finish(j, work()); h.next() }() // a finished embed lets the next queued one run
+	go func() {
+		defer h.wg.Done()
+		defer close(j.done)
+		h.finish(j, work())
+		h.next() // a finished embed lets the next queued one run
+	}()
 }
 
 // finish ends j once: failed with err (when not nil) and announced.
@@ -84,7 +97,8 @@ func (h *Handler) finish(j *job, err error) {
 	h.emit.TaskFinished(finished)
 }
 
-// cancelEncode ends the running encode of the item as canceled and kills ffmpeg.
+// cancelEncode cancels the running encode of the item and waits for ffmpeg
+// and cleanup to finish before returning.
 func (h *Handler) cancelEncode(w http.ResponseWriter, r *http.Request) error {
 	h.mu.Lock()
 	i := slices.IndexFunc(h.running, func(j *job) bool { return j.itemID == r.PathValue("id") && j.Action == "encode-m4b" })
@@ -97,6 +111,6 @@ func (h *Handler) cancelEncode(w http.ResponseWriter, r *http.Request) error {
 		return httpx.NotFound()
 	}
 	j.cancel()
-	h.finish(j, errCanceled)
+	<-j.done
 	return httpx.Status(w, http.StatusOK)
 }

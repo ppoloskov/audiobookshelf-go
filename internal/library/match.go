@@ -37,7 +37,35 @@ func (h *Handler) matchAll(w http.ResponseWriter, r *http.Request, scope Scope) 
 		slog.Error("non-admin user attempted to match library items", "user", db.Val(scope.User.Username))
 		return httpx.Forbidden()
 	}
-	go h.matchLibraryItems(context.Background(), scope) // outlives the request
+	h.mu.Lock()
+	if h.closed {
+		h.mu.Unlock()
+		return httpx.Status(w, http.StatusOK)
+	}
+	if h.matching == nil {
+		h.matching = map[string]struct{}{}
+	}
+	if _, busy := h.matching[scope.ID]; busy {
+		h.mu.Unlock()
+		slog.Warn("match all: already running for library", "library", scope.ID)
+		return httpx.Status(w, http.StatusOK)
+	}
+	h.matching[scope.ID] = struct{}{}
+	h.wg.Add(1)
+	ctx := h.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	h.mu.Unlock()
+	go func() {
+		defer h.wg.Done()
+		defer func() {
+			h.mu.Lock()
+			delete(h.matching, scope.ID)
+			h.mu.Unlock()
+		}()
+		h.matchLibraryItems(ctx, scope)
+	}()
 	return httpx.Status(w, http.StatusOK)
 }
 
@@ -54,6 +82,12 @@ func (h *Handler) matchLibraryItems(ctx context.Context, scope Scope) {
 		Titled(fmt.Sprintf("Matching books in %q", name), "MessageTaskMatchingBooksInLibrary", []string{name})
 	task.ShowSuccess = true
 	h.emit.TaskStarted(task)
+	defer func() {
+		if !task.IsFinished {
+			task = task.Finished().Failed("Failed", "MessageTaskFailed")
+		}
+		h.emit.TaskFinished(task)
+	}()
 	targets, err := selectAll[struct {
 		ID    string  `db:"id"`
 		Title *string `db:"title"`
@@ -66,6 +100,10 @@ func (h *Handler) matchLibraryItems(ctx context.Context, scope Scope) {
 	}
 	updated := 0
 	for i, t := range targets {
+		if ctx.Err() != nil {
+			task = task.Finished().Described("Task canceled by user", "MessageTaskCanceledByUser")
+			return
+		}
 		switch {
 		case db.Val(t.ASIN) != "" && db.Val(settings.SkipMatchingMediaWithAsin):
 			slog.Debug("match all: skipping a book that already has an ASIN", "title", db.Val(t.Title), "position", i+1, "of", len(targets))
@@ -93,7 +131,6 @@ func (h *Handler) matchLibraryItems(ctx context.Context, scope Scope) {
 		elapsed := *task.FinishedAt - task.StartedAt
 		task.Data = matchTaskData{LibraryID: scope.ID, ScanResults: &scanResult{Updated: updated, Elapsed: elapsed, Text: resultsText(updated, elapsed)}}
 	}
-	h.emit.TaskFinished(task)
 }
 
 // resultsText is LibraryScan.scanResultsString (LibraryScan.js:61-68).

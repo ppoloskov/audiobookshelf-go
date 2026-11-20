@@ -32,7 +32,10 @@ func newFlows[T any](ttl time.Duration) *flows[T] {
 	return &flows[T]{ttl: ttl, items: map[string]flowEntry[T]{}}
 }
 
-// put stores value under state and forgets the entries that have expired.
+const maxOIDCFlows = 1024
+
+// put stores value under state, forgets the entries that have expired, and
+// evicts the earliest-expiring entry if the map is still at capacity.
 func (f *flows[T]) put(state string, value T) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -40,6 +43,21 @@ func (f *flows[T]) put(state string, value T) {
 	for key, entry := range f.items {
 		if now.Sub(entry.started) > f.ttl {
 			delete(f.items, key)
+		}
+	}
+	if _, exists := f.items[state]; !exists && len(f.items) >= maxOIDCFlows {
+		var oldestKey string
+		var oldestTime time.Time
+		first := true
+		for key, entry := range f.items {
+			if first || entry.started.Before(oldestTime) {
+				oldestKey = key
+				oldestTime = entry.started
+				first = false
+			}
+		}
+		if !first {
+			delete(f.items, oldestKey)
 		}
 	}
 	f.items[state] = flowEntry[T]{value, now}

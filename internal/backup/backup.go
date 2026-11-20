@@ -45,10 +45,14 @@ type Handler struct {
 	notify   Notify
 	restore  Restore
 
-	mu      sync.Mutex // guards the fields below
-	dir     string     // the folder the archives live in
-	backups []Backup   // sorted by CreatedAt
-	cron    *cron.Cron
+	maxExtractBytes int64 // test override for apply extraction cap; 0 uses maxArchiveBytes
+
+	mu       sync.Mutex // guards the fields below
+	dir      string     // the folder the archives live in
+	backups  []Backup   // sorted by CreatedAt
+	cron     *cron.Cron
+	closed   bool
+	createMu sync.Mutex // serializes Create() so same-minute backups do not collide on filenames
 }
 
 // New loads the backups in the configured folder and starts the schedule.
@@ -71,6 +75,11 @@ func New(store *settings.Store, cfg config.Config, getenv func(string) string, e
 // Close stops the schedule, waiting for a running scheduled backup.
 func (h *Handler) Close() {
 	h.mu.Lock()
+	if h.closed {
+		h.mu.Unlock()
+		return
+	}
+	h.closed = true
 	c := h.cron
 	h.cron = nil
 	h.mu.Unlock()
@@ -83,11 +92,21 @@ func (h *Handler) Close() {
 // changes) and schedule (restarted). An invalid schedule is logged and leaves
 // automatic backups off.
 func (h *Handler) configure(server settings.Server) error {
+	h.mu.Lock()
+	if h.closed {
+		h.mu.Unlock()
+		return nil
+	}
+	h.mu.Unlock()
 	dir := cmp.Or(strings.TrimSpace(server.BackupPath), h.cfg.Dirs().Backups)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create backup directory: %w", err)
 	}
 	h.mu.Lock()
+	if h.closed {
+		h.mu.Unlock()
+		return nil
+	}
 	previous := h.cron
 	h.cron, h.dir = nil, dir
 	h.mu.Unlock()
@@ -107,11 +126,15 @@ func (h *Handler) configure(server settings.Server) error {
 		slog.Error("[BackupManager] invalid backup schedule, automatic backups stay off", "schedule", spec, "error", err)
 		return nil
 	}
-	c.Start()
-	slog.Info("[BackupManager] Starting backup schedule", "schedule", spec) // BackupManager.js:94
 	h.mu.Lock()
+	if h.closed {
+		h.mu.Unlock()
+		return nil
+	}
+	c.Start()
 	h.cron = c
 	h.mu.Unlock()
+	slog.Info("[BackupManager] Starting backup schedule", "schedule", spec) // BackupManager.js:94
 	return nil
 }
 
@@ -190,6 +213,8 @@ func (h *Handler) put(b Backup, keep int) (expired []Backup) {
 // limit and notifies. The archive is a VACUUM INTO snapshot of the database
 // plus the item and author metadata folders.
 func (h *Handler) Create(ctx context.Context) (Backup, error) {
+	h.createMu.Lock()
+	defer h.createMu.Unlock()
 	before := len(h.list())
 	slog.Info("[BackupManager] Running Backup") // BackupManager.js:335
 	b, err := h.create(ctx)

@@ -9,6 +9,7 @@ package library
 import (
 	"context"
 	"net/http"
+	"sync"
 
 	"monstrobook/internal/auth"
 	"monstrobook/internal/db"
@@ -40,11 +41,39 @@ type Handler struct {
 	settings *settings.Store
 	emit     events.Emitter
 	deps     Deps
+
+	ctx      context.Context
+	cancel   context.CancelFunc
+	wg       sync.WaitGroup
+	mu       sync.Mutex
+	matching map[string]struct{}
+	closed   bool
 }
 
 // New returns a Handler.
 func New(d *db.DB, settings *settings.Store, emit events.Emitter, deps Deps) *Handler {
-	return &Handler{db: d, settings: settings, emit: emit, deps: deps}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Handler{
+		db:       d,
+		settings: settings,
+		emit:     emit,
+		deps:     deps,
+		ctx:      ctx,
+		cancel:   cancel,
+		matching: map[string]struct{}{},
+	}
+}
+
+// Close cancels any running background match-all tasks and waits for them to
+// finish.
+func (h *Handler) Close() {
+	h.mu.Lock()
+	h.closed = true
+	h.mu.Unlock()
+	if h.cancel != nil {
+		h.cancel()
+	}
+	h.wg.Wait()
 }
 
 // Routes registers the routes. Authorisation: POST /api/libraries, POST

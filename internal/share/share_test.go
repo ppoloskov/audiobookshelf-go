@@ -314,4 +314,63 @@ func TestSharePlaybackSessionIDIsSeparateFromCookie(t *testing.T) {
 	if second.PlaybackSession.ID != got.PlaybackSession.ID {
 		t.Fatalf("reused cookie session id = %q, want %q", second.PlaybackSession.ID, got.PlaybackSession.ID)
 	}
+	if cookies := w.Result().Cookies(); len(cookies) == 0 || cookies[0].SameSite != http.SameSiteLaxMode {
+		t.Fatalf("cookie SameSite = %v, want SameSiteLaxMode", cookies)
+	}
+}
+
+func TestShareSessionCapacityAndTTLEviction(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	store := &sessions{
+		ttl:  time.Hour,
+		max:  3,
+		now:  func() time.Time { return now },
+		byID: map[string]*session{},
+	}
+
+	// Fill to capacity: s1 at t=0, s2 at t=10m, s3 at t=20m.
+	store.put(session{shareSessionID: "s1", ID: "p1"})
+	now = now.Add(10 * time.Minute)
+	store.put(session{shareSessionID: "s2", ID: "p2"})
+	now = now.Add(10 * time.Minute)
+	store.put(session{shareSessionID: "s3", ID: "p3"})
+
+	// Touch s1 so s2 becomes the oldest lastSeen.
+	now = now.Add(5 * time.Minute)
+	if _, ok := store.get("s1"); !ok {
+		t.Fatal("s1 missing before expiry")
+	}
+
+	// Inserting s4 at capacity evicts s2 (oldest lastSeen).
+	now = now.Add(5 * time.Minute)
+	store.put(session{shareSessionID: "s4", ID: "p4"})
+	if len(store.byID) != 3 {
+		t.Fatalf("len(byID) = %d, want 3", len(store.byID))
+	}
+	if _, ok := store.get("s2"); ok {
+		t.Fatal("expected oldest session s2 to be evicted")
+	}
+	for _, id := range []string{"s1", "s3", "s4"} {
+		if _, ok := store.get(id); !ok {
+			t.Fatalf("expected %s to remain", id)
+		}
+	}
+
+	// Advance past TTL: expired sessions are pruned first on put when full, and rejected on get/update.
+	now = now.Add(2 * time.Hour)
+	store.put(session{shareSessionID: "s5", ID: "p5"})
+	if len(store.byID) != 1 {
+		t.Fatalf("expected expired s1, s3, s4 to be pruned on put, got len=%d", len(store.byID))
+	}
+	if _, ok := store.get("s1"); ok {
+		t.Fatal("expired session s1 was returned by get")
+	}
+	// Advance past TTL again while below capacity: get/update still rejects and deletes expired entry.
+	now = now.Add(2 * time.Hour)
+	if _, ok := store.get("s5"); ok {
+		t.Fatal("expired session s5 was returned by get")
+	}
+	if len(store.byID) != 0 {
+		t.Fatalf("expected expired s5 to be deleted on get, got len=%d", len(store.byID))
+	}
 }

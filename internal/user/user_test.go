@@ -392,3 +392,27 @@ func TestChangePasswordSetsRefreshCookieAndNullsGraceColumns(t *testing.T) {
 		t.Fatalf("expected NULL grace columns, count=%d err=%v", nullCount, err)
 	}
 }
+
+func TestGetUserRedactsRootTokenForAdmin(t *testing.T) {
+	r := newRig(t)
+	rootID := r.id("trial-root")
+	code, created := r.do("trial-root", "POST", "/api/users", `{"username":"subadmin","password":"secret1","type":"admin","isActive":true}`)
+	if code != 200 {
+		t.Fatalf("create admin: %d %v", code, created)
+	}
+	code, rootAsRoot := r.do("trial-root", "GET", "/api/users/"+rootID, "")
+	if code != 200 {
+		t.Fatalf("root getUser: %d %v", code, rootAsRoot)
+	}
+	rootToken, _ := rootAsRoot["token"].(string)
+	if rootToken == "" {
+		t.Fatalf("expected root to see its own non-empty token, got %v", rootAsRoot["token"])
+	}
+	code, rootAsAdmin := r.do("subadmin", "GET", "/api/users/"+rootID, "")
+	if code != 200 {
+		t.Fatalf("admin getUser: %d %v", code, rootAsAdmin)
+	}
+	if tok, ok := rootAsAdmin["token"].(string); !ok || tok != "" {
+		t.Fatalf("expected empty token for non-root admin, got %#v", rootAsAdmin["token"])
+	}
+}

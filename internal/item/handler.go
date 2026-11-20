@@ -213,13 +213,40 @@ func (r itemRef) mediaTable() string {
 	return ""
 }
 
-// readable loads the item (404) and checks the user's library access (403).
+// readable loads the item (404) and checks the user's library, explicit content,
+// and tag access (403).
 func (h *Handler) readable(ctx context.Context, user *auth.Principal, id string) (itemRef, error) {
 	ref, err := h.loadRef(ctx, id)
-	if err == nil && !user.CanAccessLibrary(ref.LibraryID) {
-		err = httpx.Forbidden()
+	if err != nil {
+		return ref, err
 	}
-	return ref, err
+	if !user.CanAccessLibrary(ref.LibraryID) {
+		return ref, httpx.Forbidden()
+	}
+	if err := h.checkContentAccess(ctx, user, ref); err != nil {
+		return ref, err
+	}
+	return ref, nil
+}
+
+// checkContentAccess enforces explicit-content and tag rules when the user
+// carries content restrictions. Unrestricted active users skip the extra query.
+func (h *Handler) checkContentAccess(ctx context.Context, user *auth.Principal, ref itemRef) error {
+	perms := user.Permissions.V
+	if bool(user.IsActive) && perms.AccessAllTags && perms.AccessExplicitContent {
+		return nil
+	}
+	if ref.mediaTable() == "" {
+		return nil
+	}
+	_, exists, allowed, err := user.ReadItem(ctx, h.db, ref.ID)
+	if err != nil {
+		return httpx.Internal("database read failed", err)
+	}
+	if !exists || !allowed {
+		return httpx.Forbidden()
+	}
+	return nil
 }
 
 // writable is readable plus the update permission (403).

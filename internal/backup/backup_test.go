@@ -331,8 +331,8 @@ func TestApplyStagesAndRejectsHostileArchives(t *testing.T) {
 	if !reflect.DeepEqual(e.staged, []string{"true item metadata author metadata"}) || !reflect.DeepEqual(e.emitted, []string{"* backup_applied"}) {
 		t.Fatalf("staged %v, events %v", e.staged, e.emitted)
 	}
-	if _, err := os.Stat(filepath.Join(e.cfg.ConfigPath, "absdatabase-temp.sqlite")); err == nil {
-		t.Error("the extracted database was not removed")
+	if leftovers, _ := filepath.Glob(filepath.Join(e.cfg.ConfigPath, "absdatabase-*.sqlite")); len(leftovers) != 0 {
+		t.Errorf("extracted database left behind: %v", leftovers)
 	}
 	for _, id := range []string{"traversal", "symlink"} {
 		if w := e.do(true, httptest.NewRequest("GET", "/api/backups/"+id+"/apply", nil)); w.Code != 400 {
@@ -341,5 +341,70 @@ func TestApplyStagesAndRejectsHostileArchives(t *testing.T) {
 	}
 	if len(e.staged) != 1 {
 		t.Errorf("a hostile archive reached the restore hook: %v", e.staged)
+	}
+}
+
+func TestApplyRejectsZipBombsAndOversizedDetails(t *testing.T) {
+	e := newEnv(t, nil)
+	// Oversized details entry (> 1 MiB) is rejected by readBackup.
+	bigDetails := zipOf(t, [2]string{"absdatabase.sqlite", "x"}, [2]string{"details", strings.Repeat("a", (1<<20)+10)})
+	if w := e.do(true, upload(t, "big-details.audiobookshelf", bigDetails)); w.Code != 400 {
+		t.Fatalf("oversized details upload = %d %s, want 400", w.Code, w.Body)
+	}
+
+	// Extraction limit enforced against actual decompressed bytes across metadata and DB.
+	e.h.maxExtractBytes = 64
+	oversizedMeta := zipOf(t,
+		[2]string{"absdatabase.sqlite", "SQLite"},
+		[2]string{"metadata-items/book1/metadata.json", strings.Repeat("m", 100)},
+		[2]string{"details", "bomb-meta\nsqlite\n1000\n2.37.2"},
+	)
+	if w := e.do(true, upload(t, "bomb-meta.audiobookshelf", oversizedMeta)); w.Code != 200 {
+		t.Fatalf("upload bomb-meta = %d %s", w.Code, w.Body)
+	}
+	if w := e.do(true, httptest.NewRequest("GET", "/api/backups/bomb-meta/apply", nil)); w.Code != 400 {
+		t.Fatalf("apply bomb-meta = %d %s, want 400", w.Code, w.Body)
+	}
+
+	oversizedDB := zipOf(t,
+		[2]string{"absdatabase.sqlite", strings.Repeat("d", 100)},
+		[2]string{"details", "bomb-db\nsqlite\n1000\n2.37.2"},
+	)
+	if w := e.do(true, upload(t, "bomb-db.audiobookshelf", oversizedDB)); w.Code != 200 {
+		t.Fatalf("upload bomb-db = %d %s", w.Code, w.Body)
+	}
+	if w := e.do(true, httptest.NewRequest("GET", "/api/backups/bomb-db/apply", nil)); w.Code != 400 {
+		t.Fatalf("apply bomb-db = %d %s, want 400", w.Code, w.Body)
+	}
+}
+
+func TestClosePreventsConfigureRestartAndCreateSerializes(t *testing.T) {
+	e := newEnv(t, nil)
+
+	// Concurrent Create() calls serialize cleanly without leaving snapshot files behind.
+	errs := make(chan error, 2)
+	for range 2 {
+		go func() {
+			_, err := e.h.Create(context.Background())
+			errs <- err
+		}()
+	}
+	for range 2 {
+		if err := <-errs; err != nil {
+			t.Fatalf("concurrent Create failed: %v", err)
+		}
+	}
+	if leftovers, _ := filepath.Glob(filepath.Join(e.cfg.ConfigPath, "absdatabase.2*.sqlite")); len(leftovers) != 0 {
+		t.Errorf("snapshot left behind: %v", leftovers)
+	}
+
+	// OnChange / configure after Close() must not restart the cron schedule.
+	e.h.Close()
+	e.setServer(func(s *settings.Server) { s.BackupSchedule = "*/5 * * * *" })
+	e.h.mu.Lock()
+	c := e.h.cron
+	e.h.mu.Unlock()
+	if c != nil {
+		t.Fatal("configure restarted cron after Close()")
 	}
 }

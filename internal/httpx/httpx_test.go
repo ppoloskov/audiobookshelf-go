@@ -117,8 +117,17 @@ func TestClientIP(t *testing.T) {
 		{"peer", "", "192.0.2.1:1234", "192.0.2.1"},
 		{"peer without port", "", "192.0.2.1", "192.0.2.1"},
 		{"ipv6 peer", "", "[2001:db8::1]:80", "2001:db8::1"},
-		{"first forwarded", "203.0.113.5, 10.0.0.1", "192.0.2.1:1", "203.0.113.5"},
-		{"blank forwarded falls back", "  ", "192.0.2.1:1", "192.0.2.1"},
+		{"forwarded ignored from public peer", "198.51.100.7, 10.0.0.1", "203.0.113.5:1234", "203.0.113.5"},
+		{"forwarded ignored from ipv6 public peer", "198.51.100.7", "[2001:db8::1]:443", "2001:db8::1"},
+		{"forwarded honored from loopback", "203.0.113.5, 10.0.0.1", "127.0.0.1:1", "203.0.113.5"},
+		{"forwarded honored from ipv6 loopback", "203.0.113.5", "[::1]:1", "203.0.113.5"},
+		{"forwarded honored from mapped loopback", "203.0.113.5", "[::ffff:127.0.0.1]:1", "203.0.113.5"},
+		{"forwarded honored from 10/8", "203.0.113.5, 10.0.0.1", "10.1.2.3:4567", "203.0.113.5"},
+		{"forwarded honored from 172.16/12", "203.0.113.5", "172.16.0.5:4567", "203.0.113.5"},
+		{"forwarded honored from 192.168/16", "203.0.113.5", "192.168.1.10:4567", "203.0.113.5"},
+		{"forwarded honored from ULA", "203.0.113.5", "[fd00::1]:4567", "203.0.113.5"},
+		{"forwarded honored from link-local", "203.0.113.5", "169.254.1.2:4567", "203.0.113.5"},
+		{"blank forwarded falls back", "  ", "127.0.0.1:1", "127.0.0.1"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

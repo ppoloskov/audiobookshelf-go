@@ -348,3 +348,74 @@ func TestEncodeBuildsM4bBesideSources(t *testing.T) {
 	}
 	_ = fmt.Sprint
 }
+
+func TestEncodeParamValidation(t *testing.T) {
+	r := newRig(t)
+	r.addBook("item-1", "Validated", "a.mp3")
+	_, release := fakeFFmpeg(t)
+	release()
+
+	badQueries := []string{
+		"?codec=-y",
+		"?codec=aac%20-f",
+		"?codec=bad/codec",
+		"?channels=0",
+		"?channels=9",
+		"?channels=-1",
+		"?channels=%2B2",
+		"?channels=stereo",
+		"?bitrate=-64k",
+		"?bitrate=0k",
+		"?bitrate=64k%20-y",
+		"?bitrate=fast",
+	}
+	for _, q := range badQueries {
+		if w := r.call("root", "POST", "/api/tools/item/item-1/encode-m4b"+q, ""); w.Code != http.StatusBadRequest {
+			t.Errorf("query %q: got %d, want 400 (%s)", q, w.Code, w.Body.String())
+		}
+	}
+
+	if w := r.call("root", "POST", "/api/tools/item/item-1/encode-m4b?codec=libmp3lame&channels=1&bitrate=192K", ""); w.Code != http.StatusOK {
+		t.Fatalf("valid query: got %d (%s)", w.Code, w.Body.String())
+	}
+	waitFor(t, "validated encode", func() bool { return len(r.finished()) == 1 })
+	if task := r.finished()[0]; task.IsFailed {
+		t.Fatalf("valid encode failed: %+v", task)
+	}
+}
+
+func TestCancelEncodeCleansInputsAndAllowsImmediateRetry(t *testing.T) {
+	r := newRig(t)
+	dir := r.addBook("item-1", "Retry Me", "a.mp3", "b.mp3")
+	calls, _ := fakeFFmpeg(t)
+
+	if w := r.call("root", "POST", "/api/tools/item/item-1/encode-m4b", ""); w.Code != http.StatusOK {
+		t.Fatalf("first encode: %d %s", w.Code, w.Body)
+	}
+	waitFor(t, "ffmpeg", exists(filepath.Join(calls, "call-0")))
+
+	if w := r.call("root", "DELETE", "/api/tools/item/item-1/encode-m4b", ""); w.Code != http.StatusOK {
+		t.Fatalf("cancel: %d %s", w.Code, w.Body)
+	}
+	cacheDir := filepath.Join(r.root, "metadata", "cache", "items", "item-1")
+	for _, name := range []string{"inputs.txt", "metadata.txt", "Retry Me.tmp.m4b"} {
+		if _, err := os.Stat(filepath.Join(cacheDir, name)); !os.IsNotExist(err) {
+			t.Fatalf("%s still exists after cancelEncode returned: %v", name, err)
+		}
+	}
+
+	// Immediate retry must succeed once released.
+	if err := os.WriteFile(filepath.Join(calls, "go"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if w := r.call("root", "POST", "/api/tools/item/item-1/encode-m4b", ""); w.Code != http.StatusOK {
+		t.Fatalf("retry encode: %d %s", w.Code, w.Body)
+	}
+	waitFor(t, "retry encode", func() bool { return len(r.finished()) == 2 })
+	if task := r.finished()[1]; task.IsFailed {
+		t.Fatalf("retry encode failed: %+v", task)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "Retry Me.m4b")); err != nil {
+		t.Fatalf("output missing after retry: %v", err)
+	}
+}

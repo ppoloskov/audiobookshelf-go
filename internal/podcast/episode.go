@@ -434,8 +434,12 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, it *item
 	}
 	file := ep.AudioFile.V
 	if r.URL.Query().Get("hard") == "1" && file.Metadata.Path != "" {
-		if err := os.Remove(file.Metadata.Path); err != nil {
-			slog.Warn("podcast: hard delete episode file", "path", file.Metadata.Path, "error", err)
+		if pathInDir(file.Metadata.Path, db.Val(it.Path)) {
+			if err := os.Remove(file.Metadata.Path); err != nil {
+				slog.Warn("podcast: hard delete episode file", "path", file.Metadata.Path, "error", err)
+			}
+		} else {
+			slog.Warn("podcast: refusing to hard delete episode file outside item directory", "path", file.Metadata.Path, "itemDir", db.Val(it.Path))
 		}
 	}
 	if err := h.deleteEpisode(r.Context(), it, id, file.Ino); err != nil {
@@ -446,4 +450,23 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, it *item
 		return httpx.Internal("database read failed", errors.New("reload item after episode delete"))
 	}
 	return httpx.JSON(w, r, updated.Full())
+}
+
+func pathInDir(filePath, dirPath string) bool {
+	if filePath == "" || dirPath == "" {
+		return false
+	}
+	absDir, err := filepath.Abs(dirPath)
+	if err != nil {
+		return false
+	}
+	absFile, err := filepath.Abs(filePath)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(absDir, absFile)
+	if err != nil {
+		return false
+	}
+	return rel != "" && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }

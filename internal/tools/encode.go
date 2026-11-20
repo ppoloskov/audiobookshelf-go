@@ -2,6 +2,7 @@ package tools
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"monstrobook/internal/auth"
@@ -16,6 +18,35 @@ import (
 	"monstrobook/internal/httpx"
 	"monstrobook/internal/media"
 )
+
+type encodeParams struct {
+	codec    string
+	channels string
+	bitrate  string
+}
+
+var (
+	codecRe   = regexp.MustCompile(`^[a-zA-Z0-9_]{1,32}$`)
+	bitrateRe = regexp.MustCompile(`^[0-9]+[kKmM]?$`)
+)
+
+func parseEncodeParams(query url.Values) (encodeParams, error) {
+	params := encodeParams{
+		codec:    cmp.Or(query.Get("codec"), "aac"),
+		channels: cmp.Or(query.Get("channels"), "2"),
+		bitrate:  cmp.Or(query.Get("bitrate"), "128k"),
+	}
+	if !codecRe.MatchString(params.codec) {
+		return encodeParams{}, httpx.BadRequest("Invalid codec")
+	}
+	if len(params.channels) != 1 || params.channels[0] < '1' || params.channels[0] > '8' {
+		return encodeParams{}, httpx.BadRequest("Invalid channels")
+	}
+	if len(params.bitrate) > 16 || !bitrateRe.MatchString(params.bitrate) || strings.Trim(params.bitrate, "0kKmM") == "" {
+		return encodeParams{}, httpx.BadRequest("Invalid bitrate")
+	}
+	return params, nil
+}
 
 // encode starts the merge of the audiobook into one m4b file
 // (AbMergeManager.startAudiobookMerge).
@@ -28,17 +59,20 @@ func (h *Handler) encode(w http.ResponseWriter, r *http.Request, b book) error {
 	case h.has(b.item.ID, "encode-m4b"):
 		return httpx.BadRequest("Audiobook is already processing")
 	}
+	params, err := parseEncodeParams(r.URL.Query())
+	if err != nil {
+		return err
+	}
 	title := db.Val(b.media.Title)
 	j := h.newJob("encode-m4b", auth.User(r.Context()).ID, b, "Encoding M4b", "MessageTaskEncodingM4b",
 		fmt.Sprintf("Encoding audiobook %q into a single m4b file.", title), "MessageTaskEncodingM4bDescription")
-	query := r.URL.Query()
-	h.start(j, func() error { return h.merge(j, b, query) })
+	h.start(j, func() error { return h.merge(j, b, params) })
 	return httpx.Status(w, http.StatusOK)
 }
 
 // merge encodes the tracks into <item>.m4b: beside a single-file item, inside a
 // folder item. The sources are copied to the item cache first.
-func (h *Handler) merge(j *job, b book, query url.Values) error {
+func (h *Handler) merge(j *job, b book, params encodeParams) error {
 	if err := os.MkdirAll(j.cache, 0o755); err != nil {
 		return err
 	}
@@ -63,6 +97,7 @@ func (h *Handler) merge(j *job, b book, query url.Values) error {
 		if err := os.WriteFile(inputs, []byte(list.String()), 0o600); err != nil {
 			return err
 		}
+		defer os.Remove(inputs)
 		args = append(args, "-safe", "0", "-f", "concat", "-i", inputs)
 	} else {
 		args = append(args, "-i", b.files[0].path)
@@ -83,12 +118,19 @@ func (h *Handler) merge(j *job, b book, query url.Values) error {
 	}
 	args = append(args, "-map", "0:a", "-map_metadata", "1", "-map_chapters", "1")
 	args = append(args, cover...)
-	args = append(args, "-acodec", cmp.Or(query.Get("codec"), "aac"), "-ac", cmp.Or(query.Get("channels"), "2"), "-b:a", cmp.Or(query.Get("bitrate"), "128k"), "-f", "mp4", temp)
+	args = append(args, "-acodec", params.codec, "-ac", params.channels, "-b:a", params.bitrate, "-f", "mp4", temp)
 	if err := media.Run(j.ctx, args...); err != nil {
 		_ = os.Remove(temp)
+		if errors.Is(j.ctx.Err(), context.Canceled) {
+			return errCanceled
+		}
 		return fmt.Errorf("ffmpeg m4b encode: %w", err)
 	}
 	for _, f := range b.files {
+		if j.ctx.Err() != nil {
+			_ = os.Remove(temp)
+			return errCanceled
+		}
 		backup := filepath.Join(j.cache, filepath.Base(f.path))
 		if _, err := os.Stat(backup); err == nil {
 			continue
@@ -102,7 +144,6 @@ func (h *Handler) merge(j *job, b book, query url.Values) error {
 		_ = os.Remove(temp)
 		return err
 	}
-	_ = os.Remove(inputs)
 	return nil
 }
 

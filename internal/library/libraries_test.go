@@ -14,6 +14,7 @@ import (
 	"monstrobook/internal/auth"
 	"monstrobook/internal/db"
 	"monstrobook/internal/db/dbtest"
+	"monstrobook/internal/events"
 	"monstrobook/internal/filterdata"
 	"monstrobook/internal/item"
 	"monstrobook/internal/settings"
@@ -22,6 +23,7 @@ import (
 type rig struct {
 	t       *testing.T
 	d       *db.DB
+	h       *Handler
 	mux     *http.ServeMux
 	mu      sync.Mutex
 	names   []string
@@ -39,7 +41,7 @@ func newRig(t *testing.T) *rig {
 	filters := filterdata.NewCache()
 	emit := func(_, name string, _ any) { r.mu.Lock(); r.names = append(r.names, name); r.mu.Unlock() }
 	items := item.New(r.d, store, emit, item.Deps{Filters: filters, CoverCacheDir: t.TempDir(), ItemMetadataDir: t.TempDir()})
-	New(r.d, store, func(_, name string, _ any) { r.mu.Lock(); r.names = append(r.names, name); r.mu.Unlock() }, Deps{
+	r.h = New(r.d, store, func(_, name string, _ any) { r.mu.Lock(); r.names = append(r.names, name); r.mu.Unlock() }, Deps{
 		Filters:        filters,
 		LibraryChanged: func(string) { r.changed++ },
 		QuickMatch: func(_ context.Context, id string, o item.MatchOptions) (item.MatchResult, error) {
@@ -49,7 +51,9 @@ func newRig(t *testing.T) *rig {
 			return item.MatchResult{Updated: db.Ptr(true)}, nil
 		},
 		Items: items,
-	}).Routes(r.mux)
+	})
+	t.Cleanup(r.h.Close)
+	r.h.Routes(r.mux)
 	return r
 }
 
@@ -278,5 +282,131 @@ func TestDeleteLibraryRollsBackItemRows(t *testing.T) {
 	}
 	if r.count(`SELECT COUNT(*) FROM libraryItems WHERE libraryId = ?`, bookLib) != 5 || r.count(`SELECT COUNT(*) FROM books`) != 5 || r.count(`SELECT COUNT(*) FROM collections`) != 1 || len(r.names) != 0 || r.changed != 0 {
 		t.Fatalf("state changed: events %v", r.names)
+	}
+}
+
+func TestMatchAllCloseCancelsWaitsAndEmitsTaskFinished(t *testing.T) {
+	d := dbtest.Fixture(t)
+	store, err := settings.NewStore(context.Background(), d, func(string) string { return "" }, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	filters := filterdata.NewCache()
+	var (
+		mu       sync.Mutex
+		finished []events.Task
+		started  int
+	)
+	emit := func(_, name string, payload any) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch name {
+		case "task_started":
+			started++
+		case "task_finished":
+			if task, ok := payload.(events.Task); ok {
+				finished = append(finished, task)
+			}
+		}
+	}
+	entered := make(chan struct{}, 1)
+	doneQuick := make(chan struct{})
+	items := item.New(d, store, emit, item.Deps{Filters: filters, CoverCacheDir: t.TempDir(), ItemMetadataDir: t.TempDir()})
+	h := New(d, store, emit, Deps{
+		Filters: filters,
+		Items:   items,
+		QuickMatch: func(ctx context.Context, _ string, _ item.MatchOptions) (item.MatchResult, error) {
+			select {
+			case entered <- struct{}{}:
+			default:
+			}
+			<-ctx.Done()
+			close(doneQuick)
+			return item.MatchResult{}, ctx.Err()
+		},
+	})
+	mux := http.NewServeMux()
+	h.Routes(mux)
+
+	call := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest("GET", "/api/libraries/"+bookLib+"/matchall", nil)
+		req = req.WithContext(auth.WithUser(req.Context(), auth.NewPrincipal(users["root"].row)))
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		return w
+	}
+
+	if w := call(); w.Code != 200 {
+		t.Fatalf("first matchall: %d", w.Code)
+	}
+	select {
+	case <-entered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("QuickMatch was never called")
+	}
+	// Duplicate call while running is ignored.
+	if w := call(); w.Code != 200 {
+		t.Fatalf("duplicate matchall: %d", w.Code)
+	}
+
+	h.Close()
+	select {
+	case <-doneQuick:
+	default:
+		t.Fatal("Close returned before QuickMatch finished")
+	}
+
+	// Calls after Close do not start a new task.
+	if w := call(); w.Code != 200 {
+		t.Fatalf("post-close matchall: %d", w.Code)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if started != 1 || len(finished) != 1 {
+		t.Fatalf("started=%d finished=%d, want 1/1", started, len(finished))
+	}
+	if !finished[0].IsFinished || finished[0].DescriptionKey == nil || *finished[0].DescriptionKey != "MessageTaskCanceledByUser" {
+		t.Fatalf("unexpected finished task: %+v", finished[0])
+	}
+}
+
+func TestMatchAllFailureEmitsTaskFinished(t *testing.T) {
+	d := dbtest.Fixture(t)
+	store, err := settings.NewStore(context.Background(), d, func(string) string { return "" }, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	filters := filterdata.NewCache()
+	var (
+		mu       sync.Mutex
+		finished []events.Task
+	)
+	emit := func(_, name string, payload any) {
+		if name == "task_finished" {
+			if task, ok := payload.(events.Task); ok {
+				mu.Lock()
+				finished = append(finished, task)
+				mu.Unlock()
+			}
+		}
+	}
+	items := item.New(d, store, emit, item.Deps{Filters: filters, CoverCacheDir: t.TempDir(), ItemMetadataDir: t.TempDir()})
+	h := New(d, store, emit, Deps{Filters: filters, Items: items})
+	t.Cleanup(h.Close)
+
+	// Force selectAll in matchLibraryItems to fail by using an already-canceled context.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var lib db.Library
+	if err := d.Get(context.Background(), &lib, `SELECT * FROM libraries WHERE id = ?`, bookLib); err != nil {
+		t.Fatal(err)
+	}
+	h.matchLibraryItems(ctx, Scope{Library: lib, User: auth.NewPrincipal(users["root"].row)})
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(finished) != 1 || !finished[0].IsFinished || !finished[0].IsFailed {
+		t.Fatalf("expected failed finished task, got %+v", finished)
 	}
 }

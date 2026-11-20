@@ -78,6 +78,9 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) error {
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		return httpx.BadRequest("Invalid multipart form")
 	}
+	if r.MultipartForm != nil {
+		defer func() { _ = r.MultipartForm.RemoveAll() }()
+	}
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		return invalid(err)

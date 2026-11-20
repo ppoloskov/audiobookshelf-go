@@ -65,9 +65,7 @@ type watcher struct {
 }
 
 func (s *Scanner) newWatcher(ctx context.Context) *watcher {
-	w := &watcher{s: s, ctx: ctx, libs: map[string]watchedLibrary{}, being: map[string]bool{}, fsTimers: map[string]*time.Timer{}, queue: make(chan struct{}, 1)}
-	go w.work()
-	return w
+	return &watcher{s: s, ctx: ctx, libs: map[string]watchedLibrary{}, being: map[string]bool{}, fsTimers: map[string]*time.Timer{}, queue: make(chan struct{}, 1)}
 }
 
 // scheduleFS holds a filesystem event for watcherRenameTimeout before queuing
@@ -108,12 +106,18 @@ func (w *watcher) onFile(libraryID, path, kind string) {
 	slog.Debug("watcher: file event", "kind", kind, "path", path)
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	if w.ctx.Err() != nil {
+		return
+	}
 	if !w.addUpdate(libraryID, path) {
 		return
 	}
-	if kind == "added" && !w.being[path] {
+	if kind == "added" && !w.being[path] && w.s.addTask() {
 		w.being[path] = true
-		go w.waitForFile(path)
+		go func() {
+			defer w.s.wg.Done()
+			w.waitForFile(path)
+		}()
 	}
 }
 
@@ -192,6 +196,10 @@ func newWatcherTask(libraryID, name string) events.Task {
 // fire hands the pending updates to the worker once no file is in flight.
 func (w *watcher) fire() {
 	w.mu.Lock()
+	if w.ctx.Err() != nil {
+		w.mu.Unlock()
+		return
+	}
 	for _, u := range w.pending {
 		if w.being[u.path] {
 			w.timer = time.AfterFunc(watcherPendingDelay, w.fire)
@@ -219,6 +227,15 @@ func (w *watcher) fire() {
 
 // work scans the queued batches one at a time, in the order they were queued.
 func (w *watcher) work() {
+	defer func() {
+		w.mu.Lock()
+		rem := w.waiting
+		w.waiting = nil
+		w.mu.Unlock()
+		for _, b := range rem {
+			w.s.emit.TaskFinished(b.task.Described("Task canceled by user", "MessageTaskCanceledByUser").Finished())
+		}
+	}()
 	for {
 		select {
 		case <-w.ctx.Done():
@@ -226,6 +243,9 @@ func (w *watcher) work() {
 		case <-w.queue:
 		}
 		for {
+			if w.ctx.Err() != nil {
+				return
+			}
 			w.mu.Lock()
 			if len(w.waiting) == 0 {
 				w.mu.Unlock()
@@ -311,11 +331,27 @@ func (s *Scanner) Start(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+	return s.startLocked(ctx, false)
+}
+
+func (s *Scanner) startLocked(ctx context.Context, ignoreClosed bool) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	if s.closed {
+		s.mu.Unlock()
+		if ignoreClosed {
+			return nil
+		}
+		return errors.New("scan: scanner closed")
+	}
 	if s.stop != nil {
+		s.mu.Unlock()
 		return errors.New("scan: already started")
 	}
+	base := s.baseCtx()
+	s.mu.Unlock()
+
 	var rows []db.Library
 	if err := s.db.Select(ctx, &rows, `SELECT * FROM libraries`); err != nil {
 		return err
@@ -325,6 +361,7 @@ func (s *Scanner) Start(ctx context.Context) error {
 		return err
 	}
 	runCtx, cancel := context.WithCancel(ctx)
+	stopBase := context.AfterFunc(base, cancel)
 	w := s.newWatcher(runCtx)
 	crons := cronspec.New()
 	roots := map[string]string{}
@@ -333,6 +370,7 @@ func (s *Scanner) Start(ctx context.Context) error {
 		folders, err := s.folders(ctx, lib.id)
 		if err != nil {
 			cancel()
+			stopBase()
 			_ = fsw.Close() // the start failed; the close error adds nothing
 			return err
 		}
@@ -352,18 +390,52 @@ func (s *Scanner) Start(ctx context.Context) error {
 		}
 		if strings.TrimSpace(lib.cron) != "" {
 			id := lib.id
-			if _, err := crons.AddFunc(lib.cron, func() { go s.scheduled(runCtx, id) }); err != nil {
+			if _, err := crons.AddFunc(lib.cron, func() {
+				if runCtx.Err() != nil {
+					return
+				}
+				if !s.addTask() {
+					return
+				}
+				go func() {
+					defer s.wg.Done()
+					s.scheduled(runCtx, id)
+				}()
+			}); err != nil {
 				slog.Error("library scan schedule skipped", "library", lib.name, "cron", lib.cron, "error", err)
 			}
 		}
 	}
-	crons.Start()
+
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		cancel()
+		stopBase()
+		_ = fsw.Close()
+		if ignoreClosed {
+			return nil
+		}
+		return errors.New("scan: scanner closed")
+	}
+	s.wg.Add(2)
 	s.stop = func() {
 		cancel()
+		stopBase()
 		<-crons.Stop().Done()
 	}
 	s.watch = w
-	go w.loop(fsw, roots)
+	s.mu.Unlock()
+
+	crons.Start()
+	go func() {
+		defer s.wg.Done()
+		w.work()
+	}()
+	go func() {
+		defer s.wg.Done()
+		w.loop(fsw, roots)
+	}()
 	return nil
 }
 
@@ -375,13 +447,24 @@ func (s *Scanner) scheduled(ctx context.Context, libraryID string) {
 
 // Refresh reloads the folders and schedules without starting a scan.
 func (s *Scanner) Refresh(ctx context.Context) error {
-	s.mu.Lock()
-	if s.stop != nil {
-		s.stop()
-		s.stop = nil
+	if err := ctx.Err(); err != nil {
+		return err
 	}
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil
+	}
+	stop := s.stop
+	s.stop = nil
+	s.watch = nil
 	s.mu.Unlock()
-	return s.Start(ctx)
+	if stop != nil {
+		stop()
+	}
+	return s.startLocked(ctx, true)
 }
 
 // watchDirs watches every directory under from that a scan would not ignore.
@@ -405,7 +488,6 @@ func (w *watcher) loop(fsw *fsnotify.Watcher, roots map[string]string) {
 	defer fsw.Close()
 	defer func() {
 		w.mu.Lock()
-		defer w.mu.Unlock()
 		if w.timer != nil {
 			w.timer.Stop()
 		}
@@ -413,6 +495,14 @@ func (w *watcher) loop(fsw *fsnotify.Watcher, roots map[string]string) {
 			t.Stop()
 		}
 		clear(w.fsTimers)
+		task := w.task
+		w.task = nil
+		w.pending = nil
+		w.being = map[string]bool{}
+		w.mu.Unlock()
+		if task != nil {
+			w.s.emit.TaskFinished(task.Described("Task canceled by user", "MessageTaskCanceledByUser").Finished())
+		}
 	}()
 	libraryOf := func(p string) (id, root string) {
 		for root, id := range roots {

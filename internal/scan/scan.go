@@ -47,18 +47,46 @@ type Scanner struct {
 	filters  *filterdata.Cache
 	items    *item.Handler // author and series links, orphan sweeps, episode removal
 
-	mu    sync.Mutex
-	runs  map[string]*run    // the running scan of each library
-	stop  context.CancelFunc // ends the watchers and schedules of Start
-	watch *watcher
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+	opMu   sync.Mutex // serializes Start, Refresh, and watcher stop in Close
+
+	mu     sync.Mutex
+	runs   map[string]*run    // the running scan of each library
+	stop   context.CancelFunc // ends the watchers and schedules of Start
+	watch  *watcher
+	closed bool
 }
 
 // New returns a Scanner. A nil emit discards events. announcePlaylists is
 // item.Deps.AnnouncePlaylists, for playlists that lose deleted episodes; nil
 // announces nothing.
 func New(d *db.DB, st *settings.Store, emit events.Emitter, filters *filterdata.Cache, cfg config.Config, announcePlaylists func(context.Context, []item.PlaylistChange)) *Scanner {
-	return &Scanner{db: d, settings: st, cfg: cfg, emit: emit, filters: filters, runs: map[string]*run{},
-		items: item.New(d, st, emit, item.Deps{Filters: filters, AnnouncePlaylists: announcePlaylists})}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Scanner{
+		db: d, settings: st, cfg: cfg, emit: emit, filters: filters,
+		ctx: ctx, cancel: cancel, runs: map[string]*run{},
+		items: item.New(d, st, emit, item.Deps{Filters: filters, AnnouncePlaylists: announcePlaylists}),
+	}
+}
+
+func (s *Scanner) baseCtx() context.Context {
+	if s.ctx != nil {
+		return s.ctx
+	}
+	return context.Background()
+}
+
+// addTask registers one background goroutine in s.wg unless the scanner is closed.
+func (s *Scanner) addTask() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return false
+	}
+	s.wg.Add(1)
+	return true
 }
 
 // run is one registered scan of a library; done closes when it ends.
@@ -85,6 +113,10 @@ func (s *Scanner) begin(ctx context.Context, libraryID string) (context.Context,
 func (s *Scanner) beginWait(ctx context.Context, libraryID string) (context.Context, func(), error) {
 	for {
 		s.mu.Lock()
+		if s.closed {
+			s.mu.Unlock()
+			return ctx, nil, errors.New("scan: scanner closed")
+		}
 		r, busy := s.runs[libraryID]
 		if !busy {
 			defer s.mu.Unlock()
@@ -101,6 +133,9 @@ func (s *Scanner) beginWait(ctx context.Context, libraryID string) (context.Cont
 
 // register adds the run; the caller holds mu and the library has none.
 func (s *Scanner) register(ctx context.Context, libraryID string) (context.Context, func(), error) {
+	if s.closed {
+		return ctx, nil, errors.New("scan: scanner closed")
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	r := &run{cancel: cancel, done: make(chan struct{})}
 	s.runs[libraryID] = r
@@ -123,17 +158,32 @@ func (s *Scanner) Cancel(libraryID string) {
 	}
 }
 
-// Close stops the watchers, the schedules and every running scan.
+// Close stops the watchers, the schedules and every running scan, and waits
+// for all background scan and watcher goroutines to exit.
 func (s *Scanner) Close() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.stop != nil {
-		s.stop()
-		s.stop = nil
-	}
+	s.closed = true
 	for _, r := range s.runs {
 		r.cancel()
 	}
+	cancel := s.cancel
+	s.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+
+	s.opMu.Lock()
+	s.mu.Lock()
+	stop := s.stop
+	s.stop = nil
+	s.watch = nil
+	s.mu.Unlock()
+	if stop != nil {
+		stop()
+	}
+	s.opMu.Unlock()
+
+	s.wg.Wait()
 }
 
 // defaultPrecedence is the metadata precedence of a library that sets none.

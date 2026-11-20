@@ -154,6 +154,7 @@ func (h *Handler) openSession(user *auth.Principal, id string) (session, error) 
 	case s.UserID != user.ID && !user.IsAdmin():
 		return session{}, httpx.Forbidden()
 	}
+	h.touchActivity(id)
 	return s, nil
 }
 
@@ -187,7 +188,7 @@ func (h *Handler) track(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httpx.BadRequest("")
 	}
-	s, found := h.get(r.PathValue("id"))
+	s, found := h.getAndTouch(r.PathValue("id"))
 	if !found {
 		return httpx.NotFound()
 	}

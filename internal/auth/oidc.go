@@ -118,7 +118,7 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) error {
 		options = append(options, oauth2.SetAuthURLParam("code_challenge", challenge), oauth2.SetAuthURLParam("code_challenge_method", "S256"))
 		flow.redirectURI = providerRedirect(r, server, "/auth/openid/mobile-redirect")
 		s.mobile.put(state, returnURI)
-		setCookie(w, "auth_method", "openid-mobile", tenYears)
+		setCookie(w, r, "auth_method", "openid-mobile", tenYears)
 	} else {
 		callback := query.Get("callback")
 		switch {
@@ -130,8 +130,8 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) error {
 		flow.verifier = oauth2.GenerateVerifier()
 		options = append(options, oauth2.S256ChallengeOption(flow.verifier))
 		flow.redirectURI = providerRedirect(r, server, "/auth/openid/callback")
-		setCookie(w, "auth_cb", callback, 10*time.Minute)
-		setCookie(w, "auth_method", "openid", tenYears)
+		setCookie(w, r, "auth_cb", callback, 10*time.Minute)
+		setCookie(w, r, "auth_method", "openid", tenYears)
 	}
 	s.web.put(state, flow)
 	http.Redirect(w, r, oauthConfig(server, flow.redirectURI).AuthCodeURL(state, options...), http.StatusFound)
@@ -217,7 +217,7 @@ func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) error {
 	}
 	slog.Info("user logged in with OpenID", "username", db.Val(user.Username), "ip", httpx.ClientIP(r))
 	http.SetCookie(w, &http.Cookie{Name: "openid_id_token", Value: url.QueryEscape(idToken), Path: "/", MaxAge: int(tenYears.Seconds()),
-		HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode})
+		HttpOnly: true, Secure: requestSecure(r), SameSite: http.SameSiteLaxMode})
 	method := cookieValue(r, "auth_method")
 	if flow.mobile || method == "openid-mobile" || method == "api" {
 		payload, err := s.payloadFor(r.Context(), user)

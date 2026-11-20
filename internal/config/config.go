@@ -193,3 +193,13 @@ func (c Config) Dirs() Dirs {
 		Streams: filepath.Join(m, "streams"), Backups: filepath.Join(m, "backups"), Logs: filepath.Join(m, "logs"),
 	}
 }
+
+// String formats Config with JWTSecret redacted so %v and %+v cannot leak it.
+func (c Config) String() string {
+	type plain Config
+	p := plain(c)
+	if p.JWTSecret != "" {
+		p.JWTSecret = "[REDACTED]"
+	}
+	return fmt.Sprintf("%+v", p)
+}

@@ -2,6 +2,8 @@ package tools
 
 import (
 	"cmp"
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -80,6 +82,12 @@ func (h *Handler) enqueue(userID string, b book, query url.Values) {
 	}
 	j.Data = j.data
 	h.mu.Lock()
+	if h.closed {
+		h.mu.Unlock()
+		j.cancel()
+		close(j.done)
+		return
+	}
 	h.queued = append(h.queued, j)
 	h.mu.Unlock()
 	h.emit.ToAdmins("metadata_embed_queue_update", queueUpdate{b.item.ID, true})
@@ -140,6 +148,9 @@ func (h *Handler) runEmbed(j *job) error {
 		args = append(args, "-c", "copy", "-f", muxer(f.path), out)
 		if err = media.Run(j.ctx, args...); err != nil {
 			_ = os.Remove(out)
+			if errors.Is(j.ctx.Err(), context.Canceled) {
+				return errCanceled
+			}
 			return fmt.Errorf("ffmpeg metadata embed track %d: %w", i, err)
 		}
 		if err = os.Rename(out, f.path); err != nil {

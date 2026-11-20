@@ -182,7 +182,14 @@ func (h *Handler) fetch(d *download) (string, error) {
 		h.mu.Unlock()
 		target = filepath.Join(*dir, episodeFilename(d.title()+" ("+d.id+")", d.url))
 	}
-	resp, err := h.getEpisodeResponse(d.url)
+	timeout := h.downloadTimeout
+	if timeout <= 0 {
+		timeout = defaultDownloadTimeout
+	}
+	ctx, cancel := context.WithTimeout(h.ctx, timeout)
+	defer cancel()
+
+	resp, err := h.getEpisodeResponse(ctx, d.url)
 	if err != nil {
 		return "", err
 	}
@@ -207,14 +214,14 @@ func (h *Handler) fetch(d *download) (string, error) {
 		return "", err
 	}
 	if media.FFmpegAvailable() {
-		if err := tagEpisodeFile(h.ctx, *dir, tmp.Name(), target, d); err == nil {
+		if err := tagEpisodeFile(ctx, *dir, tmp.Name(), target, d); err == nil {
 			return target, nil
 		}
 	}
 	return target, os.Rename(tmp.Name(), target)
 }
 
-func (h *Handler) getEpisodeResponse(rawURL string) (*http.Response, error) {
+func (h *Handler) getEpisodeResponse(ctx context.Context, rawURL string) (*http.Response, error) {
 	// Some podcast hosts require the iTMS user agent while others reject it (ffmpegHelpers.js:112).
 	userAgents := []string{
 		"audiobookshelf (+https://audiobookshelf.org; like iTMS)",
@@ -222,7 +229,7 @@ func (h *Handler) getEpisodeResponse(rawURL string) (*http.Response, error) {
 	}
 	var lastErr error
 	for _, ua := range userAgents {
-		req, err := http.NewRequestWithContext(h.ctx, http.MethodGet, rawURL, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 		if err != nil {
 			return nil, err
 		}

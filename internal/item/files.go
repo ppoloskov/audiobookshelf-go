@@ -258,11 +258,14 @@ func (h *Handler) downloadItem(w http.ResponseWriter, r *http.Request, user *aut
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}
-	if !user.CanAccessLibrary(db.Val(it.LibraryID)) || !user.CanDownload() {
+	if a := it.Access(); !user.CanAccessItem(a.LibraryID, a.Explicit, a.Tags) || !user.CanDownload() {
 		return httpx.Forbidden()
 	}
 	path := filepath.Clean(db.Val(it.Path))
 	if it.IsFile {
+		if path == "" || !h.inLibrary(r.Context(), path, db.Val(it.LibraryID)) {
+			return httpx.NotFound()
+		}
 		audioType(w, path)
 		return httpx.Download(w, r, path, filepath.Base(db.Val(it.RelPath)))
 	}

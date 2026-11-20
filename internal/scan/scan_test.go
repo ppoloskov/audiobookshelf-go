@@ -917,3 +917,118 @@ func TestWatcherDelaysFSNotifyEventsByRenameTimeout(t *testing.T) {
 	}
 	t.Fatal("task_started never emitted after watcherRenameTimeout elapsed")
 }
+
+func TestCloseDrainsBackgroundRouteScan(t *testing.T) {
+	r := newRig(t)
+	r.write("A/Book/a.mp3", "aaa")
+	started, release := gatedFFprobe(t)
+
+	if w := r.admin("POST", "/api/libraries/lib-1/scan", ""); w.Code != http.StatusOK {
+		t.Fatalf("library scan = %d", w.Code)
+	}
+	started()
+
+	closed := make(chan struct{})
+	go func() {
+		r.s.Close()
+		close(closed)
+	}()
+
+	// Wait briefly until Close has canceled the running scan, then release ffprobe.
+	time.Sleep(50 * time.Millisecond)
+	release()
+
+	select {
+	case <-closed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close did not return after background scan released")
+	}
+
+	var finished int
+	for _, ev := range r.take() {
+		if ev.Name == "task_finished" {
+			finished++
+		}
+	}
+	if finished != 1 {
+		t.Fatalf("task_finished events before Close returned = %d, want 1", finished)
+	}
+}
+
+func TestCloseFinishesPendingWatcherTask(t *testing.T) {
+	prev := watcherPendingDelay
+	watcherPendingDelay = 5 * time.Second
+	t.Cleanup(func() { watcherPendingDelay = prev })
+
+	r := newRig(t)
+	if err := r.s.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	p := r.write("A/Book/a.mp3", "aaa")
+	r.s.UpdateWatchedPath("lib-1", p, "add")
+
+	// Wait for task_started from addUpdate, then close before watcherPendingDelay fires.
+	deadline := time.Now().Add(2 * time.Second)
+	started := false
+	for !started && time.Now().Before(deadline) {
+		for _, ev := range r.take() {
+			if ev.Name == "task_started" {
+				started = true
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !started {
+		t.Fatal("watcher did not emit task_started")
+	}
+
+	r.s.Close()
+
+	var finished struct {
+		Action         string `json:"action"`
+		IsFinished     bool   `json:"isFinished"`
+		DescriptionKey string `json:"descriptionKey"`
+	}
+	found := false
+	for _, ev := range r.take() {
+		if ev.Name == "task_finished" {
+			if err := json.Unmarshal(ev.Payload, &finished); err != nil {
+				t.Fatalf("unmarshal task_finished: %v", err)
+			}
+			found = true
+		}
+	}
+	if !found || finished.Action != "watcher-scan" || !finished.IsFinished || finished.DescriptionKey != "MessageTaskCanceledByUser" {
+		t.Fatalf("watcher task_finished = %+v (found=%v)", finished, found)
+	}
+}
+
+func TestCloseAndRefreshConcurrentRace(t *testing.T) {
+	r := newRig(t)
+	if err := r.s.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range 5 {
+				_ = r.s.Refresh(context.Background())
+			}
+		}()
+	}
+	time.Sleep(10 * time.Millisecond)
+	r.s.Close()
+	wg.Wait()
+
+	if err := r.s.Refresh(context.Background()); err != nil {
+		t.Fatalf("Refresh after Close returned error: %v", err)
+	}
+	r.s.mu.Lock()
+	stopped, watch := r.s.stop == nil, r.s.watch == nil
+	r.s.mu.Unlock()
+	if !stopped || !watch {
+		t.Fatalf("watcher restarted after Close: stopNil=%v watchNil=%v", stopped, watch)
+	}
+}

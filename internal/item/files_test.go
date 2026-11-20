@@ -157,6 +157,9 @@ func TestCoverRawIsPublicAndCached(t *testing.T) {
 	if rec := r.do(nil, "GET", "/api/items/i1/cover?raw=1", ""); rec.Code != 404 {
 		t.Fatalf("cover outside library and metadata: %d", rec.Code)
 	}
+	if rec := r.do(nil, "GET", "/api/items/i1/cover", ""); rec.Code != 404 {
+		t.Fatalf("resized cover outside library and metadata: %d", rec.Code)
+	}
 }
 
 func coverForm(t *testing.T, filename, content string) (string, string) {
@@ -544,5 +547,50 @@ func TestDeleteFileOfAnEpisodeRemovesTheEpisode(t *testing.T) {
 	}
 	if _, err := os.Stat(audio); !os.IsNotExist(err) {
 		t.Errorf("file still exists: %v", err)
+	}
+}
+
+func TestContentPermissionsAndSingleFileDownloadBoundary(t *testing.T) {
+	r := newRig(t)
+	dir := t.TempDir()
+	single := filepath.Join(dir, "single.mp3")
+	mustWrite(t, single, "audio-bytes")
+	r.exec(`UPDATE libraryFolders SET path=? WHERE id='f1'`, dir)
+	r.exec(`UPDATE libraryItems SET isFile=1, path=?, relPath='single.mp3', libraryFiles=? WHERE id='i1'`,
+		single, "["+libraryFileJSON("audio-1", single)+"]")
+
+	// Single-file download succeeds when inside the library folder.
+	if rec := r.request(uploaderUser, "GET", "/api/items/i1/download", "", ""); rec.Code != 200 || rec.Body.String() != "audio-bytes" {
+		t.Fatalf("single file download inside library: %d %q", rec.Code, rec.Body)
+	}
+
+	// Explicit and tag restrictions are enforced on readable, writable, downloadItem, and delete.
+	r.exec(`UPDATE books SET explicit=1, tags='["mature"]' WHERE id='b1'`)
+	noExplicit := user("u4", "user", `{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":false,"download":true,"update":true,"delete":true}`)
+	wrongTag := user("u5", "user", `{"accessAllLibraries":true,"accessAllTags":false,"itemTagsSelected":["other"],"accessExplicitContent":true,"download":true,"update":true,"delete":true}`)
+	allowed := user("u6", "user", `{"accessAllLibraries":true,"accessAllTags":false,"itemTagsSelected":["mature"],"accessExplicitContent":true,"download":true,"update":true,"delete":true}`)
+
+	for _, u := range []*auth.Principal{noExplicit, wrongTag} {
+		for _, req := range []struct{ method, path, body string }{
+			{"GET", "/api/items/i1/file/audio-1", ""},
+			{"GET", "/api/items/i1/download", ""},
+			{"PATCH", "/api/items/i1/media", `{"metadata":{"title":"Blocked"}}`},
+			{"DELETE", "/api/items/i1", ""},
+		} {
+			if rec := r.request(u, req.method, req.path, "application/json", req.body); rec.Code != 403 {
+				t.Errorf("%s %s as %s: %d, want 403", req.method, req.path, u.ID, rec.Code)
+			}
+		}
+	}
+	if rec := r.request(allowed, "GET", "/api/items/i1/download", "", ""); rec.Code != 200 {
+		t.Fatalf("allowed download: %d", rec.Code)
+	}
+
+	// Single-file download outside library folder must fail with 404.
+	outside := filepath.Join(t.TempDir(), "secret.mp3")
+	mustWrite(t, outside, "secret")
+	r.exec(`UPDATE libraryItems SET path=?, relPath='secret.mp3' WHERE id='i1'`, outside)
+	if rec := r.request(allowed, "GET", "/api/items/i1/download", "", ""); rec.Code != 404 {
+		t.Fatalf("single file download outside library: %d %q", rec.Code, rec.Body)
 	}
 }

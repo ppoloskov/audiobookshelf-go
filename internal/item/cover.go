@@ -62,10 +62,10 @@ func (h *Handler) cover(w http.ResponseWriter, r *http.Request) error {
 	if path == "" {
 		return httpx.NotFound()
 	}
+	if !h.inLibrary(ctx, path, ref.LibraryID) && !(h.deps.ItemMetadataDir != "" && within(path, []string{h.deps.ItemMetadataDir})) {
+		return httpx.NotFound()
+	}
 	if r.URL.Query().Get("raw") != "" {
-		if !h.inLibrary(ctx, path, ref.LibraryID) && !(h.deps.ItemMetadataDir != "" && within(path, []string{h.deps.ItemMetadataDir})) {
-			return httpx.NotFound()
-		}
 		if w.Header().Get("Cache-Control") == "" {
 			w.Header().Set("Cache-Control", "public, max-age=0")
 		}

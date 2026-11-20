@@ -512,7 +512,7 @@ func (h *Handler) hls(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Error(http.StatusMethodNotAllowed, "")
 	}
 	id, name := r.PathValue("id"), r.PathValue("name")
-	s, found := h.get(id)
+	s, found := h.getAndTouch(id)
 	if !found || s.stream == nil {
 		return httpx.NotFound()
 	}

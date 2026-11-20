@@ -54,6 +54,7 @@ type Hub struct {
 	connMu sync.Mutex
 	conns  map[*conn]struct{}
 	closed bool
+	wg     sync.WaitGroup
 }
 
 // New creates an Engine.IO + Socket.IO server for compatible polling and
@@ -87,7 +88,8 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *Hub) Paths() []string { return append([]string(nil), h.paths...) }
 
-// Close closes every connection and refuses new ones.
+// Close closes every connection, refuses new ones, and waits for all active
+// connection goroutines to finish.
 func (h *Hub) Close() {
 	h.connMu.Lock()
 	h.closed = true
@@ -99,6 +101,7 @@ func (h *Hub) Close() {
 	for _, c := range conns {
 		c.close("server shutting down")
 	}
+	h.wg.Wait()
 }
 
 func (h *Hub) addConn(c *conn) bool {
@@ -108,6 +111,7 @@ func (h *Hub) addConn(c *conn) bool {
 		return false
 	}
 	h.conns[c] = struct{}{}
+	h.wg.Add(1)
 	return true
 }
 
@@ -115,6 +119,7 @@ func (h *Hub) removeConn(c *conn) {
 	h.connMu.Lock()
 	delete(h.conns, c)
 	h.connMu.Unlock()
+	h.wg.Done()
 }
 
 func (h *Hub) connected(s *Socket, path string) {

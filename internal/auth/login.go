@@ -130,9 +130,9 @@ func (s *Service) logout(w http.ResponseWriter, r *http.Request) error {
 	if method == "openid" || method == "openid-mobile" {
 		logoutURL = s.endSessionURL(r, cookieValue(r, "openid_id_token"), method)
 	}
-	clearCookies(w, "refresh_token", "auth_method")
+	clearCookies(w, r, "refresh_token", "auth_method")
 	if logoutURL != nil || method == "openid" || method == "openid-mobile" {
-		clearCookies(w, "openid_id_token")
+		clearCookies(w, r, "openid_id_token")
 	}
 	if refresh != "" {
 		query, args := `DELETE FROM sessions WHERE refreshToken = ?`, []any{refresh}

@@ -140,14 +140,21 @@ func (s *Service) SetRefreshTokenCookie(w http.ResponseWriter, r *http.Request, 
 
 // setCookie sets a short-lived flow cookie. The value is query-escaped so any
 // text survives; cookieValue reverses it.
-func setCookie(w http.ResponseWriter, name, value string, maxAge time.Duration) {
-	http.SetCookie(w, &http.Cookie{Name: name, Value: url.QueryEscape(value), Path: "/", MaxAge: int(maxAge.Seconds()), HttpOnly: true})
+func setCookie(w http.ResponseWriter, r *http.Request, name, value string, maxAge time.Duration) {
+	http.SetCookie(w, &http.Cookie{
+		Name: name, Value: url.QueryEscape(value), Path: "/", MaxAge: int(maxAge.Seconds()),
+		HttpOnly: true, Secure: requestSecure(r), SameSite: http.SameSiteLaxMode,
+	})
 }
 
 // clearCookies expires the named cookies.
-func clearCookies(w http.ResponseWriter, names ...string) {
+func clearCookies(w http.ResponseWriter, r *http.Request, names ...string) {
+	secure := requestSecure(r)
 	for _, name := range names {
-		http.SetCookie(w, &http.Cookie{Name: name, Path: "/", MaxAge: -1, Expires: time.Unix(0, 0)})
+		http.SetCookie(w, &http.Cookie{
+			Name: name, Path: "/", MaxAge: -1, Expires: time.Unix(0, 0),
+			HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
+		})
 	}
 }
 

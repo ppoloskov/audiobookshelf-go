@@ -791,3 +791,65 @@ func TestDeleteEpisodeAnnouncesPlaylistBeforeUpdatingLibraryFiles(t *testing.T) 
 		t.Errorf("playlist_updated payload = %v, want 69178ac8-f7e7-45aa-8b92-d3c0c0524971", got)
 	}
 }
+
+func TestStalledEpisodeDownloadTimesOutAndQueueContinues(t *testing.T) {
+	r, srv := newRig(t), newEpisodeServer(t)
+	r.h.downloadTimeout = 50 * time.Millisecond
+	srv.gate("/stalled.wav") // never released: per-episode timeout must unblock the queue
+	r.download(t, srv, "Stalled", "/stalled.wav", "Next", "/next.wav")
+	r.waitEvent(t, "episode_download_finished")
+	r.idle(t)
+	if got := srv.requests(); !strings.Contains(got, "/next.wav") {
+		t.Fatalf("queued download did not run after stalled download timed out: requests=%s", got)
+	}
+	if n := r.count(t, `SELECT COUNT(*) FROM podcastEpisodes`); n != 4 {
+		t.Errorf("episode rows = %d, want 4 (only Next added)", n)
+	}
+}
+
+func TestHardDeleteRejectsPathsOutsideItemDir(t *testing.T) {
+	r := newRig(t)
+	outside := filepath.Join(t.TempDir(), "outside.mp3")
+	if err := os.WriteFile(outside, []byte("keep-me"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	inside := filepath.Join(r.root, "inside.mp3")
+	if err := os.WriteFile(inside, []byte("delete-me"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	setAudioPath := func(epID, path string) {
+		var raw db.JSON[db.AudioFile]
+		if err := r.d.Get(context.Background(), &raw, `SELECT audioFile FROM podcastEpisodes WHERE id=?`, epID); err != nil {
+			t.Fatal(err)
+		}
+		raw.V.Metadata.Path = path
+		encoded, err := json.Marshal(raw.V)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.sql(t, `UPDATE podcastEpisodes SET audioFile=? WHERE id=?`, string(encoded), epID)
+	}
+
+	// Tampered DB path outside item dir must not be removed.
+	setAudioPath(testEpisode, outside)
+	if w := r.serve(t, "trial-root", "DELETE", "/api/podcasts/"+testItem+"/episode/"+testEpisode+"?hard=1", ""); w.Code != 200 {
+		t.Fatalf("delete outside = %d %s", w.Code, w.Body)
+	}
+	if _, err := os.Stat(outside); err != nil {
+		t.Fatalf("file outside item dir was removed: %v", err)
+	}
+
+	// Second episode inside item dir must be removed on ?hard=1.
+	var secondEp string
+	if err := r.d.Get(context.Background(), &secondEp, `SELECT id FROM podcastEpisodes WHERE podcastId=? LIMIT 1`, testPod); err != nil {
+		t.Fatal(err)
+	}
+	setAudioPath(secondEp, inside)
+	if w := r.serve(t, "trial-root", "DELETE", "/api/podcasts/"+testItem+"/episode/"+secondEp+"?hard=1", ""); w.Code != 200 {
+		t.Fatalf("delete inside = %d %s", w.Code, w.Body)
+	}
+	if _, err := os.Stat(inside); !os.IsNotExist(err) {
+		t.Fatalf("file inside item dir survived hard delete: %v", err)
+	}
+}

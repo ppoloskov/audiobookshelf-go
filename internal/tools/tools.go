@@ -32,6 +32,7 @@ type Handler struct {
 	running []*job     // started order
 	queued  []*job     // embed-metadata jobs waiting for their turn
 	closed  bool
+	wg      sync.WaitGroup
 }
 
 // New returns a Handler. A nil emit discards events.
@@ -50,14 +51,16 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	admin("POST /api/tools/item/{id}/embed-metadata", h.onItem(func(w http.ResponseWriter, r *http.Request, b book) error { return h.queue(w, r, b) }))
 }
 
-// Close cancels the running tasks and starts no queued one.
+// Close cancels the running tasks, starts no queued one, and waits for all
+// running job goroutines (and their ffmpeg processes) to exit.
 func (h *Handler) Close() {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	h.closed = true
 	for _, j := range h.running {
 		j.cancel()
 	}
+	h.mu.Unlock()
+	h.wg.Wait()
 }
 
 // onItem loads the item of {id} (404 when unknown) before it runs action.

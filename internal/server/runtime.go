@@ -108,6 +108,7 @@ func (rt *Runtime) build(getenv func(string) string, restore backup.Restore) (er
 		QuickMatch:     items.QuickMatch,
 		Items:          items,
 	})
+	rt.own(libs.Close)
 	rt.playback = playback.New(rt.data, rt.settings, cfg, emit)
 	rt.own(rt.playback.Close)
 	authors := author.New(rt.data, rt.settings, emit, author.Deps{

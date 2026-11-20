@@ -1,7 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -74,5 +76,23 @@ func TestLoadArgsOverridesEnvironment(t *testing.T) {
 	}
 	if cfg.ConfigPath != "/cli/config" || cfg.MetadataPath != "/cli/metadata" || cfg.Port != 4555 || cfg.Host != "0.0.0.0" || cfg.Source != "cli-source" {
 		t.Fatalf("unexpected CLI config: %#v", cfg)
+	}
+}
+
+func TestConfigStringRedactsJWTSecret(t *testing.T) {
+	const secret = "super-secret-jwt-key-value"
+	cfg := Config{Port: 3333, Host: "127.0.0.1", JWTSecret: secret}
+	for _, formatted := range []string{fmt.Sprintf("%v", cfg), fmt.Sprintf("%+v", cfg)} {
+		if strings.Contains(formatted, secret) {
+			t.Fatalf("formatted Config leaked JWTSecret: %s", formatted)
+		}
+		if !strings.Contains(formatted, "JWTSecret:[REDACTED]") {
+			t.Fatalf("expected [REDACTED] in %s", formatted)
+		}
+	}
+
+	empty := Config{Port: 3333}
+	if s := fmt.Sprintf("%+v", empty); strings.Contains(s, "[REDACTED]") {
+		t.Fatalf("empty JWTSecret should not be marked redacted: %s", s)
 	}
 }

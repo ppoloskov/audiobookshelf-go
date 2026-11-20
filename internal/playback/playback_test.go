@@ -858,3 +858,127 @@ func TestCleanupOrphanStreams(t *testing.T) {
 		t.Errorf("a directory that is not a session id was removed: %v", err)
 	}
 }
+
+func TestLocalSyncCrossUserIDORAndAccess(t *testing.T) {
+	e := newEnv(t)
+	now := time.Now().UnixMilli() + 3600000
+	sharedUUID := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	body := fmt.Sprintf(`{"id":%q,"libraryItemId":%q,"currentTime":12,"timeListening":5,"startedAt":%d,"updatedAt":%d}`, sharedUUID, novelItem, now-1000, now)
+	e.expect(t, 200, listenerID, "POST", "/api/session/local", body)
+
+	// Another user cannot overwrite listenerID's session via /api/session/local or /api/session/local-all.
+	hijack := fmt.Sprintf(`{"id":%q,"libraryItemId":%q,"currentTime":99,"timeListening":99,"startedAt":%d,"updatedAt":%d}`, sharedUUID, novelItem, now-1000, now+5000)
+	e.expect(t, 403, finisherID, "POST", "/api/session/local", hijack)
+	var owner string
+	var cur float64
+	e.row(t, &owner, `SELECT userId FROM playbackSessions WHERE id = ?`, sharedUUID)
+	e.row(t, &cur, `SELECT currentTime FROM playbackSessions WHERE id = ?`, sharedUUID)
+	if owner != listenerID || cur != 12 {
+		t.Fatalf("session overwritten: owner=%q cur=%v", owner, cur)
+	}
+
+	batch := fmt.Sprintf(`{"sessions":[%s]}`, hijack)
+	var res struct {
+		Results []localResult `json:"results"`
+	}
+	if err := json.Unmarshal(e.expect(t, 200, finisherID, "POST", "/api/session/local-all", batch).Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Results) != 1 || res.Results[0].Success || res.Results[0].Error == "" {
+		t.Fatalf("local-all cross-user hijack result = %+v, want failure", res.Results)
+	}
+
+	// Same play_local_* client id from two users maps to distinct server session ids.
+	localA := fmt.Sprintf(`{"id":"play_local_same","libraryItemId":%q,"currentTime":10,"timeListening":2,"updatedAt":%d}`, novelItem, now)
+	localB := fmt.Sprintf(`{"id":"play_local_same","libraryItemId":%q,"currentTime":20,"timeListening":3,"updatedAt":%d}`, novelItem, now)
+	e.expect(t, 200, listenerID, "POST", "/api/session/local", localA)
+	e.expect(t, 200, finisherID, "POST", "/api/session/local", localB)
+	if n := e.count(t, `SELECT COUNT(*) FROM playbackSessions WHERE id IN (SELECT id FROM playbackSessions WHERE timeListening IN (2, 3))`); n != 2 {
+		t.Fatalf("expected 2 separate sessions for play_local_same across 2 users, got %d", n)
+	}
+
+	// Restricted user without library access cannot sync local session for that item.
+	if _, err := e.d.Exec(context.Background(), `UPDATE users SET permissions = json_set(permissions, '$.accessAllLibraries', json('false')) WHERE id = ?`, finisherID); err != nil {
+		t.Fatal(err)
+	}
+	e.expect(t, 403, finisherID, "POST", "/api/session/local", fmt.Sprintf(`{"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","libraryItemId":%q,"currentTime":5,"timeListening":1,"updatedAt":%d}`, novelItem, now))
+	if n := e.count(t, `SELECT COUNT(*) FROM playbackSessions WHERE id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'`); n != 0 {
+		t.Fatalf("unauthorized local sync created session row")
+	}
+
+	// localIDs map is capped at maxLocalIDs.
+	for i := range maxLocalIDs + 50 {
+		if _, err := e.localSessionID(listenerID, fmt.Sprintf("play_local_%d", i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e.Handler.mu.Lock()
+	nLocal := len(e.Handler.localIDs)
+	e.Handler.mu.Unlock()
+	if nLocal > maxLocalIDs {
+		t.Fatalf("localIDs grew to %d > %d", nLocal, maxLocalIDs)
+	}
+}
+
+func TestDeleteHistoryOwnership(t *testing.T) {
+	e := newEnv(t)
+	if _, err := e.d.Exec(context.Background(), `UPDATE users SET permissions = json_set(permissions, '$.delete', json('true')) WHERE id = ?`, finisherID); err != nil {
+		t.Fatal(err)
+	}
+	// finisherID cannot delete listenerID's stored session even with CanDelete().
+	e.expect(t, 403, finisherID, "DELETE", "/api/sessions/legacy-null-0001", "")
+	if n := e.count(t, `SELECT COUNT(*) FROM playbackSessions WHERE id = 'legacy-null-0001'`); n != 1 {
+		t.Fatalf("listener session was deleted by non-owner")
+	}
+	// finisherID can delete their own session.
+	ownID := "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+	now := time.Now().UnixMilli()
+	e.expect(t, 200, finisherID, "POST", "/api/session/local", fmt.Sprintf(`{"id":%q,"libraryItemId":%q,"currentTime":5,"timeListening":2,"updatedAt":%d}`, ownID, novelItem, now))
+	e.expect(t, 200, finisherID, "DELETE", "/api/sessions/"+ownID, "")
+	if n := e.count(t, `SELECT COUNT(*) FROM playbackSessions WHERE id = ?`, ownID); n != 0 {
+		t.Fatalf("own session was not deleted")
+	}
+	// Admin can delete listenerID's session.
+	e.expect(t, 200, rootID, "DELETE", "/api/sessions/legacy-null-0001", "")
+}
+
+func TestIdleSessionReapingAndActivityRefresh(t *testing.T) {
+	base := newEnv(t)
+	store, err := settings.NewStore(context.Background(), base.d, func(string) string { return "" }, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Config{MetadataPath: t.TempDir()}
+	e := &env{d: base.d, media: base.media, streams: cfg.Dirs().Streams}
+	e.Handler = newHandler(base.d, store, cfg, e.record, 50*time.Millisecond, 10*time.Millisecond)
+	t.Cleanup(e.Close)
+
+	id1 := e.startDirect(t, novelItem)
+	id2 := e.startDirect(t, sagaItem)
+
+	// Keep id1 active via getSession / track while id2 goes idle.
+	for range 4 {
+		time.Sleep(20 * time.Millisecond)
+		e.expect(t, 200, listenerID, "GET", "/api/session/"+id1, "")
+		e.expect(t, 200, "", "GET", "/public/session/"+id1+"/track/1", "")
+	}
+	if _, ok := e.get(id1); !ok {
+		t.Fatalf("active session %s was reaped despite activity", id1)
+	}
+	if _, ok := e.get(id2); ok {
+		t.Fatalf("idle session %s was not reaped", id2)
+	}
+	if e.events("user_session_closed") < 1 {
+		t.Fatalf("expected user_session_closed event for reaped session")
+	}
+
+	// Now let id1 go idle and verify reaper closes it too.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, ok := e.get(id1); !ok {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("session %s was not reaped after becoming idle", id1)
+}

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/robfig/cron/v3"
 
@@ -27,6 +28,8 @@ import (
 // NotifyFunc delivers a notification event (notify.Handler.TriggerEvent).
 type NotifyFunc func(ctx context.Context, event string, data map[string]any) error
 
+const defaultDownloadTimeout = 30 * time.Minute
+
 // Handler serves the podcast routes and runs the download queue and the
 // auto-download schedule. One mutex guards the queue, the cron entries and the
 // failure counts; Close stops them and waits for the goroutines.
@@ -39,6 +42,7 @@ type Handler struct {
 	// announcePlaylists tells playlist owners about a deleted episode; may be nil.
 	announcePlaylists func(ctx context.Context, changes []item.PlaylistChange)
 	client            *http.Client
+	downloadTimeout   time.Duration
 	maxFailedChecks   int
 	ctx               context.Context // canceled by Close; every background job uses it
 	stop              context.CancelFunc
@@ -57,7 +61,7 @@ type Handler struct {
 
 // New returns a Handler (announcePlaylists is item.Deps.AnnouncePlaylists; filters is the filter menu cache a created podcast invalidates) and schedules every podcast with auto-download on.
 func New(d *db.DB, st *settings.Store, filters *filterdata.Cache, cfg config.Config, emit events.Emitter, notify NotifyFunc, announcePlaylists func(context.Context, []item.PlaylistChange)) *Handler {
-	h := &Handler{db: d, settings: st, filters: filters, emit: emit, notify: notify, announcePlaylists: announcePlaylists, client: httpx.NewSafeClient(), maxFailedChecks: cfg.MaxFailedEpisodeChecks,
+	h := &Handler{db: d, settings: st, filters: filters, emit: emit, notify: notify, announcePlaylists: announcePlaylists, client: httpx.NewSafeClient(), downloadTimeout: defaultDownloadTimeout, maxFailedChecks: cfg.MaxFailedEpisodeChecks,
 		cron: cronspec.New(), entries: map[string]cron.EntryID{}, failed: map[string]int{}}
 	h.ctx, h.stop = context.WithCancel(context.Background())
 	var ids []string

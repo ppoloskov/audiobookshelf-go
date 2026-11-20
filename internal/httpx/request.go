@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 )
@@ -67,15 +68,22 @@ func QueryBool(r *http.Request, key string) bool {
 	return value == "1" || value == "true"
 }
 
-// ClientIP is the first X-Forwarded-For address, else the socket peer. The
-// header is client-controlled: use it for logging and rate limiting behind a
-// trusted proxy, never as proof of identity.
+// ClientIP is the first X-Forwarded-For address when the direct socket peer is
+// a reverse proxy (loopback, RFC1918/ULA private, or link-local), else the
+// socket peer. The header is never trusted from public peers so callers cannot
+// spoof it to bypass rate limits.
 func ClientIP(r *http.Request) string {
-	if first, _, _ := strings.Cut(r.Header.Get("X-Forwarded-For"), ","); strings.TrimSpace(first) != "" {
-		return strings.TrimSpace(first)
+	peer := r.RemoteAddr
+	if host, _, err := net.SplitHostPort(peer); err == nil {
+		peer = host
 	}
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		return host
+	if addr, err := netip.ParseAddr(peer); err == nil {
+		addr = addr.Unmap()
+		if addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() {
+			if first, _, _ := strings.Cut(r.Header.Get("X-Forwarded-For"), ","); strings.TrimSpace(first) != "" {
+				return strings.TrimSpace(first)
+			}
+		}
 	}
-	return r.RemoteAddr
+	return peer
 }

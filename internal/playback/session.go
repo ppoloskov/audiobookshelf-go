@@ -3,8 +3,11 @@ package playback
 import (
 	"cmp"
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"slices"
 	"time"
@@ -13,6 +16,8 @@ import (
 	"monstrobook/internal/item"
 	"monstrobook/internal/version"
 )
+
+var errSessionForbidden = errors.New("session belongs to another user")
 
 // Session is a playback session as clients read it (PlaybackSession.toJSON).
 // The open-sessions listing leaves AudioTracks and LibraryItem out and adds User.
@@ -71,10 +76,11 @@ type userStub struct {
 // needs a stable view works on a copy of the struct.
 type session struct {
 	Session
-	mediaID string // the books or podcasts row id
-	files   []db.AudioFile
-	stream  *stream       // nil unless transcoding
-	item    item.Expanded // the library item as it was at start, for the client view
+	mediaID      string // the books or podcasts row id
+	files        []db.AudioFile
+	stream       *stream       // nil unless transcoding
+	item         item.Expanded // the library item as it was at start, for the client view
+	lastActivity time.Time
 }
 
 // mediaRef is the progress row the session reads and writes: the episode of a
@@ -145,28 +151,37 @@ func (s *session) row() (db.PlaybackSession, error) {
 	}, nil
 }
 
-// upsert inserts the row, or, when the session was stored before, updates only
-// currentTime, timeListening, updatedAt, date and dayOfWeek: the device and
-// metadata stay as first written (PlaybackSessionManager.js:207-220).
+// upsert inserts the row, or, when the session was stored before by the same
+// user, updates only currentTime, timeListening, updatedAt, date and dayOfWeek:
+// the device and metadata stay as first written (PlaybackSessionManager.js:207-220).
 func (h *Handler) upsert(ctx context.Context, row db.PlaybackSession) error {
 	return h.db.Tx(ctx, func(ctx context.Context) error {
-		exists, err := h.sessionStored(ctx, row.ID)
-		if err != nil {
-			return err
-		}
-		if exists {
+		var owner *string
+		err := h.db.Get(ctx, &owner, `SELECT userId FROM playbackSessions WHERE id = ?`, row.ID)
+		switch {
+		case err == nil:
+			if db.Val(owner) != db.Val(row.UserID) {
+				return errSessionForbidden
+			}
 			return h.db.Update(ctx, "playbackSessions", &row, "currentTime", "timeListening", "updatedAt", "date", "dayOfWeek")
+		case errors.Is(err, sql.ErrNoRows):
+			return h.db.Insert(ctx, "playbackSessions", &row)
+		default:
+			return fmt.Errorf("find session %s: %w", row.ID, err)
 		}
-		return h.db.Insert(ctx, "playbackSessions", &row)
 	})
 }
 
-func (h *Handler) sessionStored(ctx context.Context, id string) (bool, error) {
-	var n int
-	if err := h.db.Get(ctx, &n, `SELECT COUNT(*) FROM playbackSessions WHERE id = ?`, id); err != nil {
-		return false, fmt.Errorf("find session %s: %w", id, err)
+func (h *Handler) sessionOwner(ctx context.Context, id string) (stored bool, userID string, err error) {
+	var owner *string
+	err = h.db.Get(ctx, &owner, `SELECT userId FROM playbackSessions WHERE id = ?`, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, "", nil
 	}
-	return n > 0, nil
+	if err != nil {
+		return false, "", fmt.Errorf("find session %s: %w", id, err)
+	}
+	return true, db.Val(owner), nil
 }
 
 // The open sessions live in memory; all access goes through these methods, which
@@ -174,6 +189,9 @@ func (h *Handler) sessionStored(ctx context.Context, id string) (bool, error) {
 
 func (h *Handler) add(s *session) {
 	h.mu.Lock()
+	if s.lastActivity.IsZero() {
+		s.lastActivity = time.Now()
+	}
 	h.sessions[s.ID] = s
 	h.mu.Unlock()
 }
@@ -188,6 +206,25 @@ func (h *Handler) get(id string) (session, bool) {
 	return session{}, false
 }
 
+// getAndTouch updates lastActivity and returns a copy of the open session id.
+func (h *Handler) getAndTouch(id string) (session, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if s, ok := h.sessions[id]; ok {
+		s.lastActivity = time.Now()
+		return *s, true
+	}
+	return session{}, false
+}
+
+func (h *Handler) touchActivity(id string) {
+	h.mu.Lock()
+	if s, ok := h.sessions[id]; ok {
+		s.lastActivity = time.Now()
+	}
+	h.mu.Unlock()
+}
+
 // update applies fn to the open session id and returns a copy of the result.
 func (h *Handler) update(id string, fn func(*Session)) (session, bool) {
 	h.mu.Lock()
@@ -196,6 +233,7 @@ func (h *Handler) update(id string, fn func(*Session)) (session, bool) {
 	if !ok {
 		return session{}, false
 	}
+	s.lastActivity = time.Now()
 	fn(&s.Session)
 	return *s, true
 }
@@ -215,6 +253,27 @@ func (h *Handler) remove(id string) {
 	}
 }
 
+// reapIdle closes open sessions whose lastActivity is older than h.idleTTL.
+func (h *Handler) reapIdle(now time.Time) {
+	if h.idleTTL <= 0 {
+		return
+	}
+	h.mu.Lock()
+	var expired []*session
+	for id, s := range h.sessions {
+		if now.Sub(s.lastActivity) > h.idleTTL {
+			expired = append(expired, s)
+			delete(h.sessions, id)
+		}
+	}
+	h.mu.Unlock()
+	for _, s := range expired {
+		h.emit.ToUser(s.UserID, "user_session_closed", s.ID)
+		s.stream.stop(s.ID)
+		slog.Info("playback session reaped due to inactivity", "session", s.ID, "user", s.UserID)
+	}
+}
+
 // snapshot lists copies of the open sessions, oldest first.
 func (h *Handler) snapshot() []session {
 	h.mu.Lock()
@@ -229,9 +288,13 @@ func (h *Handler) snapshot() []session {
 	return out
 }
 
-// Close forgets every open session and stops their transcodes (server shutdown,
-// backup restore).
+// Close stops the idle reaper, forgets every open session and stops their
+// transcodes (server shutdown, backup restore).
 func (h *Handler) Close() {
+	if h.stop != nil {
+		h.stop()
+	}
+	h.wg.Wait()
 	h.mu.Lock()
 	sessions := h.sessions
 	h.sessions = map[string]*session{}

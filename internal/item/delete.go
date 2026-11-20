@@ -25,14 +25,14 @@ type Removal struct {
 }
 
 // delete is LibraryItemController.delete (js:114-150). Order: 404, 403
-// (library, then delete permission), 400 for a media type without a table.
+// (library/content, then delete permission), 400 for a media type without a table.
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
 	ctx := r.Context()
-	ref, err := h.loadRef(ctx, r.PathValue("id"))
+	ref, err := h.readable(ctx, user, r.PathValue("id"))
 	if err != nil {
 		return err
 	}
-	if !user.CanAccessLibrary(ref.LibraryID) || !user.CanDelete() {
+	if !user.CanDelete() {
 		return httpx.Forbidden()
 	}
 	if ref.mediaTable() == "" {

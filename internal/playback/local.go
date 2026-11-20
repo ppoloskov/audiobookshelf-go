@@ -79,6 +79,7 @@ type localResult struct {
 	Success        bool    `json:"success"`
 	ProgressSynced *bool   `json:"progressSynced,omitempty"`
 	Error          string  `json:"error,omitempty"`
+	forbidden      bool
 }
 
 // looseUnmarshal decodes JSON into v, leaving values of the wrong type zero
@@ -115,6 +116,9 @@ func (h *Handler) localSync(w http.ResponseWriter, r *http.Request, user *auth.P
 		return err
 	}
 	if res := h.syncLocal(r, user, upload, device); res.Error != "" {
+		if res.forbidden {
+			return httpx.Forbidden()
+		}
 		return httpx.Error(http.StatusInternalServerError, res.Error)
 	}
 	return ok(w)
@@ -143,24 +147,31 @@ func (h *Handler) localSyncAll(w http.ResponseWriter, r *http.Request, user *aut
 }
 
 // localSessionID maps a client's play_local_* id to the server id it was first
-// stored under; any other client id is kept and a missing one is new.
-func (h *Handler) localSessionID(id string) (string, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+// stored under for userID; any other client id is kept and a missing one is new.
+func (h *Handler) localSessionID(userID, id string) (string, error) {
 	if !strings.HasPrefix(id, "play_local_") {
 		if id != "" {
 			return id, nil
 		}
 		return ids.New()
 	}
-	if h.localIDs[id] == "" {
+	key := userID + "\x00" + id
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.localIDs[key] == "" {
 		generated, err := ids.New()
 		if err != nil {
 			return "", err
 		}
-		h.localIDs[id] = generated
+		if len(h.localIDs) >= maxLocalIDs {
+			for k := range h.localIDs {
+				delete(h.localIDs, k)
+				break
+			}
+		}
+		h.localIDs[key] = generated
 	}
-	return h.localIDs[id], nil
+	return h.localIDs[key], nil
 }
 
 // syncLocal stores an uploaded session and applies its progress. The result
@@ -171,15 +182,24 @@ func (h *Handler) syncLocal(r *http.Request, user *auth.Principal, upload localS
 		slog.Error("local session sync failed", "session", upload.ID, "item", upload.LibraryItemID, "reason", message, "error", err)
 		return localResult{ID: nilIfEmpty(upload.ID), Error: message}
 	}
+	failForbidden := func(message string, err error) localResult {
+		res := fail(message, err)
+		res.forbidden = true
+		return res
+	}
 	m, err := h.loadMedia(ctx, upload.LibraryItemID, upload.EpisodeID)
 	if err != nil {
 		return fail("Media item not found", err)
+	}
+	access := m.item.Access()
+	if !user.CanAccessItem(access.LibraryID, access.Explicit, access.Tags) {
+		return failForbidden("Access denied", errors.New("user cannot access item"))
 	}
 	var library db.Library
 	if err = h.db.Get(ctx, &library, `SELECT * FROM libraries WHERE id = ?`, db.Val(m.item.LibraryID)); err != nil {
 		return fail("Library not found", err)
 	}
-	id, err := h.localSessionID(upload.ID)
+	id, err := h.localSessionID(user.ID, upload.ID)
 	if err != nil {
 		return fail("Failed to save session", err)
 	}
@@ -192,9 +212,12 @@ func (h *Handler) syncLocal(r *http.Request, user *auth.Principal, upload localS
 	}
 	s := m.newSession(id, user.ID, upload.EpisodeID)
 	s.touch(time.UnixMilli(updated))
-	stored, err := h.sessionStored(ctx, id)
+	stored, owner, err := h.sessionOwner(ctx, id)
 	if err != nil {
 		return fail("Failed to save session", err)
+	}
+	if stored && owner != user.ID {
+		return failForbidden("Session belongs to another user", errSessionForbidden)
 	}
 	if !stored {
 		// A new local session keeps the client's date and weekday; updates
@@ -214,6 +237,9 @@ func (h *Handler) syncLocal(r *http.Request, user *auth.Principal, upload localS
 	s.MediaMetadata = overlayMetadata(m.metadata, upload.MediaMetadata)
 	s.DeviceInfo = device // s.Duration stays the item's: the client's is always replaced (PlaybackSessionManager.js:203)
 	if err = h.save(ctx, s); err != nil {
+		if errors.Is(err, errSessionForbidden) {
+			return failForbidden("Session belongs to another user", err)
+		}
 		return fail("Failed to save session", err)
 	}
 	synced, err := h.syncProgress(ctx, s, 0, &updated)

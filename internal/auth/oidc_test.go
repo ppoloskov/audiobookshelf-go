@@ -146,7 +146,7 @@ func TestOIDCWebFlowSignsInAndMapsGroups(t *testing.T) {
 	var refresh, idToken bool
 	for _, c := range w.Result().Cookies() {
 		refresh = refresh || (c.Name == "refresh_token" && c.HttpOnly)
-		idToken = idToken || (c.Name == "openid_id_token" && c.HttpOnly && c.Secure && c.SameSite == http.SameSiteStrictMode)
+		idToken = idToken || (c.Name == "openid_id_token" && c.HttpOnly && !c.Secure && c.SameSite == http.SameSiteLaxMode)
 	}
 	if !refresh || !idToken {
 		t.Fatalf("cookies %v", w.Result().Cookies())
@@ -248,7 +248,11 @@ func TestOIDCUserMatching(t *testing.T) {
 	t.Run("email must be verified", func(t *testing.T) {
 		s, d, _, _, _ := openIDService(t, `,"authOpenIDMatchExistingBy":"email"`)
 		mustExec(t, d, `UPDATE users SET email = 'me@example.org' WHERE id = ?`, listenerID)
-		claims := claimSet{"sub": json.RawMessage(`"e-1"`), "email": json.RawMessage(`"ME@example.org"`), "email_verified": json.RawMessage(`false`)}
+		claims := claimSet{"sub": json.RawMessage(`"e-1"`), "email": json.RawMessage(`"ME@example.org"`)}
+		if _, err := s.oidcUser(t.Context(), s.settings.Server(), claims); err == nil {
+			t.Fatal("missing email_verified matched")
+		}
+		claims["email_verified"] = json.RawMessage(`false`)
 		if _, err := s.oidcUser(t.Context(), s.settings.Server(), claims); err == nil {
 			t.Fatal("unverified email matched")
 		}
@@ -405,5 +409,71 @@ func TestFlowsExpireAndAreTakenOnce(t *testing.T) {
 	defer f.mu.Unlock()
 	if _, ok := f.items["stale"]; ok {
 		t.Fatal("put kept an expired entry")
+	}
+}
+
+func TestFlowsEvictOldestAtCapacity(t *testing.T) {
+	f := newFlows[int](time.Hour)
+	now := time.Now()
+	f.mu.Lock()
+	for i := range maxOIDCFlows {
+		f.items[fmt.Sprintf("k-%04d", i)] = flowEntry[int]{value: i, started: now.Add(-time.Duration(maxOIDCFlows-i) * time.Millisecond)}
+	}
+	f.mu.Unlock()
+
+	// Updating an existing state must not evict another entry.
+	f.put("k-0500", 5000)
+	f.mu.Lock()
+	if len(f.items) != maxOIDCFlows {
+		f.mu.Unlock()
+		t.Fatalf("len after overwrite = %d, want %d", len(f.items), maxOIDCFlows)
+	}
+	if _, ok := f.items["k-0000"]; !ok {
+		f.mu.Unlock()
+		t.Fatal("oldest key evicted on overwrite")
+	}
+	f.mu.Unlock()
+
+	// Adding a new state at capacity must evict the oldest entry (k-0000).
+	f.put("new-state", 9999)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.items) != maxOIDCFlows {
+		t.Fatalf("len after insert = %d, want %d", len(f.items), maxOIDCFlows)
+	}
+	if _, ok := f.items["k-0000"]; ok {
+		t.Fatal("expected oldest entry k-0000 to be evicted")
+	}
+	if got, ok := f.items["new-state"]; !ok || got.value != 9999 {
+		t.Fatalf("new-state = %+v, %v", got, ok)
+	}
+}
+
+func TestFlowCookiesRespectRequestSecurityAndSameSite(t *testing.T) {
+	for _, tc := range []struct {
+		name, proto string
+		wantSecure  bool
+	}{
+		{"http", "", false},
+		{"https proxy", "https", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRequest("GET", "/", nil)
+			if tc.proto != "" {
+				r.Header.Set("X-Forwarded-Proto", tc.proto)
+			}
+			w := httptest.NewRecorder()
+			setCookie(w, r, "auth_method", "openid", time.Minute)
+			clearCookies(w, r, "openid_id_token")
+			cookies := w.Result().Cookies()
+			if len(cookies) != 2 {
+				t.Fatalf("got %d cookies, want 2", len(cookies))
+			}
+			for _, c := range cookies {
+				if !c.HttpOnly || c.Secure != tc.wantSecure || c.SameSite != http.SameSiteLaxMode {
+					t.Errorf("cookie %s: HttpOnly=%v Secure=%v SameSite=%v (want Secure=%v Lax)", c.Name, c.HttpOnly, c.Secure, c.SameSite, tc.wantSecure)
+				}
+			}
+		})
 	}
 }

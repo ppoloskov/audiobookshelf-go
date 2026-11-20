@@ -2,7 +2,6 @@ package scan
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -39,16 +38,23 @@ func (s *Scanner) batchScan(w http.ResponseWriter, r *http.Request) error {
 	if len(found) == 0 {
 		return httpx.BadRequest("")
 	}
-	go func() {
-		for _, it := range found {
-			if it.IsFile {
-				continue
+	if s.addTask() {
+		ctx := s.baseCtx()
+		go func() {
+			defer s.wg.Done()
+			for _, it := range found {
+				if ctx.Err() != nil {
+					return
+				}
+				if it.IsFile {
+					continue
+				}
+				if _, err := s.RescanItem(ctx, it.ID); err != nil {
+					slog.Error("item scan failed", "item", it.ID, "error", err)
+				}
 			}
-			if _, err := s.RescanItem(context.Background(), it.ID); err != nil {
-				slog.Error("item scan failed", "item", it.ID, "error", err)
-			}
-		}
-	}()
+		}()
+	}
 	return httpx.Status(w, http.StatusOK)
 }
 
@@ -64,11 +70,15 @@ func (s *Scanner) scanLibraryRoute(w http.ResponseWriter, r *http.Request) error
 		return httpx.NotFound()
 	}
 	force := httpx.QueryBool(r, "force") || strings.EqualFold(r.URL.Query().Get("force"), "true")
-	go func() {
-		if _, err := s.Scan(context.Background(), id, force); err != nil {
-			slog.Error("library scan failed", "library", id, "error", err)
-		}
-	}()
+	if s.addTask() {
+		ctx := s.baseCtx()
+		go func() {
+			defer s.wg.Done()
+			if _, err := s.Scan(ctx, id, force); err != nil {
+				slog.Error("library scan failed", "library", id, "error", err)
+			}
+		}()
+	}
 	return httpx.Text(w, http.StatusOK, "OK")
 }
 

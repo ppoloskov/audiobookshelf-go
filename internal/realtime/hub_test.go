@@ -518,3 +518,57 @@ func TestClientActionsAreTypedAndChecked(t *testing.T) {
 		t.Fatalf("action = %q", got)
 	}
 }
+
+func TestHubCloseDrainsActiveServeConn(t *testing.T) {
+	srv := testServer(t)
+	inAuth := make(chan struct{})
+	releaseAuth := make(chan struct{})
+	releaseDisconnect := make(chan struct{})
+	var authDone, disconnectDone atomic.Bool
+
+	srv.backend.auth = func(r *http.Request) (*auth.Principal, error) {
+		close(inAuth)
+		<-releaseAuth
+		authDone.Store(true)
+		return userForToken(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	}
+	srv.backend.removeLogListener = func(id string) {
+		<-releaseDisconnect
+		disconnectDone.Store(true)
+		srv.disconnects <- id
+	}
+
+	ws, _ := connect(t, srv.url)
+	send(t, ws, `42["auth","tok-alice"]`)
+	<-inAuth
+
+	hubClosed := make(chan struct{})
+	go func() {
+		srv.hub.Close()
+		close(hubClosed)
+	}()
+
+	select {
+	case <-hubClosed:
+		t.Fatal("Hub.Close returned while handleAuth was still running")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(releaseAuth)
+	select {
+	case <-hubClosed:
+		t.Fatal("Hub.Close returned while fireDisconnect was still running")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(releaseDisconnect)
+	select {
+	case <-hubClosed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Hub.Close did not return after connection drained")
+	}
+
+	if !authDone.Load() || !disconnectDone.Load() {
+		t.Fatalf("callbacks did not finish before Hub.Close returned: auth=%v disconnect=%v", authDone.Load(), disconnectDone.Load())
+	}
+}

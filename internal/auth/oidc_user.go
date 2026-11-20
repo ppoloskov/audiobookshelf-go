@@ -115,7 +115,7 @@ func (s *Service) matchOIDCUser(ctx context.Context, server settings.Server, cla
 		if email == "" {
 			return user, errors.New("No email in userinfo")
 		}
-		if verified, present := claims.flag("email_verified"); present && !verified {
+		if verified, _ := claims.flag("email_verified"); !verified {
 			return user, errors.New("Email not verified")
 		}
 		err := s.db.Get(ctx, &user, `SELECT * FROM users WHERE lower(email) = ? LIMIT 1`, strings.ToLower(email))

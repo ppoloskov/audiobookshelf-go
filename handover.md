@@ -2,31 +2,21 @@
 
 Updated 2026-11-20.
 
-## Current state: Twin-Server Differential Oracle complete & cut over
+## Current state: 100% Oracle Parity Achieved — Gate 1 Pre-Release Hardening
 
-The legacy ~532k-LOC `testmachine` stack (`scenarios/`, `parity/`, `register/`,
-`contracts/{parity,shapes,verification-review}/`, `reports/`, `cmd/verify`,
-`cmd/clientusage`, and `internal/contracttest/`) has been replaced by the lean,
-self-contained **Twin-Server Differential Oracle** under
-[testmachine/oracle/](testmachine/oracle/README.md) (~12.5k hand-written LOC,
--92.3% hand-written code, -97.4% total footprint). The upstream seed fixture now
-lives at `testmachine/testdata/install`, and pinned TS v2.37.2 is fetched on
-demand into `.oracle-upstream/` via `make upstream`.
+Monstrobook (`cmd/monstrobook`, `module monstrobook`) is now at the repository root with pinned upstream TS v2.37.2 (`edb1f7ef`) pulled on demand into gitignored `.oracle-upstream/`, a reproducible Nix dev/CI flake (`flake.nix` + `flake.lock`), Docker images pulling `/app/client/dist` directly from `ghcr.io/advplyr/audiobookshelf:2.37.2`, and live OpenAPI 3.0.3 generation (`make openapi` → `docs/openapi.json`, 188 paths / 224/224 operations).
 
-`make verify` (alias `make check` / `make oracle`) boots pinned TS v2.37.2
-(`NODE_V8_COVERAGE`) and Go (`GOCOVERDIR`) side by side and automatically diffs
-HTTP responses/headers/cookies, all 26 SQLite tables + `typeof()`, 3-audience
-Socket.IO (`root`/`listener`/`finisher`), FS/`metadata.json`, outbound HTTP/SMTP
-stubs, and bidirectional TS↔Go SQLite rollback in ~90s.
+Waves P1–P5 closed **all 768** unexpected oracle findings (`768 → 0`), Wave S1 compressed `metadata`, `item`, `list`, and `logging` (`-273 prod LOC`, `-7 files`), and **Gate 1** (pre-release security & state-machine hardening) is complete and verified (`go test -race ./...`, `golangci-lint`: `0 issues`, `make verify`: `0 findings`). Active phase is **Gates 2–4 — Release Verification & Packaging (`v0.1.0`)** ([docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)).
 
-### Latest Oracle Scorecard (2026-11-20)
-- **Routes Hit (Any):** `218 / 218` (**100.0%**) in-scope routes (`216 / 218 = 99.1%` happy-path `2xx/3xx`, `214 / 218 = 98.2%` error-probed `4xx`)
+### Latest Oracle Scorecard (2026-11-20, `54997df5`)
+- **Go Parity Backlog:** **`0` unexpected findings (`0` groups)** — `nix develop --command make verify` exits **`0`**
+- **Flow Steps:** `377 / 377` (**PASS**) | **Complex Tests:** `17 / 17` (**PASS**) | **Route Matrix:** `654 / 654` (**PASS**)
+- **Routes Hit (Any):** `218 / 218` (**100.0%**) in-scope routes (`217 / 218 = 99.5%` happy-path `2xx/3xx`, `214 / 218 = 98.2%` error-probed `4xx`)
 - **Socket.IO Live:** `8 / 9` inbound, `59 / 62` (**95.2%**) outbound events observed
-- **TS v2.37.2 V8 In-Scope Coverage:** **80.1%** lines (`32,634 / 40,752`), **82.7%** functions
-- **Go Server Statement Coverage:** **71.4%** weighted across all 32 `internal/*` packages
+- **TS v2.37.2 V8 In-Scope Coverage:** **80.3%** lines (`32,730 / 40,752`), **82.8%** functions
+- **Go Server Statement Coverage:** **71.7%** weighted across all 32 `internal/*` packages (`golangci-lint`: `0 issues`)
 - **Web Client Audit (`.oracle-upstream/client/`):** `171 / 171` unique `$axios` routes matched (`0` unmatched), `171 / 171` (**100.0%**) exercised in flows/complex tests, `6 / 6` Socket.IO emitters exercised
 - **Mobile Client Audits:** `lissen` 29/29, `yaabsa` 141/142, `official-app` 62/64, `audiobooth` 57/59, `storii` 68/72, `absorb` 130/138; `cmd/abs-record` ready to capture real device cassettes
-- **Go Parity Backlog:** `758` findings across `204` grouped root causes emitted to `go-parity-backlog.md` — ready to drive the next phase (Go refactoring & parity fixes).
 
 ## Historical notes (archived below)
 

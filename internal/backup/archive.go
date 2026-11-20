@@ -103,16 +103,25 @@ func readBackup(path string) (Backup, error) {
 	if _, err := fs.Stat(zr, dbEntry); err != nil {
 		return Backup{}, errors.New("Invalid backup with no absdatabase.sqlite file - might be a backup created on an old Audiobookshelf server.")
 	}
+	const maxDetailsBytes = 1 << 20
 	details, err := fs.Stat(zr, "details")
 	if err != nil {
 		return Backup{}, errors.New("Invalid backup file - missing details entry")
 	}
-	if details.Size() > 1<<20 {
+	if details.Size() > maxDetailsBytes {
 		return Backup{}, errors.New("Invalid backup file - details entry too large")
 	}
-	raw, err := fs.ReadFile(zr, "details")
+	df, err := zr.Open("details")
+	if err != nil {
+		return Backup{}, errors.New("Invalid backup file - missing details entry")
+	}
+	defer df.Close()
+	raw, err := io.ReadAll(io.LimitReader(df, maxDetailsBytes+1))
 	if err != nil {
 		return Backup{}, err
+	}
+	if len(raw) > maxDetailsBytes {
+		return Backup{}, errors.New("Invalid backup file - details entry too large")
 	}
 	lines := strings.Split(string(raw), "\n")
 	if len(lines) < 4 || strings.TrimSpace(lines[3]) == "" {

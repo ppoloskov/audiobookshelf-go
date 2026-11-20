@@ -228,18 +228,22 @@ func legacyID(s *string, prefixes ...string) *string {
 	return s
 }
 
-// deleteHistory is DELETE /api/sessions/{id}: users with the delete permission.
+// deleteHistory is DELETE /api/sessions/{id}: admins or the session owner,
+// when the user has the delete permission.
 func (h *Handler) deleteHistory(w http.ResponseWriter, r *http.Request, user *auth.Principal) error {
 	if !user.CanDelete() {
 		return httpx.Forbidden()
 	}
 	id := r.PathValue("id")
-	stored, err := h.sessionStored(r.Context(), id)
+	stored, owner, err := h.sessionOwner(r.Context(), id)
 	if err != nil {
 		return err
 	}
 	if !stored {
 		return httpx.NotFound()
+	}
+	if !user.IsAdmin() && owner != user.ID {
+		return httpx.Forbidden()
 	}
 	h.remove(id)
 	if _, err := h.db.Exec(r.Context(), `DELETE FROM playbackSessions WHERE id = ?`, id); err != nil {
