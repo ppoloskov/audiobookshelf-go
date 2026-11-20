@@ -1,7 +1,0 @@
-mise WARN  failed to write cache file: /Users/paul/Library/Caches/mise/neovim/0.12.5/exec_env_9664da8abc311adb-9305c.msgpack.z Operation not permitted (os error 1)
---- FAIL: TestStreamLifecycleHandlerCloseBoundsInheritedPipeDrain (4.31s)
-    hls_lifecycle_test.go:301: Close blocked beyond four seconds after cancellation with inherited output pipe, stream=62779561-2c55-483a-afde-74e92a476625
-    hls_lifecycle_test.go:290: kill inherited-pipe fixture child: os: process already finished
-FAIL
-FAIL	audiobookshelf-compat/internal/playback	4.661s
-FAIL

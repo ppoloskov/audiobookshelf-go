@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "description": "Explicit TS v2.37.2 server/ V8 coverage exclusions for the Twin-Server Differential Oracle",
+  "excluded_buckets": [
+    {
+      "bucket": "vendored",
+      "reason": "Vendored third-party libraries bundled under server/libs/",
+      "prefixes": [
+        "server/libs/"
+      ]
+    },
+    {
+      "bucket": "migrations",
+      "reason": "Approved exclusion (VERIFICATION.md): older-schema and legacy JSON-to-SQLite migrations",
+      "prefixes": [
+        "server/migrations/",
+        "server/utils/migrations/"
+      ]
+    },
+    {
+      "bucket": "ebook_internals",
+      "reason": "Approved exclusion (VERIFICATION.md): ebook/comic archive and metadata parser internals",
+      "exact": [
+        "server/utils/parsers/parseEbookMetadata.js",
+        "server/utils/parsers/parseEpubMetadata.js",
+        "server/utils/parsers/parseComicMetadata.js",
+        "server/utils/parsers/parseComicInfoMetadata.js",
+        "server/utils/comicBookExtractors.js"
+      ]
+    },
+    {
+      "bucket": "external_providers",
+      "reason": "External-internet-only provider scrapers (reported separately from offline in-scope parity)",
+      "prefixes": [
+        "server/providers/"
+      ]
+    },
+    {
+      "bucket": "external_and_bootstrap",
+      "reason": "Binary downloader bootstrap and external-internet metadata/author/podcast finders never executed in deterministic offline parity runs",
+      "exact": [
+        "server/managers/BinaryManager.js",
+        "server/finders/BookFinder.js",
+        "server/finders/AuthorFinder.js",
+        "server/finders/PodcastFinder.js"
+      ],
+      "file_reasons": {
+        "server/managers/BinaryManager.js": "Downloads FFmpeg/Tone binaries from GitHub releases; never executed in deterministic offline parity runs",
+        "server/finders/BookFinder.js": "External-internet metadata scrapers for Audible/Google/OpenLibrary/FantLab; custom metadata providers are tested offline via CustomMetadataProvider + SearchController",
+        "server/finders/AuthorFinder.js": "External-internet author scraper",
+        "server/finders/PodcastFinder.js": "External-internet iTunes podcast scraper"
+      }
+    }
+  ]
+}

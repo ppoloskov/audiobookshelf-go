@@ -1,2 +1,0 @@
-node: pre-fix assertEvents accepted all-zero progress
-go: pre-fix assertEvents accepted all-zero progress

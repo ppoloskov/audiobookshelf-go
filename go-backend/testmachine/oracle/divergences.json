@@ -1,0 +1,96 @@
+{
+  "rules": [
+    {
+      "id": "arch-error-body-text",
+      "scope": "global",
+      "surface": "http",
+      "path_pattern": "error_body",
+      "ignore_error_body": true,
+      "reason": "ARCHITECTURE.md quirk policy — 4xx/5xx plain-text error messages nobody parses are free; status code and headers are still strictly diffed",
+      "client_impact": "none — clients branch on HTTP status codes for 4xx/5xx responses"
+    },
+    {
+      "id": "arch-no-express-connect-sid",
+      "scope": "global",
+      "surface": "http",
+      "path_pattern": "cookie.connect.sid",
+      "ts_expect": "connect.sid",
+      "go_expect": "<missing>",
+      "reason": "ARCHITECTURE.md quirk policy — Go does not use express-session and therefore does not emit connect.sid on local /login or /logout (refresh_token cookie is strictly diffed)",
+      "client_impact": "none — web and mobile clients use refresh_token and Bearer JWTs, never connect.sid"
+    },
+    {
+      "id": "adj-cors-cache",
+      "scope": "adjudication",
+      "surface": "http",
+      "field_pattern": "header.Access-Control-*",
+      "reason": "go-backend/handover.md — upstream ApiCacheManager can replay another origin's CORS header across cached requests",
+      "client_impact": "none — Go computes CORS headers per request without cross-origin cache poisoning"
+    },
+    {
+      "id": "adj-ssrf-custom-provider",
+      "scope": "adjudication",
+      "surface": "http",
+      "step_pattern": "*custom-metadata-providers*",
+      "path_pattern": "status",
+      "ts_expect": "200",
+      "go_expect": "400",
+      "reason": "go-backend/handover.md — Go blocks SSRF private/loopback URLs on custom metadata providers",
+      "client_impact": "intentional security hardening — blocks SSRF against private network targets"
+    },
+    {
+      "id": "adj-smtp-redaction",
+      "scope": "adjudication",
+      "surface": "http",
+      "step_pattern": "*send-ebook-to-device*",
+      "path_pattern": "body*",
+      "reason": "go-backend/handover.md — Go redacts raw SMTP errors from non-admin responses",
+      "client_impact": "none — non-admin clients receive fixed safe failure text without internal SMTP diagnostics"
+    },
+    {
+      "id": "adj-multi-range",
+      "scope": "adjudication",
+      "surface": "http",
+      "field_pattern": "header.Content-Range",
+      "go_expect": "multipart/byteranges",
+      "reason": "go-backend/handover.md — Go answers multi-range HTTP requests properly instead of 200 full file",
+      "client_impact": "positive — standards-compliant HTTP Range handling for media clients"
+    },
+    {
+      "id": "adj-backup-validation",
+      "scope": "adjudication",
+      "surface": "http",
+      "step_pattern": "*backups*apply*",
+      "path_pattern": "status",
+      "go_expect": "400",
+      "reason": "go-backend/handover.md — Go validates SQLite integrity and version before applying backup archive instead of crashing",
+      "client_impact": "positive — invalid backup archives are rejected cleanly with 400 instead of exiting 1"
+    },
+    {
+      "id": "adj-cover-delete-file",
+      "scope": "adjudication",
+      "surface": "fs",
+      "step_pattern": "*cover*",
+      "path_pattern": "metadata/*",
+      "reason": "go-backend/handover.md — Go removes the cover file on DELETE cover whereas upstream leaves the orphan file on disk",
+      "client_impact": "positive — eliminates orphaned cover files on disk"
+    },
+    {
+      "id": "adj-socket-permission-filter",
+      "scope": "adjudication",
+      "surface": "socket",
+      "path_pattern": "*:episode_*",
+      "reason": "go-backend/handover.md — Go filters episode_* / item socket events by user permissions where upstream SocketAuthority lacks filtering",
+      "client_impact": "intentional security hardening — restricted listeners do not receive unauthorized episode/item events"
+    },
+    {
+      "id": "adj-socket-podcast-item-filter",
+      "scope": "adjudication",
+      "surface": "socket",
+      "step_pattern": "*podcast*",
+      "go_expect": "0 events",
+      "reason": "go-backend/handover.md — Go filters podcast item_added/item_updated socket events from users without podcast library access whereas upstream SocketAuthority broadcasts them",
+      "client_impact": "intentional security hardening — restricted listeners do not receive unauthorized podcast item events"
+    }
+  ]
+}

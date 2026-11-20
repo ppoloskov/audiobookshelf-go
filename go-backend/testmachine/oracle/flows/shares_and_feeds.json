@@ -1,0 +1,173 @@
+{
+  "name": "shares-and-feeds",
+  "steps": [
+    {
+      "name": "open-mediaitem-share",
+      "method": "POST",
+      "path": "/api/share/mediaitem",
+      "role": "root",
+      "body": {
+        "slug": "oracle-saga-share",
+        "expiresAt": 0,
+        "mediaItemType": "book",
+        "mediaItemId": "{{book1}}",
+        "isDownloadable": true
+      },
+      "expect_status": 201,
+      "capture": {"share_id": "id"},
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "get-item-include-share",
+      "method": "GET",
+      "path": "/api/items/{{saga1}}",
+      "role": "root",
+      "query": {"expanded": "1", "include": "share"},
+      "expect_status": 200
+    },
+    {
+      "name": "get-public-share-by-slug",
+      "method": "GET",
+      "path": "/public/share/oracle-saga-share",
+      "header": {
+        "Cookie": "share_session_id=11111111-1111-4111-8111-111111111111"
+      },
+      "expect_status": 200
+    },
+    {
+      "name": "get-public-share-track-range",
+      "method": "GET",
+      "path": "/public/share/oracle-saga-share/track/1",
+      "header": {
+        "Cookie": "share_session_id=11111111-1111-4111-8111-111111111111",
+        "Range": "bytes=0-63"
+      },
+      "expect_status": 206
+    },
+    {
+      "name": "download-public-share",
+      "method": "GET",
+      "path": "/public/share/oracle-saga-share/download",
+      "header": {
+        "Cookie": "share_session_id=11111111-1111-4111-8111-111111111111"
+      },
+      "expect_status": 200
+    },
+    {
+      "name": "update-public-share-progress",
+      "method": "PATCH",
+      "path": "/public/share/oracle-saga-share/progress",
+      "header": {
+        "Cookie": "share_session_id=11111111-1111-4111-8111-111111111111"
+      },
+      "body": {
+        "currentTime": 12.5
+      },
+      "expect_status": 204
+    },
+    {
+      "name": "delete-mediaitem-share",
+      "method": "DELETE",
+      "path": "/api/share/mediaitem/{{share_id}}",
+      "role": "root",
+      "expect_status": 204,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "open-item-rss-feed",
+      "method": "POST",
+      "path": "/api/feeds/item/{{saga1}}/open",
+      "role": "root",
+      "body": {
+        "serverAddress": "http://127.0.0.1:8080",
+        "slug": "oracle-item-feed"
+      },
+      "expect_status": 200,
+      "capture": {"item_feed_id": "feed.id"},
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "list-open-rss-feeds",
+      "method": "GET",
+      "path": "/api/feeds",
+      "role": "root",
+      "expect_status": 200
+    },
+    {
+      "name": "get-item-rss-feed-xml",
+      "method": "GET",
+      "path": "/feed/oracle-item-feed",
+      "expect_status": 200
+    },
+    {
+      "name": "close-item-rss-feed",
+      "method": "POST",
+      "path": "/api/feeds/{{item_feed_id}}/close",
+      "role": "root",
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "open-collection-rss-feed",
+      "method": "POST",
+      "path": "/api/feeds/collection/{{collection}}/open",
+      "role": "root",
+      "body": {
+        "serverAddress": "http://127.0.0.1:8080",
+        "slug": "oracle-coll-feed"
+      },
+      "expect_status": 200,
+      "capture": {"coll_feed_id": "feed.id"},
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "get-collection-rss-feed-xml",
+      "method": "GET",
+      "path": "/feed/oracle-coll-feed",
+      "expect_status": 200
+    },
+    {
+      "name": "close-collection-rss-feed",
+      "method": "POST",
+      "path": "/api/feeds/{{coll_feed_id}}/close",
+      "role": "root",
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "open-series-rss-feed",
+      "method": "POST",
+      "path": "/api/feeds/series/{{series1}}/open",
+      "role": "root",
+      "body": {
+        "serverAddress": "http://127.0.0.1:8080",
+        "slug": "oracle-series-feed"
+      },
+      "expect_status": 200,
+      "capture": {"series_feed_id": "feed.id"},
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "get-series-rss-feed-xml",
+      "method": "GET",
+      "path": "/feed/oracle-series-feed",
+      "expect_status": 200
+    },
+    {
+      "name": "close-series-rss-feed",
+      "method": "POST",
+      "path": "/api/feeds/{{series_feed_id}}/close",
+      "role": "root",
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    }
+  ]
+}

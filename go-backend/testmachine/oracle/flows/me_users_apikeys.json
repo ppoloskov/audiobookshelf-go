@@ -1,0 +1,74 @@
+{
+  "name": "me-users-and-apikeys",
+  "steps": [
+    {"name": "me-get-current-user", "method": "GET", "path": "/api/me", "role": "listener", "expect_status": 200},
+    {"name": "me-items-in-progress", "method": "GET", "path": "/api/me/items-in-progress", "role": "listener", "expect_status": 200},
+    {
+      "name": "me-patch-progress-saga2",
+      "method": "PATCH",
+      "path": "/api/me/progress/{{saga2}}",
+      "role": "listener",
+      "body": {"duration": 180, "progress": 0.5, "currentTime": 90, "isFinished": false},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {"name": "me-get-progress-saga2", "method": "GET", "path": "/api/me/progress/{{saga2}}", "role": "listener", "expect_status": 200, "capture": {"saga2_progress_id": "id"}},
+    {
+      "name": "me-batch-update-progress",
+      "method": "PATCH",
+      "path": "/api/me/progress/batch/update",
+      "role": "listener",
+      "body": [{"libraryItemId": "{{saga2}}", "duration": 180, "progress": 0.75, "currentTime": 135, "isFinished": false}],
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {"name": "me-remove-progress-from-continue-listening", "method": "GET", "path": "/api/me/progress/{{saga2_progress_id}}/remove-from-continue-listening", "role": "listener", "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "me-delete-progress-saga2", "method": "DELETE", "path": "/api/me/progress/{{saga2_progress_id}}", "role": "listener", "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "me-get-bookmarks", "method": "GET", "path": "/api/me/bookmarks", "role": "listener", "expect_status": 200},
+    {
+      "name": "me-create-bookmark-saga2",
+      "method": "POST",
+      "path": "/api/me/item/{{saga2}}/bookmark",
+      "role": "listener",
+      "body": {"title": "Oracle Bookmark", "time": 15},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "me-patch-bookmark-saga2",
+      "method": "PATCH",
+      "path": "/api/me/item/{{saga2}}/bookmark",
+      "role": "listener",
+      "body": {"title": "Oracle Bookmark Renamed", "time": 15},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {"name": "me-delete-bookmark-saga2", "method": "DELETE", "path": "/api/me/item/{{saga2}}/bookmark/15", "role": "listener", "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "me-listening-sessions", "method": "GET", "path": "/api/me/listening-sessions", "role": "listener", "expect_status": 200},
+    {"name": "me-series-remove-from-continue-listening", "method": "GET", "path": "/api/me/series/{{series1}}/remove-from-continue-listening", "role": "listener", "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "me-series-readd-to-continue-listening", "method": "GET", "path": "/api/me/series/{{series1}}/readd-to-continue-listening", "role": "listener", "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "users-list", "method": "GET", "path": "/api/users", "role": "root", "expect_status": 200},
+    {"name": "users-get-listener", "method": "GET", "path": "/api/users/{{listener}}", "role": "root", "expect_status": 200},
+    {"name": "users-online", "method": "GET", "path": "/api/users/online", "role": "root", "expect_status": 200},
+    {"name": "users-listener-listening-sessions", "method": "GET", "path": "/api/users/{{listener}}/listening-sessions", "role": "root", "expect_status": 200},
+    {
+      "name": "api-keys-create",
+      "method": "POST",
+      "path": "/api/api-keys",
+      "role": "root",
+      "body": {"name": "oracle-listener-key", "userId": "{{listener}}", "expiresIn": 3600, "isActive": true},
+      "expect_status": 200,
+      "capture": {"key_id": "apiKey.id", "key_token": "apiKey.apiKey"},
+      "check_db": true
+    },
+    {"name": "api-keys-list", "method": "GET", "path": "/api/api-keys", "role": "root", "expect_status": 200},
+    {"name": "api-key-active-call-libraries", "method": "GET", "path": "/api/libraries", "role": "{{key_token}}", "expect_status": 200},
+    {"name": "api-keys-deactivate", "method": "PATCH", "path": "/api/api-keys/{{key_id}}", "role": "root", "body": {"isActive": false}, "expect_status": 200, "check_db": true},
+    {"name": "api-key-inactive-rejected", "method": "GET", "path": "/api/libraries", "role": "{{key_token}}", "expect_status": 401},
+    {"name": "api-keys-delete", "method": "DELETE", "path": "/api/api-keys/{{key_id}}", "role": "root", "expect_status": 200, "check_db": true}
+  ]
+}

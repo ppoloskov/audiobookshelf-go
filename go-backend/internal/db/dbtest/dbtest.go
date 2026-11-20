@@ -71,8 +71,8 @@ func (c countingConn) QueryContext(ctx context.Context, query string, args []dri
 }
 
 // Fixture returns a copy of the database that the upstream v2.37.2 server
-// created for the contract tests
-// (internal/contracttest/testdata/install/config/absdatabase.sqlite). It is
+// created for the oracle and package tests
+// (testmachine/testdata/install/config/absdatabase.sqlite). It is
 // closed when the test ends.
 func Fixture(t testing.TB) *db.DB {
 	t.Helper()
@@ -80,7 +80,7 @@ func Fixture(t testing.TB) *db.DB {
 	if !ok {
 		t.Fatal("dbtest: cannot locate the fixture database")
 	}
-	src := filepath.Join(filepath.Dir(file), "..", "..", "contracttest", "testdata", "install", "config", "absdatabase.sqlite")
+	src := filepath.Join(filepath.Dir(file), "..", "..", "..", "testmachine", "testdata", "install", "config", "absdatabase.sqlite")
 	dst := filepath.Join(t.TempDir(), "absdatabase.sqlite")
 	if err := copyFile(dst, src); err != nil {
 		t.Fatalf("dbtest: copy fixture database: %v", err)

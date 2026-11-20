@@ -179,7 +179,7 @@ func TestOpenRefusesAMissingTable(t *testing.T) {
 }
 
 func TestOpenAcceptsTheUpstreamFixture(t *testing.T) {
-	src, err := os.ReadFile(filepath.Join("..", "contracttest", "testdata", "install", "config", "absdatabase.sqlite"))
+	src, err := os.ReadFile(filepath.Join("..", "..", "testmachine", "testdata", "install", "config", "absdatabase.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}

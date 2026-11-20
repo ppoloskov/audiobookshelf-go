@@ -1,3 +1,0 @@
-mise WARN  failed to write cache file: /Users/paul/Library/Caches/mise/neovim/0.12.5/exec_env_9664da8abc311adb-9305c.msgpack.z Operation not permitted (os error 1)
-ok  	audiobookshelf-compat/internal/playback	10.535s
-ok  	audiobookshelf-compat/internal/media	1.178s

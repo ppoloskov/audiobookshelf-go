@@ -1,0 +1,87 @@
+{
+  "name": "mobile-client-protocol",
+  "steps": [
+    {
+      "name": "mobile-login-with-return-tokens",
+      "method": "POST",
+      "path": "/login",
+      "header": {
+        "x-return-tokens": "true",
+        "User-Agent": "Audiobookshelf-iOS/0.9.78"
+      },
+      "body": {"username": "trial-listener", "password": "trial-listener-password"},
+      "expect_status": 200,
+      "capture": {
+        "mob_access": "user.accessToken",
+        "mob_refresh": "user.refreshToken"
+      }
+    },
+    {
+      "name": "mobile-refresh-via-header",
+      "method": "POST",
+      "path": "/auth/refresh",
+      "header": {"x-refresh-token": "{{mob_refresh}}"},
+      "expect_status": 200,
+      "capture": {
+        "mob_access2": "user.accessToken",
+        "mob_refresh2": "user.refreshToken"
+      }
+    },
+    {
+      "name": "capacitor-cors-preflight-cover",
+      "method": "OPTIONS",
+      "path": "/api/items/{{saga1}}/cover",
+      "header": {
+        "Origin": "capacitor://localhost",
+        "Access-Control-Request-Method": "GET"
+      },
+      "expect_status": 200
+    },
+    {
+      "name": "mobile-offline-progress-sync",
+      "method": "PATCH",
+      "path": "/api/me/progress/{{novel}}",
+      "role": "{{mob_access2}}",
+      "body": {
+        "duration": 120,
+        "progress": 0.25,
+        "currentTime": 30,
+        "isFinished": false
+      },
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "mobile-bookmark-create",
+      "method": "POST",
+      "path": "/api/me/item/{{novel}}/bookmark",
+      "role": "{{mob_access2}}",
+      "body": {"title": "Mobile Chapter Mark", "time": 30},
+      "expect_status": 200,
+      "check_db": true
+    },
+    {
+      "name": "mobile-me-listening-stats",
+      "method": "GET",
+      "path": "/api/me/listening-stats",
+      "role": "{{mob_access2}}",
+      "expect_status": 200
+    },
+    {
+      "name": "mobile-logout-revokes-header-refresh",
+      "method": "POST",
+      "path": "/logout",
+      "role": "{{mob_access2}}",
+      "header": {"x-refresh-token": "{{mob_refresh2}}"},
+      "expect_status": 200
+    },
+    {
+      "name": "mobile-refresh-revoked-401",
+      "method": "POST",
+      "path": "/auth/refresh",
+      "header": {"x-refresh-token": "{{mob_refresh2}}"},
+      "expect_status": 401
+    }
+  ]
+}

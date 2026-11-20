@@ -1,0 +1,97 @@
+{
+  "name": "items-covers-and-files",
+  "steps": [
+    {
+      "name": "get-item-expanded-with-includes",
+      "method": "GET",
+      "path": "/api/items/{{saga1}}",
+      "role": "root",
+      "query": {"expanded": "1", "include": "progress,rssfeed,authors,downloads,share"},
+      "expect_status": 200,
+      "capture": {"audio_ino": "media.audioFiles.0.ino"}
+    },
+    {"name": "batch-get-items", "method": "POST", "path": "/api/items/batch/get", "role": "root", "body": {"libraryItemIds": ["{{saga1}}", "{{novel}}"]}, "expect_status": 200},
+    {
+      "name": "patch-item-media-tags-and-genres",
+      "method": "PATCH",
+      "path": "/api/items/{{saga1}}/media",
+      "role": "root",
+      "body": {"metadata": {"subtitle": "Oracle Subtitle", "genres": ["Fantasy", "Adventure"]}, "tags": ["oracle-item-tag", "checked"]},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "post-item-chapters",
+      "method": "POST",
+      "path": "/api/items/{{saga1}}/chapters",
+      "role": "root",
+      "body": {"chapters": [{"id": 0, "start": 0, "end": 10, "title": "Intro"}, {"id": 1, "start": 10, "end": 20, "title": "Chapter One"}]},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "batch-update-items",
+      "method": "POST",
+      "path": "/api/items/batch/update",
+      "role": "root",
+      "body": [{"id": "{{saga1}}", "mediaPayload": {"metadata": {"publisher": "Oracle Batch Press"}}}, {"id": "{{novel}}", "mediaPayload": {"metadata": {"publisher": "Oracle Batch Press"}}}],
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {"name": "get-item-metadata-object", "method": "GET", "path": "/api/items/{{saga1}}/metadata-object", "role": "root", "expect_status": 200},
+    {
+      "name": "upload-cover-multipart",
+      "kind": "multipart",
+      "method": "POST",
+      "path": "/api/items/{{saga1}}/cover",
+      "role": "root",
+      "files": [{"field": "cover", "name": "cover.png", "content_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"}],
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {"name": "get-cover-raw", "method": "GET", "path": "/api/items/{{saga1}}/cover", "role": "listener", "query": {"raw": "1"}, "expect_status": 200},
+    {"name": "get-cover-jpeg-resized", "method": "GET", "path": "/api/items/{{saga1}}/cover", "role": "listener", "query": {"format": "jpeg", "width": "100"}, "expect_status": 200},
+    {"name": "get-cover-png-resized", "method": "GET", "path": "/api/items/{{saga1}}/cover", "role": "listener", "query": {"format": "png", "width": "100"}, "expect_status": 200},
+    {"name": "delete-item-cover", "method": "DELETE", "path": "/api/items/{{saga1}}/cover", "role": "root", "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "stub-cover-png-route", "kind": "stub_route", "path": "/cover.png", "stub_status": 200, "stub_content_type": "image/png", "stub_body_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"},
+    {
+      "name": "upload-cover-from-url",
+      "method": "POST",
+      "path": "/api/items/{{saga1}}/cover",
+      "role": "root",
+      "body": {"url": "{{stub_http}}/cover.png"},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true,
+      "check_stubs": true
+    },
+    {"name": "collection-remove-single-book", "method": "DELETE", "path": "/api/collections/{{collection}}/book/{{novel}}", "role": "root", "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "collection-add-single-book", "method": "POST", "path": "/api/collections/{{collection}}/book", "role": "root", "body": {"id": "{{novel}}"}, "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "collection-batch-add", "method": "POST", "path": "/api/collections/{{collection}}/batch/add", "role": "root", "body": {"books": ["{{saga2}}", "{{ebook}}"]}, "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "collection-batch-remove", "method": "POST", "path": "/api/collections/{{collection}}/batch/remove", "role": "root", "body": {"books": ["{{saga2}}", "{{ebook}}"]}, "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "collection-patch", "method": "PATCH", "path": "/api/collections/{{collection}}", "role": "root", "body": {"name": "Oracle Updated Collection", "description": "Updated collection desc"}, "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "playlists-list", "method": "GET", "path": "/api/playlists", "role": "root", "expect_status": 200},
+    {
+      "name": "playlist-create",
+      "method": "POST",
+      "path": "/api/playlists",
+      "role": "root",
+      "body": {"libraryId": "{{library}}", "name": "Oracle Batch Playlist", "description": "Playlist for batch ops", "items": [{"libraryItemId": "{{saga1}}"}]},
+      "expect_status": 200,
+      "capture": {"new_pl": "id"},
+      "check_db": true,
+      "check_sockets": true
+    },
+    {"name": "playlist-add-single-item", "method": "POST", "path": "/api/playlists/{{new_pl}}/item", "role": "root", "body": {"libraryItemId": "{{saga2}}"}, "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "playlist-batch-add", "method": "POST", "path": "/api/playlists/{{new_pl}}/batch/add", "role": "root", "body": {"items": [{"libraryItemId": "{{novel}}"}]}, "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "playlist-batch-remove", "method": "POST", "path": "/api/playlists/{{new_pl}}/batch/remove", "role": "root", "body": {"items": [{"libraryItemId": "{{saga2}}"}]}, "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "playlist-delete", "method": "DELETE", "path": "/api/playlists/{{new_pl}}", "role": "root", "expect_status": 200, "check_db": true, "check_sockets": true},
+    {"name": "file-range-partial-206", "method": "GET", "path": "/api/items/{{saga1}}/file/{{audio_ino}}", "role": "listener", "header": {"Range": "bytes=0-63"}, "expect_status": 206},
+    {"name": "file-range-unsatisfiable-416", "method": "GET", "path": "/api/items/{{saga1}}/file/{{audio_ino}}", "role": "listener", "header": {"Range": "bytes=99999999-"}, "expect_status": 416},
+    {"name": "file-ffprobe", "method": "GET", "path": "/api/items/{{saga1}}/ffprobe/{{audio_ino}}", "role": "root", "expect_status": 200}
+  ]
+}

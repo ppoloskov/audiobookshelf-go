@@ -1,0 +1,1252 @@
+{
+  "generated_from": "server/",
+  "routes": [
+    {
+      "method": "ALL",
+      "path": "/*",
+      "auth": "user",
+      "skip": true,
+      "skip_reason": "catch-all SPA/Next.js fallback, not an API route"
+    },
+    {
+      "method": "GET",
+      "path": "/api/api-keys",
+      "auth": "admin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/api-keys",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/api-keys/:id",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/api-keys/:id",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth-settings",
+      "auth": "admin"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/auth-settings",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/authorize",
+      "auth": "user"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/authors/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/authors/:id",
+      "auth": "user"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/authors/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/authors/:id/image",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/authors/:id/image",
+      "auth": "public"
+    },
+    {
+      "method": "POST",
+      "path": "/api/authors/:id/image",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/authors/:id/match",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/backups",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/backups",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/backups/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/backups/:id/apply",
+      "auth": "user",
+      "skip": true,
+      "skip_reason": "applies backup archive and restarts server"
+    },
+    {
+      "method": "GET",
+      "path": "/api/backups/:id/download",
+      "auth": "user"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/backups/path",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/backups/upload",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/cache/items/purge",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/cache/purge",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/collections",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/collections",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/collections/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/collections/:id",
+      "auth": "user"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/collections/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/collections/:id/batch/add",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/collections/:id/batch/remove",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/collections/:id/book",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/collections/:id/book/:bookId",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/custom-metadata-providers",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/custom-metadata-providers",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/custom-metadata-providers/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/emails/ereader-devices",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/emails/send-ebook-to-device",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/emails/settings",
+      "auth": "admin"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/emails/settings",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/emails/test",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/feeds",
+      "auth": "admin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/feeds/:id/close",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/feeds/collection/:collectionId/open",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/feeds/item/:itemId/open",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/feeds/series/:seriesId/open",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/filesystem",
+      "auth": "admin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/filesystem/pathexists",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/genres",
+      "auth": "admin"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/genres/:genre",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/genres/rename",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/items/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/:id/chapters",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/items/:id/cover",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/cover",
+      "auth": "public"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/items/:id/cover",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/:id/cover",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/download",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/ebook/:fileid?",
+      "auth": "user"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/items/:id/ebook/:fileid/status",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/ffprobe/:fileid",
+      "auth": "admin"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/items/:id/file/:fileid",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/file/:fileid",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/file/:fileid/download",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/:id/match",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/items/:id/media",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/metadata-object",
+      "auth": "admin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/:id/play",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/:id/play/:episodeId",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/:id/scan",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/items/:id/tracks",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/batch/delete",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/batch/get",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/batch/quickmatch",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/batch/scan",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/batch/update",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/libraries",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/libraries/:id",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id",
+      "auth": "user"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/libraries/:id",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/authors",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/collections",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/download",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/episode-downloads",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/filterdata",
+      "auth": "user"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/libraries/:id/issues",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/items",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/matchall",
+      "auth": "admin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/narrators",
+      "auth": "user"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/libraries/:id/narrators/:narratorId",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/libraries/:id/narrators/:narratorId",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/opml",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/personalized",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/playlists",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/podcast-titles",
+      "auth": "admin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/recent-episodes",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/libraries/:id/remove-metadata",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/libraries/:id/scan",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/search",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/series",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/series/:seriesId",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/stats",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/libraries/order",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/logger-data",
+      "auth": "admin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/bookmarks",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/bookmarks/:libraryItemId",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/ereader-devices",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/item/:id/bookmark",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/item/:id/bookmark",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/me/item/:id/bookmark/:time",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/item/listening-sessions/:libraryItemId/:episodeId?",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/items-in-progress",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/listening-sessions",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/listening-stats",
+      "auth": "user"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/password",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/progress",
+      "auth": "user"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/me/progress/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/progress/:id/:episodeId?",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/progress/:id/remove-from-continue-listening",
+      "auth": "user"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/progress/:libraryItemId/:episodeId?",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/progress/batch/update",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/series/:id/readd-to-continue-listening",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/series/:id/remove-from-continue-listening",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/sessions",
+      "auth": "user"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/me/sessions/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/stats/year/:year",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notificationdata",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications",
+      "auth": "user"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/notifications",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/notifications",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/notifications/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/notifications/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/:id/test",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/test",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/playlists",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/playlists/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/playlists/:id",
+      "auth": "user"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/playlists/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists/:id/batch/add",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists/:id/batch/remove",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists/:id/item",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/playlists/:id/item/:libraryItemId/:episodeId?",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists/collection/:collectionId",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/podcasts",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/podcasts/:id/checknew",
+      "auth": "admin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/podcasts/:id/clear-queue",
+      "auth": "admin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/podcasts/:id/download-episodes",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/podcasts/:id/downloads",
+      "auth": "user"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/podcasts/:id/episode/:episodeId",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/podcasts/:id/episode/:episodeId",
+      "auth": "user"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/podcasts/:id/episode/:episodeId",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/podcasts/:id/match-episodes",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/podcasts/:id/search-episode",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/podcasts/feed",
+      "auth": "admin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/podcasts/opml/create",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/podcasts/opml/parse",
+      "auth": "admin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/authors",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/books",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/chapters",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/covers",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/podcast",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/providers",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/series/:id",
+      "auth": "user"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/series/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/session/:id",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/session/:id/close",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/session/:id/sync",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/session/local",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/session/local-all",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions",
+      "auth": "admin"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/sessions/:id",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/batch/delete",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/open",
+      "auth": "admin"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/settings",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/share/mediaitem",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/share/mediaitem/:id",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/sorting-prefixes",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/stats/server",
+      "auth": "admin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/stats/year/:year",
+      "auth": "admin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tags",
+      "auth": "admin"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tags/:tag",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/tags/rename",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/tasks",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tools/batch/embed-metadata",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/tools/item/:id/embed-metadata",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tools/item/:id/encode-m4b",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/tools/item/:id/encode-m4b",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/upload",
+      "auth": "user",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/users",
+      "auth": "admin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users/:id",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id",
+      "auth": "admin"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/:id",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id/listening-sessions",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id/listening-stats",
+      "auth": "user"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/:id/openid-unlink",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/online",
+      "auth": "admin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/validate-cron",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/api/watcher/update",
+      "auth": "admin",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/auth/openid",
+      "auth": "public",
+      "skip": true,
+      "skip_reason": "initiates external OIDC redirect"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/openid/callback",
+      "auth": "public",
+      "skip": true,
+      "skip_reason": "requires live OIDC callback state"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/openid/config",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/openid/mobile-redirect",
+      "auth": "public",
+      "skip": true,
+      "skip_reason": "initiates external OIDC mobile redirect"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/refresh",
+      "auth": "public",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/feed/:slug",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/feed/:slug/cover*",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/feed/:slug/item/:episodeId/*",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/healthcheck",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/hls/:stream/:file",
+      "auth": "public"
+    },
+    {
+      "method": "POST",
+      "path": "/init",
+      "auth": "public",
+      "mutates": true,
+      "skip": true,
+      "skip_reason": "server initialization route returns 500 or initializes fresh DB"
+    },
+    {
+      "method": "POST",
+      "path": "/login",
+      "auth": "public",
+      "mutates": true
+    },
+    {
+      "method": "POST",
+      "path": "/logout",
+      "auth": "public",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/ping",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/public/session/:id/track/:index",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/public/share/:slug",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/public/share/:slug/cover",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/public/share/:slug/download",
+      "auth": "public"
+    },
+    {
+      "method": "PATCH",
+      "path": "/public/share/:slug/progress",
+      "auth": "public",
+      "mutates": true
+    },
+    {
+      "method": "GET",
+      "path": "/public/share/:slug/track/:index",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/status",
+      "auth": "public"
+    }
+  ]
+}

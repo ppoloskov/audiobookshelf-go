@@ -23,142 +23,16 @@ env:
   CGO_ENABLED: '0'
 
 jobs:
+  # Runs Go unit/lint/cross-builds plus the live Twin-Server Differential Oracle
+  # (pinned TS v2.37.2 vs Go across HTTP, 26 SQLite tables, Socket.IO, FS,
+  # stubs, and bidirectional TS<->Go rollback).
   verify:
     name: Unified replacement verification
     uses: ./.github/workflows/go-backend.yml
 
-  # Advisory since ROADMAP V1: the Node differential against TS v2.37.2 still
-  # runs and reports, but the image is gated by verify (Go contract,
-  # persistence and journey tests) and rollback.
-  parity:
-    name: Upstream parity (advisory)
-    needs: verify
-    continue-on-error: true
-    runs-on: ubuntu-24.04
-    env:
-      SSRF_REQUEST_FILTER_WHITELIST: 127.0.0.1
-      ABS_PARITY_REQUIRE_SOCKETIO: '1'
-      NODE_PATH: /tmp/abs-parity-node-deps/node_modules
-    steps:
-      - name: Check out
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go-backend/go.mod
-          cache-dependency-path: go-backend/go.sum
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install FFmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
-      # The harness verifies the oracle source matches the pinned upstream
-      # commit (testmachine/parity/lib/oracle.cjs: git diff --quiet <sha>); a
-      # depth-1 checkout does not contain it.
-      - name: Fetch pinned upstream commit
-        run: git fetch --no-tags --depth=1 origin edb1f7efc92ecacdef51aafb4d9d5054ce10604f
-
-      - name: Install pinned upstream dependencies
-        run: npm ci
-
-      - name: Build upstream Node server (behavior oracle)
-        run: npm run build:server
-
-      - name: Install JavaScript Socket.IO v4 probe client
-        run: npm install --prefix /tmp/abs-parity-node-deps --no-save socket.io-client@4.8.1
-
-      - name: Core differential (Node vs Go on fresh fixtures)
-        env:
-          TMPDIR: ${{ runner.temp }}/abs-parity-work
-        run: |
-          mkdir -p "$TMPDIR"
-          node go-backend/testmachine/parity/suite-runner.cjs core
-
-      - name: In-place replacement trial
-        run: node go-backend/testmachine/parity/replacement-trial.cjs --work "$RUNNER_TEMP/abs-replacement-work"
-
-      - name: New content after the swap (scan trial)
-        run: node go-backend/testmachine/parity/scan-trial.cjs --work "$RUNNER_TEMP/abs-scan-work"
-
-      # Every route upstream registers must be handled by Go, not answered with
-      # the 501 fallback. Reuses the seeded trial installation (read-only
-      # snapshot restored first); runs last because it mutates the work dir.
-      - name: Route probe (no not-implemented fallback)
-        run: node go-backend/testmachine/parity/route-probe.cjs --work "$RUNNER_TEMP/abs-replacement-work"
-
-      - name: Upload parity work directories and reports
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: parity-work
-          path: |
-            ${{ runner.temp }}/abs-parity-work
-            ${{ runner.temp }}/abs-replacement-work
-            ${{ runner.temp }}/abs-scan-work
-          if-no-files-found: warn
-          retention-days: 7
-
-  # The only job that still starts Node after V1 (ROADMAP F7b): TS v2.37.2 must
-  # reopen a database the Go server wrote. Runs the rollback part of the
-  # replacement trial alone (login, progress, bookmark, offline session sync on
-  # Go, then upstream boots on that database).
-  rollback:
-    name: Rollback (TS reopens Go's database)
-    needs: verify
-    runs-on: ubuntu-24.04
-    env:
-      SSRF_REQUEST_FILTER_WHITELIST: 127.0.0.1
-    steps:
-      - name: Check out
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go-backend/go.mod
-          cache-dependency-path: go-backend/go.sum
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install FFmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
-      - name: Fetch pinned upstream commit
-        run: git fetch --no-tags --depth=1 origin edb1f7efc92ecacdef51aafb4d9d5054ce10604f
-
-      - name: Install pinned upstream dependencies
-        run: npm ci
-
-      - name: Build upstream Node server (rollback target)
-        run: npm run build:server
-
-      - name: Rollback check (TS reopens the Go-written database)
-        run: node go-backend/testmachine/parity/replacement-trial.cjs --rollback-only --work "$RUNNER_TEMP/abs-rollback-work"
-
-      - name: Upload rollback work directory and report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rollback-work
-          path: ${{ runner.temp }}/abs-rollback-work
-          if-no-files-found: warn
-          retention-days: 7
-
   image:
     name: Build and push image
-    needs: [verify, rollback]
+    needs: [verify]
     runs-on: ubuntu-24.04
     permissions:
       contents: read

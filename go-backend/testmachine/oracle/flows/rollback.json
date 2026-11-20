@@ -1,0 +1,52 @@
+{
+  "name": "bidirectional-sqlite-rollback",
+  "steps": [
+    {
+      "name": "write-progress",
+      "method": "PATCH",
+      "path": "/api/me/progress/{{saga1}}",
+      "role": "listener",
+      "body": {"duration": 180, "progress": 0.5, "currentTime": 90, "isFinished": false},
+      "expect_status": 200,
+      "check_db": true
+    },
+    {
+      "name": "write-bookmark",
+      "method": "POST",
+      "path": "/api/me/item/{{saga1}}/bookmark",
+      "role": "listener",
+      "body": {"title": "Rollback Mark", "time": 42},
+      "expect_status": 200,
+      "check_db": true
+    },
+    {
+      "name": "write-collection",
+      "method": "POST",
+      "path": "/api/collections",
+      "role": "root",
+      "body": {"libraryId": "{{library}}", "name": "Rollback Collection", "books": ["{{saga1}}"]},
+      "expect_status": 200,
+      "check_db": true
+    },
+    {
+      "name": "restart-both-servers",
+      "kind": "restart"
+    },
+    {
+      "name": "verify-readback-after-restart",
+      "method": "GET",
+      "path": "/api/me/progress/{{saga1}}",
+      "role": "listener",
+      "expect_status": 200,
+      "check_db": true
+    },
+    {
+      "name": "ts-reopens-go-database",
+      "kind": "rollback_go_to_ts"
+    },
+    {
+      "name": "go-reopens-ts-database",
+      "kind": "rollback_ts_to_go"
+    }
+  ]
+}

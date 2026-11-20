@@ -1,0 +1,171 @@
+{
+  "name": "playback-sessions",
+  "steps": [
+    {
+      "name": "start-playback-session",
+      "method": "POST",
+      "path": "/api/items/{{saga1}}/play",
+      "role": "root",
+      "body": {
+        "forceDirectPlay": true,
+        "mediaPlayer": "html5",
+        "deviceInfo": {
+          "clientName": "OracleTest",
+          "clientVersion": "1.0",
+          "deviceId": "oracle-test-device-1"
+        },
+        "supportedMimeTypes": ["audio/mpeg", "audio/mp4"]
+      },
+      "expect_status": 200,
+      "capture": {"sess_id": "id"},
+      "check_db": true
+    },
+    {
+      "name": "get-open-session",
+      "method": "GET",
+      "path": "/api/session/{{sess_id}}",
+      "role": "root",
+      "expect_status": 200
+    },
+    {
+      "name": "list-open-sessions",
+      "method": "GET",
+      "path": "/api/sessions/open",
+      "role": "root",
+      "expect_status": 200
+    },
+    {
+      "name": "list-all-sessions",
+      "method": "GET",
+      "path": "/api/sessions",
+      "role": "root",
+      "expect_status": 200
+    },
+    {
+      "name": "stream-session-track-range-206",
+      "method": "GET",
+      "path": "/public/session/{{sess_id}}/track/1",
+      "header": {
+        "Range": "bytes=0-63"
+      },
+      "expect_status": 206
+    },
+    {
+      "name": "stream-session-track-range-416",
+      "method": "GET",
+      "path": "/public/session/{{sess_id}}/track/1",
+      "header": {
+        "Range": "bytes=99999999-"
+      },
+      "expect_status": 416
+    },
+    {
+      "name": "sync-open-session",
+      "method": "POST",
+      "path": "/api/session/{{sess_id}}/sync",
+      "role": "root",
+      "body": {
+        "currentTime": 25.5,
+        "timeListened": 15,
+        "duration": 180
+      },
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "close-open-session",
+      "method": "POST",
+      "path": "/api/session/{{sess_id}}/close",
+      "role": "root",
+      "body": {
+        "currentTime": 35.0,
+        "timeListened": 10,
+        "duration": 180
+      },
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "sync-local-session",
+      "method": "POST",
+      "path": "/api/session/local",
+      "role": "listener",
+      "body": {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "libraryItemId": "{{novel}}",
+        "mediaType": "book",
+        "playMethod": 0,
+        "mediaPlayer": "exo-player",
+        "timeListening": 12,
+        "startTime": 33,
+        "currentTime": 45,
+        "duration": 180,
+        "startedAt": 1800000000000,
+        "updatedAt": 1800000012000,
+        "deviceInfo": {
+          "clientName": "OracleOffline",
+          "clientVersion": "1.0",
+          "deviceId": "oracle-offline-device-1"
+        }
+      },
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "sync-local-sessions-batch",
+      "method": "POST",
+      "path": "/api/session/local-all",
+      "role": "listener",
+      "body": {
+        "deviceInfo": {
+          "clientName": "OracleOffline",
+          "clientVersion": "1.0",
+          "deviceId": "oracle-offline-device-1"
+        },
+        "sessions": [
+          {
+            "id": "33333333-3333-4333-8333-333333333333",
+            "libraryItemId": "{{saga2}}",
+            "mediaType": "book",
+            "playMethod": 0,
+            "mediaPlayer": "exo-player",
+            "timeListening": 20,
+            "startTime": 0,
+            "currentTime": 20,
+            "duration": 180,
+            "startedAt": 1800000100000,
+            "updatedAt": 1800000120000
+          },
+          {
+            "id": "44444444-4444-4444-8444-444444444444",
+            "libraryItemId": "{{podcast}}",
+            "episodeId": "{{ep1}}",
+            "mediaType": "podcast",
+            "playMethod": 0,
+            "mediaPlayer": "exo-player",
+            "timeListening": 15,
+            "startTime": 10,
+            "currentTime": 25,
+            "duration": 180,
+            "startedAt": 1800000200000,
+            "updatedAt": 1800000215000
+          }
+        ]
+      },
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "delete-playback-session",
+      "method": "DELETE",
+      "path": "/api/sessions/{{sess_id}}",
+      "role": "root",
+      "expect_status": 200,
+      "check_db": true
+    }
+  ]
+}

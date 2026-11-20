@@ -1,0 +1,167 @@
+{
+  "name": "coverage-deep-catalog",
+  "steps": [
+    {
+      "name": "get-saga1-for-cover-and-tracks",
+      "method": "GET",
+      "path": "/api/items/{{saga1}}",
+      "role": "root",
+      "expect_status": 200,
+      "capture": {
+        "saga1_cover": "media.coverPath",
+        "trk1": "media.audioFiles.0.ino",
+        "trk2": "media.audioFiles.1.ino",
+        "trk3": "media.audioFiles.2.ino"
+      }
+    },
+    {"name": "download-saga1-zip", "method": "GET", "path": "/api/items/{{saga1}}/download", "role": "root", "expect_status": 200},
+    {"name": "get-ebook-file", "method": "GET", "path": "/api/items/{{ebook}}/ebook", "role": "listener", "expect_status": 200},
+    {"name": "remove-saga1-cover-before-patch", "method": "DELETE", "path": "/api/items/{{saga1}}/cover", "role": "root", "expect_status": 200, "check_db": true},
+    {
+      "name": "patch-saga1-cover",
+      "method": "PATCH",
+      "path": "/api/items/{{saga1}}/cover",
+      "role": "root",
+      "body": {"cover": "{{saga1_cover}}"},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "patch-saga1-tracks-reorder",
+      "method": "PATCH",
+      "path": "/api/items/{{saga1}}/tracks",
+      "role": "root",
+      "body": {"orderedFileData": [{"ino": "{{trk2}}", "exclude": false}, {"ino": "{{trk1}}", "exclude": false}, {"ino": "{{trk3}}", "exclude": false}]},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "start-episode-playback-session",
+      "method": "POST",
+      "path": "/api/items/{{podcast}}/play/{{ep1}}",
+      "role": "root",
+      "body": {
+        "forceDirectPlay": true,
+        "mediaPlayer": "html5",
+        "deviceInfo": {"clientName": "OracleTest", "clientVersion": "1.0", "deviceId": "oracle-ep-dev-1"},
+        "supportedMimeTypes": ["audio/mpeg", "audio/mp4"]
+      },
+      "expect_status": 200,
+      "capture": {"ep_sess_id": "id"},
+      "check_db": true
+    },
+    {
+      "name": "close-episode-playback-session",
+      "method": "POST",
+      "path": "/api/session/{{ep_sess_id}}/close",
+      "role": "root",
+      "body": {"currentTime": 12.0, "timeListened": 12, "duration": 60},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "seed-saga2-filter-metadata",
+      "method": "PATCH",
+      "path": "/api/items/{{saga2}}/media",
+      "role": "root",
+      "body": {"metadata": {"genres": ["Fantasy"], "narrators": ["Oracle Narrator"], "abridged": true, "explicit": true}, "tags": ["oracle-tag"]},
+      "expect_status": 200,
+      "check_db": true
+    },
+    {
+      "name": "seed-podcast-filter-tags",
+      "method": "PATCH",
+      "path": "/api/items/{{podcast}}/media",
+      "role": "root",
+      "body": {"tags": ["pod-tag"]},
+      "expect_status": 200,
+      "check_db": true
+    },
+    {"name": "get-library-series-by-id", "method": "GET", "path": "/api/libraries/{{library}}/series/{{series1}}", "role": "root", "query": {"include": "progress,rssfeed"}, "expect_status": 200},
+    {"name": "books-collapseseries-not-started", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "listener", "query": {"collapseseries": "1", "filter": "progress.bm90LXN0YXJ0ZWQ=", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-filter-tags", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "tags.b3JhY2xlLXRhZw==", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-filter-genres", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "genres.RmFudGFzeQ==", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-filter-narrators", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "narrators.T3JhY2xlIE5hcnJhdG9y", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-filter-series-id", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "series.ZTk4N2EzMjItOTExMS00Zjc5LThjYjktYzI1ZWU3MTRlMGQ2", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-filter-no-series", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "series.bm8tc2VyaWVz", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-filter-feed-open", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "feed-open", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-filter-missing-cover", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "missing.Y292ZXI=", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-filter-abridged", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "abridged", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-filter-explicit", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "explicit", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-sort-author-name", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"sort": "media.metadata.authorName", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-sort-duration", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"sort": "media.duration", "desc": "1", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-sort-size", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"sort": "size", "desc": "1", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "books-sort-added-at", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"sort": "addedAt", "desc": "1", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "podcast-library-stats", "method": "GET", "path": "/api/libraries/{{podcastLibrary}}/stats", "role": "root", "expect_status": 200},
+    {"name": "podcast-items-sort-title-desc", "method": "GET", "path": "/api/libraries/{{podcastLibrary}}/items", "role": "root", "query": {"sort": "media.metadata.title", "desc": "1", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "podcast-items-filter-genres", "method": "GET", "path": "/api/libraries/{{podcastLibrary}}/items", "role": "root", "query": {"filter": "genres.VGVjaG5vbG9neQ==", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "podcast-items-filter-tags", "method": "GET", "path": "/api/libraries/{{podcastLibrary}}/items", "role": "root", "query": {"filter": "tags.cG9kLXRhZw==", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "get-narrators-after-seed", "method": "GET", "path": "/api/libraries/{{library}}/narrators", "role": "root", "expect_status": 200},
+    {
+      "name": "rename-oracle-narrator",
+      "method": "PATCH",
+      "path": "/api/libraries/{{library}}/narrators/T3JhY2xlIE5hcnJhdG9y",
+      "role": "root",
+      "body": {"name": "Oracle Narrator 2"},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "remove-oracle-narrator-2",
+      "method": "DELETE",
+      "path": "/api/libraries/{{library}}/narrators/T3JhY2xlIE5hcnJhdG9yIDI=",
+      "role": "root",
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {"name": "get-library-collections-rssfeed", "method": "GET", "path": "/api/libraries/{{library}}/collections", "role": "root", "query": {"include": "rssfeed"}, "expect_status": 200},
+    {"name": "get-collection-rssfeed", "method": "GET", "path": "/api/collections/{{collection}}", "role": "root", "query": {"include": "rssfeed"}, "expect_status": 200},
+    {
+      "name": "stub-quickmatch-search",
+      "kind": "stub_route",
+      "path": "/qm/search",
+      "stub_status": 200,
+      "stub_content_type": "application/json",
+      "stub_body": "{\"matches\":[{\"title\":\"Quick Matched Saga\",\"author\":\"Terry Fixture\",\"publisher\":\"QM Press\"}]}"
+    },
+    {
+      "name": "create-qm-custom-provider",
+      "method": "POST",
+      "path": "/api/custom-metadata-providers",
+      "role": "root",
+      "body": {"name": "Oracle QM Provider", "url": "{{stub_http}}/qm", "mediaType": "book"},
+      "expect_status": 200,
+      "capture": {"qm_prov_id": "provider.id"},
+      "check_db": true
+    },
+    {
+      "name": "quick-match-saga1",
+      "method": "POST",
+      "path": "/api/items/{{saga1}}/match",
+      "role": "root",
+      "body": {"provider": "custom-{{qm_prov_id}}", "overrideDetails": true},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true,
+      "check_stubs": true
+    },
+    {"name": "delete-qm-custom-provider", "method": "DELETE", "path": "/api/custom-metadata-providers/{{qm_prov_id}}", "role": "root", "expect_status": 200, "check_db": true},
+    {
+      "name": "batch-delete-disposable",
+      "method": "POST",
+      "path": "/api/items/batch/delete",
+      "role": "root",
+      "query": {"hard": "1"},
+      "body": {"libraryItemIds": ["{{disposable}}"]},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true,
+      "check_fs": true
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "name": "podcasts-and-episodes",
+  "steps": [
+    {
+      "name": "stub-podcast-rss-feed",
+      "kind": "stub_route",
+      "path": "/podcast-feed.xml",
+      "stub_status": 200,
+      "stub_content_type": "application/xml",
+      "stub_body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\" xmlns:itunes=\"http://www.itunes.com/dtds/podcast-1.0.dtd\"><channel><title>Oracle Test Podcast</title><description>Podcast feed for differential testing</description><language>en</language><itunes:author>Oracle Host</itunes:author><itunes:image href=\"{{stub_http_shared}}/cover.jpg\"/><itunes:explicit>false</itunes:explicit><item><title>Episode One</title><description>First test episode</description><pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate><guid isPermaLink=\"false\">oracle-ep-1</guid><enclosure url=\"{{stub_http_shared}}/ep.mp3\" length=\"1024\" type=\"audio/mpeg\"/><itunes:duration>120</itunes:duration><itunes:episode>1</itunes:episode><itunes:season>1</itunes:season></item><item><title>Episode Two</title><description>Second test episode</description><pubDate>Tue, 02 Jan 2024 00:00:00 GMT</pubDate><guid isPermaLink=\"false\">oracle-ep-2</guid><enclosure url=\"{{stub_http_shared}}/ep.mp3\" length=\"1024\" type=\"audio/mpeg\"/><itunes:duration>240</itunes:duration><itunes:episode>2</itunes:episode><itunes:season>1</itunes:season></item></channel></rss>"
+    },
+    {
+      "name": "fetch-and-parse-podcast-feed",
+      "method": "POST",
+      "path": "/api/podcasts/feed",
+      "role": "root",
+      "body": {
+        "rssFeed": "{{stub_http}}/podcast-feed.xml"
+      },
+      "expect_status": 200,
+      "check_stubs": true
+    },
+    {
+      "name": "parse-opml-feeds",
+      "method": "POST",
+      "path": "/api/podcasts/opml/parse",
+      "role": "root",
+      "body": {
+        "opmlText": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><opml version=\"2.0\"><head><title>Oracle OPML</title></head><body><outline type=\"rss\" text=\"Oracle Test Podcast\" title=\"Oracle Test Podcast\" xmlUrl=\"{{stub_http}}/podcast-feed.xml\"/></body></opml>"
+      },
+      "expect_status": 200
+    },
+    {
+      "name": "get-fixture-podcast-expanded",
+      "method": "GET",
+      "path": "/api/items/{{podcast}}",
+      "role": "root",
+      "query": {"expanded": "1"},
+      "expect_status": 200
+    },
+    {
+      "name": "get-podcast-episode",
+      "method": "GET",
+      "path": "/api/podcasts/{{podcast}}/episode/{{ep1}}",
+      "role": "root",
+      "expect_status": 200
+    },
+    {
+      "name": "patch-podcast-episode",
+      "method": "PATCH",
+      "path": "/api/podcasts/{{podcast}}/episode/{{ep1}}",
+      "role": "root",
+      "body": {
+        "title": "Oracle Edited Pilot",
+        "subtitle": "Differential Episode Subtitle",
+        "season": "2",
+        "episode": "10",
+        "description": "Updated by differential oracle"
+      },
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "get-podcast-downloads",
+      "method": "GET",
+      "path": "/api/podcasts/{{podcast}}/downloads",
+      "role": "root",
+      "expect_status": 200
+    },
+    {
+      "name": "clear-podcast-download-queue",
+      "method": "GET",
+      "path": "/api/podcasts/{{podcast}}/clear-queue",
+      "role": "root",
+      "expect_status": 200
+    },
+    {
+      "name": "create-podcast",
+      "method": "POST",
+      "path": "/api/podcasts",
+      "role": "root",
+      "body": {
+        "libraryId": "{{podcastLibrary}}",
+        "folderId": "{{podcastFolder1}}",
+        "path": "{{media}}/podcasts/Oracle Created Podcast",
+        "media": {
+          "metadata": {
+            "title": "Oracle Created Podcast",
+            "author": "Oracle Host",
+            "description": "Created by differential oracle",
+            "language": "en",
+            "explicit": false
+          },
+          "autoDownloadEpisodes": false
+        }
+      },
+      "expect_status": 200,
+      "capture": {"new_pod": "id"},
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "get-created-podcast-expanded",
+      "method": "GET",
+      "path": "/api/items/{{new_pod}}",
+      "role": "root",
+      "query": {"expanded": "1"},
+      "expect_status": 200
+    },
+    {
+      "name": "delete-created-podcast",
+      "method": "DELETE",
+      "path": "/api/items/{{new_pod}}",
+      "role": "root",
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    }
+  ]
+}

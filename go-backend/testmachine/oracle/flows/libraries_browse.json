@@ -1,0 +1,77 @@
+{
+  "name": "libraries-browse-and-crud",
+  "steps": [
+    {"name": "list-libraries-with-stats", "method": "GET", "path": "/api/libraries", "role": "root", "query": {"include": "stats"}, "expect_status": 200},
+    {"name": "get-book-library-with-filterdata", "method": "GET", "path": "/api/libraries/{{library}}", "role": "root", "query": {"include": "filterdata"}, "expect_status": 200},
+    {"name": "library-items-sorted-desc-collapseseries-minified", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"sort": "media.metadata.title", "desc": "1", "collapseseries": "1", "minified": "1", "limit": "5", "page": "0"}, "expect_status": 200},
+    {"name": "library-items-filter-progress-finished", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "finisher", "query": {"filter": "progress.ZmluaXNoZWQ=", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "library-items-filter-progress-not-started", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "listener", "query": {"filter": "progress.bm90LXN0YXJ0ZWQ=", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "library-items-filter-author", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "authors.MjI1YjBhNjMtZGYxMi00YTI4LTlmNDktOGQ4NmM0Nzk2ZDY5", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "library-items-filter-issues", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "issues", "limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "library-series-list", "method": "GET", "path": "/api/libraries/{{library}}/series", "role": "root", "query": {"limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "get-series-with-progress-and-rssfeed", "method": "GET", "path": "/api/series/{{series1}}", "role": "listener", "query": {"include": "progress,rssfeed"}, "expect_status": 200},
+    {
+      "name": "patch-series-description",
+      "method": "PATCH",
+      "path": "/api/series/{{series1}}",
+      "role": "root",
+      "body": {"description": "Oracle updated series description"},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {"name": "library-authors-list", "method": "GET", "path": "/api/libraries/{{library}}/authors", "role": "root", "expect_status": 200},
+    {"name": "library-narrators-list", "method": "GET", "path": "/api/libraries/{{library}}/narrators", "role": "root", "expect_status": 200},
+    {"name": "library-collections-list", "method": "GET", "path": "/api/libraries/{{library}}/collections", "role": "root", "expect_status": 200},
+    {"name": "library-playlists-list", "method": "GET", "path": "/api/libraries/{{library}}/playlists", "role": "listener", "expect_status": 200},
+    {"name": "library-personalized-shelves", "method": "GET", "path": "/api/libraries/{{library}}/personalized", "role": "listener", "expect_status": 200},
+    {"name": "library-stats", "method": "GET", "path": "/api/libraries/{{library}}/stats", "role": "root", "expect_status": 200},
+    {"name": "library-search-books", "method": "GET", "path": "/api/libraries/{{library}}/search", "role": "root", "query": {"q": "Saga"}, "expect_status": 200},
+    {"name": "library-filterdata", "method": "GET", "path": "/api/libraries/{{library}}/filterdata", "role": "root", "expect_status": 200},
+    {"name": "podcast-library-items", "method": "GET", "path": "/api/libraries/{{podcastLibrary}}/items", "role": "listener", "query": {"limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "podcast-library-recent-episodes", "method": "GET", "path": "/api/libraries/{{podcastLibrary}}/recent-episodes", "role": "listener", "query": {"limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "podcast-library-episode-downloads", "method": "GET", "path": "/api/libraries/{{podcastLibrary}}/episode-downloads", "role": "root", "expect_status": 200},
+    {"name": "podcast-library-filterdata", "method": "GET", "path": "/api/libraries/{{podcastLibrary}}/filterdata", "role": "root", "expect_status": 200},
+    {"name": "podcast-library-search", "method": "GET", "path": "/api/libraries/{{podcastLibrary}}/search", "role": "root", "query": {"q": "Pod"}, "expect_status": 200},
+    {"name": "podcast-library-opml", "method": "GET", "path": "/api/libraries/{{podcastLibrary}}/opml", "role": "root", "expect_status": 200},
+    {
+      "name": "create-temp-book-library",
+      "method": "POST",
+      "path": "/api/libraries",
+      "role": "root",
+      "body": {"name": "Oracle Temp Library", "mediaType": "book", "icon": "database", "provider": "google", "folders": [{"fullPath": "{{media}}"}]},
+      "expect_status": 200,
+      "capture": {"new_lib": "id"},
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "patch-temp-library",
+      "method": "PATCH",
+      "path": "/api/libraries/{{new_lib}}",
+      "role": "root",
+      "body": {"name": "Oracle Temp Renamed", "icon": "audiobookshelf"},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "reorder-libraries",
+      "method": "POST",
+      "path": "/api/libraries/order",
+      "role": "root",
+      "body": [{"id": "{{podcastLibrary}}", "newOrder": 1}, {"id": "{{library}}", "newOrder": 2}, {"id": "{{new_lib}}", "newOrder": 3}],
+      "expect_status": 200,
+      "check_db": true
+    },
+    {
+      "name": "delete-temp-library",
+      "method": "DELETE",
+      "path": "/api/libraries/{{new_lib}}",
+      "role": "root",
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    }
+  ]
+}

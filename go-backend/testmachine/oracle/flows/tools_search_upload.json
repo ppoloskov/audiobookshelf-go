@@ -1,0 +1,136 @@
+{
+  "name": "tools-search-upload-and-item-ops",
+  "steps": [
+    {
+      "name": "stub-custom-meta-search",
+      "kind": "stub_route",
+      "path": "/custom-meta/search",
+      "stub_status": 200,
+      "stub_content_type": "application/json",
+      "stub_body": "{\"matches\":[{\"title\":\"Stub Match\",\"author\":\"Stub Author\",\"cover\":\"https://example.invalid/stub-cover.jpg\",\"genres\":[\"Fiction\"],\"tags\":[\"stub-tag\"]}]}"
+    },
+    {
+      "name": "custom-metadata-provider-create",
+      "method": "POST",
+      "path": "/api/custom-metadata-providers",
+      "role": "root",
+      "body": {"name": "Oracle Stub Search", "url": "{{stub_http}}/custom-meta", "mediaType": "book", "authHeaderValue": "Bearer stub-secret"},
+      "expect_status": 200,
+      "capture": {"custom_prov_id": "provider.id"},
+      "check_db": true,
+      "check_sockets": true
+    },
+    {"name": "search-providers-with-custom", "method": "GET", "path": "/api/search/providers", "role": "root", "expect_status": 200},
+    {"name": "search-books-empty", "method": "GET", "path": "/api/search/books", "role": "root", "expect_status": 200},
+    {"name": "search-books-google-empty-title", "method": "GET", "path": "/api/search/books", "role": "root", "query": {"provider": "google", "title": ""}, "expect_status": 200},
+    {"name": "search-books-missing-item", "method": "GET", "path": "/api/search/books", "role": "root", "query": {"provider": "audible", "title": "Dune", "id": "missing-item-id"}, "expect_status": 404},
+    {
+      "name": "search-books-custom-provider",
+      "method": "GET",
+      "path": "/api/search/books",
+      "role": "root",
+      "query": {"provider": "custom-{{custom_prov_id}}", "title": "StubMatch", "id": "{{saga1}}"},
+      "expect_status": 200,
+      "check_stubs": true
+    },
+    {"name": "search-covers-missing-title", "method": "GET", "path": "/api/search/covers", "role": "root", "expect_status": 400},
+    {"name": "search-covers-podcast-missing-title", "method": "GET", "path": "/api/search/covers", "role": "root", "query": {"podcast": "1"}, "expect_status": 400},
+    {
+      "name": "search-covers-custom-provider",
+      "method": "GET",
+      "path": "/api/search/covers",
+      "role": "root",
+      "query": {"provider": "custom-{{custom_prov_id}}", "title": "StubMatch", "author": "Stub Author"},
+      "expect_status": 200
+    },
+    {"name": "search-authors-missing-q", "method": "GET", "path": "/api/search/authors", "role": "root", "expect_status": 400},
+    {"name": "search-authors-empty-q", "method": "GET", "path": "/api/search/authors", "role": "root", "query": {"q": ""}, "expect_status": 200},
+    {"name": "search-podcast-missing-term", "method": "GET", "path": "/api/search/podcast", "role": "root", "expect_status": 400},
+    {"name": "search-podcast-empty-term", "method": "GET", "path": "/api/search/podcast", "role": "root", "query": {"term": ""}, "expect_status": 200},
+    {"name": "search-chapters-missing-asin", "method": "GET", "path": "/api/search/chapters", "role": "root", "expect_status": 200},
+    {"name": "search-chapters-invalid-asin", "method": "GET", "path": "/api/search/chapters", "role": "root", "query": {"asin": "INVALID"}, "expect_status": 200},
+    {
+      "name": "custom-metadata-provider-delete",
+      "method": "DELETE",
+      "path": "/api/custom-metadata-providers/{{custom_prov_id}}",
+      "role": "root",
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "upload-book-note-multipart",
+      "kind": "multipart",
+      "method": "POST",
+      "path": "/api/upload",
+      "role": "root",
+      "fields": {
+        "title": "Oracle Uploaded Book",
+        "author": "Oracle Uploader",
+        "series": "Oracle Series",
+        "library": "{{library}}",
+        "folder": "{{folder1}}"
+      },
+      "files": [{"field": "0", "name": "notes.txt", "content_text": "oracle upload payload"}],
+      "expect_status": 200,
+      "check_fs": true
+    },
+    {
+      "name": "watcher-update-add",
+      "method": "POST",
+      "path": "/api/watcher/update",
+      "role": "root",
+      "body": {"libraryId": "{{library}}", "path": "{{media}}/audiobooks/Oracle Uploader/Oracle Series/Oracle Uploaded Book/notes.txt", "type": "add"},
+      "expect_status": 200
+    },
+    {
+      "name": "watcher-update-rename",
+      "method": "POST",
+      "path": "/api/watcher/update",
+      "role": "root",
+      "body": {
+        "libraryId": "{{library}}",
+        "oldPath": "{{media}}/audiobooks/Oracle Uploader/Oracle Series/Oracle Uploaded Book/notes.txt",
+        "path": "{{media}}/audiobooks/Oracle Uploader/Oracle Series/Oracle Uploaded Book/notes-renamed.txt",
+        "type": "rename"
+      },
+      "expect_status": 200
+    },
+    {
+      "name": "watcher-update-unlink",
+      "method": "POST",
+      "path": "/api/watcher/update",
+      "role": "root",
+      "body": {"libraryId": "{{library}}", "path": "{{media}}/audiobooks/Oracle Uploader/Oracle Series/Oracle Uploaded Book/notes-renamed.txt", "type": "unlink"},
+      "expect_status": 200
+    },
+    {"name": "library-remove-metadata-json", "method": "POST", "path": "/api/libraries/{{library}}/remove-metadata", "role": "root", "expect_status": 200},
+    {"name": "library-remove-metadata-abs", "method": "POST", "path": "/api/libraries/{{library}}/remove-metadata", "role": "root", "query": {"ext": "abs"}, "expect_status": 200},
+    {"name": "backups-patch-path-custom", "method": "PATCH", "path": "/api/backups/path", "role": "root", "body": {"path": "{{metadata}}/backups-custom"}, "expect_status": 200, "check_db": true},
+    {"name": "backups-patch-path-unchanged", "method": "PATCH", "path": "/api/backups/path", "role": "root", "body": {"path": "{{metadata}}/backups-custom"}, "expect_status": 200},
+    {"name": "backups-patch-path-restore", "method": "PATCH", "path": "/api/backups/path", "role": "root", "body": {"path": "{{metadata}}/backups"}, "expect_status": 200, "check_db": true},
+    {"name": "disposable-metadata-object", "method": "GET", "path": "/api/items/{{disposable}}/metadata-object", "role": "root", "expect_status": 200},
+    {
+      "name": "saga1-chapters-update",
+      "method": "POST",
+      "path": "/api/items/{{saga1}}/chapters",
+      "role": "root",
+      "body": {"chapters": [{"id": 0, "start": 0, "end": 5, "title": "Opening"}, {"id": 1, "start": 5, "end": 10, "title": "Middle"}]},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {"name": "tools-cancel-m4b-not-running", "method": "DELETE", "path": "/api/tools/item/{{saga1}}/encode-m4b", "role": "root", "expect_status": 404},
+    {
+      "name": "disposable-delete-hard",
+      "method": "DELETE",
+      "path": "/api/items/{{disposable}}",
+      "role": "root",
+      "query": {"hard": "1"},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true,
+      "check_fs": true
+    }
+  ]
+}

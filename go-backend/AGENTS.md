@@ -6,52 +6,33 @@ rules, the packages, the foundation APIs and the conventions. Then
 [ROADMAP.md](ROADMAP.md) (what is next). The Go engineering rules and review
 checklist are in the root [agents.md](../agents.md).
 
-## Roles
+## Verification & Roles
 
-Verification-tooling foundation is architect-accepted; the overall coverage task
-TASK-20261113-unified-verification remains in progress. Packet names and directory names must match the keys in
-`testmachine/scenarios/packets.json`. Keep the canonical invariant IDs, shared tests and
-generated mapping in sync, and obtain both packet reviews and the cross-packet inventory audit.
-User requires one Go-first/.mjs machine and upstream completeness, retaining the
-defined contract exclusions. The active task delivers the test machine. Run
-`make verify VERIFY_ARGS="-target upstream"` for its acceptance. Go assessment
-is a separate task. See testmachine/VERIFICATION.md. Keep one bounded owner packet per
-invocation after every scoped review. Q01 feature implementation is superseded: owner families
-first bind source-derived assertions into testmachine/scenarios, with architect review.
-Reopen scenarios stop the writer and use pinned upstream on the same disposable
-install. Assert concrete row, file and client values on either side of reopen.
-For configuration failures, distinguish validation rejection from a rejected
-database write and verify the persisted state independently of process behavior.
-For Q01, use the [queue review](testmachine/reports/q01-embed-queue-review.md) for the characterized transitions and remaining tools obligations. A successful packet diagnostic supplies scoped evidence. On handoff, check packet constructors and their canonical invariant bindings as well as files on disk. See [handover.md](handover.md) for the current discovery failure and gaps.
+The authoritative verification machine is the **Twin-Server Differential Oracle**
+under [testmachine/oracle/](testmachine/oracle/README.md), replacing the retired
+hand-written scenario/register/parity/contracttest stack (~530k LOC removed on
+2026-11-20).
 
-Current parity work is limited to one ownership packet per invocation. The
-accepted playback lifecycle packet is recorded in
-[TASK-20261113-playback-lifecycle](../docs/agent-work/archive/tasks/TASK-20261113-playback-lifecycle.md).
-Both P2 findings are closed by architect re-review. No later application feature packet has been
-dispatched; set its owner, write set, acceptance criteria and budget at dispatch.
-`media` owns FFmpeg path resolution and execution. The user authorized the narrow
-successful-process-start notification on 2026-11-13; lifecycle state stays in
-playback.
-The two P2 revisions are implemented: media uses `exec.Cmd.WaitDelay` to bound
-post-cancellation pipe draining; live progress must include nonzero updates for
-each owner before close. The packet is architect-accepted; whole-project parity
-is still unproven.
-
-Q00 inventory is architect-accepted; it changed no application production code. Canonical requirements are
-`testmachine/register/capabilities/*.json`; the generated requirement-to-test mapping
-and ordered queue are in `testmachine/reports/replacement-{requirement-map,gap-queue}.md`.
-Run `node go-backend/testmachine/scripts/replacement-contract-map.mjs --check` from root.
-Do not infer proof from old reports, a shape skeleton or a test name. Add newly
-discovered in-contract obligations and refine sampled invariants before accepting
-an owner packet. Q01 application fixes are deferred by the unified-machine direction; exact
-write set and a finishable shared-assertion subset are required at dispatch. See ROADMAP and the
-map task for acceptance state. Live deployment is separately authorized.
+- Run `make verify` (alias `make check` / `make oracle`) from the repository root
+  with Node 22 and the WebP FFmpeg prefix in [TESTING.md](TESTING.md). It boots
+  pinned TS v2.37.2 (`NODE_V8_COVERAGE`) and Go (`GOCOVERDIR`) side by side,
+  diffs HTTP, all 26 SQLite tables + `typeof()`, 3-audience Socket.IO, FS, and
+  outbound stubs, verifies bidirectional TS↔Go rollback, checks real web/mobile
+  client coverage, and writes `go-parity-backlog.md`.
+- Run `make oracle-unit` for fast pure-Go `-race` differ/mutation tests.
+- Intentional Go improvements over upstream bugs live in
+  [testmachine/oracle/divergences.json](testmachine/oracle/divergences.json).
+- Approved V8 coverage exclusions live in
+  [testmachine/oracle/coverage-exclusions.json](testmachine/oracle/coverage-exclusions.json).
+- Current active phase: **Go parity refactoring & fixes**, driven by the
+  prioritized `go-parity-backlog.md` emitted by `make oracle`. Live deployment
+  remains separately authorized.
 
 - The architect (an expensive model) designs, writes task briefs, reviews
   diffs and commits.
-- Workers run on Sonnet or a cheaper model at medium effort and execute one
-  brief each. A worker does not commit, push, add dependencies or change files
-  outside its write set.
+- Workers run on a cheaper capable model and execute one bounded brief each. A
+  worker does not commit, push, add dependencies or change files outside its
+  write set.
 
 ## Agent cost policy
 

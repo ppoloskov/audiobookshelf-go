@@ -16,9 +16,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go-backend/go.mod
-      - name: Fetch pinned upstream commit
-        run: git fetch --no-tags --depth=1 origin edb1f7efc92ecacdef51aafb4d9d5054ce10604f
-      - name: Install existing upstream dependencies and build retained client
+      - name: Install upstream dependencies and build retained web client
         run: |
           npm ci
           npm ci --prefix client
@@ -27,20 +25,31 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-      - name: Install the configured Go linter for the verifier
+      - name: Install configured Go linter
         uses: golangci/golangci-lint-action@v9.3.0
         with:
           version: v2.15.0
           install-only: true
           working-directory: go-backend
-      - name: Unified machine health, upstream proof and gated Go verification
-        run: make VERIFY_NODE=node VERIFY_ARGS="-out $RUNNER_TEMP/replacement-verification/report.json" verify
-      - name: Upload the single verification report
+      - name: Go format, vet, unit tests, lint, and Linux cross-builds
+        working-directory: go-backend
+        run: |
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go vet -tags=oracle ./testmachine/oracle/...
+          go test ./... -count=1
+          CGO_ENABLED=1 go test -race ./testmachine/oracle/...
+          golangci-lint run ./...
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o /dev/null ./cmd/audiobookshelf-go
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /dev/null ./cmd/audiobookshelf-go
+      - name: Node coverage merger self-test
+        run: node --test go-backend/testmachine/scripts/verify-coverage.test.mjs
+      - name: Twin-Server Differential Oracle (TS v2.37.2 vs Go + bidirectional rollback)
+        run: make ORACLE_NODE_CMD=node ORACLE_ARGS="--min-v8-pct 75 --min-route-pct 95" verify
+      - name: Upload oracle artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: replacement-verification
-          path: |
-            ${{ runner.temp }}/replacement-verification
-            /tmp/abs-verify-*
-          if-no-files-found: error
+          name: oracle-verification
+          path: /tmp/abs-oracle-run-*
+          if-no-files-found: warn

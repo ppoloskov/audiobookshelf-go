@@ -1,59 +1,32 @@
-# Node 22 runner for the parity harness: mise when installed, else plain node
-# (must then be Node 22.x). Override with `make PARITY_NODE=... <target>`.
-PARITY_NODE ?= $(shell command -v mise >/dev/null 2>&1 && echo "mise exec node@22 -- node" || echo node)
-VERIFY_NODE ?= $(shell command -v mise >/dev/null 2>&1 && mise exec node@22 -- node -p 'process.execPath' || command -v node)
-VERIFY_ARGS ?=
+# Node 22 runner for the Twin-Server Differential Oracle: mise when installed,
+# else plain node (must then be Node 22.x). Override with `make ORACLE_NODE_CMD=...`.
+ORACLE_NODE_CMD ?= $(shell command -v mise >/dev/null 2>&1 && echo "mise exec node@22 -- node" || echo node)
+ORACLE_ARGS ?=
 
-.PHONY: verify-packet parity parity-equivalence parity-full parity-replacement parity-scan route-probe browser-check bench client-usage status check verify
+.PHONY: check verify oracle oracle-unit oracle-routes client-audit web-e2e
 
-# One authoritative verdict: machine health, upstream proof, then the same Go
-# assertions. Missing upstream proof is a nonzero result, not advisory success.
+# Authoritative verification gate: live Twin-Server Differential Oracle (pinned
+# TS v2.37.2 vs Go across HTTP, 26 SQLite tables, 3-audience Socket.IO, FS,
+# stubs, bidirectional rollback, plus TS V8 & Go coverage + client audit).
 check: verify
 
-verify:
-	cd go-backend && go run ./testmachine/cmd/verify -node "$(VERIFY_NODE)" $(VERIFY_ARGS)
+verify: oracle
 
-# Develop one owner packet against pinned upstream: make verify-packet PACKET=auth [RUN=regex]
-verify-packet:
-	cd go-backend && REPLACEMENT_TARGET=upstream REPLACEMENT_NODE="$(VERIFY_NODE)" go test -tags=replacement ./testmachine/scenarios/$(PACKET) -count=1 -timeout 30m -v $(if $(RUN),-run 'TestReplacement/$(RUN)',)
+oracle:
+	$(ORACLE_NODE_CMD) go-backend/testmachine/oracle/run-oracle.mjs $(ORACLE_ARGS)
 
-parity:
-	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/testmachine/parity/suite-runner.cjs core
+# Fast pure-Go unit & mutation tests for the oracle differ (no live servers).
+oracle-unit:
+	cd go-backend && go test -race ./testmachine/oracle/...
 
-parity-full:
-	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/testmachine/parity/suite-runner.cjs full
+# Regenerate routes.json and sockets.json directly from upstream server/.
+oracle-routes:
+	$(ORACLE_NODE_CMD) go-backend/testmachine/oracle/gen_routes.mjs
 
-parity-equivalence:
-	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/testmachine/parity/suite-runner.cjs equivalence
+# Static cross-check of web client ($axios/Socket.IO) + 6 mobile client audits.
+client-audit:
+	$(ORACLE_NODE_CMD) go-backend/testmachine/oracle/client-audit.mjs
 
-# In-place replacement trial on a realistic upstream-created installation.
-parity-replacement:
-	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/testmachine/parity/replacement-trial.cjs
-
-# New content and library maintenance (scan, rename, delete, metadata edit, watcher) trial.
-parity-scan:
-	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/testmachine/parity/scan-trial.cjs
-
-# Every route pinned upstream registers must be handled by Go (no 501
-# "not implemented" fallback). ROUTE_PROBE_ARGS="--work DIR" reuses a seeded
-# replacement-trial work dir instead of seeding a fresh installation.
-route-probe:
-	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/testmachine/parity/route-probe.cjs $(ROUTE_PROBE_ARGS)
-
-# Chromium acceptance of the unchanged web client (Playwright), Node vs Go.
-# Creates a fresh fixture; does not rewrite the checked-in contract report.
-browser-check:
-	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/testmachine/parity/browser-check.cjs
-
-# Large-library benchmark (2000 books): upstream vs Go cold start, RSS and
-# p50/p95 latency of the hot client calls. BENCH_ARGS="--books 500 --runs 10".
-# Work dir and report: BENCH_ARGS="--work DIR" (default: a fresh temp dir).
-bench:
-	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/testmachine/parity/bench.cjs $(BENCH_ARGS)
-
-# Client routes and Socket.IO events, mapped to Go handlers (contracts/client-usage.json).
-client-usage:
-	cd go-backend && go run ./testmachine/cmd/clientusage
-
-status:
-	$(PARITY_NODE) go-backend/testmachine/parity/status.cjs
+# Playwright E2E driving the unchanged bundled Nuxt SPA against TS and Go.
+web-e2e:
+	$(ORACLE_NODE_CMD) go-backend/testmachine/oracle/web-e2e.mjs

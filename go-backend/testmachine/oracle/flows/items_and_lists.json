@@ -1,0 +1,131 @@
+{
+  "name": "items-browse-and-lists",
+  "steps": [
+    {
+      "name": "list-libraries",
+      "method": "GET",
+      "path": "/api/libraries",
+      "role": "root",
+      "expect_status": 200
+    },
+    {
+      "name": "library-items-sorted",
+      "method": "GET",
+      "path": "/api/libraries/{{library}}/items",
+      "role": "root",
+      "query": {"limit": "20", "page": "0", "sort": "media.metadata.title"},
+      "expect_status": 200
+    },
+    {
+      "name": "library-items-minified",
+      "method": "GET",
+      "path": "/api/libraries/{{library}}/items",
+      "role": "listener",
+      "query": {"limit": "20", "page": "0", "minified": "1"},
+      "expect_status": 200
+    },
+    {
+      "name": "library-filterdata",
+      "method": "GET",
+      "path": "/api/libraries/{{library}}/filterdata",
+      "role": "root",
+      "expect_status": 200
+    },
+    {
+      "name": "library-search",
+      "method": "GET",
+      "path": "/api/libraries/{{library}}/search",
+      "role": "root",
+      "query": {"q": "Saga"},
+      "expect_status": 200
+    },
+    {
+      "name": "get-item-expanded",
+      "method": "GET",
+      "path": "/api/items/{{saga1}}",
+      "role": "root",
+      "query": {"expanded": "1"},
+      "expect_status": 200
+    },
+    {
+      "name": "patch-item-media-metadata",
+      "method": "PATCH",
+      "path": "/api/items/{{saga1}}/media",
+      "role": "root",
+      "body": {
+        "metadata": {
+          "title": "Oracle Edited Saga",
+          "subtitle": "Differential Proof",
+          "publisher": "Twin Press",
+          "publishedYear": "2026"
+        },
+        "tags": ["oracle-tag", "verified"]
+      },
+      "expect_status": 200,
+      "check_db": true,
+      "check_fs": true,
+      "check_sockets": true
+    },
+    {
+      "name": "create-collection",
+      "method": "POST",
+      "path": "/api/collections",
+      "role": "root",
+      "body": {
+        "libraryId": "{{library}}",
+        "name": "Oracle Collection",
+        "description": "Created by differential oracle",
+        "books": ["{{saga1}}", "{{novel}}"]
+      },
+      "expect_status": 200,
+      "capture": {"new_coll": "id"},
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "get-collection",
+      "method": "GET",
+      "path": "/api/collections/{{new_coll}}",
+      "role": "root",
+      "expect_status": 200
+    },
+    {
+      "name": "playlist-from-collection",
+      "method": "POST",
+      "path": "/api/playlists/collection/{{new_coll}}",
+      "role": "root",
+      "expect_status": 200,
+      "capture": {"new_pl": "id"},
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "patch-playlist",
+      "method": "PATCH",
+      "path": "/api/playlists/{{new_pl}}",
+      "role": "root",
+      "body": {"name": "Oracle Renamed Playlist", "description": "Updated"},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "delete-playlist",
+      "method": "DELETE",
+      "path": "/api/playlists/{{new_pl}}",
+      "role": "root",
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "delete-collection",
+      "method": "DELETE",
+      "path": "/api/collections/{{new_coll}}",
+      "role": "root",
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    }
+  ]
+}

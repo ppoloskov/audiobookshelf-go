@@ -1,5 +1,0 @@
-{
-  "scope": "Disposable servers/native media processes referencing P2 fixture paths; inherited-pipe regression children are explicitly killed by test cleanup.",
-  "matchingDisposableProcesses": [],
-  "count": 0
-}

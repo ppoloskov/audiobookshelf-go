@@ -1,0 +1,89 @@
+{
+  "name": "authors-crud-and-merge",
+  "steps": [
+    {
+      "name": "list-library-authors",
+      "method": "GET",
+      "path": "/api/libraries/{{library}}/authors",
+      "role": "root",
+      "expect_status": 200
+    },
+    {
+      "name": "get-author-with-items-and-series",
+      "method": "GET",
+      "path": "/api/authors/{{author1}}",
+      "role": "root",
+      "query": {"include": "items,series"},
+      "expect_status": 200
+    },
+    {
+      "name": "get-author-as-listener",
+      "method": "GET",
+      "path": "/api/authors/{{author1}}",
+      "role": "listener",
+      "query": {"include": "items,series"},
+      "expect_status": 200
+    },
+    {
+      "name": "patch-author-description-and-rename",
+      "method": "PATCH",
+      "path": "/api/authors/{{author1}}",
+      "role": "root",
+      "body": {
+        "name": "Oracle Renamed Author",
+        "description": "Updated biography from twin oracle"
+      },
+      "expect_status": 200,
+      "check_db": true,
+      "check_fs": true,
+      "check_sockets": true
+    },
+    {
+      "name": "patch-author-noop-repeat",
+      "method": "PATCH",
+      "path": "/api/authors/{{author1}}",
+      "role": "root",
+      "body": {
+        "name": "Oracle Renamed Author",
+        "description": "Updated biography from twin oracle"
+      },
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "listener-cannot-patch-author",
+      "method": "PATCH",
+      "path": "/api/authors/{{author1}}",
+      "role": "listener",
+      "body": {"name": "Blocked"},
+      "expect_status": 403
+    },
+    {
+      "name": "read-author2-name",
+      "method": "GET",
+      "path": "/api/authors/{{author2}}",
+      "role": "root",
+      "expect_status": 200,
+      "capture": {"author2_name": "name"}
+    },
+    {
+      "name": "merge-author1-into-author2",
+      "method": "PATCH",
+      "path": "/api/authors/{{author1}}",
+      "role": "root",
+      "body": {"name": "{{author2_name}}"},
+      "expect_status": 200,
+      "check_db": true,
+      "check_fs": true,
+      "check_sockets": true
+    },
+    {
+      "name": "merged-author1-is-404",
+      "method": "GET",
+      "path": "/api/authors/{{author1}}",
+      "role": "root",
+      "expect_status": 404
+    }
+  ]
+}
