@@ -44,10 +44,21 @@ func main() {
 		fatal("[Server] configuration error: %v", err)
 	}
 	slog.Info("=== Starting Server ===")
-	slog.Info(fmt.Sprintf("[Server] Init v%s (Go backend build %s)", version.Server, buildCommit))
-	slog.Info(fmt.Sprintf("[Server] Go Version: %s", runtime.Version()))
-	slog.Info(fmt.Sprintf("[Server] Platform: %s", runtime.GOOS))
-	slog.Info(fmt.Sprintf("[Server] Arch: %s", runtime.GOARCH))
+	slog.Info(fmt.Sprintf("          ⢀⣀⣤⠤⠤⠤⠤⣤⣀⡀"))
+	slog.Info(fmt.Sprintf("       ⢀⡴⡞⣍⡧⠿⠓⠒⠒⠚⠿⢼⣩⢳⢦⡀"))
+	slog.Info(fmt.Sprintf("     ⢀⡴⢋⡼⠋⠁        ⠈⠙⢧⡙⢦⡀"))
+	slog.Info(fmt.Sprintf("    ⢀⣾⣤⢋⣤⣶⣶⣶⣶⣤⡀⢀⣤⣶⣶⣶⣶⣤⡙⣤⣷⡀"))
+	slog.Info(fmt.Sprintf("  ⢠⣾⠿⠿⡇⣾⣿⣿⣿⣿⣿⣿⣷⣾⣿⣿⣿⣿⣿⣿⣷⢸⠿⠿⣷⡄"))
+	slog.Info(fmt.Sprintf("  ⣿⡏⢠⣿⡥⢹⣿⡿⠿⢿⣿⣿⣿⣿⣿⣿⡿⠿⢿⣿⡏⢬⣿⡄⢹⣿"))
+	slog.Info(fmt.Sprintf(" ⠸⣿⡇⢸⠏⣴⣿⡏⠾⠆ ⢹⣿⣿⣿⣿⡏⠾⠆ ⢹⣿⣦⠹⡇⢸⣿⠇"))  
+	slog.Info(fmt.Sprintf("  ⢿⣧⠈⢸⣿⣿⣧⡀ ⢂⣼⠿⠿⠿⠿⣧⡀ ⢂⣼⣿⣿⡇⠁⣼⡿"))
+	slog.Info(fmt.Sprintf("  ⠈⠻⠟⣈⣿⣕⣽⣿⣿⣿⣿⣄⢔⢔⣤⣿⣿⣿⣿⣕⣕⣽⣁⠻⠟⠁"))
+	slog.Info(fmt.Sprintf("   ⠰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠆    MONSTROBOOK"))
+	slog.Info(fmt.Sprintf("⢠⡖⠒⠒⠂⢸⣾⣾⠺⢾⣾⣽⠽⢽⣽⣽⡽⠽⣽⣾⡾⠞⣾⣾⡎⠐⠒⠒⢲⡄ Init v%s (Go backend build %s)", version.Server, buildCommit))	 
+	slog.Info(fmt.Sprintf("⢸⡇⢠⠤⠤⠸⣿⡿ ⢸⣿⣿ ⢸⣿⣿⡇ ⣿⣿⡇ ⢿⣿⠇⠤⠤⡄⢸⡇ Go Version: %s", runtime.Version()))							 
+	slog.Info(fmt.Sprintf("⢸⡇⢸⠐⢀⠐⢈⠐⢀⠈⠛⠃⢀⠸⣿⣿⠇⠐⠘⠛⢁⠐⢀⠁⢀⠐ ⡇⢸⡇ Platform: %s", runtime.GOOS))									 
+	slog.Info(fmt.Sprintf("⢸⡇⢸⠐⢀⠐⢀⠐⢀⠐⢀⠐⢀ ⢙⠋⢀⠐⢀⠐⢀⠐⢀⠐⢀⠐ ⡇⢸⡇ Arch: %s", runtime.GOARCH))									 	
+
 	dbPath := data.FilePath(cfg.ConfigPath)
 	db, err := server.OpenDatabase(cfg)
 	if err != nil {
@@ -70,8 +81,14 @@ func main() {
 		fatal("[Server] cannot start: %v", err)
 	}
 	addr := net.JoinHostPort(cfg.Host, fmt.Sprint(cfg.Port))
-	srv := &http.Server{Addr: addr, Handler: manager, ReadHeaderTimeout: 10 * time.Second,
-		ErrorLog: slog.NewLogLogger(logging.Default(), slog.LevelError)}
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           manager,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+		ErrorLog:          slog.NewLogLogger(logging.Default(), slog.LevelError),
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	shutdownDone := make(chan struct{})
