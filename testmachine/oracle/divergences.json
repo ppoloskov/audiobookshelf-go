@@ -134,6 +134,36 @@
       "go_expect": "text/plain; charset=utf-8",
       "reason": "Go returns text/plain; charset=utf-8 for the plain text 'Backup path unchanged' 200 response where Express res.send(string) defaults to text/html; charset=utf-8",
       "client_impact": "none — clients branch on HTTP 200 status for PATCH /api/backups/path"
+    },
+    {
+      "id": "adj-cookie-share-session-samesite",
+      "scope": "adjudication",
+      "surface": "http",
+      "field_pattern": "cookie.share_session_id.sameSite",
+      "ts_expect": "0",
+      "go_expect": "2",
+      "reason": "Go sets SameSite=Lax on share_session_id cookie whereas Express defaults to unset",
+      "client_impact": "positive — CSRF protection on public share session cookie"
+    },
+    {
+      "id": "adj-cookie-logout-httponly",
+      "scope": "adjudication",
+      "surface": "http",
+      "field_pattern": "cookie.*.httpOnly",
+      "ts_expect": "false",
+      "go_expect": "true",
+      "reason": "Go sets HttpOnly=true when clearing auth_method/refresh_token cookies on logout whereas Express res.clearCookie omits HttpOnly",
+      "client_impact": "positive — consistent HttpOnly protection on auth cookies"
+    },
+    {
+      "id": "adj-cookie-logout-samesite",
+      "scope": "adjudication",
+      "surface": "http",
+      "field_pattern": "cookie.*.sameSite",
+      "ts_expect": "0",
+      "go_expect": "2",
+      "reason": "Go sets SameSite=Lax when clearing auth_method/refresh_token cookies on logout whereas Express res.clearCookie omits SameSite",
+      "client_impact": "positive — consistent SameSite=Lax protection on auth cookies"
     }
   ]
 }
