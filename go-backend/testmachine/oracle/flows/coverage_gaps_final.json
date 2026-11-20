@@ -1,0 +1,196 @@
+{
+  "name": "coverage-gaps-final",
+  "steps": [
+    {
+      "name": "library-set-auto-scan-cron",
+      "method": "PATCH",
+      "path": "/api/libraries/{{library}}",
+      "role": "root",
+      "body": {"settings": {"autoScanCronExpression": "0 4 * * *"}},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "library-update-auto-scan-cron",
+      "method": "PATCH",
+      "path": "/api/libraries/{{library}}",
+      "role": "root",
+      "body": {"settings": {"autoScanCronExpression": "30 4 * * *"}},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "library-clear-auto-scan-cron",
+      "method": "PATCH",
+      "path": "/api/libraries/{{library}}",
+      "role": "root",
+      "body": {"settings": {"autoScanCronExpression": ""}},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "podcast-set-auto-download-cron",
+      "method": "PATCH",
+      "path": "/api/items/{{podcast}}/media",
+      "role": "root",
+      "body": {"autoDownloadEpisodes": true, "autoDownloadSchedule": "0 5 * * *"},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "podcast-update-auto-download-cron",
+      "method": "PATCH",
+      "path": "/api/items/{{podcast}}/media",
+      "role": "root",
+      "body": {"autoDownloadSchedule": "30 5 * * *"},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "podcast-clear-auto-download-cron",
+      "method": "PATCH",
+      "path": "/api/items/{{podcast}}/media",
+      "role": "root",
+      "body": {"autoDownloadEpisodes": false, "autoDownloadSchedule": ""},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "saga2-parse-full-name-authors",
+      "method": "PATCH",
+      "path": "/api/items/{{saga2}}/media",
+      "role": "root",
+      "body": {
+        "metadata": {
+          "authors": [
+            {"name": "Dr. John Q. Smith Jr."},
+            {"name": "van der Berg, Anna"},
+            {"name": "J. R. R. Tolkien"}
+          ]
+        }
+      },
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "saga2-add-subseries",
+      "method": "PATCH",
+      "path": "/api/items/{{saga2}}/media",
+      "role": "root",
+      "body": {
+        "metadata": {
+          "series": [
+            {"name": "Long Saga", "sequence": "2"},
+            {"name": "Oracle Subseries Alpha", "sequence": "1"},
+            {"name": "Oracle Subseries Beta", "sequence": "2.5"}
+          ]
+        }
+      },
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {"name": "library-items-collapseseries-title-asc", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"collapseseries": "1", "sort": "media.metadata.title", "limit": "20", "page": "0"}, "expect_status": 200},
+    {"name": "library-items-collapseseries-desc", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"collapseseries": "1", "desc": "1", "limit": "20", "page": "0"}, "expect_status": 200},
+    {"name": "library-items-subseries-collapse-title", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "series.ZTk4N2EzMjItOTExMS00Zjc5LThjYjktYzI1ZWU3MTRlMGQ2", "collapseseries": "1", "sort": "media.metadata.title", "limit": "20", "page": "0"}, "expect_status": 200},
+    {"name": "library-items-subseries-collapse-seq-desc", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "series.ZTk4N2EzMjItOTExMS00Zjc5LThjYjktYzI1ZWU3MTRlMGQ2", "collapseseries": "1", "sort": "sequence", "desc": "1", "limit": "20", "page": "0"}, "expect_status": 200},
+    {"name": "library-items-subseries-collapse-duration", "method": "GET", "path": "/api/libraries/{{library}}/items", "role": "root", "query": {"filter": "series.ZTk4N2EzMjItOTExMS00Zjc5LThjYjktYzI1ZWU3MTRlMGQ2", "collapseseries": "1", "sort": "media.duration", "limit": "20", "page": "0"}, "expect_status": 200},
+    {"name": "library-series-sort-name", "method": "GET", "path": "/api/libraries/{{library}}/series", "role": "root", "query": {"sort": "name", "limit": "20", "page": "0"}, "expect_status": 200},
+    {"name": "library-series-sort-numbooks-desc", "method": "GET", "path": "/api/libraries/{{library}}/series", "role": "root", "query": {"sort": "numBooks", "desc": "1", "limit": "20", "page": "0"}, "expect_status": 200},
+    {"name": "library-series-sort-total-duration", "method": "GET", "path": "/api/libraries/{{library}}/series", "role": "root", "query": {"sort": "totalDuration", "limit": "20", "page": "0"}, "expect_status": 200},
+    {"name": "library-series-sort-added-at", "method": "GET", "path": "/api/libraries/{{library}}/series", "role": "root", "query": {"sort": "addedAt", "limit": "20", "page": "0"}, "expect_status": 200},
+    {
+      "name": "saga2-clear-subseries",
+      "method": "PATCH",
+      "path": "/api/items/{{saga2}}/media",
+      "role": "root",
+      "body": {"metadata": {"series": []}},
+      "expect_status": 200,
+      "check_db": true,
+      "check_sockets": true
+    },
+    {
+      "name": "stub-bqm-search",
+      "kind": "stub_route",
+      "path": "/bqm/search",
+      "stub_status": 200,
+      "stub_content_type": "application/json",
+      "stub_body": "{\"matches\":[{\"title\":\"Batch Quick Matched\",\"author\":\"Terry Fixture\",\"publisher\":\"BQM Press\",\"series\":[{\"series\":\"Long Saga\",\"sequence\":\"1\"},{\"series\":\"BQM Added Series\",\"sequence\":\"1\"}]}]}"
+    },
+    {
+      "name": "create-bqm-custom-provider",
+      "method": "POST",
+      "path": "/api/custom-metadata-providers",
+      "role": "root",
+      "body": {"name": "BQM Stub", "url": "{{stub_http}}/bqm", "mediaType": "book"},
+      "expect_status": 200,
+      "capture": {"bqm_prov_id": "provider.id"},
+      "check_db": true
+    },
+    {
+      "name": "items-batch-quickmatch",
+      "method": "POST",
+      "path": "/api/items/batch/quickmatch",
+      "role": "root",
+      "body": {"options": {"provider": "custom-{{bqm_prov_id}}", "overrideDetails": true}, "libraryItemIds": ["{{saga1}}"]},
+      "expect_status": 200,
+      "check_sockets": true,
+      "settle_ms": 1000
+    },
+    {"name": "delete-bqm-custom-provider", "method": "DELETE", "path": "/api/custom-metadata-providers/{{bqm_prov_id}}", "role": "root", "expect_status": 200, "check_db": true},
+    {
+      "name": "create-local-session-saga2-2026",
+      "method": "POST",
+      "path": "/api/session/local",
+      "role": "listener",
+      "body": {
+        "id": "88888888-8888-4888-8888-888888888881",
+        "libraryItemId": "{{saga2}}",
+        "mediaType": "book",
+        "playMethod": 0,
+        "mediaPlayer": "exo-player",
+        "timeListening": 120,
+        "startTime": 0,
+        "currentTime": 120,
+        "duration": 180,
+        "startedAt": 1790000300000,
+        "updatedAt": 1790000310000,
+        "deviceInfo": {"clientName": "OracleOffline", "clientVersion": "1.0", "deviceId": "oracle-offline-stats-1"}
+      },
+      "expect_status": 200,
+      "check_db": true
+    },
+    {
+      "name": "create-local-session-novel-2026",
+      "method": "POST",
+      "path": "/api/session/local",
+      "role": "listener",
+      "body": {
+        "id": "88888888-8888-4888-8888-888888888882",
+        "libraryItemId": "{{novel}}",
+        "mediaType": "book",
+        "playMethod": 0,
+        "mediaPlayer": "exo-player",
+        "timeListening": 60,
+        "startTime": 0,
+        "currentTime": 60,
+        "duration": 180,
+        "startedAt": 1790000400000,
+        "updatedAt": 1790000460000,
+        "deviceInfo": {"clientName": "OracleOffline", "clientVersion": "1.0", "deviceId": "oracle-offline-stats-2"}
+      },
+      "expect_status": 200,
+      "check_db": true
+    },
+    {"name": "stats-year-2026-after-sessions", "method": "GET", "path": "/api/stats/year/2026", "role": "root", "expect_status": 200},
+    {"name": "podcast-library-recent-episodes", "method": "GET", "path": "/api/libraries/{{podcastLibrary}}/recent-episodes", "role": "root", "query": {"limit": "10", "page": "0"}, "expect_status": 200},
+    {"name": "podcast-library-items-sort-title", "method": "GET", "path": "/api/libraries/{{podcastLibrary}}/items", "role": "root", "query": {"sort": "media.metadata.title", "limit": "10", "page": "0"}, "expect_status": 200}
+  ]
+}

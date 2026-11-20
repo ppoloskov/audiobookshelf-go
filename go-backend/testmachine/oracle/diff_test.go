@@ -164,7 +164,11 @@ func execSQL(t *testing.T, dbPath, query string) {
 	if err != nil {
 		t.Fatalf("open sqlite %s: %v", dbPath, err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("close sqlite %s: %v", dbPath, err)
+		}
+	}()
 	if _, err := db.Exec(query); err != nil {
 		t.Fatalf("exec sqlite %s: %v", dbPath, err)
 	}

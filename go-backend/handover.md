@@ -19,13 +19,13 @@ Socket.IO (`root`/`listener`/`finisher`), FS/`metadata.json`, outbound HTTP/SMTP
 stubs, and bidirectional TS↔Go SQLite rollback in ~90s.
 
 ### Latest Oracle Scorecard (2026-11-20)
-- **Routes Hit (Any):** `218 / 218` (**100.0%**) in-scope routes (`213 / 218 = 97.7%` happy-path `2xx/3xx`, `214 / 218 = 98.2%` error-probed `4xx`)
-- **Socket.IO Live:** `8 / 9` inbound, `51 / 62` outbound events observed
-- **TS v2.37.2 V8 In-Scope Coverage:** **78.1%** lines (`31,837 / 40,752`), **80.9%** functions
-- **Go Server Statement Coverage:** **69.5%** weighted across all 32 `internal/*` packages
-- **Web Client Audit (`client/`):** `171 / 171` unique `$axios` routes matched (`0` unmatched), `169 / 169` non-skipped routes exercised in flows, `6 / 6` Socket.IO emitters exercised
-- **Mobile Client Audits:** `lissen` 29/29, `yaabsa` 139/142, `official-app` 62/64, `audiobooth` 57/59, `storii` 68/72, `absorb` 129/138; `cmd/abs-record` ready to capture real device cassettes
-- **Go Parity Backlog:** `672` findings across `178` grouped root causes emitted to `go-parity-backlog.md` — ready to drive the next phase (Go refactoring & parity fixes).
+- **Routes Hit (Any):** `218 / 218` (**100.0%**) in-scope routes (`216 / 218 = 99.1%` happy-path `2xx/3xx`, `214 / 218 = 98.2%` error-probed `4xx`)
+- **Socket.IO Live:** `8 / 9` inbound, `59 / 62` (**95.2%**) outbound events observed
+- **TS v2.37.2 V8 In-Scope Coverage:** **80.1%** lines (`32,634 / 40,752`), **82.7%** functions
+- **Go Server Statement Coverage:** **71.4%** weighted across all 32 `internal/*` packages
+- **Web Client Audit (`client/`):** `171 / 171` unique `$axios` routes matched (`0` unmatched), `171 / 171` (**100.0%**) exercised in flows/complex tests, `6 / 6` Socket.IO emitters exercised
+- **Mobile Client Audits:** `lissen` 29/29, `yaabsa` 141/142, `official-app` 62/64, `audiobooth` 57/59, `storii` 68/72, `absorb` 130/138; `cmd/abs-record` ready to capture real device cassettes
+- **Go Parity Backlog:** `758` findings across `204` grouped root causes emitted to `go-parity-backlog.md` — ready to drive the next phase (Go refactoring & parity fixes).
 
 ## Historical notes (archived below)
 

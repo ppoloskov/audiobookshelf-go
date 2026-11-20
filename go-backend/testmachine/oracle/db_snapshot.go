@@ -58,7 +58,7 @@ func SnapshotDB(dbPath string) (*DBSnapshot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite db %s: %w", dbPath, err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }() // read-only snapshot
 
 	tableNames, err := listSQLiteTables(db)
 	if err != nil {
@@ -343,7 +343,7 @@ func canonicalRowSortKey(corr *Correspondence, side string, sortedCols []string,
 		}
 		b.WriteString(c)
 		b.WriteByte('=')
-		b.WriteString(fmt.Sprintf("%v", v))
+		fmt.Fprintf(&b, "%v", v)
 		b.WriteByte(';')
 	}
 	return b.String()

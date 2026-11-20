@@ -258,7 +258,7 @@ function parseOracleLog(logText) {
       const testName = resMatch[2]
       if (/^TestOracleFlows\/[^/]+\/[^/]+$/.test(testName)) {
         stats.flowSteps[outcome]++
-      } else if (/^TestOracle(?:Complex|Deep)\w+$/.test(testName)) {
+      } else if (/^TestOracle(?:Complex|Deep|Surface|Gaps)\w+$/.test(testName)) {
         stats.complex[outcome]++
       } else if (testName === 'TestOracleRouteMatrix') {
         stats.routeMatrix.topStatus = resMatch[1]
