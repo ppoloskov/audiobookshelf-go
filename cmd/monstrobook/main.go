@@ -54,10 +54,10 @@ func main() {
 	slog.Info("  ⢿⣧⠈⢸⣿⣿⣧⡀ ⢂⣼⠿⠿⠿⠿⣧⡀ ⢂⣼⣿⣿⡇⠁⣼⡿")
 	slog.Info("  ⠈⠻⠟⣈⣿⣕⣽⣿⣿⣿⣿⣄⢔⢔⣤⣿⣿⣿⣿⣕⣕⣽⣁⠻⠟⠁")
 	slog.Info("   ⠰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠆    MONSTROBOOK")
-	slog.Info(fmt.Sprintf("⢠⡖⠒⠒⠂⢸⣾⣾⠺⢾⣾⣽⠽⢽⣽⣽⡽⠽⣽⣾⡾⠞⣾⣾⡎⠐⠒⠒⢲⡄ Init v%s (Go backend build %s)", version.Server, buildCommit))
-	slog.Info(fmt.Sprintf("⢸⡇⢠⠤⠤⠸⣿⡿ ⢸⣿⣿ ⢸⣿⣿⡇ ⣿⣿⡇ ⢿⣿⠇⠤⠤⡄⢸⡇ Go Version: %s", runtime.Version()))
-	slog.Info(fmt.Sprintf("⢸⡇⢸⠐⢀⠐⢈⠐⢀⠈⠛⠃⢀⠸⣿⣿⠇⠐⠘⠛⢁⠐⢀⠁⢀⠐ ⡇⢸⡇ Platform: %s", runtime.GOOS))
-	slog.Info(fmt.Sprintf("⢸⡇⢸⠐⢀⠐⢀⠐⢀⠐⢀⠐⢀ ⢙⠋⢀⠐⢀⠐⢀⠐⢀⠐⢀⠐ ⡇⢸⡇ Arch: %s", runtime.GOARCH))
+	slog.Info(fmt.Sprintf("⢠⡖⠒⠒⠂⢸⣾⣾⠺⢾⣾⣽⠽⢽⣽⣽⡽⠽⣽⣾⡾⠞⣾⣾⡎⠐⠒⠒⢲⡄ Init v%s (Go backend build %s)", version.Monstrobook, buildCommit))
+	slog.Info(fmt.Sprintf("⢸⡇⢠⠤⠤⠸⣿⡿ ⢸⣿⣿ ⢸⣿⣿⡇ ⣿⣿⡇ ⢿⣿⠇⠤⠤⡄⢸⡇ Upstream compatibility: Audiobookshelf v%s", version.Server))
+	slog.Info(fmt.Sprintf("⢸⡇⢸⠐⢀⠐⢈⠐⢀⠈⠛⠃⢀⠸⣿⣿⠇⠐⠘⠛⢁⠐⢀⠁⢀⠐ ⡇⢸⡇ Go Version: %s", runtime.Version()))
+	slog.Info(fmt.Sprintf("⢸⡇⢸⠐⢀⠐⢀⠐⢀⠐⢀⠐⢀ ⢙⠋⢀⠐⢀⠐⢀⠐⢀⠐⢀⠐ ⡇⢸⡇ Platform: %s | Arch: %s", runtime.GOOS, runtime.GOARCH))
 
 	dbPath := data.FilePath(cfg.ConfigPath)
 	db, err := server.OpenDatabase(cfg)
@@ -102,7 +102,7 @@ func main() {
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
 	}()
-	slog.Info(fmt.Sprintf("Monstrobook v%s (build %s); SOURCE=%s; listen=%s; config=%s; metadata=%s; routerBasePath=%q", version.Server, buildCommit, cfg.Source, addr, cfg.ConfigPath, cfg.MetadataPath, cfg.RouterBasePath))
+	slog.Info(fmt.Sprintf("Monstrobook v%s (build %s; Audiobookshelf v%s compat); SOURCE=%s; listen=%s; config=%s; metadata=%s; routerBasePath=%q", version.Monstrobook, buildCommit, version.Server, cfg.Source, addr, cfg.ConfigPath, cfg.MetadataPath, cfg.RouterBasePath))
 	basePath := cfg.RouterBasePath
 	if basePath == "" {
 		basePath = "/"
